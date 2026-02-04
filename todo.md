@@ -327,3 +327,8 @@
 - [x] Loading-State korrekt auf false setzen wenn kein User
 - [x] Timeout für Auth-Check implementieren (3 Sekunden)
 - [x] forceReady-Flag verhindert endloses Loading
+
+## Auth-Check temporär deaktivieren
+- [x] Auth-Check im Tab-Layout auskommentieren
+- [x] Direkt zum Dashboard weiterleiten (kein Loading mehr)
+- [ ] Nach OAuth-Konfiguration wieder aktivieren

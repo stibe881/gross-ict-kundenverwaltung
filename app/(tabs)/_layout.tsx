@@ -14,42 +14,37 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
   const tabBarHeight = 56 + bottomPadding;
-  const { user, isAuthenticated, loading } = useAuth();
-  const router = useRouter();
-  const [hasRedirected, setHasRedirected] = useState(false);
-  const [forceReady, setForceReady] = useState(false);
 
-  // Timeout für Loading-State (max 3 Sekunden)
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setForceReady(true);
-    }, 3000);
-    return () => clearTimeout(timeout);
-  }, []);
-
-  // Redirect zu Login wenn nicht angemeldet (nur einmal)
-  useEffect(() => {
-    if ((forceReady || !loading) && !isAuthenticated && !hasRedirected) {
-      setHasRedirected(true);
-      router.replace("/portal-login");
-    }
-  }, [loading, isAuthenticated, hasRedirected, forceReady, router]);
-
-  // Zeige Loading während Auth-Check (max 3 Sekunden)
-  if (loading && !forceReady) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  // Zeige nichts wenn nicht angemeldet (wird weitergeleitet)
-  if (!isAuthenticated) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.background }} />
-    );
-  }
+  // TODO: Auth-Check temporär deaktiviert bis OAuth konfiguriert ist
+  // Nach OAuth-Setup wieder aktivieren:
+  // const { user, isAuthenticated, loading } = useAuth();
+  // const router = useRouter();
+  // const [hasRedirected, setHasRedirected] = useState(false);
+  // const [forceReady, setForceReady] = useState(false);
+  //
+  // useEffect(() => {
+  //   const timeout = setTimeout(() => setForceReady(true), 3000);
+  //   return () => clearTimeout(timeout);
+  // }, []);
+  //
+  // useEffect(() => {
+  //   if ((forceReady || !loading) && !isAuthenticated && !hasRedirected) {
+  //     setHasRedirected(true);
+  //     router.replace("/portal-login");
+  //   }
+  // }, [loading, isAuthenticated, hasRedirected, forceReady, router]);
+  //
+  // if (loading && !forceReady) {
+  //   return (
+  //     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+  //       <ActivityIndicator size="large" color={colors.primary} />
+  //     </View>
+  //   );
+  // }
+  //
+  // if (!isAuthenticated) {
+  //   return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  // }
 
   return (
     <Tabs
