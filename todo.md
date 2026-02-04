@@ -201,3 +201,15 @@
 - [ ] Benutzer bearbeiten (Rolle ändern, aktivieren/deaktivieren)
 - [ ] Benutzer löschen/deaktivieren
 - [ ] Rollenbasierte Navigation (Admin-Tab nur für Admins sichtbar)
+
+## Vertragsmodul (Priorität 1)
+- [x] Vertragsmodul-Screen erstellen (/contracts)
+- [x] Vertragsliste mit Beispieldaten anzeigen
+- [x] Vertragsstatus (Aktiv, Gekündigt, Abgelaufen) mit Farbcodierung
+- [x] Filterung nach Status
+- [x] Statistik-Kacheln (Aktiv, Gekündigt, Abgelaufen)
+- [x] Dashboard-Kachel für Verträge hinzugefügt
+- [ ] Neuen Vertrag erstellen (Kunde, Titel, Beschreibung, Betrag, Laufzeit, Kündigungsfrist)
+- [ ] Vertrag bearbeiten
+- [ ] Vertrags-Details-Modal
+- [ ] Integration in Kunden-Detailansicht

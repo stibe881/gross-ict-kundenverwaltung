@@ -70,6 +70,14 @@ export default function DashboardScreen() {
       color: colors.success,
       route: "/accounting",
     },
+    {
+      id: "contracts",
+      title: "Verträge",
+      value: "Verwaltung",
+      icon: "doc.text.fill",
+      color: "#6366F1",
+      route: "/contracts",
+    },
   ];
 
   return (
