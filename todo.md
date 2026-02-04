@@ -287,3 +287,8 @@
 - [ ] API-Integration für Portal-Benutzerverwaltung
 - [ ] API-Integration für Ticket-Kommentare (Internal/External)
 - [ ] Supabase-Schema ausführen (customer_portal_users Tabelle)
+
+## Theme-System Anpassung
+- [x] Theme-System entfernen (Light/Dark/System Toggle)
+- [x] Festes dunkles Design implementieren
+- [x] Theme-Toggle aus Dashboard entfernt

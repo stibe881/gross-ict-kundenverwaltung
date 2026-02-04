@@ -8,7 +8,7 @@ import { useColors } from "@/hooks/use-colors";
 import { CustomerFormModal } from "@/components/customer-form-modal";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { TicketFormModal } from "@/components/ticket-form-modal";
-import { ThemeToggle } from "@/components/theme-toggle";
+
 
 interface DashboardTile {
   id: string;
@@ -109,9 +109,8 @@ export default function DashboardScreen() {
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
         {/* Header */}
         <View className="mb-6">
-          <View className="flex-row items-center justify-between mb-2">
+          <View className="mb-2">
             <Text className="text-3xl font-bold text-foreground">Dashboard</Text>
-            <ThemeToggle />
           </View>
           <Text className="text-base text-muted mt-1">
             Willkommen zurück, {user?.name || "Benutzer"}
