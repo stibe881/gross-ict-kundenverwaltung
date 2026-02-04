@@ -121,3 +121,6 @@
 - [x] Akquisemodul UI implementieren (Lead-Pipeline mit Stages)
 - [x] Ticketsystem UI implementieren (Ticket-Liste mit Filter und Statistik)
 - [ ] Login-Funktionalität - OAuth wird automatisch vom Backend gehandhabt
+
+## Benutzer-Feedback
+- [x] Währung von EUR auf CHF ändern (alle Module)

@@ -80,22 +80,22 @@ export default function AccountingScreen() {
             <View className="flex-row gap-3">
               <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
                 <Text className="text-sm text-muted mb-1">Umsatz (Monat)</Text>
-                <Text className="text-2xl font-bold text-success">€ 0,00</Text>
+                <Text className="text-2xl font-bold text-success">CHF 0.00</Text>
               </View>
               <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
                 <Text className="text-sm text-muted mb-1">Ausgaben</Text>
-                <Text className="text-2xl font-bold text-error">€ 0,00</Text>
+                <Text className="text-2xl font-bold text-error">CHF 0.00</Text>
               </View>
             </View>
 
             <View className="flex-row gap-3">
               <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
                 <Text className="text-sm text-muted mb-1">Offene Posten</Text>
-                <Text className="text-2xl font-bold text-warning">€ 0,00</Text>
+                <Text className="text-2xl font-bold text-warning">CHF 0.00</Text>
               </View>
               <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
                 <Text className="text-sm text-muted mb-1">Gewinn</Text>
-                <Text className="text-2xl font-bold text-primary">€ 0,00</Text>
+                <Text className="text-2xl font-bold text-primary">CHF 0.00</Text>
               </View>
             </View>
 

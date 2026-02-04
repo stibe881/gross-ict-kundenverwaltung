@@ -84,7 +84,7 @@ export default function LeadsScreen() {
           </View>
           <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
             <Text className="text-2xl font-bold text-success">
-              € {totalValue.toLocaleString("de-DE")}
+              CHF {totalValue.toLocaleString("de-CH")}
             </Text>
             <Text className="text-sm text-muted">Potenzial</Text>
           </View>
@@ -124,7 +124,7 @@ export default function LeadsScreen() {
                       </Text>
                       <Text className="text-sm text-muted mb-2">{lead.company}</Text>
                       <Text className="text-sm font-semibold text-success">
-                        € {lead.value.toLocaleString("de-DE")}
+                        CHF {lead.value.toLocaleString("de-CH")}
                       </Text>
                     </TouchableOpacity>
                   ))}
