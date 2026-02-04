@@ -226,3 +226,10 @@
 - [ ] Newsletter-Modul implementieren (E-Mail-Kampagnen, Empfängerlisten, Versand)
 - [ ] Rechnungs-PDF-Export (PDF-Generierung mit MwSt-Ausweis)
 - [ ] Dashboard-Statistiken mit echten Daten aus der Datenbank
+
+## Aktuelle Prioritäten
+- [x] Dark/Light Mode Toggle implementieren (Dashboard-Header)
+- [x] Sun/Moon Icons zum Icon-Mapping hinzugefügt
+- [ ] Newsletter-Modul implementieren
+- [ ] Rechnungs-PDF-Export
+- [ ] Dashboard-Statistiken mit echten Daten

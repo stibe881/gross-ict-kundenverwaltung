@@ -33,6 +33,8 @@ const MAPPING = {
   "cube.box.fill": "inventory",
   "xmark.circle.fill": "cancel",
   "trash.fill": "delete",
+  "sun.max.fill": "wb-sunny",
+  "moon.fill": "nightlight-round",
 } as IconMapping;
 
 /**
