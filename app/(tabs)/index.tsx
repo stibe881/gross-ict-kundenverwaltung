@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { CustomerFormModal } from "@/components/customer-form-modal";
+import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
+import { TicketFormModal } from "@/components/ticket-form-modal";
 
 interface DashboardTile {
   id: string;
@@ -18,6 +22,9 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { user, isAuthenticated, loading } = useAuth();
   const colors = useColors();
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   if (loading) {
     return (
@@ -116,6 +123,7 @@ export default function DashboardScreen() {
             <TouchableOpacity
               className="bg-primary px-4 py-3 rounded-lg flex-row items-center"
               activeOpacity={0.8}
+              onPress={() => setShowCustomerModal(true)}
             >
               <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
               <Text className="text-background font-semibold ml-2">Neuer Kunde</Text>
@@ -124,6 +132,7 @@ export default function DashboardScreen() {
             <TouchableOpacity
               className="bg-surface px-4 py-3 rounded-lg flex-row items-center border border-border"
               activeOpacity={0.8}
+              onPress={() => setShowTicketModal(true)}
             >
               <IconSymbol name="plus.circle.fill" size={20} color={colors.primary} />
               <Text className="text-foreground font-semibold ml-2">Neues Ticket</Text>
@@ -132,6 +141,7 @@ export default function DashboardScreen() {
             <TouchableOpacity
               className="bg-surface px-4 py-3 rounded-lg flex-row items-center border border-border"
               activeOpacity={0.8}
+              onPress={() => setShowInvoiceModal(true)}
             >
               <IconSymbol name="plus.circle.fill" size={20} color={colors.primary} />
               <Text className="text-foreground font-semibold ml-2">Neue Rechnung</Text>
@@ -139,6 +149,23 @@ export default function DashboardScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Modals */}
+      <CustomerFormModal
+        visible={showCustomerModal}
+        onClose={() => setShowCustomerModal(false)}
+        onSuccess={() => {}}
+      />
+      <TicketFormModal
+        visible={showTicketModal}
+        onClose={() => setShowTicketModal(false)}
+        onSuccess={() => {}}
+      />
+      <InvoiceFormModal
+        visible={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        onSuccess={() => {}}
+      />
     </ScreenContainer>
   );
 }

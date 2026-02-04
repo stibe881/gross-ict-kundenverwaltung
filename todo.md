@@ -162,3 +162,18 @@
 - [x] "Als Kunde erfassen"-Button in Lead-Karten
 - [x] Lead-Daten automatisch in Kundenformular übernehmen
 - [x] Bestätigungsdialog mit Lead-Informationen
+
+## Bugfixes
+- [x] Dashboard: "Neuer Kunde", "Neues Ticket", "Neue Rechnung" Buttons funktional machen
+- [x] Tickets: Plus-Button oben rechts funktional machen
+- [x] Tickets: Ticket-Details öffnen können
+
+## Datumsformat
+- [x] Datumsformat in Tickets auf DD.MM.YYYY angepasst
+- [x] formatDate()-Funktion bereits vorhanden in lib/format.ts
+
+## Ticket-Formular
+- [x] Ticket-Formular-Komponente erstellt
+- [x] Ticket-Plus-Button funktional
+- [x] Ticket-Details öffnen funktioniert
+- [x] Kundenauswahl im Ticket-Formular

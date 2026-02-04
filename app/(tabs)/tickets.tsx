@@ -9,6 +9,8 @@ import {
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { TicketFormModal } from "@/components/ticket-form-modal";
+import { formatDate } from "@/lib/format";
 
 type TicketStatus = "open" | "in_progress" | "waiting" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
@@ -53,6 +55,8 @@ export default function TicketsScreen() {
   const colors = useColors();
   const [tickets] = useState<Ticket[]>(mockTickets);
   const [filter, setFilter] = useState<"all" | TicketStatus>("all");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
 
   const getStatusLabel = (status: TicketStatus) => {
     const labels: Record<TicketStatus, string> = {
@@ -101,6 +105,7 @@ export default function TicketsScreen() {
     <TouchableOpacity
       className="bg-surface rounded-xl p-4 mb-3 border border-border"
       activeOpacity={0.7}
+      onPress={() => setSelectedTicket(item)}
     >
       <View className="flex-row items-start justify-between mb-2">
         <View className="flex-1">
@@ -132,7 +137,7 @@ export default function TicketsScreen() {
             {getStatusLabel(item.status)}
           </Text>
         </View>
-        <Text className="text-xs text-muted">{item.createdAt}</Text>
+        <Text className="text-xs text-muted">{formatDate(item.createdAt)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -146,6 +151,7 @@ export default function TicketsScreen() {
           <TouchableOpacity
             className="bg-primary w-12 h-12 rounded-full items-center justify-center"
             activeOpacity={0.8}
+            onPress={() => setShowAddModal(true)}
           >
             <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
           </TouchableOpacity>
@@ -218,6 +224,144 @@ export default function TicketsScreen() {
           </View>
         )}
       </View>
+
+      {/* Ticket-Formular Modal */}
+      <TicketFormModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={() => {}}
+      />
+
+      {/* Ticket-Details Modal */}
+      {selectedTicket && (
+        <TicketDetailsModal
+          ticket={selectedTicket}
+          onClose={() => setSelectedTicket(null)}
+        />
+      )}
     </ScreenContainer>
+  );
+}
+
+// Ticket-Details Modal
+function TicketDetailsModal({
+  ticket,
+  onClose,
+}: {
+  ticket: Ticket;
+  onClose: () => void;
+}) {
+  const colors = useColors();
+
+  const getStatusLabel = (status: TicketStatus) => {
+    const labels: Record<TicketStatus, string> = {
+      open: "Offen",
+      in_progress: "In Bearbeitung",
+      waiting: "Wartet",
+      closed: "Geschlossen",
+    };
+    return labels[status];
+  };
+
+  const getStatusColor = (status: TicketStatus) => {
+    const colorMap: Record<TicketStatus, string> = {
+      open: colors.error,
+      in_progress: colors.primary,
+      waiting: colors.warning,
+      closed: colors.success,
+    };
+    return colorMap[status];
+  };
+
+  const getPriorityLabel = (priority: TicketPriority) => {
+    const labels: Record<TicketPriority, string> = {
+      low: "Niedrig",
+      medium: "Mittel",
+      high: "Hoch",
+      urgent: "Dringend",
+    };
+    return labels[priority];
+  };
+
+  const getPriorityColor = (priority: TicketPriority) => {
+    const colorMap: Record<TicketPriority, string> = {
+      low: colors.success,
+      medium: colors.warning,
+      high: colors.error,
+      urgent: "#DC143C",
+    };
+    return colorMap[priority];
+  };
+
+  return (
+    <View
+      className="absolute inset-0 bg-black/50 items-center justify-center p-4"
+      style={{ zIndex: 1000 }}
+    >
+      <View className="bg-background rounded-2xl p-6 w-full max-w-md">
+        <View className="flex-row items-center justify-between mb-4">
+          <Text className="text-2xl font-bold text-foreground">Ticket-Details</Text>
+          <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+            <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+          </TouchableOpacity>
+        </View>
+
+        <View className="gap-4">
+          <View>
+            <Text className="text-sm text-muted mb-1">Titel</Text>
+            <Text className="text-lg font-semibold text-foreground">{ticket.title}</Text>
+          </View>
+
+          <View>
+            <Text className="text-sm text-muted mb-1">Kunde</Text>
+            <Text className="text-base text-foreground">{ticket.customer}</Text>
+          </View>
+
+          <View className="flex-row gap-3">
+            <View className="flex-1">
+              <Text className="text-sm text-muted mb-1">Status</Text>
+              <View
+                className="px-3 py-2 rounded-lg"
+                style={{ backgroundColor: getStatusColor(ticket.status) + "20" }}
+              >
+                <Text
+                  className="text-sm font-semibold text-center"
+                  style={{ color: getStatusColor(ticket.status) }}
+                >
+                  {getStatusLabel(ticket.status)}
+                </Text>
+              </View>
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm text-muted mb-1">Priorität</Text>
+              <View
+                className="px-3 py-2 rounded-lg"
+                style={{ backgroundColor: getPriorityColor(ticket.priority) + "20" }}
+              >
+                <Text
+                  className="text-sm font-semibold text-center"
+                  style={{ color: getPriorityColor(ticket.priority) }}
+                >
+                  {getPriorityLabel(ticket.priority)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View>
+            <Text className="text-sm text-muted mb-1">Erstellt am</Text>
+            <Text className="text-base text-foreground">{formatDate(ticket.createdAt)}</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          className="bg-primary py-3 rounded-lg mt-6"
+          onPress={onClose}
+          activeOpacity={0.8}
+        >
+          <Text className="text-background font-semibold text-center">Schließen</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
