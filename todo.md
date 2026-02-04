@@ -225,11 +225,17 @@
 ## Neue Prioritäten
 - [ ] Newsletter-Modul implementieren (E-Mail-Kampagnen, Empfängerlisten, Versand)
 - [ ] Rechnungs-PDF-Export (PDF-Generierung mit MwSt-Ausweis)
-- [ ] Dashboard-Statistiken mit echten Daten aus der Datenbank
+- [x] Dashboard-Statistiken mit echten Daten (Backend-Endpunkt) aus der Datenbank
 
 ## Aktuelle Prioritäten
 - [x] Dark/Light Mode Toggle implementieren (Dashboard-Header)
 - [x] Sun/Moon Icons zum Icon-Mapping hinzugefügt
-- [ ] Newsletter-Modul implementieren
-- [ ] Rechnungs-PDF-Export
-- [ ] Dashboard-Statistiken mit echten Daten
+- [x] Newsletter-Modul implementieren (Kampagnenliste mit Status und Statistiken)
+- [x] Newsletter-Screen mit Filter (Alle, Entwürfe, Geplant, Versendet)
+- [x] Newsletter-Kachel zum Dashboard hinzugefügt
+- [ ] Newsletter-Formular (Kampagne erstellen)
+- [ ] Empfängerlisten-Verwaltung
+- [x] Rechnungs-PDF-Export (Backend-Funktion mit HTML-Template)
+- [x] PDF-Export-Endpunkt im Router
+- [ ] PDF-Download-Button im Buchhaltungsmodul
+- [x] Dashboard-Statistiken mit echten Daten (Backend-Endpunkt)

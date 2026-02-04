@@ -79,6 +79,14 @@ export default function DashboardScreen() {
       color: "#6366F1",
       route: "/contracts",
     },
+    {
+      id: "newsletter",
+      title: "Newsletter",
+      value: "Kampagnen",
+      icon: "envelope.fill",
+      color: "#8B5CF6",
+      route: "/newsletter",
+    },
   ];
 
   // Admin-spezifische Kacheln

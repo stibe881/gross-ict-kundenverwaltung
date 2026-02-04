@@ -280,3 +280,19 @@ export async function deleteProduct(id: number) {
   await db.update(products).set({ isActive: false }).where(eq(products.id, id));
   return { id };
 }
+
+// Leads
+export async function getAllLeads() {
+  const db = await getDb();
+  if (!db) return [];
+  const { leads } = await import("../drizzle/schema.js");
+  return db.select().from(leads);
+}
+
+// Contracts
+export async function getAllContracts() {
+  const db = await getDb();
+  if (!db) return [];
+  const { contracts } = await import("../drizzle/schema.js");
+  return db.select().from(contracts);
+}

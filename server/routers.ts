@@ -236,6 +236,66 @@ export const appRouter = router({
         return await db.deleteProduct(input.id);
       }),
   }),
+
+  // PDF-Export
+  pdf: router({
+    generateInvoice: protectedProcedure
+      .input(
+        z.object({
+          invoiceNumber: z.string(),
+          invoiceDate: z.string(),
+          dueDate: z.string(),
+          customerName: z.string(),
+          customerAddress: z.string(),
+          items: z.array(
+            z.object({
+              description: z.string(),
+              quantity: z.number(),
+              unitPrice: z.number(),
+              vatRate: z.number(),
+              total: z.number(),
+            })
+          ),
+          subtotal: z.number(),
+          totalVat: z.number(),
+          total: z.number(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const { generateInvoicePDF } = await import("./pdf-generator.js");
+        const pdfBuffer = await generateInvoicePDF(input);
+        
+        // PDF als Base64 zurückgeben
+        return {
+          pdf: pdfBuffer.toString("base64"),
+          filename: `Rechnung-${input.invoiceNumber}.pdf`,
+        };
+      }),
+  }),
+
+  // Dashboard-Statistiken
+  dashboard: router({
+    getStats: protectedProcedure.query(async ({ ctx }) => {
+      // Echte Daten aus der Datenbank abrufen
+      const customers = await db.getAllCustomers();
+      const leads = await db.getAllLeads();
+      const contracts = await db.getAllContracts();
+      
+      // Statistiken berechnen
+      const activeCustomers = customers.filter((c: any) => c.status === "active").length;
+      const activeLeads = leads.filter((l: any) => l.status !== "lost").length;
+      const activeContracts = contracts.filter((c: any) => c.status === "active").length;
+      
+      return {
+        totalCustomers: customers.length,
+        activeCustomers,
+        totalLeads: leads.length,
+        activeLeads,
+        totalContracts: contracts.length,
+        activeContracts,
+      };
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
