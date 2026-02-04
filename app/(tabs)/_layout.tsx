@@ -17,17 +17,26 @@ export default function TabLayout() {
   const { user, isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const [hasRedirected, setHasRedirected] = useState(false);
+  const [forceReady, setForceReady] = useState(false);
+
+  // Timeout für Loading-State (max 3 Sekunden)
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setForceReady(true);
+    }, 3000);
+    return () => clearTimeout(timeout);
+  }, []);
 
   // Redirect zu Login wenn nicht angemeldet (nur einmal)
   useEffect(() => {
-    if (!loading && !isAuthenticated && !hasRedirected) {
+    if ((forceReady || !loading) && !isAuthenticated && !hasRedirected) {
       setHasRedirected(true);
       router.replace("/portal-login");
     }
-  }, [loading, isAuthenticated, hasRedirected, router]);
+  }, [loading, isAuthenticated, hasRedirected, forceReady, router]);
 
-  // Zeige Loading während Auth-Check
-  if (loading) {
+  // Zeige Loading während Auth-Check (max 3 Sekunden)
+  if (loading && !forceReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={colors.primary} />

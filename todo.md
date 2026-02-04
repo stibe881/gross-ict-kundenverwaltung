@@ -321,3 +321,9 @@
 - [x] useAuth Hook Render-Loop analysieren
 - [x] Redirect-Logik optimieren (hasRedirected-Flag)
 - [x] Verhindert mehrfache Redirects
+
+## Loading-State-Problem
+- [x] useAuth Hook Loading-State analysieren
+- [x] Loading-State korrekt auf false setzen wenn kein User
+- [x] Timeout für Auth-Check implementieren (3 Sekunden)
+- [x] forceReady-Flag verhindert endloses Loading
