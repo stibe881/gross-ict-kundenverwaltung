@@ -263,6 +263,13 @@
 - [x] Datenbankverbindung testen (Tests erfolgreich)
 
 ## Supabase-Migration
-- [ ] Datenbankschema in Supabase erstellen
-- [ ] API-Endpunkte auf Supabase umstellen
-- [ ] Dashboard-Statistiken mit echten Supabase-Daten
+- [x] Datenbankschema in Supabase erstellen (supabase-schema.sql)
+- [x] API-Endpunkte auf Supabase umgestellt (alle tRPC-Router)
+- [x] Dashboard-Statistiken mit echten Supabase-Daten (getDashboardStats)
+- [x] Supabase-Datenbankfunktionen erstellt (supabase-db.ts)
+
+## Theme-Auswahl
+- [x] Theme-Auswahl mit 3 Optionen (Dark, Light, System) implementiert
+- [x] Theme-Einstellung persistent speichern (AsyncStorage)
+- [x] Theme-Wechsel ohne Reload
+- [x] Modal mit Icon-Auswahl für Theme-Modi

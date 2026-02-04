@@ -3,10 +3,9 @@ import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import * as db from "./db";
+import * as supabaseDb from "./supabase-db";
 
 export const appRouter = router({
-  // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -19,90 +18,68 @@ export const appRouter = router({
     }),
   }),
 
+  // Dashboard-Statistiken
+  dashboard: router({
+    stats: protectedProcedure.query(async () => {
+      return supabaseDb.getDashboardStats();
+    }),
+  }),
+
   // Benutzerverwaltung
   users: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      // Nur Admin und Manager dürfen alle Benutzer sehen
       if (ctx.user.role !== "admin" && ctx.user.role !== "manager") {
         throw new Error("Unauthorized");
       }
-      return db.getAllUsers();
+      return supabaseDb.getAllUsers();
     }),
 
-    getById: protectedProcedure
-      .input(z.object({ id: z.number() }))
-      .query(async ({ input, ctx }) => {
-        // Benutzer können nur sich selbst sehen, Admin/Manager alle
-        if (
-          ctx.user.id !== input.id &&
-          ctx.user.role !== "admin" &&
-          ctx.user.role !== "manager"
-        ) {
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string(),
+          email: z.string().email(),
+          role: z.enum(["admin", "manager", "accountant", "sales", "support"]),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
           throw new Error("Unauthorized");
         }
-        return db.getUserById(input.id);
+        return supabaseDb.createUser(input);
       }),
 
     update: protectedProcedure
       .input(
         z.object({
-          id: z.number(),
+          id: z.string(),
           name: z.string().optional(),
           email: z.string().email().optional(),
           role: z
             .enum(["admin", "manager", "accountant", "sales", "support"])
             .optional(),
+          is_active: z.boolean().optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
-        // Nur Admin darf Benutzer bearbeiten
         if (ctx.user.role !== "admin") {
           throw new Error("Unauthorized");
         }
         const { id, ...data } = input;
-        await db.updateUser(id, data);
-        return { success: true };
-      }),
-
-    deactivate: protectedProcedure
-      .input(z.object({ id: z.number() }))
-      .mutation(async ({ input, ctx }) => {
-        // Nur Admin darf Benutzer deaktivieren
-        if (ctx.user.role !== "admin") {
-          throw new Error("Unauthorized");
-        }
-        await db.deactivateUser(input.id);
-        return { success: true };
-      }),
-
-    activate: protectedProcedure
-      .input(z.object({ id: z.number() }))
-      .mutation(async ({ input, ctx }) => {
-        // Nur Admin darf Benutzer aktivieren
-        if (ctx.user.role !== "admin") {
-          throw new Error("Unauthorized");
-        }
-        await db.activateUser(input.id);
-        return { success: true };
+        return supabaseDb.updateUser(id, data);
       }),
   }),
 
   // CRM - Kundenverwaltung
   customers: router({
     list: protectedProcedure.query(async () => {
-      return db.getAllCustomers();
+      return supabaseDb.getAllCustomers();
     }),
 
     getById: protectedProcedure
-      .input(z.object({ id: z.number() }))
+      .input(z.object({ id: z.string() }))
       .query(async ({ input }) => {
-        return db.getCustomerById(input.id);
-      }),
-
-    search: protectedProcedure
-      .input(z.object({ query: z.string() }))
-      .query(async ({ input }) => {
-        return db.searchCustomers(input.query);
+        return supabaseDb.getCustomerById(input.id);
       }),
 
     create: protectedProcedure
@@ -113,142 +90,325 @@ export const appRouter = router({
           companyName: z.string().optional(),
           email: z.string().email().optional(),
           phone: z.string().optional(),
-          mobile: z.string().optional(),
-          website: z.string().optional(),
-          street: z.string().optional(),
+          address: z.string().optional(),
           city: z.string().optional(),
           postalCode: z.string().optional(),
-          country: z.string().optional(),
-          category: z.string().optional(),
-          tags: z.string().optional(),
+          country: z.string().default("CH"),
           notes: z.string().optional(),
         })
       )
-      .mutation(async ({ input, ctx }) => {
-        return db.createCustomer({ ...input, createdBy: ctx.user.id });
+      .mutation(async ({ input }) => {
+        return supabaseDb.createCustomer({
+          first_name: input.firstName,
+          last_name: input.lastName,
+          company_name: input.companyName,
+          email: input.email,
+          phone: input.phone,
+          address: input.address,
+          city: input.city,
+          postal_code: input.postalCode,
+          country: input.country,
+          notes: input.notes,
+        });
       }),
 
     update: protectedProcedure
       .input(
         z.object({
-          id: z.number(),
+          id: z.string(),
           firstName: z.string().optional(),
           lastName: z.string().optional(),
           companyName: z.string().optional(),
           email: z.string().email().optional(),
           phone: z.string().optional(),
-          mobile: z.string().optional(),
-          website: z.string().optional(),
-          street: z.string().optional(),
+          address: z.string().optional(),
           city: z.string().optional(),
           postalCode: z.string().optional(),
           country: z.string().optional(),
+          notes: z.string().optional(),
           status: z.enum(["active", "inactive"]).optional(),
-          category: z.string().optional(),
-          tags: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return supabaseDb.updateCustomer(id, {
+          first_name: data.firstName,
+          last_name: data.lastName,
+          company_name: data.companyName,
+          email: data.email,
+          phone: data.phone,
+          address: data.address,
+          city: data.city,
+          postal_code: data.postalCode,
+          country: data.country,
+          notes: data.notes,
+          status: data.status,
+        });
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input }) => {
+        return supabaseDb.deleteCustomer(input.id);
+      }),
+  }),
+
+  // Kommunikation
+  communications: router({
+    list: protectedProcedure
+      .input(z.object({ customerId: z.string() }))
+      .query(async ({ input }) => {
+        return supabaseDb.getCustomerCommunications(input.customerId);
+      }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          customerId: z.string(),
+          type: z.enum(["email", "phone", "meeting", "note"]),
+          subject: z.string(),
+          notes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return supabaseDb.createCommunication({
+          customer_id: input.customerId,
+          type: input.type,
+          subject: input.subject,
+          notes: input.notes,
+        });
+      }),
+  }),
+
+  // Leads (Akquise)
+  leads: router({
+    list: protectedProcedure.query(async () => {
+      return supabaseDb.getAllLeads();
+    }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string(),
+          company: z.string().optional(),
+          email: z.string().email().optional(),
+          phone: z.string().optional(),
+          status: z
+            .enum(["new", "contacted", "qualified", "proposal", "won", "lost"])
+            .default("new"),
+          value: z.number().optional(),
+          source: z.string().optional(),
+          notes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return supabaseDb.createLead(input);
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          name: z.string().optional(),
+          company: z.string().optional(),
+          email: z.string().email().optional(),
+          phone: z.string().optional(),
+          status: z
+            .enum(["new", "contacted", "qualified", "proposal", "won", "lost"])
+            .optional(),
+          value: z.number().optional(),
+          source: z.string().optional(),
           notes: z.string().optional(),
         })
       )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
-        await db.updateCustomer(id, data);
-        return { success: true };
-      }),
-
-    delete: protectedProcedure
-      .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
-        await db.deleteCustomer(input.id);
-        return { success: true };
-      }),
-
-    // Kommunikationshistorie
-    getCommunications: protectedProcedure
-      .input(z.object({ customerId: z.number() }))
-      .query(async ({ input }) => {
-        return db.getCustomerCommunications(input.customerId);
-      }),
-
-    addCommunication: protectedProcedure
-      .input(
-        z.object({
-          customerId: z.number(),
-          type: z.enum(["email", "call", "meeting", "note"]),
-          subject: z.string().optional(),
-          content: z.string().optional(),
-        })
-      )
-      .mutation(async ({ input, ctx }) => {
-        return db.createCustomerCommunication({
-          ...input,
-          createdBy: ctx.user.id,
-        });
+        return supabaseDb.updateLead(id, data);
       }),
   }),
 
-  // Produkte (Artikel & Dienstleistungen)
-  products: router({
-    list: publicProcedure.query(async () => {
-      return await db.listProducts();
+  // Verträge
+  contracts: router({
+    list: protectedProcedure.query(async () => {
+      return supabaseDb.getAllContracts();
     }),
 
-    getById: publicProcedure
-      .input(z.object({ id: z.number() }))
+    getByCustomer: protectedProcedure
+      .input(z.object({ customerId: z.string() }))
       .query(async ({ input }) => {
-        return await db.getProductById(input.id);
+        return supabaseDb.getCustomerContracts(input.customerId);
       }),
 
-    create: publicProcedure
+    create: protectedProcedure
       .input(
         z.object({
-          type: z.enum(["article", "service"]),
-          name: z.string(),
+          customerId: z.string(),
+          title: z.string(),
           description: z.string().optional(),
-          unitPrice: z.string(),
-          unit: z.string().optional(),
-          vatRate: z.string().optional(),
+          startDate: z.string(),
+          endDate: z.string(),
+          annualAmount: z.number(),
+          noticePeriodMonths: z.number().default(3),
         })
       )
       .mutation(async ({ input }) => {
-        return await db.createProduct(input);
+        return supabaseDb.createContract({
+          customer_id: input.customerId,
+          title: input.title,
+          description: input.description,
+          start_date: input.startDate,
+          end_date: input.endDate,
+          annual_amount: input.annualAmount,
+          notice_period_months: input.noticePeriodMonths,
+        });
       }),
 
-    update: publicProcedure
+    update: protectedProcedure
       .input(
         z.object({
-          id: z.number(),
-          type: z.enum(["article", "service"]).optional(),
-          name: z.string().optional(),
+          id: z.string(),
+          title: z.string().optional(),
           description: z.string().optional(),
-          unitPrice: z.string().optional(),
-          unit: z.string().optional(),
-          vatRate: z.string().optional(),
+          startDate: z.string().optional(),
+          endDate: z.string().optional(),
+          annualAmount: z.number().optional(),
+          noticePeriodMonths: z.number().optional(),
+          status: z.enum(["active", "cancelled", "expired"]).optional(),
         })
       )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
-        return await db.updateProduct(id, data);
-      }),
-
-    delete: publicProcedure
-      .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
-        return await db.deleteProduct(input.id);
+        return supabaseDb.updateContract(id, {
+          title: data.title,
+          description: data.description,
+          start_date: data.startDate,
+          end_date: data.endDate,
+          annual_amount: data.annualAmount,
+          notice_period_months: data.noticePeriodMonths,
+          status: data.status,
+        });
       }),
   }),
 
-  // PDF-Export
-  pdf: router({
-    generateInvoice: protectedProcedure
+  // Tickets
+  tickets: router({
+    list: protectedProcedure.query(async () => {
+      return supabaseDb.getAllTickets();
+    }),
+
+    getByCustomer: protectedProcedure
+      .input(z.object({ customerId: z.string() }))
+      .query(async ({ input }) => {
+        return supabaseDb.getCustomerTickets(input.customerId);
+      }),
+
+    create: protectedProcedure
       .input(
         z.object({
+          customerId: z.string(),
+          title: z.string(),
+          description: z.string().optional(),
+          priority: z.enum(["low", "medium", "high"]).default("medium"),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return supabaseDb.createTicket({
+          customer_id: input.customerId,
+          title: input.title,
+          description: input.description,
+          priority: input.priority,
+        });
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          title: z.string().optional(),
+          description: z.string().optional(),
+          status: z.enum(["open", "in_progress", "closed"]).optional(),
+          priority: z.enum(["low", "medium", "high"]).optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return supabaseDb.updateTicket(id, data);
+      }),
+  }),
+
+  // Produkte
+  products: router({
+    list: protectedProcedure.query(async () => {
+      return supabaseDb.getAllProducts();
+    }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string(),
+          description: z.string().optional(),
+          price: z.number(),
+          vatRate: z.number().default(8.1),
+          type: z.enum(["product", "service"]).default("service"),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return supabaseDb.createProduct({
+          name: input.name,
+          description: input.description,
+          price: input.price,
+          vat_rate: input.vatRate,
+          type: input.type,
+        });
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          name: z.string().optional(),
+          description: z.string().optional(),
+          price: z.number().optional(),
+          vatRate: z.number().optional(),
+          type: z.enum(["product", "service"]).optional(),
+          isActive: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return supabaseDb.updateProduct(id, {
+          name: data.name,
+          description: data.description,
+          price: data.price,
+          vat_rate: data.vatRate,
+          type: data.type,
+          is_active: data.isActive,
+        });
+      }),
+  }),
+
+  // Rechnungen
+  invoices: router({
+    list: protectedProcedure.query(async () => {
+      return supabaseDb.getAllInvoices();
+    }),
+
+    getByCustomer: protectedProcedure
+      .input(z.object({ customerId: z.string() }))
+      .query(async ({ input }) => {
+        return supabaseDb.getCustomerInvoices(input.customerId);
+      }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          customerId: z.string(),
           invoiceNumber: z.string(),
           invoiceDate: z.string(),
           dueDate: z.string(),
-          customerName: z.string(),
-          customerAddress: z.string(),
           items: z.array(
             z.object({
+              productId: z.string().optional(),
               description: z.string(),
               quantity: z.number(),
               unitPrice: z.number(),
@@ -256,45 +416,42 @@ export const appRouter = router({
               total: z.number(),
             })
           ),
-          subtotal: z.number(),
-          totalVat: z.number(),
-          total: z.number(),
+          notes: z.string().optional(),
         })
       )
-      .mutation(async ({ input, ctx }) => {
-        const { generateInvoicePDF } = await import("./pdf-generator.js");
-        const pdfBuffer = await generateInvoicePDF(input);
-        
-        // PDF als Base64 zurückgeben
-        return {
-          pdf: pdfBuffer.toString("base64"),
-          filename: `Rechnung-${input.invoiceNumber}.pdf`,
-        };
-      }),
-  }),
+      .mutation(async ({ input }) => {
+        const { items, ...invoiceData } = input;
 
-  // Dashboard-Statistiken
-  dashboard: router({
-    getStats: protectedProcedure.query(async ({ ctx }) => {
-      // Echte Daten aus der Datenbank abrufen
-      const customers = await db.getAllCustomers();
-      const leads = await db.getAllLeads();
-      const contracts = await db.getAllContracts();
-      
-      // Statistiken berechnen
-      const activeCustomers = customers.filter((c: any) => c.status === "active").length;
-      const activeLeads = leads.filter((l: any) => l.status !== "lost").length;
-      const activeContracts = contracts.filter((c: any) => c.status === "active").length;
-      
-      return {
-        totalCustomers: customers.length,
-        activeCustomers,
-        totalLeads: leads.length,
-        activeLeads,
-        totalContracts: contracts.length,
-        activeContracts,
-      };
-    }),
+        // Berechne Summen
+        const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+        const vatAmount = items.reduce(
+          (sum, item) => sum + (item.total * item.vatRate) / 100,
+          0
+        );
+        const total = subtotal + vatAmount;
+
+        const invoice = {
+          customer_id: invoiceData.customerId,
+          invoice_number: invoiceData.invoiceNumber,
+          invoice_date: invoiceData.invoiceDate,
+          due_date: invoiceData.dueDate,
+          subtotal,
+          vat_amount: vatAmount,
+          total,
+          notes: invoiceData.notes,
+        };
+
+        const itemsData = items.map((item) => ({
+          product_id: item.productId,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          vat_rate: item.vatRate,
+          total: item.total,
+        }));
+
+        return supabaseDb.createInvoice(invoice, itemsData);
+      }),
   }),
 });
 
