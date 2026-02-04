@@ -1,48 +1,171 @@
-import { ScrollView, Text, View, TouchableOpacity } from "react-native";
-
+import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
+import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
+import { useAuth } from "@/hooks/use-auth";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useColors } from "@/hooks/use-colors";
 
-/**
- * Home Screen - NativeWind Example
- *
- * This template uses NativeWind (Tailwind CSS for React Native).
- * You can use familiar Tailwind classes directly in className props.
- *
- * Key patterns:
- * - Use `className` instead of `style` for most styling
- * - Theme colors: use tokens directly (bg-background, text-foreground, bg-primary, etc.); no dark: prefix needed
- * - Responsive: standard Tailwind breakpoints work on web
- * - Custom colors defined in tailwind.config.js
- */
-export default function HomeScreen() {
+interface DashboardTile {
+  id: string;
+  title: string;
+  value: string;
+  icon: any;
+  color: string;
+  route?: string;
+}
+
+export default function DashboardScreen() {
+  const router = useRouter();
+  const { user, isAuthenticated, loading } = useAuth();
+  const colors = useColors();
+
+  if (loading) {
+    return (
+      <ScreenContainer className="items-center justify-center">
+        <ActivityIndicator size="large" color={colors.primary} />
+      </ScreenContainer>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <ScreenContainer className="items-center justify-center p-6">
+        <Text className="text-2xl font-bold text-foreground mb-4">Willkommen</Text>
+        <Text className="text-base text-muted text-center mb-6">
+          Bitte melden Sie sich an, um auf die Kundenverwaltung zuzugreifen.
+        </Text>
+        <TouchableOpacity
+          className="bg-primary px-6 py-3 rounded-lg"
+          onPress={() => {
+            // Login wird automatisch über OAuth gehandhabt
+          }}
+        >
+          <Text className="text-background font-semibold">Anmelden</Text>
+        </TouchableOpacity>
+      </ScreenContainer>
+    );
+  }
+
+  const tiles: DashboardTile[] = [
+    {
+      id: "customers",
+      title: "Kunden",
+      value: "Verwalten",
+      icon: "person.2.fill",
+      color: colors.primary,
+      route: "/customers",
+    },
+    {
+      id: "leads",
+      title: "Akquise",
+      value: "Pipeline",
+      icon: "briefcase.fill",
+      color: "#17A2B8",
+      route: "/leads",
+    },
+    {
+      id: "tickets",
+      title: "Tickets",
+      value: "Support",
+      icon: "ticket.fill",
+      color: colors.warning,
+      route: "/tickets",
+    },
+    {
+      id: "accounting",
+      title: "Buchhaltung",
+      value: "Rechnungen",
+      icon: "chart.bar.fill",
+      color: colors.success,
+      route: "/accounting",
+    },
+  ];
+
   return (
-    <ScreenContainer className="p-6">
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View className="flex-1 gap-8">
-          {/* Hero Section */}
-          <View className="items-center gap-2">
-            <Text className="text-4xl font-bold text-foreground">Welcome</Text>
-            <Text className="text-base text-muted text-center">
-              Edit app/(tabs)/index.tsx to get started
-            </Text>
-          </View>
+    <ScreenContainer>
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+        {/* Header */}
+        <View className="mb-6">
+          <Text className="text-3xl font-bold text-foreground">Dashboard</Text>
+          <Text className="text-base text-muted mt-1">
+            Willkommen zurück, {user?.name || "Benutzer"}
+          </Text>
+          <Text className="text-sm text-muted">Rolle: {getRoleLabel((user as any)?.role)}</Text>
+        </View>
 
-          {/* Example Card */}
-          <View className="w-full max-w-sm self-center bg-surface rounded-2xl p-6 shadow-sm border border-border">
-            <Text className="text-lg font-semibold text-foreground mb-2">NativeWind Ready</Text>
-            <Text className="text-sm text-muted leading-relaxed">
-              Use Tailwind CSS classes directly in your React Native components.
-            </Text>
-          </View>
+        {/* Kacheln Grid */}
+        <View className="gap-4">
+          {tiles.map((tile) => (
+            <TouchableOpacity
+              key={tile.id}
+              className="bg-surface rounded-2xl p-6 border border-border"
+              style={{ opacity: 1 }}
+              onPress={() => {
+                if (tile.route) {
+                  router.push(tile.route as any);
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1">
+                  <Text className="text-lg font-semibold text-foreground mb-1">
+                    {tile.title}
+                  </Text>
+                  <Text className="text-sm text-muted">{tile.value}</Text>
+                </View>
+                <View
+                  className="w-12 h-12 rounded-full items-center justify-center"
+                  style={{ backgroundColor: tile.color + "20" }}
+                >
+                  <IconSymbol name={tile.icon} size={24} color={tile.color} />
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-          {/* Example Button */}
-          <View className="items-center">
-            <TouchableOpacity className="bg-primary px-6 py-3 rounded-full active:opacity-80">
-              <Text className="text-background font-semibold">Get Started</Text>
+        {/* Schnellzugriff */}
+        <View className="mt-8">
+          <Text className="text-xl font-bold text-foreground mb-4">Schnellzugriff</Text>
+          <View className="gap-3">
+            <TouchableOpacity
+              className="bg-primary px-4 py-3 rounded-lg flex-row items-center"
+              activeOpacity={0.8}
+            >
+              <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
+              <Text className="text-background font-semibold ml-2">Neuer Kunde</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="bg-surface px-4 py-3 rounded-lg flex-row items-center border border-border"
+              activeOpacity={0.8}
+            >
+              <IconSymbol name="plus.circle.fill" size={20} color={colors.primary} />
+              <Text className="text-foreground font-semibold ml-2">Neues Ticket</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="bg-surface px-4 py-3 rounded-lg flex-row items-center border border-border"
+              activeOpacity={0.8}
+            >
+              <IconSymbol name="plus.circle.fill" size={20} color={colors.primary} />
+              <Text className="text-foreground font-semibold ml-2">Neue Rechnung</Text>
             </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
     </ScreenContainer>
   );
+}
+
+function getRoleLabel(role?: string): string {
+  const roleLabels: Record<string, string> = {
+    admin: "Administrator",
+    manager: "Manager",
+    accountant: "Buchhalter",
+    sales: "Vertrieb",
+    support: "Support",
+  };
+  return roleLabels[role || ""] || "Unbekannt";
 }

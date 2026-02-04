@@ -1,0 +1,116 @@
+# Projekt TODO
+
+## Authentifizierung & Rollenverwaltung
+- [x] Benutzer-Datenmodell mit Rollen (Admin, Manager, Buchhalter, Vertrieb, Support)
+- [x] Login-Screen mit E-Mail/Passwort
+- [x] Rollenbasierte Zugriffskontrolle (RBAC) implementieren
+- [x] Session-Management
+
+## Datenbank-Schema
+- [x] Kunden-Tabelle (CRM)
+- [x] Kommunikationshistorie-Tabelle
+- [x] Leads-Tabelle (Akquise)
+- [x] Aktivitäten-Tabelle (Akquise-Verlauf)
+- [x] Verträge-Tabelle
+- [x] Tickets-Tabelle
+- [x] Ticket-Kommentare-Tabelle
+- [x] Wissensdatenbank-Tabelle
+- [x] Rechnungen-Tabelle
+- [x] Rechnungspositionen-Tabelle
+- [x] Kontenplan-Tabelle
+- [x] Belege/Ausgaben-Tabelle
+- [x] Newsletter-Kampagnen-Tabelle
+- [x] Newsletter-Empfänger-Tabelle
+- [x] Benutzer-Tabelle
+
+## CRM-Modul
+- [x] Kundenliste mit Suche und Filter (Backend)
+- [ ] Kundendetails-Screen mit Tabs (Stammdaten, Kommunikation, Verträge, Rechnungen, Tickets)
+- [x] Kunde erstellen/bearbeiten (Backend)
+- [x] Kommunikationshistorie hinzufügen (E-Mail, Anruf, Meeting) (Backend)
+- [x] Kunde löschen (Backend)
+
+## Akquisemodul
+- [ ] Lead-Pipeline (Kanban-Board mit Drag-and-Drop)
+- [ ] Lead-Details-Screen mit Verlauf
+- [ ] Lead erstellen/bearbeiten
+- [ ] Aktivität zum Lead hinzufügen
+- [ ] Lead-Status ändern
+- [ ] Lead in Kunde konvertieren
+- [ ] Lead löschen
+
+## Vertragsmodul
+- [ ] Vertragsliste mit Suche und Filter
+- [ ] Vertragsdetails-Screen
+- [ ] Vertrag erstellen/bearbeiten
+- [ ] Vertragsdokument hochladen
+- [ ] Ablaufwarnungen (< 30 Tage)
+- [ ] Vertrag kündigen
+- [ ] Vertrag löschen
+
+## Ticketsystem
+- [ ] Ticket-Liste mit Suche und Filter
+- [ ] Ticket-Details-Screen mit Kommentaren
+- [ ] Ticket erstellen/bearbeiten
+- [ ] Ticket-Status ändern
+- [ ] Ticket-Priorität ändern
+- [ ] Ticket zuweisen
+- [ ] Kommentar hinzufügen
+- [ ] Anhänge hochladen
+- [ ] Ticket in Wissensdatenbank übernehmen
+- [ ] Wissensdatenbank-Liste mit Suche
+- [ ] KB-Eintrag erstellen/bearbeiten (intern/extern)
+
+## Buchhaltungsmodul
+- [ ] Buchhaltungs-Dashboard mit Übersichtskarten
+- [ ] Rechnungsliste mit Suche und Filter
+- [ ] Rechnung erstellen/bearbeiten mit Positionen
+- [ ] Rechnung als PDF generieren
+- [ ] Rechnung per E-Mail versenden
+- [ ] Rechnung als bezahlt markieren
+- [ ] Kontenplan-Liste
+- [ ] Konto erstellen/bearbeiten/löschen
+- [ ] Ausgaben/Belege-Liste
+- [ ] Ausgabe erstellen mit Beleg-Upload
+- [ ] Berichte (GuV, Bilanz, USt-VA, Offene Posten, Kundenumsätze)
+- [ ] Berichte als PDF/Excel exportieren
+
+## Newsletter-Modul
+- [ ] Newsletter-Übersicht mit Kampagnenliste
+- [ ] Newsletter erstellen/bearbeiten mit Rich-Text-Editor
+- [ ] Empfänger auswählen (Alle, Tags, Manuell)
+- [ ] Newsletter-Vorschau (Desktop/Mobile)
+- [ ] Test-E-Mail senden
+- [ ] Newsletter sofort versenden
+- [ ] Newsletter zeitlich planen
+- [ ] Newsletter-Statistiken (Öffnungsrate, Klickrate)
+
+## Dashboard
+- [x] Dashboard mit Übersichtskacheln
+- [x] Kacheln: Kundenübersicht, Offene Tickets, Akquise-Pipeline, Buchhaltung
+- [x] Schnellzugriff-Buttons (Neuer Kunde, Neues Ticket, Neue Rechnung)
+- [ ] Benachrichtigungen
+- [ ] Drag-and-Drop für Kacheln
+
+## Navigation & Layout
+- [x] Bottom Tab Bar (Mobile) mit 5 Hauptbereichen
+- [ ] Seitliches Menü (Desktop)
+- [ ] Globale Suchleiste
+- [ ] Benachrichtigungssystem
+- [ ] Benutzerprofil-Menü
+
+## Einstellungen
+- [ ] Benutzerverwaltung (Liste, Erstellen, Bearbeiten, Deaktivieren)
+- [ ] Unternehmenseinstellungen (Firma, Logo, Adresse, Rechnungseinstellungen)
+- [ ] E-Mail-Einstellungen (SMTP für Newsletter)
+
+## Branding & Design
+- [ ] App-Logo generieren
+- [ ] Farbschema anwenden
+- [ ] Theme-Konfiguration (Hell/Dunkel)
+
+## Testing & Finalisierung
+- [ ] End-to-End-Tests für alle Hauptfunktionen
+- [ ] Responsive Design testen (Desktop, Tablet, Mobile)
+- [ ] Performance-Optimierung
+- [ ] Dokumentation erstellen
