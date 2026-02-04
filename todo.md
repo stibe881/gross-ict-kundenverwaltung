@@ -305,3 +305,9 @@
 - [x] Stefan Gross (stefan.gross@gross-ict.ch) als Admin erstellen (SQL-Script bereit)
 - [x] Joel Hediger (joel.hediger@gross-ict.ch) als Admin erstellen (SQL-Script bereit)
 - [ ] SQL-Script in Supabase ausführen (create-admin-users.sql)
+
+## Zugriffskontrolle Bugfix
+- [x] Tab-Navigation für nicht angemeldete Benutzer ausblenden
+- [x] Auth-Guard-Komponente erstellt
+- [x] Tab-Layout mit Auth-Guard geschützt
+- [x] Dashboard mit Auth-Check geschützt
