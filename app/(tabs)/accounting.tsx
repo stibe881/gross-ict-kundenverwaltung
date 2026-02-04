@@ -8,7 +8,7 @@ import {
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { InvoiceFormModal } from "@/components/invoice-form-modal";
+import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 
 export default function AccountingScreen() {
   const colors = useColors();

@@ -133,3 +133,14 @@
 - [x] Schweizer Zahlenformatierung (Tausendertrennzeichen) - formatCurrency-Funktion
 - [x] Schweizer MwSt-Sätze (8.1% Normal, 2.6% Reduziert) im Rechnungsformular
 - [ ] Zahlungsverwaltung für Rechnungen (bezahlter Betrag eingeben können) - Wird in Rechnungsdetails implementiert
+
+## Artikel-/Dienstleistungsverwaltung
+- [x] Artikel/Dienstleistungen-Tabelle in Datenbank erstellen
+- [x] API-Endpunkte für Produkte (list, create, update, delete)
+- [x] Artikel-Auswahl im Rechnungsformular (Dropdown mit Katalog)
+- [x] Schnellerfassung: Link zu "Neues Produkt erstellen" im Rechnungsformular
+- [ ] Artikel/Dienstleistungen-Verwaltungsseite (separater Screen)
+
+## Kundenauswahl
+- [x] Kunden-Dropdown im Rechnungsformular
+- [ ] Kunden-Dropdown im Ticket-Formular

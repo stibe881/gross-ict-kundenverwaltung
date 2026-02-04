@@ -185,6 +185,57 @@ export const appRouter = router({
         });
       }),
   }),
+
+  // Produkte (Artikel & Dienstleistungen)
+  products: router({
+    list: publicProcedure.query(async () => {
+      return await db.listProducts();
+    }),
+
+    getById: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getProductById(input.id);
+      }),
+
+    create: publicProcedure
+      .input(
+        z.object({
+          type: z.enum(["article", "service"]),
+          name: z.string(),
+          description: z.string().optional(),
+          unitPrice: z.string(),
+          unit: z.string().optional(),
+          vatRate: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return await db.createProduct(input);
+      }),
+
+    update: publicProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          type: z.enum(["article", "service"]).optional(),
+          name: z.string().optional(),
+          description: z.string().optional(),
+          unitPrice: z.string().optional(),
+          unit: z.string().optional(),
+          vatRate: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return await db.updateProduct(id, data);
+      }),
+
+    delete: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        return await db.deleteProduct(input.id);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

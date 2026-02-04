@@ -456,3 +456,23 @@ export type InsertDashboardTile = typeof dashboardTiles.$inferInsert;
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+// ============================================================================
+// ARTIKEL & DIENSTLEISTUNGEN
+// ============================================================================
+
+export const products = mysqlTable("products", {
+  id: int("id").autoincrement().primaryKey(),
+  type: mysqlEnum("type", ["article", "service"]).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  unitPrice: decimal("unitPrice", { precision: 10, scale: 2 }).notNull(),
+  unit: varchar("unit", { length: 50 }).default("Stück"), // Stück, Stunden, kg, etc.
+  vatRate: decimal("vatRate", { precision: 5, scale: 2 }).default("8.10").notNull(), // 8.1%, 2.6%, etc.
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Product = typeof products.$inferSelect;
+export type InsertProduct = typeof products.$inferInsert;
