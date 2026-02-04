@@ -11,6 +11,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { formatDate } from "@/lib/format";
+import { NewsletterFormModal, NewsletterFormData } from "@/components/newsletter-form-modal";
 
 type NewsletterStatus = "draft" | "scheduled" | "sent";
 
@@ -53,8 +54,20 @@ const mockNewsletters: Newsletter[] = [
 export default function NewsletterScreen() {
   const colors = useColors();
   const router = useRouter();
-  const [newsletters] = useState<Newsletter[]>(mockNewsletters);
+  const [newsletters, setNewsletters] = useState<Newsletter[]>(mockNewsletters);
   const [filter, setFilter] = useState<"all" | NewsletterStatus>("all");
+  const [showFormModal, setShowFormModal] = useState(false);
+
+  const handleCreateNewsletter = (data: NewsletterFormData) => {
+    const newNewsletter: Newsletter = {
+      id: newsletters.length + 1,
+      subject: data.subject,
+      status: "draft",
+      recipientCount: 0,
+    };
+    setNewsletters([...newsletters, newNewsletter]);
+    setShowFormModal(false);
+  };
 
   const getStatusLabel = (status: NewsletterStatus) => {
     const labels: Record<NewsletterStatus, string> = {
@@ -148,6 +161,7 @@ export default function NewsletterScreen() {
           <TouchableOpacity
             className="bg-primary w-12 h-12 rounded-full items-center justify-center"
             activeOpacity={0.8}
+            onPress={() => setShowFormModal(true)}
           >
             <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
           </TouchableOpacity>
@@ -223,6 +237,13 @@ export default function NewsletterScreen() {
           </View>
         )}
       </View>
+
+      {/* Newsletter-Formular-Modal */}
+      <NewsletterFormModal
+        visible={showFormModal}
+        onClose={() => setShowFormModal(false)}
+        onSubmit={handleCreateNewsletter}
+      />
     </ScreenContainer>
   );
 }

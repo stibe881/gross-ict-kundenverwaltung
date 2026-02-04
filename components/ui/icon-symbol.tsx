@@ -35,6 +35,7 @@ const MAPPING = {
   "trash.fill": "delete",
   "sun.max.fill": "wb-sunny",
   "moon.fill": "nightlight-round",
+  "arrow.down.doc.fill": "download",
 } as IconMapping;
 
 /**

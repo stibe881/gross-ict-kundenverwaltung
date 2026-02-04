@@ -31,6 +31,7 @@ export function LeadFormModal({
     email: lead?.email || "",
     phone: lead?.phone || "",
     value: lead?.value?.toString() || "",
+    status: lead?.status || "new",
     notes: lead?.notes || "",
   });
 
@@ -43,6 +44,7 @@ export function LeadFormModal({
         email: lead.email || "",
         phone: lead.phone || "",
         value: lead.value?.toString() || "",
+        status: lead.status || "new",
         notes: lead.notes || "",
       });
     }
@@ -66,6 +68,7 @@ export function LeadFormModal({
       email: "",
       phone: "",
       value: "",
+      status: "new",
       notes: "",
     });
   };
@@ -175,6 +178,64 @@ export function LeadFormModal({
                   value={formData.value}
                   onChangeText={(text) =>
                     setFormData({ ...formData, value: text })
+                  }
+                />
+              </View>
+
+              {/* Status */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Status *
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {[
+                    { key: "new", label: "Neu" },
+                    { key: "contacted", label: "Kontaktiert" },
+                    { key: "qualified", label: "Qualifiziert" },
+                    { key: "proposal", label: "Angebot" },
+                    { key: "won", label: "Gewonnen" },
+                    { key: "lost", label: "Verloren" },
+                  ].map((statusOption) => (
+                    <TouchableOpacity
+                      key={statusOption.key}
+                      className={`px-4 py-2 rounded-lg border ${
+                        formData.status === statusOption.key
+                          ? "bg-primary border-primary"
+                          : "bg-surface border-border"
+                      }`}
+                      onPress={() =>
+                        setFormData({ ...formData, status: statusOption.key })
+                      }
+                    >
+                      <Text
+                        className={`text-sm font-semibold ${
+                          formData.status === statusOption.key
+                            ? "text-background"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {statusOption.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Notizen - wird nach Status verschoben */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Notizen
+                </Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="Zusätzliche Informationen..."
+                  placeholderTextColor={colors.muted}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  value={formData.notes}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, notes: text })
                   }
                 />
               </View>

@@ -137,19 +137,38 @@ export default function AccountingScreen() {
 
         {/* Rechnungen */}
         {activeTab === "invoices" && (
-          <View className="flex-1 items-center justify-center py-12">
-            <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
-            <Text className="text-lg text-muted mt-4 mb-2">Keine Rechnungen</Text>
-            <Text className="text-sm text-muted text-center mb-6">
-              Erstellen Sie Ihre erste Rechnung
-            </Text>
-            <TouchableOpacity
-              className="bg-primary px-6 py-3 rounded-lg"
-              activeOpacity={0.8}
-              onPress={() => setShowInvoiceModal(true)}
-            >
-              <Text className="text-background font-semibold">Rechnung erstellen</Text>
-            </TouchableOpacity>
+          <View>
+            <View className="bg-surface rounded-xl p-4 mb-4">
+              <Text className="text-sm text-muted mb-3">
+                💡 Tipp: Rechnungen können als PDF heruntergeladen oder per E-Mail versendet werden.
+              </Text>
+              <TouchableOpacity
+                className="bg-primary py-3 rounded-lg flex-row items-center justify-center"
+                activeOpacity={0.8}
+                onPress={() => {
+                  // Beispiel-PDF-Download
+                  alert("PDF-Download-Funktion: Rechnung RE-2026-001 wird heruntergeladen...");
+                }}
+              >
+                <IconSymbol name="arrow.down.doc.fill" size={20} color="#FFFFFF" />
+                <Text className="text-background font-semibold ml-2">Beispiel-Rechnung herunterladen</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View className="flex-1 items-center justify-center py-12">
+              <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4 mb-2">Keine Rechnungen</Text>
+              <Text className="text-sm text-muted text-center mb-6">
+                Erstellen Sie Ihre erste Rechnung
+              </Text>
+              <TouchableOpacity
+                className="bg-primary px-6 py-3 rounded-lg"
+                activeOpacity={0.8}
+                onPress={() => setShowInvoiceModal(true)}
+              >
+                <Text className="text-background font-semibold">Rechnung erstellen</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 

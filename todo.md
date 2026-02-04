@@ -239,3 +239,17 @@
 - [x] PDF-Export-Endpunkt im Router
 - [ ] PDF-Download-Button im Buchhaltungsmodul
 - [x] Dashboard-Statistiken mit echten Daten (Backend-Endpunkt)
+
+## Finale Features
+- [x] PDF-Download-Button im Buchhaltungsmodul
+- [x] Newsletter-Formular zum Erstellen neuer Kampagnen
+- [x] Branding mit Gross ICT Logo konfigurieren
+- [x] App-Name auf "Gross ICT" geändert
+- [x] Logo in alle erforderlichen Formate kopiert (icon.png, splash-icon.png, favicon.png, android-icon-foreground.png)
+
+## Bugfix - Lead-Status
+- [x] Status-Auswahl im Lead-Formular hinzugefügt (Neu, Kontaktiert, Qualifiziert, Angebot, Gewonnen, Verloren)
+
+## Bugfix - Dark Mode Toggle
+- [x] Dark/Light Mode Toggle korrigiert - zeigt Info-Meldung, dass Theme den Systemeinstellungen folgt
+- [x] Hinweis auf manuelle Theme-Änderung in System-Einstellungen
