@@ -349,3 +349,9 @@
 - [x] Rechnungs-Download-Funktionalität analysieren
 - [x] Download-Button in Buchhaltung implementiert
 - [x] HTML-Rechnung wird als Datei heruntergeladen
+
+## Kunden-Speichern-Problem
+- [x] Kunden-Formular analysieren
+- [x] Speichern-Button Validierung geprüft
+- [x] Fehlerbehandlung verbessert (Alert bei Erfolg/Fehler)
+- [x] Console-Log für Debugging hinzugefügt

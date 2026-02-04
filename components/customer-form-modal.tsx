@@ -7,6 +7,7 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -38,6 +39,7 @@ export function CustomerFormModal({
 
   const createCustomer = trpc.customers.create.useMutation({
     onSuccess: () => {
+      Alert.alert("Erfolg", "Kunde wurde erfolgreich erstellt");
       onSuccess?.();
       onClose();
       // Reset form
@@ -53,14 +55,18 @@ export function CustomerFormModal({
         country: "Schweiz",
       });
     },
+    onError: (error) => {
+      Alert.alert("Fehler", `Kunde konnte nicht erstellt werden: ${error.message}`);
+    },
   });
 
   const handleSubmit = () => {
     if (!formData.email || (!formData.firstName && !formData.companyName)) {
-      alert("Bitte füllen Sie mindestens E-Mail und Name/Firma aus");
+      Alert.alert("Fehler", "Bitte füllen Sie mindestens E-Mail und Name/Firma aus");
       return;
     }
 
+    console.log("Submitting customer:", formData);
     createCustomer.mutate({
       ...formData,
       status: "active",
