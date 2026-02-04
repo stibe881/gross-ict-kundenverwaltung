@@ -300,3 +300,8 @@
 - [x] Test-Firmen-Kunde mit Portal-Zugang erstellen (SQL-Script)
 - [x] Portal-Login mit API-Integration
 - [x] Separate Session-Verwaltung für Kunden
+
+## Admin-Benutzer erstellen
+- [x] Stefan Gross (stefan.gross@gross-ict.ch) als Admin erstellen (SQL-Script bereit)
+- [x] Joel Hediger (joel.hediger@gross-ict.ch) als Admin erstellen (SQL-Script bereit)
+- [ ] SQL-Script in Supabase ausführen (create-admin-users.sql)

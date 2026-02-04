@@ -1,0 +1,8 @@
+{
+  "query": "-- 1. Stefan Gross (Admin)\nINSERT INTO users (id, name, email, role)\nVALUES (\n  'admin-stefan-gross',\n  'Stefan Gross',\n  'stefan.gross@gross-ict.ch',\n  'admin'\n)\nON DUPLICATE KEY UPDATE \n  name = VALUES(name),\n  role = VALUES(role);\n\n-- 2. Joel Hediger (Admin)\nINSERT INTO users (id, name, email, role)\nVALUES (\n  'admin-joel-hediger',\n  'Joel Hediger',\n  'joel.hediger@gross-ict.ch',\n  'admin'\n)\nON DUPLICATE KEY UPDATE \n  name = VALUES(name),\n  role = VALUES(role);\n\n-- Überprüfung\nSELECT * FROM users \nWHERE email IN ('stefan.gross@gross-ict.ch', 'joel.hediger@gross-ict.ch')\nORDER BY email;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 39nB9MMxm8dKKgZ.5a068f8f2d9c --database EE8pMDYCwPYVzmjErYFaTQ --execute -- 1. Stefan Gross (Admin)\nINSERT INTO users (id, name, email, role)\nVALUES (\n  'admin-stefan-gross',\n  'Stefan Gross',\n  'stefan.gross@gross-ict.ch',\n  'admin'\n)\nON DUPLICATE KEY UPDATE \n  name = VALUES(name),\n  role = VALUES(role);\n\n-- 2. Joel Hediger (Admin)\nINSERT INTO users (id, name, email, role)\nVALUES (\n  'admin-joel-hediger',\n  'Joel Hediger',\n  'joel.hediger@gross-ict.ch',\n  'admin'\n)\nON DUPLICATE KEY UPDATE \n  name = VALUES(name),\n  role = VALUES(role);\n\n-- Überprüfung\nSELECT * FROM users \nWHERE email IN ('stefan.gross@gross-ict.ch', 'joel.hediger@gross-ict.ch')\nORDER BY email;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1366 (HY000) at line 2: Incorrect ? value: '?' for column 'id' at row 1"
+  ]
+}
