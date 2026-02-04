@@ -8,10 +8,12 @@ import {
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { InvoiceFormModal } from "@/components/invoice-form-modal";
 
 export default function AccountingScreen() {
   const colors = useColors();
   const [activeTab, setActiveTab] = useState<"overview" | "invoices" | "expenses">("overview");
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   return (
     <ScreenContainer>
@@ -22,6 +24,7 @@ export default function AccountingScreen() {
           <TouchableOpacity
             className="bg-primary w-12 h-12 rounded-full items-center justify-center"
             activeOpacity={0.8}
+            onPress={() => setShowInvoiceModal(true)}
           >
             <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
           </TouchableOpacity>
@@ -106,6 +109,7 @@ export default function AccountingScreen() {
                 <TouchableOpacity
                   className="bg-primary py-4 rounded-lg flex-row items-center justify-center"
                   activeOpacity={0.8}
+                  onPress={() => setShowInvoiceModal(true)}
                 >
                   <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
                   <Text className="text-background font-semibold ml-2">Neue Rechnung</Text>
@@ -142,6 +146,7 @@ export default function AccountingScreen() {
             <TouchableOpacity
               className="bg-primary px-6 py-3 rounded-lg"
               activeOpacity={0.8}
+              onPress={() => setShowInvoiceModal(true)}
             >
               <Text className="text-background font-semibold">Rechnung erstellen</Text>
             </TouchableOpacity>
@@ -165,6 +170,13 @@ export default function AccountingScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Invoice Form Modal */}
+      <InvoiceFormModal
+        visible={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        onSuccess={() => {}}
+      />
     </ScreenContainer>
   );
 }

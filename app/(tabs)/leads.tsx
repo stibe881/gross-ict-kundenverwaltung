@@ -8,6 +8,7 @@ import {
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { LeadFormModal } from "@/components/lead-form-modal";
 
 type LeadStatus = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
 
@@ -28,6 +29,7 @@ const mockLeads: Lead[] = [
 export default function LeadsScreen() {
   const colors = useColors();
   const [leads] = useState<Lead[]>(mockLeads);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const getStatusLabel = (status: LeadStatus) => {
     const labels: Record<LeadStatus, string> = {
@@ -71,6 +73,7 @@ export default function LeadsScreen() {
           <TouchableOpacity
             className="bg-primary w-12 h-12 rounded-full items-center justify-center"
             activeOpacity={0.8}
+            onPress={() => setShowAddModal(true)}
           >
             <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
           </TouchableOpacity>
@@ -165,6 +168,13 @@ export default function LeadsScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Add Lead Modal */}
+      <LeadFormModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={() => {}}
+      />
     </ScreenContainer>
   );
 }

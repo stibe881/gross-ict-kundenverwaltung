@@ -13,6 +13,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { trpc } from "@/lib/trpc";
+import { CustomerFormModal } from "@/components/customer-form-modal";
 
 export default function CustomersScreen() {
   const router = useRouter();
@@ -145,30 +146,12 @@ export default function CustomersScreen() {
         )}
       </View>
 
-      {/* Add Customer Modal - Vereinfacht für ersten Test */}
-      {showAddModal && (
-        <View
-          className="absolute inset-0 bg-black/50 items-center justify-center"
-          style={{ zIndex: 1000 }}
-        >
-          <View className="bg-background rounded-2xl p-6 m-4 w-11/12 max-w-md">
-            <Text className="text-2xl font-bold text-foreground mb-4">
-              Neuer Kunde
-            </Text>
-            <Text className="text-base text-muted mb-6">
-              Funktion wird implementiert...
-            </Text>
-            <TouchableOpacity
-              className="bg-primary py-3 rounded-lg"
-              onPress={() => setShowAddModal(false)}
-            >
-              <Text className="text-background font-semibold text-center">
-                Schließen
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+      {/* Add Customer Modal */}
+      <CustomerFormModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={() => refetch()}
+      />
     </ScreenContainer>
   );
 }

@@ -124,3 +124,12 @@
 
 ## Benutzer-Feedback
 - [x] Währung von EUR auf CHF ändern (alle Module)
+
+## Neue Anforderungen
+- [x] Formular zum Erstellen von Kunden implementieren
+- [x] Formular zum Erstellen von Rechnungen implementieren (mit Positionen)
+- [x] Formular zum Erstellen von Leads implementieren
+- [x] Schweizer Datumsformat (TT.MM.JJJJ) - Hilfsfunktionen erstellt
+- [x] Schweizer Zahlenformatierung (Tausendertrennzeichen) - formatCurrency-Funktion
+- [x] Schweizer MwSt-Sätze (8.1% Normal, 2.6% Reduziert) im Rechnungsformular
+- [ ] Zahlungsverwaltung für Rechnungen (bezahlter Betrag eingeben können) - Wird in Rechnungsdetails implementiert
