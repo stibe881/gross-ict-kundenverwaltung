@@ -10,6 +10,8 @@ import {
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { trpc } from "@/lib/trpc";
 
 export default function PortalLoginScreen() {
   const colors = useColors();
@@ -26,14 +28,21 @@ export default function PortalLoginScreen() {
     setLoading(true);
 
     try {
-      // TODO: API-Call zum Login
-      // const response = await trpc.customerPortal.login.mutate({ email, password });
+      // API-Call zum Kunden-Login
+      const response = await trpc.customerPortal.authenticate.mutate({ 
+        email, 
+        password 
+      });
       
-      // Simuliere Login
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      // Nach erfolgreichem Login zur Ticket-Übersicht navigieren
-      router.push("/portal-tickets");
+      if (response.success && response.user) {
+        // Speichere Kunden-Session (separate von Mitarbeiter-Auth)
+        await AsyncStorage.setItem('customer_portal_user', JSON.stringify(response.user));
+        
+        // Nach erfolgreichem Login zur Ticket-Übersicht navigieren
+        router.replace("/portal-tickets");
+      } else {
+        Alert.alert("Fehler", "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.");
+      }
     } catch (error) {
       Alert.alert("Fehler", "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.");
     } finally {

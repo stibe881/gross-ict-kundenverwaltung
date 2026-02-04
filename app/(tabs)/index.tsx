@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -27,6 +27,14 @@ export default function DashboardScreen() {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
+  // Redirect zu Login wenn nicht angemeldet
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      // Benutzer ist nicht angemeldet - zur Login-Seite weiterleiten
+      router.replace("/portal-login");
+    }
+  }, [loading, isAuthenticated, router]);
+
   if (loading) {
     return (
       <ScreenContainer className="items-center justify-center">
@@ -35,8 +43,9 @@ export default function DashboardScreen() {
     );
   }
 
-  // OAuth-Login wird automatisch vom Backend gehandhabt
-  // Wenn nicht angemeldet, wird automatisch zur Login-Seite weitergeleitet
+  if (!isAuthenticated) {
+    return null; // Wird weitergeleitet
+  }
 
   const tiles: DashboardTile[] = [
     {

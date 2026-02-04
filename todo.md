@@ -292,3 +292,11 @@
 - [x] Theme-System entfernen (Light/Dark/System Toggle)
 - [x] Festes dunkles Design implementieren
 - [x] Theme-Toggle aus Dashboard entfernt
+
+## Zugriffskontrolle & Test-Benutzer
+- [x] Zugriffskontrolle für abgemeldete Benutzer (Redirect zu Login)
+- [x] Kunden-Portal-Trennung (Kunden sehen nur Portal)
+- [x] Test-Admin-Benutzer erstellen (SQL-Script)
+- [x] Test-Firmen-Kunde mit Portal-Zugang erstellen (SQL-Script)
+- [x] Portal-Login mit API-Integration
+- [x] Separate Session-Verwaltung für Kunden
