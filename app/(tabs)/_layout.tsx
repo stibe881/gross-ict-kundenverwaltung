@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Tabs, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, ActivityIndicator } from "react-native";
@@ -16,13 +16,15 @@ export default function TabLayout() {
   const tabBarHeight = 56 + bottomPadding;
   const { user, isAuthenticated, loading } = useAuth();
   const router = useRouter();
+  const [hasRedirected, setHasRedirected] = useState(false);
 
-  // Redirect zu Login wenn nicht angemeldet
+  // Redirect zu Login wenn nicht angemeldet (nur einmal)
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (!loading && !isAuthenticated && !hasRedirected) {
+      setHasRedirected(true);
       router.replace("/portal-login");
     }
-  }, [loading, isAuthenticated, router]);
+  }, [loading, isAuthenticated, hasRedirected, router]);
 
   // Zeige Loading während Auth-Check
   if (loading) {
@@ -35,7 +37,9 @@ export default function TabLayout() {
 
   // Zeige nichts wenn nicht angemeldet (wird weitergeleitet)
   if (!isAuthenticated) {
-    return null;
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }} />
+    );
   }
 
   return (

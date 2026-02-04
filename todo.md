@@ -316,3 +316,8 @@
 - [x] Redirect-Loop analysieren
 - [x] Auth-Check optimieren um wiederholte Redirects zu vermeiden
 - [x] Doppelten Redirect im Dashboard entfernt
+
+## Blink-Problem (persistierend)
+- [x] useAuth Hook Render-Loop analysieren
+- [x] Redirect-Logik optimieren (hasRedirected-Flag)
+- [x] Verhindert mehrfache Redirects
