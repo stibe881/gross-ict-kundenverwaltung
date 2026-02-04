@@ -114,3 +114,10 @@
 - [ ] Responsive Design testen (Desktop, Tablet, Mobile)
 - [ ] Performance-Optimierung
 - [ ] Dokumentation erstellen
+
+## Aktuell zu beheben
+- [x] CRM-Modul UI implementieren (Kundenliste mit Suche und Statistik)
+- [x] Buchhaltungsmodul UI implementieren (Tabs: Übersicht, Rechnungen, Ausgaben)
+- [x] Akquisemodul UI implementieren (Lead-Pipeline mit Stages)
+- [x] Ticketsystem UI implementieren (Ticket-Liste mit Filter und Statistik)
+- [ ] Login-Funktionalität - OAuth wird automatisch vom Backend gehandhabt

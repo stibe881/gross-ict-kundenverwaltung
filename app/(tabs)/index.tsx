@@ -27,24 +27,8 @@ export default function DashboardScreen() {
     );
   }
 
-  if (!isAuthenticated) {
-    return (
-      <ScreenContainer className="items-center justify-center p-6">
-        <Text className="text-2xl font-bold text-foreground mb-4">Willkommen</Text>
-        <Text className="text-base text-muted text-center mb-6">
-          Bitte melden Sie sich an, um auf die Kundenverwaltung zuzugreifen.
-        </Text>
-        <TouchableOpacity
-          className="bg-primary px-6 py-3 rounded-lg"
-          onPress={() => {
-            // Login wird automatisch über OAuth gehandhabt
-          }}
-        >
-          <Text className="text-background font-semibold">Anmelden</Text>
-        </TouchableOpacity>
-      </ScreenContainer>
-    );
-  }
+  // OAuth-Login wird automatisch vom Backend gehandhabt
+  // Wenn nicht angemeldet, wird automatisch zur Login-Seite weitergeleitet
 
   const tiles: DashboardTile[] = [
     {
