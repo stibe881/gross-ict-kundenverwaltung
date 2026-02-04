@@ -8,6 +8,7 @@ import { useColors } from "@/hooks/use-colors";
 import { CustomerFormModal } from "@/components/customer-form-modal";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { TicketFormModal } from "@/components/ticket-form-modal";
+import { LogoutButton } from "@/components/logout-button";
 
 
 interface DashboardTile {
@@ -108,13 +109,13 @@ export default function DashboardScreen() {
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
         {/* Header */}
         <View className="mb-6">
-          <View className="mb-2">
+          <View className="flex-row justify-between items-center mb-2">
             <Text className="text-3xl font-bold text-foreground">Dashboard</Text>
+            <LogoutButton />
           </View>
           <Text className="text-base text-muted mt-1">
-            Willkommen zurück, {user?.name || "Benutzer"}
+            Willkommen zurück
           </Text>
-          <Text className="text-sm text-muted">Rolle: {getRoleLabel((user as any)?.role)}</Text>
         </View>
 
         {/* Kacheln Grid */}

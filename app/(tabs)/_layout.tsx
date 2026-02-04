@@ -2,49 +2,55 @@ import { useEffect, useState } from "react";
 import { Tabs, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, ActivityIndicator } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Platform } from "react-native";
 import { useColors } from "@/hooks/use-colors";
-import { useAuth } from "@/hooks/use-auth";
 
 export default function TabLayout() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
   const tabBarHeight = 56 + bottomPadding;
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
-  // TODO: Auth-Check temporär deaktiviert bis OAuth konfiguriert ist
-  // Nach OAuth-Setup wieder aktivieren:
-  // const { user, isAuthenticated, loading } = useAuth();
-  // const router = useRouter();
-  // const [hasRedirected, setHasRedirected] = useState(false);
-  // const [forceReady, setForceReady] = useState(false);
-  //
-  // useEffect(() => {
-  //   const timeout = setTimeout(() => setForceReady(true), 3000);
-  //   return () => clearTimeout(timeout);
-  // }, []);
-  //
-  // useEffect(() => {
-  //   if ((forceReady || !loading) && !isAuthenticated && !hasRedirected) {
-  //     setHasRedirected(true);
-  //     router.replace("/portal-login");
-  //   }
-  // }, [loading, isAuthenticated, hasRedirected, forceReady, router]);
-  //
-  // if (loading && !forceReady) {
-  //   return (
-  //     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-  //       <ActivityIndicator size="large" color={colors.primary} />
-  //     </View>
-  //   );
-  // }
-  //
-  // if (!isAuthenticated) {
-  //   return <View style={{ flex: 1, backgroundColor: colors.background }} />;
-  // }
+  // Prüfe Login-Status
+  useEffect(() => {
+    checkLoginStatus();
+  }, []);
+
+  const checkLoginStatus = async () => {
+    try {
+      const loggedIn = await AsyncStorage.getItem("isLoggedIn");
+      setIsLoggedIn(loggedIn === "true");
+      
+      if (loggedIn !== "true") {
+        router.replace("/login");
+      }
+    } catch (error) {
+      setIsLoggedIn(false);
+      router.replace("/login");
+    }
+  };
+
+  // Zeige Loading während Login-Check
+  if (isLoggedIn === null) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  // Zeige nichts wenn nicht angemeldet (wird weitergeleitet)
+  if (!isLoggedIn) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }} />
+    );
+  }
 
   return (
     <Tabs

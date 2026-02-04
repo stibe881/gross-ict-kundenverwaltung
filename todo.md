@@ -332,3 +332,10 @@
 - [x] Auth-Check im Tab-Layout auskommentieren
 - [x] Direkt zum Dashboard weiterleiten (kein Loading mehr)
 - [ ] Nach OAuth-Konfiguration wieder aktivieren
+
+## Einfache Login-Seite (ohne OAuth)
+- [x] Login-Seite mit Benutzername/Passwort erstellen
+- [x] Lokalen Auth-State mit AsyncStorage verwalten
+- [x] Auth-Guard mit lokalem Login-Check implementieren
+- [x] Logout-Button im Dashboard hinzugefügt
+- [x] Test-Credentials: stefan.gross@gross-ict.ch / !LeliBist.1561!
