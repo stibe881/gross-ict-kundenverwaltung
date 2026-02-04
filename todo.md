@@ -339,3 +339,13 @@
 - [x] Auth-Guard mit lokalem Login-Check implementieren
 - [x] Logout-Button im Dashboard hinzugefügt
 - [x] Test-Credentials: stefan.gross@gross-ict.ch / !LeliBist.1561!
+
+## Portal-Tabs aus Admin-Navigation entfernen
+- [x] Portal-Login Tab aus Tab-Navigation entfernt (verschoben nach /portal-login-customer)
+- [x] Portal-Tickets Tab aus Tab-Navigation entfernt (verschoben nach /portal-tickets-customer)
+- [x] Kunden-Portal nur über separate URL zugänglich
+
+## Rechnungs-Download-Problem
+- [x] Rechnungs-Download-Funktionalität analysieren
+- [x] Download-Button in Buchhaltung implementiert
+- [x] HTML-Rechnung wird als Datei heruntergeladen

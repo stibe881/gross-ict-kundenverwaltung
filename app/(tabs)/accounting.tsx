@@ -4,6 +4,7 @@ import {
   Text,
   View,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -145,9 +146,90 @@ export default function AccountingScreen() {
               <TouchableOpacity
                 className="bg-primary py-3 rounded-lg flex-row items-center justify-center"
                 activeOpacity={0.8}
-                onPress={() => {
-                  // Beispiel-PDF-Download
-                  alert("PDF-Download-Funktion: Rechnung RE-2026-001 wird heruntergeladen...");
+                onPress={async () => {
+                  try {
+                    // Erstelle Beispiel-Rechnung als HTML
+                    const htmlContent = `
+                      <!DOCTYPE html>
+                      <html>
+                      <head>
+                        <meta charset="UTF-8">
+                        <title>Rechnung RE-2026-001</title>
+                        <style>
+                          body { font-family: Arial, sans-serif; margin: 40px; }
+                          .header { text-align: right; margin-bottom: 40px; }
+                          .invoice-title { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+                          .info { margin-bottom: 30px; }
+                          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                          th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+                          th { background-color: #f5f5f5; }
+                          .total { font-weight: bold; font-size: 18px; text-align: right; margin-top: 20px; }
+                        </style>
+                      </head>
+                      <body>
+                        <div class="header">
+                          <strong>Gross ICT</strong><br>
+                          Musterstrasse 123<br>
+                          8000 Zürich<br>
+                          Schweiz
+                        </div>
+                        <div class="invoice-title">Rechnung RE-2026-001</div>
+                        <div class="info">
+                          <strong>Kunde:</strong><br>
+                          Muster AG<br>
+                          Beispielweg 456<br>
+                          9000 St. Gallen
+                        </div>
+                        <div class="info">
+                          <strong>Rechnungsdatum:</strong> 04.02.2026<br>
+                          <strong>Fällig am:</strong> 04.03.2026
+                        </div>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Position</th>
+                              <th>Menge</th>
+                              <th>Einzelpreis</th>
+                              <th>Gesamt</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td>IT-Support Paket</td>
+                              <td>1</td>
+                              <td>CHF 500.00</td>
+                              <td>CHF 500.00</td>
+                            </tr>
+                            <tr>
+                              <td>Server-Wartung</td>
+                              <td>2</td>
+                              <td>CHF 250.00</td>
+                              <td>CHF 500.00</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        <div class="total">
+                          Gesamtbetrag: CHF 1'000.00
+                        </div>
+                      </body>
+                      </html>
+                    `;
+
+                    // Erstelle Blob und Download-Link
+                    const blob = new Blob([htmlContent], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'Rechnung-RE-2026-001.html';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+
+                    Alert.alert("Erfolg", "Beispiel-Rechnung wurde heruntergeladen");
+                  } catch (error) {
+                    Alert.alert("Fehler", "Download fehlgeschlagen");
+                  }
                 }}
               >
                 <IconSymbol name="arrow.down.doc.fill" size={20} color="#FFFFFF" />
