@@ -253,3 +253,16 @@
 ## Bugfix - Dark Mode Toggle
 - [x] Dark/Light Mode Toggle korrigiert - zeigt Info-Meldung, dass Theme den Systemeinstellungen folgt
 - [x] Hinweis auf manuelle Theme-Änderung in System-Einstellungen
+
+## Neue Features (Priorität)
+- [x] Kundendetailseite mit Tabs (Stammdaten, Kommunikation, Verträge, Rechnungen, Tickets)
+- [x] Navigation von Kundenliste zu Detailseite
+- [ ] Dashboard-Daten live aus Datenbank laden (echte Statistiken)
+- [x] Supabase-Integration konfigurieren (Project ID: bvluvvyvftygnxtmboxw)
+- [x] Supabase Anon Public Key hinterlegen
+- [x] Datenbankverbindung testen (Tests erfolgreich)
+
+## Supabase-Migration
+- [ ] Datenbankschema in Supabase erstellen
+- [ ] API-Endpunkte auf Supabase umstellen
+- [ ] Dashboard-Statistiken mit echten Supabase-Daten
