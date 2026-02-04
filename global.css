@@ -1,3 +1,36 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --color-primary: #3388DD;
+  --color-background: #1A1A1A;
+  --color-surface: #2A2A2A;
+  --color-foreground: #ECEDEE;
+  --color-muted: #9BA1A6;
+  --color-border: #404040;
+  --color-success: #4ADE80;
+  --color-warning: #FBBF24;
+  --color-error: #F87171;
+  --color-info: #22D3EE;
+}
+
+/* Force dark theme colors */
+:root[data-theme="light"],
+:root[data-theme="dark"] {
+  --color-primary: #3388DD;
+  --color-background: #1A1A1A;
+  --color-surface: #2A2A2A;
+  --color-foreground: #ECEDEE;
+  --color-muted: #9BA1A6;
+  --color-border: #404040;
+  --color-success: #4ADE80;
+  --color-warning: #FBBF24;
+  --color-error: #F87171;
+  --color-info: #22D3EE;
+}
+
+body {
+  background-color: #1A1A1A;
+  color: #ECEDEE;
+}
