@@ -221,3 +221,8 @@
 - [x] Bearbeiten-Button im Details-Modal
 - [ ] Vertrag bearbeiten (Formular mit vorausgefüllten Daten)
 - [ ] Integration in Kunden-Detailansicht
+
+## Neue Prioritäten
+- [ ] Newsletter-Modul implementieren (E-Mail-Kampagnen, Empfängerlisten, Versand)
+- [ ] Rechnungs-PDF-Export (PDF-Generierung mit MwSt-Ausweis)
+- [ ] Dashboard-Statistiken mit echten Daten aus der Datenbank

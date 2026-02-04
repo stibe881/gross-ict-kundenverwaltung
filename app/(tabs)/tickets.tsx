@@ -338,30 +338,30 @@ function TicketDetailsModal({
     <Modal visible={true} animationType="slide" transparent onRequestClose={onClose}>
       <View className="flex-1 bg-black/50 justify-end">
         <View className="bg-background rounded-t-3xl" style={{ maxHeight: "90%" }}>
-        {/* Header */}
-        <View className="flex-row items-center justify-between p-4 border-b border-border">
-          <Text className="text-2xl font-bold text-foreground">Ticket-Details</Text>
-          <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-            <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Content */}
-        <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
-        <View className="gap-4">
-          <View>
-            <Text className="text-sm text-muted mb-1">Titel</Text>
-            <Text className="text-lg font-semibold text-foreground">{ticket.title}</Text>
+          {/* Header */}
+          <View className="flex-row items-center justify-between p-4 border-b border-border">
+            <Text className="text-2xl font-bold text-foreground">Ticket-Details</Text>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+              <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+            </TouchableOpacity>
           </View>
 
-          <View>
-            <Text className="text-sm text-muted mb-1">Kunde</Text>
-            <Text className="text-base text-foreground">{ticket.customer}</Text>
-          </View>
+          {/* Content */}
+          <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
+            <View className="gap-4">
+              <View>
+                <Text className="text-sm text-muted mb-1">Titel</Text>
+                <Text className="text-lg font-semibold text-foreground">{ticket.title}</Text>
+              </View>
 
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <Text className="text-sm text-muted mb-1">Status</Text>
+              <View>
+                <Text className="text-sm text-muted mb-1">Kunde</Text>
+                <Text className="text-base text-foreground">{ticket.customer}</Text>
+              </View>
+
+              <View className="flex-row gap-3">
+                <View className="flex-1">
+                  <Text className="text-sm text-muted mb-1">Status</Text>
               <View
                 className="px-3 py-2 rounded-lg"
                 style={{ backgroundColor: getStatusColor(ticket.status) + "20" }}
@@ -390,16 +390,16 @@ function TicketDetailsModal({
             </View>
           </View>
 
-          <View>
-            <Text className="text-sm text-muted mb-1">Erstellt am</Text>
-            <Text className="text-base text-foreground">{formatDate(ticket.createdAt)}</Text>
-          </View>
-        </View>
+              <View>
+                <Text className="text-sm text-muted mb-1">Erstellt am</Text>
+                <Text className="text-base text-foreground">{formatDate(ticket.createdAt)}</Text>
+              </View>
+            </View>
 
-        {/* Historie */}
-        <View className="mt-6">
-          <Text className="text-lg font-bold text-foreground mb-3">Historie</Text>
-          <ScrollView className="max-h-64 mb-4" showsVerticalScrollIndicator={false}>
+            {/* Historie */}
+            <View className="mt-6">
+              <Text className="text-lg font-bold text-foreground mb-3">Historie</Text>
+              <ScrollView className="max-h-64 mb-4" showsVerticalScrollIndicator={false}>
             {comments.map((comment) => (
               <View
                 key={comment.id}
@@ -424,8 +424,8 @@ function TicketDetailsModal({
             ))}
           </ScrollView>
 
-          {/* Kommentar hinzufügen */}
-          <View className="gap-2">
+              {/* Kommentar hinzufügen */}
+              <View className="gap-2">
             <TextInput
               className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
               placeholder="Kommentar hinzufügen..."
@@ -444,22 +444,23 @@ function TicketDetailsModal({
               <Text className="text-background font-semibold text-center">
                 Kommentar hinzufügen
               </Text>
+              </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* Footer */}
+          <View className="p-4 border-t border-border">
+              <TouchableOpacity
+              className="bg-surface border border-border py-3 rounded-lg"
+              onPress={onClose}
+              activeOpacity={0.8}
+            >
+              <Text className="text-foreground font-semibold text-center">Schließen</Text>
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Footer */}
-        <View className="mt-6 pt-4 border-t border-border">
-          <TouchableOpacity
-            className="bg-surface border border-border py-3 rounded-lg"
-            onPress={onClose}
-            activeOpacity={0.8}
-          >
-            <Text className="text-foreground font-semibold text-center">Schließen</Text>
-          </TouchableOpacity>
-        </View>
       </View>
-    </View>
     </Modal>
   );
 }
