@@ -5,12 +5,14 @@ import {
   View,
   TouchableOpacity,
   FlatList,
+  Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { formatDate, formatCurrency } from "@/lib/format";
+import { ContractFormModal } from "@/components/contract-form-modal";
 
 type ContractStatus = "active" | "cancelled" | "expired";
 
@@ -67,6 +69,8 @@ export default function ContractsScreen() {
   const router = useRouter();
   const [contracts] = useState<Contract[]>(mockContracts);
   const [filter, setFilter] = useState<"all" | ContractStatus>("all");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
 
   const getStatusLabel = (status: ContractStatus) => {
     const labels: Record<ContractStatus, string> = {
@@ -93,6 +97,7 @@ export default function ContractsScreen() {
     <TouchableOpacity
       className="bg-surface rounded-xl p-4 mb-3 border border-border"
       activeOpacity={0.7}
+      onPress={() => setSelectedContract(item)}
     >
       <View className="flex-row items-start justify-between mb-2">
         <View className="flex-1">
@@ -149,6 +154,7 @@ export default function ContractsScreen() {
           <TouchableOpacity
             className="bg-primary w-12 h-12 rounded-full items-center justify-center"
             activeOpacity={0.8}
+            onPress={() => setShowAddModal(true)}
           >
             <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
           </TouchableOpacity>
@@ -221,6 +227,166 @@ export default function ContractsScreen() {
           </View>
         )}
       </View>
+
+      {/* Vertragsformular Modal */}
+      <ContractFormModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={() => {}}
+      />
+
+      {/* Vertrags-Details Modal */}
+      {selectedContract && (
+        <ContractDetailsModal
+          contract={selectedContract}
+          onClose={() => setSelectedContract(null)}
+          getStatusLabel={getStatusLabel}
+          getStatusColor={getStatusColor}
+        />
+      )}
     </ScreenContainer>
+  );
+}
+
+// Vertrags-Details Modal mit Historie
+function ContractDetailsModal({
+  contract,
+  onClose,
+  getStatusLabel,
+  getStatusColor,
+}: {
+  contract: Contract;
+  onClose: () => void;
+  getStatusLabel: (status: ContractStatus) => string;
+  getStatusColor: (status: ContractStatus) => string;
+}) {
+  const colors = useColors();
+  const [history] = useState([
+    {
+      id: 1,
+      type: "system" as const,
+      text: "Vertrag erstellt",
+      createdAt: contract.startDate,
+      user: "System",
+    },
+    {
+      id: 2,
+      type: "activity" as const,
+      text: "Vertrag vom Kunden unterzeichnet",
+      createdAt: contract.startDate,
+      user: "Admin User",
+    },
+  ]);
+
+  return (
+    <Modal visible={true} animationType="slide" transparent onRequestClose={onClose}>
+      <View className="flex-1 bg-black/50 justify-end">
+        <View className="bg-background rounded-t-3xl" style={{ maxHeight: "90%" }}>
+          {/* Header */}
+          <View className="flex-row items-center justify-between p-4 border-b border-border">
+            <Text className="text-2xl font-bold text-foreground">Vertragsdetails</Text>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+              <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Content */}
+          <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
+            <View className="gap-4">
+              {/* Titel & Status */}
+              <View>
+                <View className="flex-row items-start justify-between mb-2">
+                  <View className="flex-1">
+                    <Text className="text-xl font-bold text-foreground mb-1">
+                      {contract.title}
+                    </Text>
+                    <Text className="text-base text-muted">{contract.customer}</Text>
+                  </View>
+                  <View
+                    className="px-3 py-1 rounded-full"
+                    style={{ backgroundColor: getStatusColor(contract.status) + "20" }}
+                  >
+                    <Text
+                      className="text-sm font-semibold"
+                      style={{ color: getStatusColor(contract.status) }}
+                    >
+                      {getStatusLabel(contract.status)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Laufzeit & Betrag */}
+              <View className="bg-surface rounded-xl p-4 border border-border">
+                <View className="gap-3">
+                  <View>
+                    <Text className="text-sm text-muted mb-1">Laufzeit</Text>
+                    <Text className="text-base text-foreground">
+                      {formatDate(contract.startDate)} - {formatDate(contract.endDate)}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text className="text-sm text-muted mb-1">Jahresbetrag</Text>
+                    <Text className="text-lg font-bold text-success">
+                      {formatCurrency(contract.amount)}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text className="text-sm text-muted mb-1">Kündigungsfrist</Text>
+                    <Text className="text-base text-foreground">
+                      {contract.noticePeriod} {contract.noticePeriod === 1 ? "Monat" : "Monate"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Historie */}
+              <View>
+                <Text className="text-lg font-bold text-foreground mb-3">Vertragshistorie</Text>
+                {history.map((item) => (
+                  <View
+                    key={item.id}
+                    className={`mb-3 p-3 rounded-lg ${
+                      item.type === "system" ? "bg-surface" : "bg-primary/10"
+                    }`}
+                  >
+                    <View className="flex-row items-center justify-between mb-1">
+                      <Text
+                        className={`text-xs font-semibold ${
+                          item.type === "system" ? "text-muted" : "text-primary"
+                        }`}
+                      >
+                        {item.user}
+                      </Text>
+                      <Text className="text-xs text-muted">
+                        {formatDate(item.createdAt)}
+                      </Text>
+                    </View>
+                    <Text className="text-sm text-foreground">{item.text}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* Footer */}
+          <View className="p-4 border-t border-border flex-row gap-3">
+            <TouchableOpacity
+              className="flex-1 bg-surface border border-border py-3 rounded-lg"
+              onPress={onClose}
+              activeOpacity={0.8}
+            >
+              <Text className="text-foreground font-semibold text-center">Schließen</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 bg-primary py-3 rounded-lg"
+              activeOpacity={0.8}
+            >
+              <Text className="text-background font-semibold text-center">Bearbeiten</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }

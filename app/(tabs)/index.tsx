@@ -80,6 +80,21 @@ export default function DashboardScreen() {
     },
   ];
 
+  // Admin-spezifische Kacheln
+  const adminTiles: DashboardTile[] = [
+    {
+      id: "users",
+      title: "Benutzerverwaltung",
+      value: "Admin",
+      icon: "gear",
+      color: "#EF4444",
+      route: "/users",
+    },
+  ];
+
+  // Kombiniere Kacheln basierend auf Benutzerrolle
+  const allTiles = (user as any)?.role === "admin" ? [...tiles, ...adminTiles] : tiles;
+
   return (
     <ScreenContainer>
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
@@ -94,7 +109,7 @@ export default function DashboardScreen() {
 
         {/* Kacheln Grid */}
         <View className="gap-4">
-          {tiles.map((tile) => (
+          {allTiles.map((tile) => (
             <TouchableOpacity
               key={tile.id}
               className="bg-surface rounded-2xl p-6 border border-border"

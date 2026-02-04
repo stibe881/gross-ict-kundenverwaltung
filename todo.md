@@ -195,12 +195,15 @@
 - [x] Lead-Karten klickbar - öffnet Details-Modal
 
 ## Benutzerverwaltung (Admin)
-- [ ] Benutzerverwaltungs-Screen erstellen (nur für Admins)
-- [ ] Benutzerliste mit Rollen anzeigen
-- [ ] Neuen Benutzer erstellen (Admin, Manager, Buchhalter, Vertrieb, Support)
+- [x] Benutzerverwaltungs-Screen erstellen (nur für Admins)
+- [x] Benutzerliste mit Rollen anzeigen (Admin, Manager, Buchhalter, Vertrieb, Support)
+- [x] Rollenbasierte Navigation (Admin-Kachel nur für Admins sichtbar)
+- [x] Zugriffskontrolle - Nicht-Admins sehen Fehlermeldung
+- [x] Statistik-Kacheln (Gesamt, Aktiv, Inaktiv)
+- [x] Filterung nach Status (Alle, Aktiv, Inaktiv)
+- [ ] Neuen Benutzer erstellen (Formular)
 - [ ] Benutzer bearbeiten (Rolle ändern, aktivieren/deaktivieren)
 - [ ] Benutzer löschen/deaktivieren
-- [ ] Rollenbasierte Navigation (Admin-Tab nur für Admins sichtbar)
 
 ## Vertragsmodul (Priorität 1)
 - [x] Vertragsmodul-Screen erstellen (/contracts)
@@ -209,7 +212,12 @@
 - [x] Filterung nach Status
 - [x] Statistik-Kacheln (Aktiv, Gekündigt, Abgelaufen)
 - [x] Dashboard-Kachel für Verträge hinzugefügt
-- [ ] Neuen Vertrag erstellen (Kunde, Titel, Beschreibung, Betrag, Laufzeit, Kündigungsfrist)
-- [ ] Vertrag bearbeiten
-- [ ] Vertrags-Details-Modal
+- [x] Neuen Vertrag erstellen (Kunde, Titel, Beschreibung, Betrag, Laufzeit, Kündigungsfrist)
+- [x] Automatische Berechnung des Enddatums basierend auf Startdatum + Laufzeit
+- [x] Kundenauswahl im Vertragsformular
+- [x] Plus-Button im Contracts-Screen funktional
+- [x] Vertrags-Details-Modal mit Historie
+- [x] Verträge klickbar - öffnet Details-Modal
+- [x] Bearbeiten-Button im Details-Modal
+- [ ] Vertrag bearbeiten (Formular mit vorausgefüllten Daten)
 - [ ] Integration in Kunden-Detailansicht
