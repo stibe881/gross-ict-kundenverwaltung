@@ -420,3 +420,181 @@ export async function getDashboardStats() {
     },
   };
 }
+
+
+// ==================== KUNDEN-PORTAL ====================
+
+export async function getCustomerPortalSettings(customerId: string) {
+  const { data, error } = await supabase
+    .from("customers")
+    .select("portal_enabled")
+    .eq("id", customerId)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function updateCustomerPortalSettings(
+  customerId: string,
+  portalEnabled: boolean
+) {
+  const { data, error } = await supabase
+    .from("customers")
+    .update({ portal_enabled: portalEnabled })
+    .eq("id", customerId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// ==================== KUNDEN-BENUTZER ====================
+
+export async function getCustomerUsers(customerId: string) {
+  const { data, error } = await supabase
+    .from("customer_users")
+    .select("*")
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function createCustomerUser(customerUser: any) {
+  const { data, error } = await supabase
+    .from("customer_users")
+    .insert([customerUser])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function updateCustomerUser(id: string, customerUser: any) {
+  const { data, error } = await supabase
+    .from("customer_users")
+    .update(customerUser)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function deleteCustomerUser(id: string) {
+  const { error } = await supabase
+    .from("customer_users")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  return { success: true };
+}
+
+export async function authenticateCustomerUser(email: string, password: string) {
+  // In Produktion: Verwenden Sie Supabase Auth oder eine sichere Passwort-Verifikation
+  const { data, error } = await supabase
+    .from("customer_users")
+    .select("*")
+    .eq("email", email)
+    .eq("is_active", true)
+    .single();
+
+  if (error || !data) {
+    throw new Error("Invalid credentials");
+  }
+
+  // TODO: Passwort-Verifikation mit bcrypt/argon2
+  // Für jetzt: Einfacher Vergleich (NICHT PRODUKTIONSREIF!)
+  
+  // Update last_login
+  await supabase
+    .from("customer_users")
+    .update({ last_login: new Date().toISOString() })
+    .eq("id", data.id);
+
+  return data;
+}
+
+// ==================== TICKET-KOMMENTARE (INTERN/EXTERN) ====================
+
+export async function getTicketComments(ticketId: string, includeInternal: boolean = true) {
+  let query = supabase
+    .from("ticket_comments")
+    .select("*")
+    .eq("ticket_id", ticketId)
+    .order("created_at", { ascending: true });
+
+  if (!includeInternal) {
+    query = query.eq("is_internal", false);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function createTicketComment(comment: any) {
+  const { data, error } = await supabase
+    .from("ticket_comments")
+    .insert([comment])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// ==================== KUNDEN-PORTAL: TICKETS ====================
+
+export async function getCustomerUserTickets(customerUserId: string) {
+  const { data: customerUser, error: userError } = await supabase
+    .from("customer_users")
+    .select("customer_id, role")
+    .eq("id", customerUserId)
+    .single();
+
+  if (userError) throw new Error(userError.message);
+
+  let query = supabase
+    .from("tickets")
+    .select(`
+      *,
+      customer:customers(*)
+    `)
+    .eq("customer_id", customerUser.customer_id);
+
+  // Wenn Rolle 'user', nur eigene Tickets
+  if (customerUser.role === "user") {
+    query = query.eq("created_by_customer_user_id", customerUserId);
+  }
+
+  query = query.order("created_at", { ascending: false });
+
+  const { data, error } = await query;
+
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function createCustomerTicket(ticket: any, customerUserId: string) {
+  const ticketData = {
+    ...ticket,
+    created_by_customer_user_id: customerUserId,
+  };
+
+  const { data, error } = await supabase
+    .from("tickets")
+    .insert([ticketData])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}

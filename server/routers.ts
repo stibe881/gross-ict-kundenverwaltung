@@ -453,6 +453,162 @@ export const appRouter = router({
         return supabaseDb.createInvoice(invoice, itemsData);
       }),
   }),
+
+  // Kunden-Portal
+  customerPortal: router({
+    // Portal-Einstellungen
+    getSettings: protectedProcedure
+      .input(z.object({ customerId: z.string() }))
+      .query(async ({ input }) => {
+        return supabaseDb.getCustomerPortalSettings(input.customerId);
+      }),
+
+    updateSettings: protectedProcedure
+      .input(
+        z.object({
+          customerId: z.string(),
+          portalEnabled: z.boolean(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return supabaseDb.updateCustomerPortalSettings(
+          input.customerId,
+          input.portalEnabled
+        );
+      }),
+
+    // Kunden-Benutzer-Verwaltung
+    listUsers: protectedProcedure
+      .input(z.object({ customerId: z.string() }))
+      .query(async ({ input }) => {
+        return supabaseDb.getCustomerUsers(input.customerId);
+      }),
+
+    createUser: protectedProcedure
+      .input(
+        z.object({
+          customerId: z.string(),
+          email: z.string().email(),
+          firstName: z.string(),
+          lastName: z.string(),
+          role: z.enum(["user", "admin"]),
+          password: z.string().min(8),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return supabaseDb.createCustomerUser({
+          customer_id: input.customerId,
+          email: input.email,
+          first_name: input.firstName,
+          last_name: input.lastName,
+          role: input.role,
+          password_hash: input.password, // Wird automatisch gehasht
+        });
+      }),
+
+    updateUser: protectedProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          email: z.string().email().optional(),
+          firstName: z.string().optional(),
+          lastName: z.string().optional(),
+          role: z.enum(["user", "admin"]).optional(),
+          isActive: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return supabaseDb.updateCustomerUser(id, {
+          email: data.email,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          role: data.role,
+          is_active: data.isActive,
+        });
+      }),
+
+    deleteUser: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input }) => {
+        return supabaseDb.deleteCustomerUser(input.id);
+      }),
+
+    // Kunden-Login
+    authenticate: publicProcedure
+      .input(
+        z.object({
+          email: z.string().email(),
+          password: z.string(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return supabaseDb.authenticateCustomerUser(input.email, input.password);
+      }),
+
+    // Kunden-Tickets (für Portal)
+    getMyTickets: publicProcedure
+      .input(z.object({ customerUserId: z.string() }))
+      .query(async ({ input }) => {
+        return supabaseDb.getCustomerUserTickets(input.customerUserId);
+      }),
+
+    createTicket: publicProcedure
+      .input(
+        z.object({
+          customerUserId: z.string(),
+          customerId: z.string(),
+          title: z.string(),
+          description: z.string().optional(),
+          priority: z.enum(["low", "medium", "high"]).default("medium"),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { customerUserId, ...ticketData } = input;
+        return supabaseDb.createCustomerTicket(
+          {
+            customer_id: ticketData.customerId,
+            title: ticketData.title,
+            description: ticketData.description,
+            priority: ticketData.priority,
+          },
+          customerUserId
+        );
+      }),
+
+    // Ticket-Kommentare (nur externe für Kunden)
+    getTicketComments: publicProcedure
+      .input(
+        z.object({
+          ticketId: z.string(),
+          includeInternal: z.boolean().default(false),
+        })
+      )
+      .query(async ({ input }) => {
+        return supabaseDb.getTicketComments(
+          input.ticketId,
+          input.includeInternal
+        );
+      }),
+
+    createComment: publicProcedure
+      .input(
+        z.object({
+          ticketId: z.string(),
+          comment: z.string(),
+          isInternal: z.boolean().default(false),
+          userId: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return supabaseDb.createTicketComment({
+          ticket_id: input.ticketId,
+          comment: input.comment,
+          is_internal: input.isInternal,
+          user_id: input.userId,
+        });
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

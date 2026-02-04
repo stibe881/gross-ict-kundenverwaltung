@@ -11,14 +11,16 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { formatDate, formatCurrency } from "@/lib/format";
+import { CustomerPortalManagement } from "@/components/customer-portal-management";
 
-type Tab = "stammdaten" | "kommunikation" | "vertraege" | "rechnungen" | "tickets";
+type Tab = "stammdaten" | "kommunikation" | "vertraege" | "rechnungen" | "tickets" | "portal";
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams();
   const colors = useColors();
   const [activeTab, setActiveTab] = useState<Tab>("stammdaten");
   const [loading, setLoading] = useState(false);
+  const [portalEnabled, setPortalEnabled] = useState(false);
 
   // TODO: Kundendaten aus Supabase laden
   const customer = {
@@ -38,6 +40,7 @@ export default function CustomerDetailScreen() {
     { key: "vertraege", label: "Verträge", icon: "doc.text.fill" },
     { key: "rechnungen", label: "Rechnungen", icon: "chart.bar.fill" },
     { key: "tickets", label: "Tickets", icon: "ticket.fill" },
+    { key: "portal", label: "Portal", icon: "person.2.fill" },
   ];
 
   const renderTabContent = () => {
@@ -377,6 +380,15 @@ export default function CustomerDetailScreen() {
               </View>
             ))}
           </View>
+        );
+
+      case "portal":
+        return (
+          <CustomerPortalManagement
+            customerId={id as string}
+            portalEnabled={portalEnabled}
+            onPortalToggle={setPortalEnabled}
+          />
         );
 
       default:

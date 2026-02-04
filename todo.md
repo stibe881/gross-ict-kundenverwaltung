@@ -273,3 +273,17 @@
 - [x] Theme-Einstellung persistent speichern (AsyncStorage)
 - [x] Theme-Wechsel ohne Reload
 - [x] Modal mit Icon-Auswahl für Theme-Modi
+
+## Kunden-Portal & Ticket-Zugriff
+- [x] Ticket-Kommentare: Interne/Externe Unterscheidung (Standard: intern)
+- [x] Kunden-Einstellung: Portal-Zugriff aktivieren/deaktivieren
+- [x] Kunden-Benutzer-Tabelle erstellen (mehrere Benutzer pro Kunde)
+- [x] Kunden-Benutzer-Rollen: "Benutzer" (nur eigene Tickets) und "Administrator" (alle Firmen-Tickets)
+- [x] Kunden-Benutzer-Verwaltung im Kundendetail (Portal-Tab)
+- [x] Kunden-Login-System (UI implementiert)
+- [x] Kunden-Portal-UI (Ticket-Übersicht für Kunden)
+- [x] Externe Kommentare für Kunden sichtbar machen
+- [ ] API-Integration für Portal-Login
+- [ ] API-Integration für Portal-Benutzerverwaltung
+- [ ] API-Integration für Ticket-Kommentare (Internal/External)
+- [ ] Supabase-Schema ausführen (customer_portal_users Tabelle)

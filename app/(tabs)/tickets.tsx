@@ -7,6 +7,7 @@ import {
   FlatList,
   Modal,
   TextInput,
+  Switch,
 } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -255,6 +256,7 @@ function TicketDetailsModal({
 }) {
   const colors = useColors();
   const [newComment, setNewComment] = useState("");
+  const [isInternal, setIsInternal] = useState(true); // Default: Internal
   const [comments, setComments] = useState([
     {
       id: 1,
@@ -262,6 +264,7 @@ function TicketDetailsModal({
       text: "Ticket erstellt",
       createdAt: ticket.createdAt,
       user: "System",
+      isInternal: true,
     },
     {
       id: 2,
@@ -269,13 +272,15 @@ function TicketDetailsModal({
       text: "Kunde kontaktiert, Problem analysiert",
       createdAt: "2026-02-04T10:30:00",
       user: "Max Muster",
+      isInternal: true,
     },
     {
       id: 3,
-      type: "system" as const,
-      text: "Status geändert: Offen → In Bearbeitung",
+      type: "comment" as const,
+      text: "Frage an Kunden gesendet",
       createdAt: "2026-02-04T11:00:00",
-      user: "System",
+      user: "Max Muster",
+      isInternal: false,
     },
   ]);
 
@@ -288,10 +293,12 @@ function TicketDetailsModal({
       text: newComment,
       createdAt: new Date().toISOString(),
       user: "Aktueller Benutzer",
+      isInternal: isInternal,
     };
 
     setComments([...comments, comment]);
     setNewComment("");
+    setIsInternal(true); // Reset to default (Internal)
   };
 
   const getStatusLabel = (status: TicketStatus) => {
@@ -408,13 +415,34 @@ function TicketDetailsModal({
                 }`}
               >
                 <View className="flex-row items-center justify-between mb-1">
-                  <Text
-                    className={`text-xs font-semibold ${
-                      comment.type === "system" ? "text-muted" : "text-primary"
-                    }`}
-                  >
-                    {comment.user}
-                  </Text>
+                  <View className="flex-row items-center gap-2">
+                    <Text
+                      className={`text-xs font-semibold ${
+                        comment.type === "system" ? "text-muted" : "text-primary"
+                      }`}
+                    >
+                      {comment.user}
+                    </Text>
+                    {comment.type === "comment" && (
+                      <View
+                        style={{
+                          backgroundColor: comment.isInternal
+                            ? colors.warning + "20"
+                            : colors.success + "20",
+                        }}
+                        className="px-2 py-0.5 rounded"
+                      >
+                        <Text
+                          style={{
+                            color: comment.isInternal ? colors.warning : colors.success,
+                          }}
+                          className="text-xs font-semibold"
+                        >
+                          {comment.isInternal ? "Intern" : "Extern"}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <Text className="text-xs text-muted">
                     {formatDateTime(comment.createdAt)}
                   </Text>
@@ -426,6 +454,38 @@ function TicketDetailsModal({
 
               {/* Kommentar hinzufügen */}
               <View className="gap-2">
+            {/* Internal/External Toggle */}
+            <View className="flex-row items-center justify-between bg-surface p-3 rounded-lg border border-border">
+              <View className="flex-row items-center gap-2">
+                <Text className="text-sm font-semibold text-foreground">
+                  {isInternal ? "Interner Kommentar" : "Externer Kommentar"}
+                </Text>
+                <View
+                  style={{
+                    backgroundColor: isInternal
+                      ? colors.warning + "20"
+                      : colors.success + "20",
+                  }}
+                  className="px-2 py-1 rounded"
+                >
+                  <Text
+                    style={{
+                      color: isInternal ? colors.warning : colors.success,
+                    }}
+                    className="text-xs font-semibold"
+                  >
+                    {isInternal ? "Nur für Mitarbeiter" : "Für Kunden sichtbar"}
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={!isInternal}
+                onValueChange={(value) => setIsInternal(!value)}
+                trackColor={{ false: colors.warning, true: colors.success }}
+                thumbColor={colors.background}
+              />
+            </View>
+
             <TextInput
               className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
               placeholder="Kommentar hinzufügen..."
