@@ -311,3 +311,8 @@
 - [x] Auth-Guard-Komponente erstellt
 - [x] Tab-Layout mit Auth-Guard geschützt
 - [x] Dashboard mit Auth-Check geschützt
+
+## Blink-Problem beheben
+- [x] Redirect-Loop analysieren
+- [x] Auth-Check optimieren um wiederholte Redirects zu vermeiden
+- [x] Doppelten Redirect im Dashboard entfernt

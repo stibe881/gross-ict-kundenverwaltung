@@ -27,24 +27,14 @@ export default function DashboardScreen() {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
-  // Redirect zu Login wenn nicht angemeldet
-  useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      // Benutzer ist nicht angemeldet - zur Login-Seite weiterleiten
-      router.replace("/portal-login");
-    }
-  }, [loading, isAuthenticated, router]);
-
+  // Auth-Check wird bereits im Tab-Layout durchgeführt
+  // Hier nur noch Loading-State anzeigen falls nötig
   if (loading) {
     return (
       <ScreenContainer className="items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary} />
       </ScreenContainer>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null; // Wird weitergeleitet
   }
 
   const tiles: DashboardTile[] = [
