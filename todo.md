@@ -177,3 +177,27 @@
 - [x] Ticket-Plus-Button funktional
 - [x] Ticket-Details öffnen funktioniert
 - [x] Kundenauswahl im Ticket-Formular
+
+## Ticket-Historie
+- [x] Ticket-Historie-Anzeige im Details-Modal
+- [x] Beispiel-Historie mit System- und Benutzer-Kommentaren
+- [x] Manuelle Kommentare zur Historie hinzufügen können
+- [x] Chronologische Darstellung mit Zeitstempel (DD.MM.YYYY HH:MM)
+- [ ] Automatische Historie bei Statusänderungen (Backend)
+- [ ] Automatische Historie bei Prioritätsänderungen (Backend)
+
+## Lead-Historie
+- [x] Lead-Details-Modal erstellen
+- [x] Lead-Historie-Anzeige im Details-Modal (Aktivitätsverlauf)
+- [x] Beispiel-Historie mit System- und Benutzer-Aktivitäten
+- [x] Manuelle Aktivitäten zur Historie hinzufügen können
+- [x] Chronologische Darstellung mit Zeitstempel (DD.MM.YYYY HH:MM)
+- [x] Lead-Karten klickbar - öffnet Details-Modal
+
+## Benutzerverwaltung (Admin)
+- [ ] Benutzerverwaltungs-Screen erstellen (nur für Admins)
+- [ ] Benutzerliste mit Rollen anzeigen
+- [ ] Neuen Benutzer erstellen (Admin, Manager, Buchhalter, Vertrieb, Support)
+- [ ] Benutzer bearbeiten (Rolle ändern, aktivieren/deaktivieren)
+- [ ] Benutzer löschen/deaktivieren
+- [ ] Rollenbasierte Navigation (Admin-Tab nur für Admins sichtbar)

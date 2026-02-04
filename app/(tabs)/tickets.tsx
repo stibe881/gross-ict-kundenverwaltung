@@ -5,12 +5,14 @@ import {
   View,
   TouchableOpacity,
   FlatList,
+  Modal,
+  TextInput,
 } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { TicketFormModal } from "@/components/ticket-form-modal";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 
 type TicketStatus = "open" | "in_progress" | "waiting" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
@@ -252,6 +254,45 @@ function TicketDetailsModal({
   onClose: () => void;
 }) {
   const colors = useColors();
+  const [newComment, setNewComment] = useState("");
+  const [comments, setComments] = useState([
+    {
+      id: 1,
+      type: "system" as const,
+      text: "Ticket erstellt",
+      createdAt: ticket.createdAt,
+      user: "System",
+    },
+    {
+      id: 2,
+      type: "comment" as const,
+      text: "Kunde kontaktiert, Problem analysiert",
+      createdAt: "2026-02-04T10:30:00",
+      user: "Max Muster",
+    },
+    {
+      id: 3,
+      type: "system" as const,
+      text: "Status geändert: Offen → In Bearbeitung",
+      createdAt: "2026-02-04T11:00:00",
+      user: "System",
+    },
+  ]);
+
+  const handleAddComment = () => {
+    if (!newComment.trim()) return;
+
+    const comment = {
+      id: comments.length + 1,
+      type: "comment" as const,
+      text: newComment,
+      createdAt: new Date().toISOString(),
+      user: "Aktueller Benutzer",
+    };
+
+    setComments([...comments, comment]);
+    setNewComment("");
+  };
 
   const getStatusLabel = (status: TicketStatus) => {
     const labels: Record<TicketStatus, string> = {
@@ -294,18 +335,19 @@ function TicketDetailsModal({
   };
 
   return (
-    <View
-      className="absolute inset-0 bg-black/50 items-center justify-center p-4"
-      style={{ zIndex: 1000 }}
-    >
-      <View className="bg-background rounded-2xl p-6 w-full max-w-md">
-        <View className="flex-row items-center justify-between mb-4">
+    <Modal visible={true} animationType="slide" transparent onRequestClose={onClose}>
+      <View className="flex-1 bg-black/50 justify-end">
+        <View className="bg-background rounded-t-3xl" style={{ maxHeight: "90%" }}>
+        {/* Header */}
+        <View className="flex-row items-center justify-between p-4 border-b border-border">
           <Text className="text-2xl font-bold text-foreground">Ticket-Details</Text>
           <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
             <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
           </TouchableOpacity>
         </View>
 
+        {/* Content */}
+        <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
         <View className="gap-4">
           <View>
             <Text className="text-sm text-muted mb-1">Titel</Text>
@@ -354,14 +396,70 @@ function TicketDetailsModal({
           </View>
         </View>
 
-        <TouchableOpacity
-          className="bg-primary py-3 rounded-lg mt-6"
-          onPress={onClose}
-          activeOpacity={0.8}
-        >
-          <Text className="text-background font-semibold text-center">Schließen</Text>
-        </TouchableOpacity>
+        {/* Historie */}
+        <View className="mt-6">
+          <Text className="text-lg font-bold text-foreground mb-3">Historie</Text>
+          <ScrollView className="max-h-64 mb-4" showsVerticalScrollIndicator={false}>
+            {comments.map((comment) => (
+              <View
+                key={comment.id}
+                className={`mb-3 p-3 rounded-lg ${
+                  comment.type === "system" ? "bg-surface" : "bg-primary/10"
+                }`}
+              >
+                <View className="flex-row items-center justify-between mb-1">
+                  <Text
+                    className={`text-xs font-semibold ${
+                      comment.type === "system" ? "text-muted" : "text-primary"
+                    }`}
+                  >
+                    {comment.user}
+                  </Text>
+                  <Text className="text-xs text-muted">
+                    {formatDateTime(comment.createdAt)}
+                  </Text>
+                </View>
+                <Text className="text-sm text-foreground">{comment.text}</Text>
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Kommentar hinzufügen */}
+          <View className="gap-2">
+            <TextInput
+              className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+              placeholder="Kommentar hinzufügen..."
+              placeholderTextColor={colors.muted}
+              multiline
+              numberOfLines={2}
+              textAlignVertical="top"
+              value={newComment}
+              onChangeText={setNewComment}
+            />
+            <TouchableOpacity
+              className="bg-primary py-2 rounded-lg"
+              onPress={handleAddComment}
+              activeOpacity={0.8}
+            >
+              <Text className="text-background font-semibold text-center">
+                Kommentar hinzufügen
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Footer */}
+        <View className="mt-6 pt-4 border-t border-border">
+          <TouchableOpacity
+            className="bg-surface border border-border py-3 rounded-lg"
+            onPress={onClose}
+            activeOpacity={0.8}
+          >
+            <Text className="text-foreground font-semibold text-center">Schließen</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
+    </Modal>
   );
 }

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Modal,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -35,6 +36,7 @@ export default function LeadsScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   const getStatusLabel = (status: LeadStatus) => {
     const labels: Record<LeadStatus, string> = {
@@ -126,6 +128,7 @@ export default function LeadsScreen() {
                       key={lead.id}
                       className="bg-background rounded-lg p-3 border border-border"
                       activeOpacity={0.7}
+                      onPress={() => setSelectedLead(lead)}
                     >
                       <Text className="text-base font-semibold text-foreground mb-1">
                         {lead.name}
@@ -213,6 +216,14 @@ export default function LeadsScreen() {
         <ConvertLeadModal
           lead={convertingLead}
           onClose={() => setConvertingLead(null)}
+        />
+      )}
+
+      {/* Lead Details Modal */}
+      {selectedLead && (
+        <LeadDetailsModal
+          lead={selectedLead}
+          onClose={() => setSelectedLead(null)}
         />
       )}
     </ScreenContainer>
@@ -312,6 +323,213 @@ function ConvertLeadModal({
                   Als Kunde erfassen
                 </Text>
               )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+
+// Lead-Details Modal mit Historie
+function LeadDetailsModal({
+  lead,
+  onClose,
+}: {
+  lead: Lead;
+  onClose: () => void;
+}) {
+  const colors = useColors();
+  const [newActivity, setNewActivity] = useState("");
+  const [activities, setActivities] = useState([
+    {
+      id: 1,
+      type: "system" as const,
+      text: "Lead erstellt",
+      createdAt: "2026-02-01T09:00:00",
+      user: "System",
+    },
+    {
+      id: 2,
+      type: "activity" as const,
+      text: "Erstkontakt per E-Mail",
+      createdAt: "2026-02-01T14:30:00",
+      user: "Anna Müller",
+    },
+    {
+      id: 3,
+      type: "system" as const,
+      text: `Status geändert: Neu → Kontaktiert`,
+      createdAt: "2026-02-01T14:35:00",
+      user: "System",
+    },
+    {
+      id: 4,
+      type: "activity" as const,
+      text: "Telefonat geführt, Interesse bestätigt",
+      createdAt: "2026-02-02T10:15:00",
+      user: "Anna Müller",
+    },
+  ]);
+
+  const handleAddActivity = () => {
+    if (!newActivity.trim()) return;
+
+    const activity = {
+      id: activities.length + 1,
+      type: "activity" as const,
+      text: newActivity,
+      createdAt: new Date().toISOString(),
+      user: "Aktueller Benutzer",
+    };
+
+    setActivities([...activities, activity]);
+    setNewActivity("");
+  };
+
+  const getStatusLabel = (status: LeadStatus) => {
+    const labels: Record<LeadStatus, string> = {
+      new: "Neu",
+      contacted: "Kontaktiert",
+      qualified: "Qualifiziert",
+      proposal: "Angebot",
+      won: "Gewonnen",
+      lost: "Verloren",
+    };
+    return labels[status];
+  };
+
+  const getStatusColor = (status: LeadStatus) => {
+    const colorMap: Record<LeadStatus, string> = {
+      new: colors.muted,
+      contacted: colors.primary,
+      qualified: colors.warning,
+      proposal: "#9333EA",
+      won: colors.success,
+      lost: colors.error,
+    };
+    return colorMap[status];
+  };
+
+  return (
+    <Modal visible={true} animationType="slide" transparent onRequestClose={onClose}>
+      <View className="flex-1 bg-black/50 justify-end">
+        <View className="bg-background rounded-t-3xl" style={{ maxHeight: "90%" }}>
+          {/* Header */}
+          <View className="flex-row items-center justify-between p-4 border-b border-border">
+            <Text className="text-2xl font-bold text-foreground">Lead-Details</Text>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+              <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Content */}
+          <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
+            <View className="gap-4">
+              <View>
+                <Text className="text-sm text-muted mb-1">Name</Text>
+                <Text className="text-lg font-semibold text-foreground">{lead.name}</Text>
+              </View>
+
+              <View>
+                <Text className="text-sm text-muted mb-1">Firma</Text>
+                <Text className="text-base text-foreground">{lead.company}</Text>
+              </View>
+
+              <View className="flex-row gap-3">
+                <View className="flex-1">
+                  <Text className="text-sm text-muted mb-1">Status</Text>
+                  <View
+                    className="px-3 py-2 rounded-lg"
+                    style={{ backgroundColor: getStatusColor(lead.status) + "20" }}
+                  >
+                    <Text
+                      className="text-sm font-semibold text-center"
+                      style={{ color: getStatusColor(lead.status) }}
+                    >
+                      {getStatusLabel(lead.status)}
+                    </Text>
+                  </View>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm text-muted mb-1">Potenzialwert</Text>
+                  <View className="px-3 py-2 rounded-lg bg-success/10">
+                    <Text className="text-sm font-semibold text-center text-success">
+                      CHF {lead.value.toLocaleString("de-CH")}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Historie */}
+            <View className="mt-6">
+              <Text className="text-lg font-bold text-foreground mb-3">Aktivitätsverlauf</Text>
+              <ScrollView className="max-h-64 mb-4" showsVerticalScrollIndicator={false}>
+                {activities.map((activity) => (
+                  <View
+                    key={activity.id}
+                    className={`mb-3 p-3 rounded-lg ${
+                      activity.type === "system" ? "bg-surface" : "bg-primary/10"
+                    }`}
+                  >
+                    <View className="flex-row items-center justify-between mb-1">
+                      <Text
+                        className={`text-xs font-semibold ${
+                          activity.type === "system" ? "text-muted" : "text-primary"
+                        }`}
+                      >
+                        {activity.user}
+                      </Text>
+                      <Text className="text-xs text-muted">
+                        {new Date(activity.createdAt).toLocaleString("de-CH", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </Text>
+                    </View>
+                    <Text className="text-sm text-foreground">{activity.text}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+
+              {/* Aktivität hinzufügen */}
+              <View className="gap-2">
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="Neue Aktivität hinzufügen..."
+                  placeholderTextColor={colors.muted}
+                  multiline
+                  numberOfLines={2}
+                  textAlignVertical="top"
+                  value={newActivity}
+                  onChangeText={setNewActivity}
+                />
+                <TouchableOpacity
+                  className="bg-primary py-2 rounded-lg"
+                  onPress={handleAddActivity}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-background font-semibold text-center">
+                    Aktivität hinzufügen
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* Footer */}
+          <View className="p-4 border-t border-border">
+            <TouchableOpacity
+              className="bg-surface border border-border py-3 rounded-lg"
+              onPress={onClose}
+              activeOpacity={0.8}
+            >
+              <Text className="text-foreground font-semibold text-center">Schließen</Text>
             </TouchableOpacity>
           </View>
         </View>
