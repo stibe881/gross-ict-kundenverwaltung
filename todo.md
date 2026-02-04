@@ -144,3 +144,21 @@
 ## Kundenauswahl
 - [x] Kunden-Dropdown im Rechnungsformular
 - [ ] Kunden-Dropdown im Ticket-Formular
+
+## Produktverwaltung & Rechnungsfunktionen
+- [x] Produktverwaltungs-Screen (Liste aller Artikel/Dienstleistungen)
+- [x] Produkt erstellen/bearbeiten im Produktverwaltungs-Screen
+- [x] Neuer Tab "Produkte" in der Navigation
+- [ ] Rechnungen per E-Mail versenden
+- [ ] Rechnungen als PDF herunterladen
+
+## Lead-Verwaltung
+- [x] Lead bearbeiten (Formular mit vorausgefüllten Daten)
+- [ ] Lead-Detailseite mit Historie
+- [ ] Automatische Historie bei Änderungen (Status, Wert, etc.)
+- [ ] Manuelle Aktivitäten zur Historie hinzufügen (Notizen, Anrufe, Meetings)
+
+## Lead-zu-Kunde-Konvertierung
+- [x] "Als Kunde erfassen"-Button in Lead-Karten
+- [x] Lead-Daten automatisch in Kundenformular übernehmen
+- [x] Bestätigungsdialog mit Lead-Informationen

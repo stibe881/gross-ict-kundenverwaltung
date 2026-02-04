@@ -13,23 +13,39 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 
 interface LeadFormModalProps {
   visible: boolean;
+  lead?: any;
   onClose: () => void;
   onSuccess?: () => void;
 }
 
 export function LeadFormModal({
   visible,
+  lead,
   onClose,
   onSuccess,
 }: LeadFormModalProps) {
   const colors = useColors();
   const [formData, setFormData] = useState({
-    name: "",
-    company: "",
-    email: "",
-    phone: "",
-    value: "",
-    notes: "",
+    name: lead?.name || "",
+    company: lead?.company || "",
+    email: lead?.email || "",
+    phone: lead?.phone || "",
+    value: lead?.value?.toString() || "",
+    notes: lead?.notes || "",
+  });
+
+  // Formular aktualisieren wenn lead sich ändert
+  useState(() => {
+    if (lead) {
+      setFormData({
+        name: lead.name || "",
+        company: lead.company || "",
+        email: lead.email || "",
+        phone: lead.phone || "",
+        value: lead.value?.toString() || "",
+        notes: lead.notes || "",
+      });
+    }
   });
 
   const handleSubmit = () => {
@@ -69,7 +85,7 @@ export function LeadFormModal({
           {/* Header */}
           <View className="flex-row items-center justify-between p-4 border-b border-border">
             <Text className="text-2xl font-bold text-foreground">
-              Neuer Lead
+              {lead ? "Lead bearbeiten" : "Neuer Lead"}
             </Text>
             <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
               <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
@@ -201,7 +217,7 @@ export function LeadFormModal({
               activeOpacity={0.8}
             >
               <Text className="text-background font-semibold text-center">
-                Speichern
+                {lead ? "Aktualisieren" : "Speichern"}
               </Text>
             </TouchableOpacity>
           </View>

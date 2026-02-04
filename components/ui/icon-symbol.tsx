@@ -29,6 +29,9 @@ const MAPPING = {
   "magnifyingglass": "search",
   "phone.fill": "phone",
   "calendar": "event",
+  "cube.box.fill": "inventory",
+  "xmark.circle.fill": "cancel",
+  "trash.fill": "delete",
 } as IconMapping;
 
 /**
