@@ -399,3 +399,23 @@
 ## Filter-Buttons kompakter machen
 - [x] Filter-Buttons auf Ticket-Seite reduziert (px-4 py-2 → px-3 py-1.5, rounded-lg → rounded-md, text-sm hinzugefügt)
 - [x] Andere Seiten geprüft (CRM, Leads, Accounting haben keine Filter-Buttons)
+
+## Supabase-Datenbank einrichten
+- [ ] Datenbank-Credentials (URL, Key) anfordern
+- [ ] Umgebungsvariablen konfigurieren
+- [ ] Datenbank-Schema erstellen (Tabellen für Kunden, Tickets, Rechnungen, etc.)
+- [ ] Schema in Supabase ausführen
+- [ ] API-Endpunkte mit Datenbank verbinden
+- [ ] CRUD-Operationen testen
+
+## Supabase-API-Integration
+- [x] Supabase-Credentials konfiguriert (URL, ANON_KEY)
+- [x] Supabase-Verbindung getestet (Vitest)
+- [ ] Datenbank-Schema manuell in Supabase SQL-Editor ausführen
+- [x] Supabase-Client in API-Endpunkten eingebunden
+- [x] Kunden-API mit Supabase verbunden
+- [x] Tickets-API mit Supabase verbunden
+- [x] Rechnungen-API mit Supabase verbunden
+- [x] Leads-API mit Supabase verbunden
+- [x] Verträge-API mit Supabase verbunden
+- [x] @supabase/supabase-js installiert
