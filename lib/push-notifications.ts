@@ -8,6 +8,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -117,7 +119,7 @@ export async function scheduleLocalNotification(
         body,
         sound: true,
       },
-      trigger: seconds > 0 ? { seconds } : null,
+      trigger: seconds > 0 ? { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds } : null,
     });
   } catch (error) {
     console.error("[Push] Error scheduling notification:", error);

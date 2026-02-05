@@ -39,7 +39,7 @@ export default function PortalLoginScreen() {
         await AsyncStorage.setItem('customer_portal_user', JSON.stringify(response.user));
         
         // Nach erfolgreichem Login zur Ticket-Übersicht navigieren
-        router.replace("/portal-tickets");
+        router.replace("/portal-tickets-customer");
       } else {
         Alert.alert("Fehler", "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.");
       }

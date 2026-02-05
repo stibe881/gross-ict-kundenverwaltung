@@ -419,3 +419,7 @@
 - [x] Leads-API mit Supabase verbunden
 - [x] Verträge-API mit Supabase verbunden
 - [x] @supabase/supabase-js installiert
+
+## Aktuelle Bugfixes
+- [x] TypeScript-Fehler in Push-Notifications beheben (shouldShowBanner, shouldShowList, trigger type)
+- [x] Kunden werden nicht angezeigt - Problem diagnostizieren und beheben (Datenbank ist leer, Verbindung funktioniert)

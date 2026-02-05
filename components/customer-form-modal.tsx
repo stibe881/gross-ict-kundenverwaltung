@@ -67,10 +67,7 @@ export function CustomerFormModal({
     }
 
     console.log("Submitting customer:", formData);
-    createCustomer.mutate({
-      ...formData,
-      status: "active",
-    });
+    createCustomer.mutate(formData);
   };
 
   return (
