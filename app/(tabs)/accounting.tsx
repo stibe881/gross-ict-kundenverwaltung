@@ -10,6 +10,8 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
+import { pdf } from "@react-pdf/renderer";
+import { InvoicePDF } from "@/lib/invoice-pdf";
 
 export default function AccountingScreen() {
   const colors = useColors();
@@ -148,7 +150,62 @@ export default function AccountingScreen() {
                 activeOpacity={0.8}
                 onPress={async () => {
                   try {
-                    // Erstelle Beispiel-Rechnung als HTML
+                    // Erstelle Beispiel-Rechnung als PDF
+                    const invoiceData = {
+                      invoice_number: "RE-2026-001",
+                      invoice_date: new Date().toISOString(),
+                      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                      customer_name: "Muster AG",
+                      customer_address: "Musterstrasse 123",
+                      customer_city: "Zürich",
+                      customer_zip: "8000",
+                      items: [
+                        {
+                          description: "Webseiten-Entwicklung",
+                          quantity: 40,
+                          unit_price: 120,
+                          vat_rate: 8.1,
+                        },
+                        {
+                          description: "Hosting (12 Monate)",
+                          quantity: 1,
+                          unit_price: 600,
+                          vat_rate: 8.1,
+                        },
+                      ],
+                      notes: "Zahlbar innert 30 Tagen netto. Vielen Dank für Ihr Vertrauen!",
+                    };
+
+                    // Generiere PDF
+                    const blob = await pdf(<InvoicePDF data={invoiceData} />).toBlob();
+                    
+                    // Download PDF
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `Rechnung-${invoiceData.invoice_number}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+
+                    Alert.alert("Erfolg", "Rechnung wurde als PDF heruntergeladen");
+                  } catch (error) {
+                    console.error("PDF-Fehler:", error);
+                    Alert.alert("Fehler", "PDF-Generierung fehlgeschlagen");
+                  }
+                }}>
+                <IconSymbol name="arrow.down.doc.fill" size={20} color="#FFFFFF" />
+                <Text className="text-background font-semibold ml-2">Rechnung als PDF herunterladen</Text>
+              </TouchableOpacity>
+
+              {/* HTML-Version (Fallback) */}
+              <TouchableOpacity
+                className="bg-muted px-4 py-3 rounded-lg flex-row items-center justify-center"
+                activeOpacity={0.8}
+                onPress={async () => {
+                  try {
+                    // Erstelle Beispiel-Rechnung als HTML (Fallback)
                     const htmlContent = `
                       <!DOCTYPE html>
                       <html>

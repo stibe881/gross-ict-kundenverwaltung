@@ -25,7 +25,7 @@
 
 ## CRM-Modul
 - [x] Kundenliste mit Suche und Filter (Backend)
-- [ ] Kundendetails-Screen mit Tabs (Stammdaten, Kommunikation, Verträge, Rechnungen, Tickets)
+- [x] Kundendetails-Screen mit Tabs (Stammdaten, Kommunikation, Verträge, Rechnungen, Tickets, Portal)
 - [x] Kunde erstellen/bearbeiten (Backend)
 - [x] Kommunikationshistorie hinzufügen (E-Mail, Anruf, Meeting) (Backend)
 - [x] Kunde löschen (Backend)
@@ -150,7 +150,7 @@
 - [x] Produkt erstellen/bearbeiten im Produktverwaltungs-Screen
 - [x] Neuer Tab "Produkte" in der Navigation
 - [ ] Rechnungen per E-Mail versenden
-- [ ] Rechnungen als PDF herunterladen
+- [x] Rechnungen als PDF herunterladen
 
 ## Lead-Verwaltung
 - [x] Lead bearbeiten (Formular mit vorausgefüllten Daten)
@@ -419,3 +419,17 @@
 - [x] Leads-API mit Supabase verbunden
 - [x] Verträge-API mit Supabase verbunden
 - [x] @supabase/supabase-js installiert
+
+## Lead-Pipeline Kanban-Board
+- [ ] Kanban-Board-Komponente erstellen
+- [ ] Drag-and-Drop-Funktionalität implementieren
+- [ ] Lead-Status-Spalten (Neu, Kontaktiert, Qualifiziert, Angebot, Gewonnen, Verloren)
+- [ ] Leads zwischen Spalten verschieben
+- [ ] Lead-Karten in Spalten anzeigen
+
+## PDF-Generierung für Rechnungen
+- [x] PDF-Bibliothek installieren (@react-pdf/renderer)
+- [x] PDF-Template für Rechnungen erstellen
+- [x] Download-Funktion in Buchhaltungsmodul integrieren
+- [x] PDF mit Firmenlogo, Kundendaten und Rechnungspositionen
+- [x] Beispiel-Rechnung als PDF herunterladen

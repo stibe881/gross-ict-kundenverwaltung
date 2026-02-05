@@ -13,6 +13,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { LeadFormModal } from "@/components/lead-form-modal";
+import { LeadKanbanBoard } from "@/components/lead-kanban-board";
 import { trpc } from "@/lib/trpc";
 
 type LeadStatus = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
@@ -38,6 +39,13 @@ export default function LeadsScreen() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("kanban");
+
+  const handleStatusChange = (leadId: number, newStatus: LeadStatus) => {
+    setLeads(leads.map(lead => 
+      lead.id === leadId ? { ...lead, status: newStatus } : lead
+    ));
+  };
 
   const getStatusLabel = (status: LeadStatus) => {
     const labels: Record<LeadStatus, string> = {
@@ -78,13 +86,26 @@ export default function LeadsScreen() {
         {/* Header */}
         <View className="flex-row items-center justify-between mb-4">
           <Text className="text-3xl font-bold text-foreground">Akquise</Text>
-          <TouchableOpacity
-            className="bg-primary w-12 h-12 rounded-full items-center justify-center"
-            activeOpacity={0.8}
-            onPress={() => setShowAddModal(true)}
-          >
-            <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              className="bg-surface w-12 h-12 rounded-full items-center justify-center border border-border"
+              activeOpacity={0.8}
+              onPress={() => setViewMode(viewMode === "list" ? "kanban" : "list")}
+            >
+              <IconSymbol 
+                name={viewMode === "list" ? "square.grid.2x2" : "list.bullet"} 
+                size={24} 
+                color={colors.foreground} 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+              activeOpacity={0.8}
+              onPress={() => setShowAddModal(true)}
+            >
+              <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Statistik */}
@@ -101,7 +122,14 @@ export default function LeadsScreen() {
           </View>
         </View>
 
-        {/* Pipeline-Stages */}
+        {/* Kanban-Board oder Listen-Ansicht */}
+        {viewMode === "kanban" ? (
+          <LeadKanbanBoard 
+            leads={leads}
+            onStatusChange={handleStatusChange}
+            onLeadPress={(lead) => setSelectedLead(lead)}
+          />
+        ) : (
         <View className="gap-4">
           {(Object.keys(groupedLeads) as Array<keyof typeof groupedLeads>).map((stage) => (
             <View key={stage} className="bg-surface rounded-xl p-4 border border-border">
@@ -191,13 +219,7 @@ export default function LeadsScreen() {
               ) : (
                 <Text className="text-sm text-muted text-center py-2">
                   Keine Leads in dieser Phase
-                </Text>
-              )}
-            </View>
-          ))}
-        </View>
-
-        {/* Gewonnen/Verloren */}
+                </Text              )}\n            </View>\n          ))}\n        </View>\n        )}        {/* Gewonnen/Verloren */}
         <View className="flex-row gap-3 mt-4">
           <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
             <View className="flex-row items-center justify-between mb-2">
