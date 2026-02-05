@@ -20,7 +20,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       // Benutzer ist nicht angemeldet - zur Login-Seite weiterleiten
-      router.replace("/portal-login");
+      router.replace("/login");
     }
   }, [loading, isAuthenticated, router]);
 

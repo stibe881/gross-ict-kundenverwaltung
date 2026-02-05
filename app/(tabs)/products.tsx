@@ -184,12 +184,11 @@ function ProductFormModal({
 }) {
   const colors = useColors();
   const [formData, setFormData] = useState({
-    type: product?.type || "article",
+    type: product?.type || "service",
     name: product?.name || "",
     description: product?.description || "",
-    unitPrice: product?.unitPrice || "",
-    unit: product?.unit || "Stück",
-    vatRate: product?.vatRate || "8.10",
+    price: product?.price || "",
+    vatRate: product?.vatRate || 8.1,
   });
 
   const createProduct = trpc.products.create.useMutation({
@@ -207,11 +206,12 @@ function ProductFormModal({
   });
 
   const handleSubmit = () => {
-    if (!formData.name || !formData.unitPrice) {
+    if (!formData.name || !formData.price) {
       alert("Bitte füllen Sie mindestens Name und Preis aus");
       return;
     }
 
+<<<<<<< Updated upstream
     const mappedData = {
       name: formData.name,
       description: formData.description,
@@ -224,6 +224,18 @@ function ProductFormModal({
       updateProduct.mutate({ id: product.id, ...mappedData });
     } else {
       createProduct.mutate(mappedData);
+=======
+    const submitData = {
+      ...formData,
+      price: typeof formData.price === 'string' ? parseFloat(formData.price) : formData.price,
+      vatRate: typeof formData.vatRate === 'string' ? parseFloat(formData.vatRate) : formData.vatRate,
+    };
+
+    if (product) {
+      updateProduct.mutate({ id: product.id, ...submitData });
+    } else {
+      createProduct.mutate(submitData);
+>>>>>>> Stashed changes
     }
   };
 
@@ -341,26 +353,13 @@ function ProductFormModal({
                     placeholder="100.00"
                     placeholderTextColor={colors.muted}
                     keyboardType="decimal-pad"
-                    value={formData.unitPrice}
+                    value={formData.price.toString()}
                     onChangeText={(text) =>
-                      setFormData({ ...formData, unitPrice: text })
+                      setFormData({ ...formData, price: text })
                     }
                   />
                 </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    Einheit
-                  </Text>
-                  <TextInput
-                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                    placeholder="Stück, Stunden, kg"
-                    placeholderTextColor={colors.muted}
-                    value={formData.unit}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, unit: text })
-                    }
-                  />
-                </View>
+
               </View>
 
               {/* MwSt-Satz */}

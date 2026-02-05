@@ -8,7 +8,13 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+<<<<<<< Updated upstream
   } as Notifications.NotificationBehavior),
+=======
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+>>>>>>> Stashed changes
 });
 
 export interface PushNotificationService {
@@ -117,7 +123,11 @@ export async function scheduleLocalNotification(
         body,
         sound: true,
       },
+<<<<<<< Updated upstream
       trigger: seconds > 0 ? { seconds, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL } as Notifications.NotificationTriggerInput : null,
+=======
+      trigger: seconds > 0 ? { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds } : null,
+>>>>>>> Stashed changes
     });
   } catch (error) {
     console.error("[Push] Error scheduling notification:", error);

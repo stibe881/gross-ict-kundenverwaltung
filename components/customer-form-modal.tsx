@@ -98,6 +98,7 @@ export function CustomerFormModal({
       return;
     }
 
+<<<<<<< Updated upstream
     if (editCustomer) {
       updateCustomer.mutate({
         id: editCustomer.id,
@@ -107,6 +108,10 @@ export function CustomerFormModal({
     } else {
       createCustomer.mutate(formData);
     }
+=======
+    console.log("Submitting customer:", formData);
+    createCustomer.mutate(formData);
+>>>>>>> Stashed changes
   };
 
   const isSubmitting = createCustomer.isPending || updateCustomer.isPending;

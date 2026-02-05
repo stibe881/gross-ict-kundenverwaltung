@@ -19,6 +19,7 @@ export default function PortalLoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+<<<<<<< Updated upstream
   const authenticate = trpc.customerPortal.authenticate.useMutation();
 
   const handleLogin = async () => {
@@ -36,20 +37,35 @@ export default function PortalLoginScreen() {
         password
       });
 
+=======
+  const authenticateMutation = trpc.customerPortal.authenticate.useMutation({
+    onSuccess: async (response) => {
+>>>>>>> Stashed changes
       if (response.success && response.user) {
         // Speichere Kunden-Session (separate von Mitarbeiter-Auth)
         await AsyncStorage.setItem('customer_portal_user', JSON.stringify(response.user));
 
         // Nach erfolgreichem Login zur Ticket-Übersicht navigieren
-        router.replace("/portal-tickets");
+        router.replace("/portal-tickets-customer");
       } else {
         Alert.alert("Fehler", "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.");
       }
-    } catch (error) {
-      Alert.alert("Fehler", "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.");
-    } finally {
       setLoading(false);
+    },
+    onError: () => {
+      Alert.alert("Fehler", "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.");
+      setLoading(false);
+    },
+  });
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Fehler", "Bitte E-Mail und Passwort eingeben");
+      return;
     }
+
+    setLoading(true);
+    authenticateMutation.mutate({ email, password });
   };
 
   return (
