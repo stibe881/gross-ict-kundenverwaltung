@@ -395,3 +395,7 @@
 - [x] Padding der Statistik-Kacheln weiter verringert (p-3 → p-2)
 - [x] Schriftgrößen angepasst (text-xl → text-lg, text-xs → text-[10px])
 - [x] Border-Radius reduziert (rounded-xl → rounded-lg)
+
+## Filter-Buttons kompakter machen
+- [x] Filter-Buttons auf Ticket-Seite reduziert (px-4 py-2 → px-3 py-1.5, rounded-lg → rounded-md, text-sm hinzugefügt)
+- [x] Andere Seiten geprüft (CRM, Leads, Accounting haben keine Filter-Buttons)

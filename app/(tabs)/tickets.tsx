@@ -188,13 +188,13 @@ export default function TicketsScreen() {
             {["all", "open", "in_progress", "waiting", "closed"].map((status) => (
               <TouchableOpacity
                 key={status}
-                className={`px-4 py-2 rounded-lg ${
+                className={`px-3 py-1.5 rounded-md ${
                   filter === status ? "bg-primary" : "bg-surface border border-border"
                 }`}
                 onPress={() => setFilter(status as any)}
               >
                 <Text
-                  className={`font-semibold ${
+                  className={`text-sm font-semibold ${
                     filter === status ? "text-background" : "text-foreground"
                   }`}
                 >
