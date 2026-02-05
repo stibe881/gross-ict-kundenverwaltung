@@ -7,6 +7,7 @@ import {
   Modal,
   ActivityIndicator,
   TextInput,
+  Alert,
 } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -32,7 +33,7 @@ const mockLeads: Lead[] = [
 
 export default function LeadsScreen() {
   const colors = useColors();
-  const [leads] = useState<Lead[]>(mockLeads);
+  const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
@@ -157,6 +158,30 @@ export default function LeadsScreen() {
                         >
                           <Text className="text-success text-xs font-semibold text-center">
                             Als Kunde
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          className="flex-1 bg-error/20 py-1 rounded"
+                          onPress={() => {
+                            Alert.alert(
+                              "Lead löschen",
+                              `Möchten Sie "${lead.name}" wirklich löschen?`,
+                              [
+                                { text: "Abbrechen", style: "cancel" },
+                                {
+                                  text: "Löschen",
+                                  style: "destructive",
+                                  onPress: () => {
+                                    setLeads(leads.filter((l) => l.id !== lead.id));
+                                  },
+                                },
+                              ]
+                            );
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text className="text-error text-xs font-semibold text-center">
+                            Löschen
                           </Text>
                         </TouchableOpacity>
                       </View>

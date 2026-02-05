@@ -162,23 +162,23 @@ export default function TicketsScreen() {
 
         {/* Statistik */}
         <View className="flex-row gap-3 mb-4">
-          <View className="flex-1 bg-surface rounded-xl p-3 border border-border">
-            <Text className="text-xl font-bold text-error">
+          <View className="flex-1 bg-surface rounded-lg p-2 border border-border">
+            <Text className="text-lg font-bold text-error">
               {tickets.filter((t) => t.status === "open").length}
             </Text>
-            <Text className="text-xs text-muted">Offen</Text>
+            <Text className="text-[10px] text-muted">Offen</Text>
           </View>
-          <View className="flex-1 bg-surface rounded-xl p-3 border border-border">
-            <Text className="text-xl font-bold text-primary">
+          <View className="flex-1 bg-surface rounded-lg p-2 border border-border">
+            <Text className="text-lg font-bold text-primary">
               {tickets.filter((t) => t.status === "in_progress").length}
             </Text>
-            <Text className="text-xs text-muted">In Arbeit</Text>
+            <Text className="text-[10px] text-muted">In Arbeit</Text>
           </View>
-          <View className="flex-1 bg-surface rounded-xl p-3 border border-border">
-            <Text className="text-xl font-bold text-success">
+          <View className="flex-1 bg-surface rounded-lg p-2 border border-border">
+            <Text className="text-lg font-bold text-success">
               {tickets.filter((t) => t.status === "closed").length}
             </Text>
-            <Text className="text-xs text-muted">Gelöst</Text>
+            <Text className="text-[10px] text-muted">Gelöst</Text>
           </View>
         </View>
 

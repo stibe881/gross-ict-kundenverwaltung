@@ -385,3 +385,13 @@
 - [x] Bei neuem Ticket Push-Benachrichtigung senden
 - [x] Benachrichtigung zeigt Ticket-Titel und Kunde
 - [x] Push-Service in Root-Layout initialisiert
+
+## Lead-Löschen-Funktion
+- [x] Löschen-Button zur Lead-Liste hinzugefügt
+- [x] Bestätigungs-Dialog vor dem Löschen anzeigen
+- [x] Lead aus der Liste entfernen
+
+## Ticket-Kacheln-Höhe weiter reduzieren
+- [x] Padding der Statistik-Kacheln weiter verringert (p-3 → p-2)
+- [x] Schriftgrößen angepasst (text-xl → text-lg, text-xs → text-[10px])
+- [x] Border-Radius reduziert (rounded-xl → rounded-lg)
