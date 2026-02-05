@@ -366,3 +366,8 @@
 - [x] Untertitel geändert: "Kundenverwaltung" → "Kundenportal"
 - [x] Schriftgröße des Untertitels erhöht (text-base → text-lg)
 - [x] Font-Weight hinzugefügt (font-semibold)
+
+## Deployment-Fix
+- [x] expo-constants Build-Fehler beheben
+- [x] package.json Build-Script angepasst (react-native als external)
+- [ ] Deployment erneut testen
