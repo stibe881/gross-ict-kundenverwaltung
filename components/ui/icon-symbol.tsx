@@ -37,6 +37,7 @@ const MAPPING = {
   "moon.fill": "nightlight-round",
   "arrow.down.doc.fill": "download",
   "xmark": "close",
+  "checkmark": "check",
 } as IconMapping;
 
 /**

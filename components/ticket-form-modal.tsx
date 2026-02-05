@@ -11,6 +11,7 @@ import {
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { trpc } from "@/lib/trpc";
+import { sendTicketNotification } from "@/lib/push-notifications";
 
 interface TicketFormModalProps {
   visible: boolean;
@@ -39,15 +40,22 @@ export function TicketFormModal({
 
   const selectedCustomer = customers?.find((c) => c.id === formData.customerId);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.title || !formData.description) {
       alert("Bitte füllen Sie Titel und Beschreibung aus");
       return;
     }
 
-    // TODO: API-Call implementieren
-    console.log("Ticket erstellen:", formData);
-    onSuccess?.();
+    console.log("Ticket submitted:", formData);
+    
+    // Sende Push-Benachrichtigung für neues Ticket
+    if (!ticket && selectedCustomer) {
+      await sendTicketNotification(
+        formData.title,
+        selectedCustomer.name
+      );
+    }
+    
     onClose();
   };
 

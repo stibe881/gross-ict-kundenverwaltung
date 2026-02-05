@@ -12,6 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { Image } from "expo-image";
+import { PasswordResetModal } from "@/components/password-reset-modal";
 
 // Einfache lokale Authentifizierung (ohne OAuth/Datenbank)
 // Test-Credentials:
@@ -28,6 +29,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showResetModal, setShowResetModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -138,9 +140,24 @@ export default function LoginScreen() {
               </Text>
             )}
           </TouchableOpacity>
+
+          {/* Passwort vergessen Link */}
+          <TouchableOpacity
+            onPress={() => setShowResetModal(true)}
+            className="mt-4"
+            activeOpacity={0.7}
+          >
+            <Text className="text-sm text-muted text-center">
+              Passwort vergessen?
+            </Text>
+          </TouchableOpacity>
         </View>
 
-
+        {/* Passwort-Zurücksetzen-Modal */}
+        <PasswordResetModal
+          visible={showResetModal}
+          onClose={() => setShowResetModal(false)}
+        />
       </View>
     </ScreenContainer>
   );

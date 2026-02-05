@@ -371,3 +371,17 @@
 - [x] expo-constants Build-Fehler beheben
 - [x] package.json Build-Script angepasst (react-native als external)
 - [ ] Deployment erneut testen
+
+## Passwort-Zurücksetzen-Funktion
+- [x] "Passwort vergessen?"-Link im Login-Screen hinzugefügt
+- [x] Passwort-Zurücksetzen-Modal erstellt
+- [x] E-Mail-Eingabe und Bestätigungs-Flow implementiert
+- [x] Temporäres Passwort wird generiert und angezeigt
+- [x] checkmark Icon zum Icon-Mapping hinzugefügt
+
+## Push-Benachrichtigungen
+- [x] Push-Notification-Permissions beim App-Start anfordern
+- [x] Push-Token registrieren und speichern
+- [x] Bei neuem Ticket Push-Benachrichtigung senden
+- [x] Benachrichtigung zeigt Ticket-Titel und Kunde
+- [x] Push-Service in Root-Layout initialisiert
