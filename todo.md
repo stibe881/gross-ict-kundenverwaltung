@@ -355,3 +355,8 @@
 - [x] Speichern-Button Validierung geprüft
 - [x] Fehlerbehandlung verbessert (Alert bei Erfolg/Fehler)
 - [x] Console-Log für Debugging hinzugefügt
+
+## UI-Verbesserungen
+- [x] Test-Benutzer-Hinweis vom Login-Screen entfernen
+- [x] Logo statt Text "Gross ICT" im Login-Screen anzeigen
+- [x] Ticket-Statistik-Kacheln-Höhe reduziert (p-4 → p-3, text-2xl → text-xl, text-sm → text-xs)

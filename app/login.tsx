@@ -11,6 +11,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
+import { Image } from "expo-image";
 
 // Einfache lokale Authentifizierung (ohne OAuth/Datenbank)
 // Test-Credentials:
@@ -66,9 +67,11 @@ export default function LoginScreen() {
       <View className="flex-1 justify-center max-w-md self-center w-full">
         {/* Logo und Titel */}
         <View className="items-center mb-8">
-          <Text className="text-3xl font-bold text-foreground mb-2">
-            Gross ICT
-          </Text>
+          <Image
+            source={require("@/assets/images/icon.png")}
+            style={{ width: 120, height: 120, marginBottom: 16 }}
+            contentFit="contain"
+          />
           <Text className="text-base text-muted text-center">
             Kundenverwaltung
           </Text>
@@ -137,14 +140,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Test-Credentials Hinweis */}
-        <View className="mt-8 p-4 rounded-lg" style={{ backgroundColor: colors.surface }}>
-          <Text className="text-sm text-muted text-center">
-            Test-Benutzer:{"\n"}
-            stefan.gross@gross-ict.ch{"\n"}
-            joel.hediger@gross-ict.ch
-          </Text>
-        </View>
+
       </View>
     </ScreenContainer>
   );
