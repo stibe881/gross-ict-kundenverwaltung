@@ -7,7 +7,6 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -16,7 +15,7 @@ import { trpc } from "@/lib/trpc";
 
 interface InvoiceItem {
   id: string;
-  productId?: string;
+  productId?: number;
   description: string;
   quantity: string;
   unitPrice: string;
@@ -27,78 +26,26 @@ interface InvoiceFormModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess?: () => void;
-  invoice?: any; // ToDo: Typed interface from backend
 }
 
 export function InvoiceFormModal({
   visible,
   onClose,
   onSuccess,
-  invoice,
 }: InvoiceFormModalProps) {
   const colors = useColors();
   const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
-  const [items, setItems] = useState<InvoiceItem[]>([]);
-
-  // Reset or Fill Form when visible/invoice changes
-  useEffect(() => {
-    if (visible) {
-      if (invoice) {
-        setInvoiceNumber(invoice.invoiceNumber);
-        setSelectedCustomerId(invoice.customerId);
-        // Map DB items to UI items
-        if (invoice.items) {
-          setItems(invoice.items.map((item: any) => ({
-            id: item.id || Math.random().toString(),
-            productId: item.productId, // snake_case from DB? typically camelCase from TRPC if transformed. Let's assume wrapper does camelCase.
-            // Oh wait, supabaseDb returns snake_case directly usually unless transformed.
-            // But TRPC schema usually defines camelCase inputs.
-            // Let's check accounting.tsx. "invoices" data comes from trpc.invoices.list => getAllInvoices => select with join.
-            // If getAllInvoices returns raw supabase data it is snake_case properties usually?
-            // Let's check `routers.ts`: list returns getAllInvoices(). Supabase returns data.
-            // The contract in routers.ts does NOT transform output of list. 
-            // Check accounting.tsx: `invoice.invoiceNumber` usage implies camelCase?
-            // Wait, Step 956 usage: `invoice.invoiceNumber`. 
-            // Step 1002 getAllInvoices: select(` *, ... `).
-            // Result is typically snake_case from Supabase "invoices" table: "invoice_number".
-            // BUT: User code in accounting.tsx Step 956 used `invoice.invoiceNumber`.
-            // If that code works, then maybe I used a transformer? Or the user code IS BROKEN regarding casing?
-            // User says "Rechnungen sollen bearbeitbar sein". They didn't say "Rechnungen List is empty". 
-            // Actually, in Step 956 I wrote `invoice.invoiceNumber`. If DB has `invoice_number`, this would be undefined.
-            // Let's assume the TRPC router handles transformation OR I need to use snake_case.
-            // Step 987 I implemented `update` with camelCase input transforming to snake_case DB.
-            // But `list` calls `getAllInvoices` directly.
-            // Step 1008 `getAllInvoices` returns `data`.
-            // Supabase returns snake_case by default.
-            // So `invoice.invoiceNumber` in Frontend is likely UNDEFINED and list shows "Entwurf" (fallback).
-            // I should check if "Entwurf" is shown.
-            // The user didn't complain about data missing, just "bearbeitbar".
-            // I will support BOTH snake_case and camelCase to be safe here in the useEffect.
-
-            description: item.description,
-            quantity: item.quantity?.toString() || "1",
-            unitPrice: item.unitPrice?.toString() || item.unit_price?.toString() || "0",
-            vatRate: item.vatRate || item.vat_rate || VAT_RATES.normal,
-          })));
-        } else {
-          setItems([{ id: "1", description: "", quantity: "1", unitPrice: "", vatRate: VAT_RATES.normal }]);
-        }
-      } else {
-        setInvoiceNumber(`RE-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
-        setSelectedCustomerId(null);
-        setItems([{ id: "1", description: "", quantity: "1", unitPrice: "", vatRate: VAT_RATES.normal }]);
-      }
-    }
-  }, [visible, invoice]);
-
+  const [items, setItems] = useState<InvoiceItem[]>([
+    { id: "1", description: "", quantity: "1", unitPrice: "", vatRate: VAT_RATES.normal },
+  ]);
   const [showProductPicker, setShowProductPicker] = useState<string | null>(null);
   const [showNewProductForm, setShowNewProductForm] = useState(false);
 
   // Kunden laden
   const { data: customers } = trpc.customers.list.useQuery();
-
+  
   // Produkte laden
   const { data: products } = trpc.products.list.useQuery();
 
@@ -131,19 +78,19 @@ export function InvoiceFormModal({
     );
   };
 
-  const selectProduct = (itemId: string, productId: string) => {
+  const selectProduct = (itemId: string, productId: number) => {
     const product = products?.find((p) => p.id === productId);
     if (product) {
       setItems(
         items.map((item) =>
           item.id === itemId
             ? {
-              ...item,
-              productId: product.id,
-              description: product.name,
-              unitPrice: product.unitPrice,
-              vatRate: parseFloat(product.vatRate),
-            }
+                ...item,
+                productId: product.id,
+                description: product.name,
+                unitPrice: product.unitPrice,
+                vatRate: parseFloat(product.vatRate),
+              }
             : item
         )
       );
@@ -176,82 +123,29 @@ export function InvoiceFormModal({
 
   const { totalNet, totalVAT, totalGross } = calculateTotals();
 
-  /* 
-   * API Mutation
-   */
-  /* 
-   * API Mutations
-   */
-  const createInvoice = trpc.invoices.create.useMutation({
-    onSuccess: () => {
-      Alert.alert("Erfolg", "Rechnung wurde erfolgreich erstellt");
-      onSuccess?.();
-      onClose();
-    },
-    onError: (error) => {
-      console.error(error);
-      Alert.alert("Fehler", `Rechnung konnte nicht erstellt werden: ${error.message}`);
-    },
-  });
-
-  const updateInvoice = trpc.invoices.update.useMutation({
-    onSuccess: () => {
-      Alert.alert("Erfolg", "Rechnung wurde erfolgreich aktualisiert");
-      onSuccess?.();
-      onClose();
-    },
-    onError: (error) => {
-      console.error(error);
-      Alert.alert("Fehler", `Rechnung konnte nicht aktualisiert werden: ${error.message}`);
-    },
-  });
-
   const handleSubmit = () => {
     if (!selectedCustomerId || !invoiceNumber) {
-      Alert.alert("Fehler", "Bitte wählen Sie einen Kunden und geben Sie eine Rechnungsnummer ein");
+      alert("Bitte wählen Sie einen Kunden und geben Sie eine Rechnungsnummer ein");
       return;
     }
 
     if (items.some((item) => !item.description || !item.unitPrice)) {
-      Alert.alert("Fehler", "Bitte füllen Sie alle Positionen vollständig aus");
+      alert("Bitte füllen Sie alle Positionen vollständig aus");
       return;
     }
 
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 30); // Standard: 30 Tage Zahlungsziel
+    // TODO: API-Call implementieren
+    console.log("Rechnung erstellen:", {
+      customerId: selectedCustomerId,
+      invoiceNumber,
+      items,
+      totalNet,
+      totalVAT,
+      totalGross,
+    });
 
-    // Mapping items for API
-    const apiItems = items.map((item) => ({
-      description: item.description,
-      quantity: parseFloat(item.quantity) || 0,
-      unitPrice: parseFloat(item.unitPrice) || 0,
-      vatRate: item.vatRate,
-      total: calculateItemTotal(item).gross,
-      productId: item.productId?.toString(),
-    }));
-
-    if (invoice) {
-      // Update Mode
-      updateInvoice.mutate({
-        id: invoice.id,
-        invoiceNumber,
-        invoiceDate: invoice.invoiceDate || new Date().toISOString(), // Keep existing date or use current
-        dueDate: invoice.dueDate || dueDate.toISOString(), // Keep existing or calc new
-        items: apiItems,
-        notes: "",
-      });
-    } else {
-      // Create Mode
-      const now = new Date();
-      createInvoice.mutate({
-        customerId: selectedCustomerId,
-        invoiceNumber,
-        invoiceDate: now.toISOString(),
-        dueDate: dueDate.toISOString(),
-        items: apiItems,
-        notes: "",
-      });
-    }
+    onSuccess?.();
+    onClose();
   };
 
   return (
@@ -269,7 +163,7 @@ export function InvoiceFormModal({
           {/* Header */}
           <View className="flex-row items-center justify-between p-4 border-b border-border">
             <Text className="text-2xl font-bold text-foreground">
-              {invoice ? "Rechnung bearbeiten" : "Neue Rechnung"}
+              Neue Rechnung
             </Text>
             <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
               <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
@@ -306,7 +200,7 @@ export function InvoiceFormModal({
                   <Text className={selectedCustomer ? "text-foreground" : "text-muted"}>
                     {selectedCustomer
                       ? selectedCustomer.companyName ||
-                      `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
+                        `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
                       : "Kunde auswählen..."}
                   </Text>
                 </TouchableOpacity>
@@ -417,20 +311,22 @@ export function InvoiceFormModal({
                         ].map((rate) => (
                           <TouchableOpacity
                             key={rate.value}
-                            className={`flex-1 py-2 rounded-lg ${item.vatRate === rate.value
-                              ? "bg-primary"
-                              : "bg-background border border-border"
-                              }`}
+                            className={`flex-1 py-2 rounded-lg ${
+                              item.vatRate === rate.value
+                                ? "bg-primary"
+                                : "bg-background border border-border"
+                            }`}
                             onPress={() =>
                               updateItem(item.id, "vatRate", rate.value)
                             }
                             activeOpacity={0.7}
                           >
                             <Text
-                              className={`text-center text-xs font-semibold ${item.vatRate === rate.value
-                                ? "text-background"
-                                : "text-foreground"
-                                }`}
+                              className={`text-center text-xs font-semibold ${
+                                item.vatRate === rate.value
+                                  ? "text-background"
+                                  : "text-foreground"
+                              }`}
                             >
                               {rate.label}
                             </Text>
@@ -540,7 +436,7 @@ export function InvoiceFormModal({
               activeOpacity={0.8}
             >
               <Text className="text-background font-semibold text-center">
-                {invoice ? "Speichern" : "Erstellen"}
+                Erstellen
               </Text>
             </TouchableOpacity>
           </View>

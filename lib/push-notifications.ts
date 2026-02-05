@@ -8,13 +8,7 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
-<<<<<<< Updated upstream
-  } as Notifications.NotificationBehavior),
-=======
-    shouldShowBanner: true,
-    shouldShowList: true,
   }),
->>>>>>> Stashed changes
 });
 
 export interface PushNotificationService {
@@ -60,14 +54,14 @@ export async function getPushToken(): Promise<string | null> {
 
   try {
     const token = await Notifications.getExpoPushTokenAsync({
-      projectId: "f1e370f0-264c-4354-bec5-3295208bfd21",
+      projectId: "your-project-id", // TODO: Ersetzen mit echtem Expo Project ID
     });
-
+    
     console.log("[Push] Token:", token.data);
-
+    
     // Speichere Token lokal
     await AsyncStorage.setItem("pushToken", token.data);
-
+    
     return token.data;
   } catch (error) {
     console.error("[Push] Error getting token:", error);
@@ -97,7 +91,7 @@ export async function sendTicketNotification(
       },
       trigger: null, // Sofort senden
     });
-
+    
     console.log("[Push] Ticket notification sent");
   } catch (error) {
     console.error("[Push] Error sending notification:", error);
@@ -123,11 +117,7 @@ export async function scheduleLocalNotification(
         body,
         sound: true,
       },
-<<<<<<< Updated upstream
-      trigger: seconds > 0 ? { seconds, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL } as Notifications.NotificationTriggerInput : null,
-=======
-      trigger: seconds > 0 ? { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds } : null,
->>>>>>> Stashed changes
+      trigger: seconds > 0 ? { seconds } : null,
     });
   } catch (error) {
     console.error("[Push] Error scheduling notification:", error);
@@ -139,7 +129,7 @@ export async function scheduleLocalNotification(
  */
 export async function initializePushNotifications(): Promise<void> {
   const hasPermission = await requestPermissions();
-
+  
   if (hasPermission) {
     await getPushToken();
   }

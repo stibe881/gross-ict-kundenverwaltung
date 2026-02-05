@@ -146,7 +146,7 @@ export default function PortalTicketsScreen() {
 
   const handleLogout = () => {
     // TODO: Logout-Logik
-    router.push("/portal-login-customer");
+    router.push("/portal-login");
   };
 
   return (

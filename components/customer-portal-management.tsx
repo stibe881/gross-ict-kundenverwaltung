@@ -10,10 +10,7 @@ import {
   Alert,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { trpc } from "@/lib/trpc";
-import { formatDate } from "@/lib/format";
-
+import { IconSymbol } from "./ui/icon-symbol";
 
 interface CustomerPortalUser {
   id: string;
@@ -58,7 +55,7 @@ export function CustomerPortalManagement({
   const handleAddUser = () => {
     // TODO: API-Call zum Erstellen des Benutzers
     console.log("Creating user:", newUser);
-
+    
     // Reset form
     setNewUser({
       email: "",
@@ -68,7 +65,7 @@ export function CustomerPortalManagement({
       role: "user",
     });
     setShowAddUserModal(false);
-
+    
     Alert.alert("Erfolg", "Benutzer wurde erstellt");
   };
 
@@ -182,7 +179,7 @@ export function CustomerPortalManagement({
                     <View className="flex-row items-center justify-between">
                       <Text className="text-xs text-muted">
                         {user.last_login
-                          ? `Letzter Login: ${formatDate(user.last_login)}`
+                          ? `Letzter Login: ${new Date(user.last_login).toLocaleDateString("de-CH")}`
                           : "Noch nie eingeloggt"}
                       </Text>
                       <View className="flex-row items-center gap-2">
