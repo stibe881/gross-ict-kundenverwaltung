@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
+  Platform,
 } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -33,14 +34,48 @@ const mockLeads: Lead[] = [
 
 export default function LeadsScreen() {
   const colors = useColors();
-  const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingLead, setEditingLead] = useState<Lead | null>(null);
-  const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [editingLead, setEditingLead] = useState<any>(null); // TODO: Type properly
+  const [convertingLead, setConvertingLead] = useState<any>(null);
+  const [selectedLead, setSelectedLead] = useState<any>(null);
 
-  const getStatusLabel = (status: LeadStatus) => {
-    const labels: Record<LeadStatus, string> = {
+  // Data Query
+  const { data: leads = [], refetch } = trpc.leads.list.useQuery();
+
+  // Mutations
+  const deleteLead = trpc.leads.delete.useMutation({
+    onSuccess: () => {
+      refetch();
+    },
+    onError: (error) => {
+      Alert.alert("Fehler", "Fehler beim Löschen des Leads: " + error.message);
+    }
+  });
+
+  const handleDelete = (id: string, name: string) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Möchten Sie "${name}" wirklich löschen?`)) {
+        deleteLead.mutate({ id });
+      }
+      return;
+    }
+
+    Alert.alert(
+      "Lead löschen",
+      `Möchten Sie "${name}" wirklich löschen?`,
+      [
+        { text: "Abbrechen", style: "cancel" },
+        {
+          text: "Löschen",
+          style: "destructive",
+          onPress: () => deleteLead.mutate({ id }),
+        },
+      ]
+    );
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
       new: "Neu",
       contacted: "Kontaktiert",
       qualified: "Qualifiziert",
@@ -48,11 +83,11 @@ export default function LeadsScreen() {
       won: "Gewonnen",
       lost: "Verloren",
     };
-    return labels[status];
+    return labels[status] || status;
   };
 
-  const getStatusColor = (status: LeadStatus) => {
-    const colorMap: Record<LeadStatus, string> = {
+  const getStatusColor = (status: string) => {
+    const colorMap: Record<string, string> = {
       new: colors.primary,
       contacted: "#17A2B8",
       qualified: colors.warning,
@@ -60,17 +95,18 @@ export default function LeadsScreen() {
       won: colors.success,
       lost: colors.error,
     };
-    return colorMap[status];
+    return colorMap[status] || colors.muted;
   };
 
+  // Grouping
   const groupedLeads = {
-    new: leads.filter((l) => l.status === "new"),
-    contacted: leads.filter((l) => l.status === "contacted"),
-    qualified: leads.filter((l) => l.status === "qualified"),
-    proposal: leads.filter((l) => l.status === "proposal"),
+    new: leads.filter((l: any) => l.status === "new"),
+    contacted: leads.filter((l: any) => l.status === "contacted"),
+    qualified: leads.filter((l: any) => l.status === "qualified"),
+    proposal: leads.filter((l: any) => l.status === "proposal"),
   };
 
-  const totalValue = leads.reduce((sum, lead) => sum + lead.value, 0);
+  const totalValue = leads.reduce((sum: number, lead: any) => sum + (Number(lead.value) || 0), 0);
 
   return (
     <ScreenContainer>
@@ -124,68 +160,54 @@ export default function LeadsScreen() {
 
               {groupedLeads[stage].length > 0 ? (
                 <View className="gap-2">
-                  {groupedLeads[stage].map((lead) => (
-                    <TouchableOpacity
+                  {groupedLeads[stage].map((lead: any) => (
+                    <View
                       key={lead.id}
                       className="bg-background rounded-lg p-3 border border-border"
-                      activeOpacity={0.7}
-                      onPress={() => setSelectedLead(lead)}
                     >
-                      <Text className="text-base font-semibold text-foreground mb-1">
-                        {lead.name}
-                      </Text>
-                      <Text className="text-sm text-muted mb-2">{lead.company}</Text>
-                      <Text className="text-sm font-semibold text-success">
-                        CHF {lead.value.toLocaleString("de-CH")}
-                      </Text>
-                      <View className="flex-row gap-2 mt-2">
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => setSelectedLead(lead)}
+                      >
+                        <Text className="text-base font-semibold text-foreground mb-1">
+                          {lead.name}
+                        </Text>
+                        <Text className="text-sm text-muted mb-2">{lead.company || lead.company_name}</Text>
+                        <Text className="text-sm font-semibold text-success">
+                          CHF {(Number(lead.value) || 0).toLocaleString("de-CH")}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <View className="flex-row gap-2 mt-3 pt-2 border-t border-border/50">
                         <TouchableOpacity
-                          className="flex-1 bg-primary/20 py-1 rounded"
+                          className="flex-1 bg-primary/10 py-2 rounded items-center justify-center flex-row"
                           onPress={() => {
                             setEditingLead(lead);
                             setShowAddModal(true);
                           }}
                           activeOpacity={0.7}
                         >
-                          <Text className="text-primary text-xs font-semibold text-center">
-                            Bearbeiten
-                          </Text>
+                          <IconSymbol name="pencil" size={14} color={colors.primary} />
+                          <Text className="text-primary text-xs font-semibold ml-1">Bearbeiten</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          className="flex-1 bg-success/20 py-1 rounded"
+                          className="flex-1 bg-success/10 py-2 rounded items-center justify-center flex-row"
                           onPress={() => setConvertingLead(lead)}
                           activeOpacity={0.7}
                         >
-                          <Text className="text-success text-xs font-semibold text-center">
-                            Als Kunde
-                          </Text>
+                          <IconSymbol name="person.crop.circle.badge.plus" size={14} color={colors.success} />
+                          <Text className="text-success text-xs font-semibold ml-1">Kunde</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          className="flex-1 bg-error/20 py-1 rounded"
-                          onPress={() => {
-                            Alert.alert(
-                              "Lead löschen",
-                              `Möchten Sie "${lead.name}" wirklich löschen?`,
-                              [
-                                { text: "Abbrechen", style: "cancel" },
-                                {
-                                  text: "Löschen",
-                                  style: "destructive",
-                                  onPress: () => {
-                                    setLeads(leads.filter((l) => l.id !== lead.id));
-                                  },
-                                },
-                              ]
-                            );
-                          }}
+                          className="flex-1 bg-error/10 py-2 rounded items-center justify-center flex-row"
+                          onPress={() => handleDelete(lead.id, lead.name)}
                           activeOpacity={0.7}
                         >
-                          <Text className="text-error text-xs font-semibold text-center">
-                            Löschen
-                          </Text>
+                          <IconSymbol name="trash.fill" size={14} color={colors.error} />
+                          <Text className="text-error text-xs font-semibold ml-1">Löschen</Text>
                         </TouchableOpacity>
                       </View>
-                    </TouchableOpacity>
+                    </View>
                   ))}
                 </View>
               ) : (
@@ -204,7 +226,7 @@ export default function LeadsScreen() {
               <Text className="text-base font-semibold text-foreground">Gewonnen</Text>
               <View className="px-2 py-1 rounded-full bg-success">
                 <Text className="text-xs font-semibold text-white">
-                  {leads.filter((l) => l.status === "won").length}
+                  {leads.filter((l: any) => l.status === "won").length}
                 </Text>
               </View>
             </View>
@@ -216,7 +238,7 @@ export default function LeadsScreen() {
               <Text className="text-base font-semibold text-foreground">Verloren</Text>
               <View className="px-2 py-1 rounded-full bg-error">
                 <Text className="text-xs font-semibold text-white">
-                  {leads.filter((l) => l.status === "lost").length}
+                  {leads.filter((l: any) => l.status === "lost").length}
                 </Text>
               </View>
             </View>
@@ -233,7 +255,7 @@ export default function LeadsScreen() {
           setShowAddModal(false);
           setEditingLead(null);
         }}
-        onSuccess={() => {}}
+        onSuccess={() => refetch()}
       />
 
       {/* Convert Lead to Customer Modal */}
@@ -279,7 +301,7 @@ function ConvertLeadModal({
 
   const handleConvert = () => {
     setIsConverting(true);
-    
+
     // Lead-Daten in Kunden-Format umwandeln
     const nameParts = lead.name.split(" ");
     const firstName = nameParts[0] || "";
@@ -291,7 +313,6 @@ function ConvertLeadModal({
       companyName: lead.company,
       email: "", // Lead hat kein E-Mail-Feld in der aktuellen Struktur
       phone: "", // Lead hat kein Telefon-Feld in der aktuellen Struktur
-      status: "active",
       notes: `Konvertiert aus Lead (Wert: CHF ${lead.value.toLocaleString("de-CH")})`,
     });
   };
@@ -308,7 +329,7 @@ function ConvertLeadModal({
           <Text className="text-2xl font-bold text-foreground mb-4">
             Als Kunde erfassen
           </Text>
-          
+
           <View className="bg-surface rounded-lg p-4 mb-6">
             <Text className="text-sm text-muted mb-2">Lead-Informationen:</Text>
             <Text className="text-base font-semibold text-foreground">
@@ -495,15 +516,13 @@ function LeadDetailsModal({
                 {activities.map((activity) => (
                   <View
                     key={activity.id}
-                    className={`mb-3 p-3 rounded-lg ${
-                      activity.type === "system" ? "bg-surface" : "bg-primary/10"
-                    }`}
+                    className={`mb-3 p-3 rounded-lg ${activity.type === "system" ? "bg-surface" : "bg-primary/10"
+                      }`}
                   >
                     <View className="flex-row items-center justify-between mb-1">
                       <Text
-                        className={`text-xs font-semibold ${
-                          activity.type === "system" ? "text-muted" : "text-primary"
-                        }`}
+                        className={`text-xs font-semibold ${activity.type === "system" ? "text-muted" : "text-primary"
+                          }`}
                       >
                         {activity.user}
                       </Text>

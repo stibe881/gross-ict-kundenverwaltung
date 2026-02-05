@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { trpc } from "@/lib/trpc";
 
 interface LeadFormModalProps {
   visible: boolean;
@@ -50,18 +51,29 @@ export function LeadFormModal({
     }
   });
 
-  const handleSubmit = () => {
-    if (!formData.name || !formData.company) {
-      alert("Bitte füllen Sie mindestens Name und Firma aus");
-      return;
+  const createLead = trpc.leads.create.useMutation({
+    onSuccess: () => {
+      onSuccess?.();
+      onClose();
+      resetForm();
+    },
+    onError: (error) => {
+      alert("Fehler beim Erstellen: " + error.message);
     }
+  });
 
-    // TODO: API-Call implementieren
-    console.log("Lead erstellen:", formData);
-    onSuccess?.();
-    onClose();
-    
-    // Reset form
+  const updateLead = trpc.leads.update.useMutation({
+    onSuccess: () => {
+      onSuccess?.();
+      onClose();
+      resetForm();
+    },
+    onError: (error) => {
+      alert("Fehler beim Aktualisieren: " + error.message);
+    }
+  });
+
+  const resetForm = () => {
     setFormData({
       name: "",
       company: "",
@@ -71,6 +83,32 @@ export function LeadFormModal({
       status: "new",
       notes: "",
     });
+  };
+
+  const handleSubmit = () => {
+    if (!formData.name || !formData.company) {
+      alert("Bitte füllen Sie mindestens Name und Firma aus");
+      return;
+    }
+
+    const payload = {
+      name: formData.name,
+      company: formData.company,
+      email: formData.email,
+      phone: formData.phone,
+      value: parseFloat(formData.value) || 0,
+      status: formData.status as any, // Cast to enum
+      notes: formData.notes,
+    };
+
+    if (lead) {
+      updateLead.mutate({
+        id: lead.id,
+        ...payload
+      });
+    } else {
+      createLead.mutate(payload);
+    }
   };
 
   return (
@@ -198,46 +236,25 @@ export function LeadFormModal({
                   ].map((statusOption) => (
                     <TouchableOpacity
                       key={statusOption.key}
-                      className={`px-4 py-2 rounded-lg border ${
-                        formData.status === statusOption.key
-                          ? "bg-primary border-primary"
-                          : "bg-surface border-border"
-                      }`}
+                      className={`px-4 py-2 rounded-lg border ${formData.status === statusOption.key
+                        ? "bg-primary border-primary"
+                        : "bg-surface border-border"
+                        }`}
                       onPress={() =>
                         setFormData({ ...formData, status: statusOption.key })
                       }
                     >
                       <Text
-                        className={`text-sm font-semibold ${
-                          formData.status === statusOption.key
-                            ? "text-background"
-                            : "text-foreground"
-                        }`}
+                        className={`text-sm font-semibold ${formData.status === statusOption.key
+                          ? "text-background"
+                          : "text-foreground"
+                          }`}
                       >
                         {statusOption.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-              </View>
-
-              {/* Notizen - wird nach Status verschoben */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Notizen
-                </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="Zusätzliche Informationen..."
-                  placeholderTextColor={colors.muted}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                  value={formData.notes}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, notes: text })
-                  }
-                />
               </View>
 
               {/* Notizen */}

@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabase } from "./supabase";
 
 // ==================== KUNDEN ====================
 
@@ -113,6 +113,19 @@ export async function updateLead(id: string, lead: any) {
 
   if (error) throw new Error(error.message);
   return data;
+}
+
+export async function deleteLead(id: string) {
+  console.log("Supabase DB: Attempting to delete lead with ID:", id);
+  const { error, count } = await supabase
+    .from("leads")
+    .delete({ count: "exact" })
+    .eq("id", id);
+
+  console.log("Supabase DB delete result:", { error, count });
+
+  if (error) throw new Error(error.message);
+  return { success: true };
 }
 
 // ==================== VERTRÄGE ====================
@@ -302,6 +315,50 @@ export async function createInvoice(invoice: any, items: any[]) {
   if (itemsError) throw new Error(itemsError.message);
 
   return invoiceData;
+}
+
+export async function updateInvoice(id: string, invoice: any, items: any[]) {
+  // 1. Rechnung aktualisieren
+  const { data: invoiceData, error: invoiceError } = await supabase
+    .from("invoices")
+    .update(invoice)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (invoiceError) throw new Error(invoiceError.message);
+
+  // 2. Bestehende Positionen löschen (einfachste Art des Updates)
+  const { error: deleteError } = await supabase
+    .from("invoice_items")
+    .delete()
+    .eq("invoice_id", id);
+
+  if (deleteError) throw new Error(deleteError.message);
+
+  // 3. Neue Positionen erstellen
+  const itemsWithInvoiceId = items.map((item) => ({
+    ...item,
+    invoice_id: id,
+  }));
+
+  const { error: itemsError } = await supabase
+    .from("invoice_items")
+    .insert(itemsWithInvoiceId);
+
+  if (itemsError) throw new Error(itemsError.message);
+
+  return invoiceData;
+}
+
+export async function deleteInvoice(id: string) {
+  const { error } = await supabase
+    .from("invoices")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  return { success: true };
 }
 
 // ==================== BENUTZER ====================
@@ -511,7 +568,7 @@ export async function authenticateCustomerUser(email: string, password: string) 
 
   // TODO: Passwort-Verifikation mit bcrypt/argon2
   // Für jetzt: Einfacher Vergleich (NICHT PRODUKTIONSREIF!)
-  
+
   // Update last_login
   await supabase
     .from("customer_users")

@@ -19,6 +19,8 @@ export default function PortalLoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const authenticate = trpc.customerPortal.authenticate.useMutation();
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Fehler", "Bitte E-Mail und Passwort eingeben");
@@ -29,15 +31,15 @@ export default function PortalLoginScreen() {
 
     try {
       // API-Call zum Kunden-Login
-      const response = await trpc.customerPortal.authenticate.mutate({ 
-        email, 
-        password 
+      const response = await authenticate.mutateAsync({
+        email,
+        password
       });
-      
+
       if (response.success && response.user) {
         // Speichere Kunden-Session (separate von Mitarbeiter-Auth)
         await AsyncStorage.setItem('customer_portal_user', JSON.stringify(response.user));
-        
+
         // Nach erfolgreichem Login zur Ticket-Übersicht navigieren
         router.replace("/portal-tickets");
       } else {

@@ -72,8 +72,25 @@ export const appRouter = router({
 
   // CRM - Kundenverwaltung
   customers: router({
-    list: protectedProcedure.query(async () => {
-      return supabaseDb.getAllCustomers();
+    // TODO: Revert to protectedProcedure before production!
+    list: publicProcedure.query(async () => {
+      const customers = await supabaseDb.getAllCustomers();
+      // Transform snake_case DB fields to camelCase for frontend
+      return customers.map((c) => ({
+        id: c.id,
+        firstName: c.first_name,
+        lastName: c.last_name,
+        companyName: c.company_name,
+        email: c.email,
+        phone: c.phone,
+        address: c.address,
+        city: c.city,
+        postalCode: c.postal_code,
+        country: c.country,
+        notes: c.notes,
+        status: c.status,
+        createdAt: c.created_at,
+      }));
     }),
 
     getById: protectedProcedure
@@ -82,7 +99,8 @@ export const appRouter = router({
         return supabaseDb.getCustomerById(input.id);
       }),
 
-    create: protectedProcedure
+    // TODO: Revert to protectedProcedure before production!
+    create: publicProcedure
       .input(
         z.object({
           firstName: z.string().optional(),
@@ -97,22 +115,32 @@ export const appRouter = router({
           notes: z.string().optional(),
         })
       )
-      .mutation(async ({ input }) => {
-        return supabaseDb.createCustomer({
-          first_name: input.firstName,
-          last_name: input.lastName,
-          company_name: input.companyName,
-          email: input.email,
-          phone: input.phone,
-          address: input.address,
-          city: input.city,
-          postal_code: input.postalCode,
-          country: input.country,
-          notes: input.notes,
-        });
+      .mutation(async ({ input, ctx }) => {
+        console.log("[API] customers.create called with:", input);
+        console.log("[API] User context:", ctx.user ? `Authenticated as ${ctx.user.openId}` : "Not authenticated");
+        try {
+          const result = await supabaseDb.createCustomer({
+            first_name: input.firstName,
+            last_name: input.lastName,
+            company_name: input.companyName,
+            email: input.email,
+            phone: input.phone,
+            address: input.address,
+            city: input.city,
+            postal_code: input.postalCode,
+            country: input.country,
+            notes: input.notes,
+          });
+          console.log("[API] Customer created successfully:", result);
+          return result;
+        } catch (error) {
+          console.error("[API] Error creating customer:", error);
+          throw error;
+        }
       }),
 
-    update: protectedProcedure
+    // TODO: Revert to protectedProcedure before production!
+    update: publicProcedure
       .input(
         z.object({
           id: z.string(),
@@ -146,7 +174,8 @@ export const appRouter = router({
         });
       }),
 
-    delete: protectedProcedure
+    // TODO: Revert to protectedProcedure before production!
+    delete: publicProcedure
       .input(z.object({ id: z.string() }))
       .mutation(async ({ input }) => {
         return supabaseDb.deleteCustomer(input.id);
@@ -182,11 +211,11 @@ export const appRouter = router({
 
   // Leads (Akquise)
   leads: router({
-    list: protectedProcedure.query(async () => {
+    list: publicProcedure.query(async () => {
       return supabaseDb.getAllLeads();
     }),
 
-    create: protectedProcedure
+    create: publicProcedure
       .input(
         z.object({
           name: z.string(),
@@ -205,7 +234,7 @@ export const appRouter = router({
         return supabaseDb.createLead(input);
       }),
 
-    update: protectedProcedure
+    update: publicProcedure
       .input(
         z.object({
           id: z.string(),
@@ -225,11 +254,18 @@ export const appRouter = router({
         const { id, ...data } = input;
         return supabaseDb.updateLead(id, data);
       }),
+
+    delete: publicProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input }) => {
+        return supabaseDb.deleteLead(input.id);
+      }),
   }),
 
   // Verträge
   contracts: router({
-    list: protectedProcedure.query(async () => {
+    // TODO: Revert to protectedProcedure before production!
+    list: publicProcedure.query(async () => {
       return supabaseDb.getAllContracts();
     }),
 
@@ -239,7 +275,8 @@ export const appRouter = router({
         return supabaseDb.getCustomerContracts(input.customerId);
       }),
 
-    create: protectedProcedure
+    // TODO: Revert to protectedProcedure before production!
+    create: publicProcedure
       .input(
         z.object({
           customerId: z.string(),
@@ -338,7 +375,8 @@ export const appRouter = router({
 
   // Produkte
   products: router({
-    list: protectedProcedure.query(async () => {
+    // TODO: Revert to protectedProcedure before production!
+    list: publicProcedure.query(async () => {
       return supabaseDb.getAllProducts();
     }),
 
@@ -389,7 +427,8 @@ export const appRouter = router({
 
   // Rechnungen
   invoices: router({
-    list: protectedProcedure.query(async () => {
+    // TODO: Revert to protectedProcedure before production!
+    list: publicProcedure.query(async () => {
       return supabaseDb.getAllInvoices();
     }),
 
@@ -399,7 +438,8 @@ export const appRouter = router({
         return supabaseDb.getCustomerInvoices(input.customerId);
       }),
 
-    create: protectedProcedure
+    // TODO: Revert to protectedProcedure before production!
+    create: publicProcedure
       .input(
         z.object({
           customerId: z.string(),
@@ -451,6 +491,64 @@ export const appRouter = router({
         }));
 
         return supabaseDb.createInvoice(invoice, itemsData);
+      }),
+
+    // TODO: Revert to protectedProcedure before production!
+    update: publicProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          invoiceNumber: z.string(),
+          invoiceDate: z.string(),
+          dueDate: z.string(),
+          items: z.array(z.object({
+            productId: z.string().optional(),
+            description: z.string(),
+            quantity: z.number(),
+            unitPrice: z.number(),
+            vatRate: z.number(),
+            total: z.number(),
+          })),
+          notes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { items, id, ...invoiceData } = input;
+
+        // Berechne Summen
+        const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+        const vatAmount = items.reduce(
+          (sum, item) => sum + (item.total * item.vatRate) / 100,
+          0
+        );
+        const total = subtotal + vatAmount;
+
+        const invoice = {
+          invoice_number: invoiceData.invoiceNumber,
+          invoice_date: invoiceData.invoiceDate,
+          due_date: invoiceData.dueDate,
+          subtotal,
+          vat_amount: vatAmount,
+          total,
+          notes: invoiceData.notes,
+        };
+
+        const itemsData = items.map((item) => ({
+          product_id: item.productId,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          vat_rate: item.vatRate,
+          total: item.total,
+        }));
+
+        return supabaseDb.updateInvoice(id, invoice, itemsData);
+      }),
+
+    delete: publicProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input }) => {
+        return supabaseDb.deleteInvoice(input.id);
       }),
   }),
 

@@ -13,6 +13,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { ContractFormModal } from "@/components/contract-form-modal";
+import { trpc } from "@/lib/trpc";
 
 type ContractStatus = "active" | "cancelled" | "expired";
 
@@ -67,33 +68,38 @@ const mockContracts: Contract[] = [
 export default function ContractsScreen() {
   const colors = useColors();
   const router = useRouter();
-  const [contracts] = useState<Contract[]>(mockContracts);
   const [filter, setFilter] = useState<"all" | ContractStatus>("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
 
+  // Echte Daten laden
+  const { data: contracts = [], refetch } = trpc.contracts.list.useQuery();
+
+  // Refresh beim Fokusieren des Screens (falls ein neuer Vertrag erstellt wurde)
+  // Einfache Lösung: onSuccess im Modal triggert refetch
+
   const getStatusLabel = (status: ContractStatus) => {
-    const labels: Record<ContractStatus, string> = {
+    const labels: Record<string, string> = {
       active: "Aktiv",
       cancelled: "Gekündigt",
       expired: "Abgelaufen",
     };
-    return labels[status];
+    return labels[status] || status;
   };
 
   const getStatusColor = (status: ContractStatus) => {
-    const colorMap: Record<ContractStatus, string> = {
+    const colorMap: Record<string, string> = {
       active: colors.success,
       cancelled: colors.warning,
       expired: colors.error,
     };
-    return colorMap[status];
+    return colorMap[status] || colors.muted;
   };
 
   const filteredContracts =
-    filter === "all" ? contracts : contracts.filter((c) => c.status === filter);
+    filter === "all" ? contracts : contracts.filter((c: any) => c.status === filter);
 
-  const renderContractItem = ({ item }: { item: Contract }) => (
+  const renderContractItem = ({ item }: { item: any }) => (
     <TouchableOpacity
       className="bg-surface rounded-xl p-4 mb-3 border border-border"
       activeOpacity={0.7}
@@ -102,7 +108,13 @@ export default function ContractsScreen() {
       <View className="flex-row items-start justify-between mb-2">
         <View className="flex-1">
           <Text className="text-lg font-semibold text-foreground mb-1">{item.title}</Text>
-          <Text className="text-sm text-muted">{item.customer}</Text>
+          {/* Customer Name müsste idealerweise mitgeladen werden oder Contract enthält customer objekt */}
+          {/* Da das Backend aktuell nur IDs liefert, zeigen wir ggf. nur title an oder erweitern Backend Logic später */}
+          {/* Workaround: Wenn customer joined ist */}
+          <Text className="text-sm text-muted">
+            {/* Hier müsste der Kundenname stehen. Falls nicht im Objekt, ggf. weglassen oder CustomerID anzeigen */}
+            Kunde ID: {item.customerId}
+          </Text>
         </View>
         <View
           className="px-3 py-1 rounded-full ml-2"
@@ -127,16 +139,18 @@ export default function ContractsScreen() {
         <View>
           <Text className="text-xs text-muted text-right">Betrag</Text>
           <Text className="text-sm font-semibold text-success">
-            {formatCurrency(item.amount)}/Jahr
+            {formatCurrency(item.annualAmount || item.amount)}/Jahr
           </Text>
         </View>
       </View>
 
-      <View className="mt-2">
-        <Text className="text-xs text-muted">
-          Kündigungsfrist: {item.noticePeriod} {item.noticePeriod === 1 ? "Monat" : "Monate"}
-        </Text>
-      </View>
+      {item.noticePeriodMonths && (
+        <View className="mt-2">
+          <Text className="text-xs text-muted">
+            Kündigungsfrist: {item.noticePeriodMonths} {item.noticePeriodMonths === 1 ? "Monat" : "Monate"}
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 
@@ -164,19 +178,19 @@ export default function ContractsScreen() {
         <View className="flex-row gap-3 mb-4">
           <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
             <Text className="text-2xl font-bold text-success">
-              {contracts.filter((c) => c.status === "active").length}
+              {contracts.filter((c: any) => c.status === "active").length}
             </Text>
             <Text className="text-sm text-muted">Aktiv</Text>
           </View>
           <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
             <Text className="text-2xl font-bold text-warning">
-              {contracts.filter((c) => c.status === "cancelled").length}
+              {contracts.filter((c: any) => c.status === "cancelled").length}
             </Text>
             <Text className="text-sm text-muted">Gekündigt</Text>
           </View>
           <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
             <Text className="text-2xl font-bold text-error">
-              {contracts.filter((c) => c.status === "expired").length}
+              {contracts.filter((c: any) => c.status === "expired").length}
             </Text>
             <Text className="text-sm text-muted">Abgelaufen</Text>
           </View>
@@ -188,15 +202,13 @@ export default function ContractsScreen() {
             {["all", "active", "cancelled", "expired"].map((status) => (
               <TouchableOpacity
                 key={status}
-                className={`px-4 py-2 rounded-lg ${
-                  filter === status ? "bg-primary" : "bg-surface border border-border"
-                }`}
+                className={`px-4 py-2 rounded-lg ${filter === status ? "bg-primary" : "bg-surface border border-border"
+                  }`}
                 onPress={() => setFilter(status as any)}
               >
                 <Text
-                  className={`font-semibold ${
-                    filter === status ? "text-background" : "text-foreground"
-                  }`}
+                  className={`font-semibold ${filter === status ? "text-background" : "text-foreground"
+                    }`}
                 >
                   {status === "all"
                     ? "Alle"
@@ -232,7 +244,7 @@ export default function ContractsScreen() {
       <ContractFormModal
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSuccess={() => {}}
+        onSuccess={() => refetch()}
       />
 
       {/* Vertrags-Details Modal */}
@@ -300,7 +312,11 @@ function ContractDetailsModal({
                     <Text className="text-xl font-bold text-foreground mb-1">
                       {contract.title}
                     </Text>
-                    <Text className="text-base text-muted">{contract.customer}</Text>
+                    <Text className="text-base text-muted">
+                      {typeof contract.customer === 'object'
+                        ? (contract.customer.company_name || `${contract.customer.first_name} ${contract.customer.last_name}` || "Unbekannter Kunde")
+                        : contract.customer}
+                    </Text>
                   </View>
                   <View
                     className="px-3 py-1 rounded-full"
@@ -346,15 +362,13 @@ function ContractDetailsModal({
                 {history.map((item) => (
                   <View
                     key={item.id}
-                    className={`mb-3 p-3 rounded-lg ${
-                      item.type === "system" ? "bg-surface" : "bg-primary/10"
-                    }`}
+                    className={`mb-3 p-3 rounded-lg ${item.type === "system" ? "bg-surface" : "bg-primary/10"
+                      }`}
                   >
                     <View className="flex-row items-center justify-between mb-1">
                       <Text
-                        className={`text-xs font-semibold ${
-                          item.type === "system" ? "text-muted" : "text-primary"
-                        }`}
+                        className={`text-xs font-semibold ${item.type === "system" ? "text-muted" : "text-primary"
+                          }`}
                       >
                         {item.user}
                       </Text>

@@ -7,6 +7,8 @@ import {
   TextInput,
   ActivityIndicator,
   FlatList,
+  Alert,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -20,9 +22,40 @@ export default function CustomersScreen() {
   const colors = useColors();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any>(null);
 
   // Kunden laden
   const { data: customers, isLoading, refetch } = trpc.customers.list.useQuery();
+  const deleteCustomer = trpc.customers.delete.useMutation({
+    onSuccess: () => {
+      refetch();
+    },
+    onError: (error) => {
+      Alert.alert("Fehler", "Kunde konnte nicht gelöscht werden: " + error.message);
+    },
+  });
+
+  const handleDelete = (id: string, name: string) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Möchten Sie "${name}" wirklich löschen?`)) {
+        deleteCustomer.mutate({ id });
+      }
+      return;
+    }
+
+    Alert.alert(
+      "Kunde löschen",
+      `Möchten Sie den Kunden "${name}" wirklich löschen?`,
+      [
+        { text: "Abbrechen", style: "cancel" },
+        {
+          text: "Löschen",
+          style: "destructive",
+          onPress: () => deleteCustomer.mutate({ id })
+        },
+      ]
+    );
+  };
 
   // Gefilterte Kunden basierend auf Suche
   const filteredCustomers = customers?.filter((customer) => {
@@ -40,42 +73,65 @@ export default function CustomersScreen() {
       item.companyName ||
       `${item.firstName || ""} ${item.lastName || ""}`.trim() ||
       "Unbenannt";
-
     return (
-      <TouchableOpacity
-        className="bg-surface rounded-xl p-4 mb-3 border border-border"
-        activeOpacity={0.7}
-        onPress={() => {
-          // Navigation zu Kundendetails
-          router.push(`/customer/${item.id}` as any);
-        }}
-      >
-        <View className="flex-row items-center justify-between">
-          <View className="flex-1">
-            <Text className="text-lg font-semibold text-foreground mb-1">
-              {displayName}
-            </Text>
-            {item.email && (
-              <Text className="text-sm text-muted mb-1">{item.email}</Text>
-            )}
-            {item.phone && (
-              <View className="flex-row items-center mt-1">
-                <IconSymbol name="phone.fill" size={14} color={colors.muted} />
-                <Text className="text-sm text-muted ml-1">{item.phone}</Text>
+      <View className="bg-surface rounded-xl p-4 mb-3 border border-border">
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => {
+            // Navigation zu Kundendetails
+            router.push(`/customer/${item.id}` as any);
+          }}
+        >
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1">
+              <Text className="text-lg font-semibold text-foreground mb-1">
+                {displayName}
+              </Text>
+              {item.email && (
+                <Text className="text-sm text-muted mb-1">{item.email}</Text>
+              )}
+              {item.phone && (
+                <View className="flex-row items-center mt-1">
+                  <IconSymbol name="phone.fill" size={14} color={colors.muted} />
+                  <Text className="text-sm text-muted ml-1">{item.phone}</Text>
+                </View>
+              )}
+            </View>
+
+            <View className="items-end gap-2">
+              <View
+                className={`px-3 py-1 rounded-full ${item.status === "active" ? "bg-success" : "bg-muted"
+                  }`}
+              >
+                <Text className="text-xs font-semibold text-white">
+                  {item.status === "active" ? "Aktiv" : "Inaktiv"}
+                </Text>
               </View>
-            )}
+            </View>
           </View>
-          <View
-            className={`px-3 py-1 rounded-full ${
-              item.status === "active" ? "bg-success" : "bg-muted"
-            }`}
+        </TouchableOpacity>
+
+        <View className="flex-row justify-end gap-3 mt-3 pt-3 border-t border-border">
+          <TouchableOpacity
+            className="flex-row items-center bg-muted/10 px-3 py-2 rounded-full"
+            onPress={() => {
+              setEditingCustomer(item);
+              setShowAddModal(true);
+            }}
           >
-            <Text className="text-xs font-semibold text-white">
-              {item.status === "active" ? "Aktiv" : "Inaktiv"}
-            </Text>
-          </View>
+            <IconSymbol name="pencil" size={16} color={colors.primary} />
+            <Text className="text-primary text-xs font-semibold ml-2">Bearbeiten</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="flex-row items-center bg-error/10 px-3 py-2 rounded-full"
+            onPress={() => handleDelete(item.id, displayName)}
+          >
+            <IconSymbol name="trash.fill" size={16} color={colors.error} />
+            <Text className="text-error text-xs font-semibold ml-2">Löschen</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -88,7 +144,10 @@ export default function CustomersScreen() {
           <TouchableOpacity
             className="bg-primary w-12 h-12 rounded-full items-center justify-center"
             activeOpacity={0.8}
-            onPress={() => setShowAddModal(true)}
+            onPress={() => {
+              setEditingCustomer(null);
+              setShowAddModal(true);
+            }}
           >
             <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
           </TouchableOpacity>
@@ -146,11 +205,15 @@ export default function CustomersScreen() {
         )}
       </View>
 
-      {/* Add Customer Modal */}
+      {/* Add/Edit Customer Modal */}
       <CustomerFormModal
         visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingCustomer(null);
+        }}
         onSuccess={() => refetch()}
+        editCustomer={editingCustomer}
       />
     </ScreenContainer>
   );

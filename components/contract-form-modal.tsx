@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  Alert,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { trpc } from "@/lib/trpc";
+import { formatDate } from "@/lib/format";
 
 interface ContractFormModalProps {
   visible: boolean;
@@ -45,27 +47,49 @@ export function ContractFormModal({
   const calculateEndDate = () => {
     if (!formData.startDate || !formData.durationMonths) return "";
     const start = new Date(formData.startDate);
+    if (isNaN(start.getTime())) return ""; // Datum ist ungültig
+
     const end = new Date(start);
     end.setMonth(end.getMonth() + parseInt(formData.durationMonths));
     return end.toISOString().split("T")[0];
   };
 
+  /*
+   * API Mutation
+   */
+  const createContract = trpc.contracts.create.useMutation({
+    onSuccess: () => {
+      Alert.alert("Erfolg", "Vertrag erfolgreich erstellt");
+      onSuccess?.();
+      onClose();
+    },
+    onError: (error) => {
+      console.error(error);
+      Alert.alert("Fehler", "Vertrag konnte nicht erstellt werden: " + error.message);
+    },
+  });
+
   const handleSubmit = () => {
     if (!formData.title || !formData.customerId || !formData.amount || !formData.startDate) {
-      alert("Bitte füllen Sie alle Pflichtfelder aus");
+      Alert.alert("Fehler", "Bitte füllen Sie alle Pflichtfelder aus");
       return;
     }
 
-    // TODO: API-Call implementieren
-    console.log("Vertrag erstellen:", {
-      ...formData,
-      amount: parseFloat(formData.amount),
-      durationMonths: parseInt(formData.durationMonths),
-      noticePeriodMonths: parseInt(formData.noticePeriodMonths),
-      endDate: calculateEndDate(),
+    const calculatedEndDate = calculateEndDate();
+    if (!calculatedEndDate) {
+      Alert.alert("Fehler", "Ungültiges Datum oder Laufzeit");
+      return;
+    }
+
+    createContract.mutate({
+      customerId: formData.customerId,
+      title: formData.title,
+      description: formData.description,
+      startDate: formData.startDate,
+      endDate: calculatedEndDate,
+      annualAmount: parseFloat(formData.amount),
+      noticePeriodMonths: parseInt(formData.noticePeriodMonths) || 3,
     });
-    onSuccess?.();
-    onClose();
   };
 
   return (
@@ -106,7 +130,7 @@ export function ContractFormModal({
                   <Text className={selectedCustomer ? "text-foreground" : "text-muted"}>
                     {selectedCustomer
                       ? selectedCustomer.companyName ||
-                        `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
+                      `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
                       : "Kunde auswählen..."}
                   </Text>
                 </TouchableOpacity>
@@ -222,11 +246,7 @@ export function ContractFormModal({
                 <View className="bg-primary/10 rounded-lg p-3">
                   <Text className="text-sm text-muted mb-1">Berechnetes Enddatum</Text>
                   <Text className="text-base font-semibold text-primary">
-                    {new Date(calculateEndDate()).toLocaleDateString("de-CH", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    })}
+                    {formatDate(calculateEndDate())}
                   </Text>
                 </View>
               )}

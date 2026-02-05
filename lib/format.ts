@@ -3,7 +3,10 @@
  * @param amount Betrag in Rappen oder Franken
  * @param decimals Anzahl Dezimalstellen (Standard: 2)
  */
-export function formatCurrency(amount: number, decimals: number = 2): string {
+export function formatCurrency(amount: number | null | undefined, decimals: number = 2): string {
+  if (amount == null || isNaN(amount)) {
+    return `CHF 0.${'0'.repeat(decimals)}`;
+  }
   return `CHF ${amount.toLocaleString("de-CH", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -15,7 +18,18 @@ export function formatCurrency(amount: number, decimals: number = 2): string {
  * @param date Datum als Date-Objekt oder ISO-String
  */
 export function formatDate(date: Date | string): string {
+  if (!date) return "";
+
+  // Wenn es ein String im Format YYYY-MM-DD ist, direkt splitten um Zeitzonenprobleme zu vermeiden
+  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [year, month, day] = date.split("-");
+    return `${day}.${month}.${year}`;
+  }
+
   const d = typeof date === "string" ? new Date(date) : date;
+  // Validitätsprüfung
+  if (isNaN(d.getTime())) return String(date);
+
   const day = d.getDate().toString().padStart(2, "0");
   const month = (d.getMonth() + 1).toString().padStart(2, "0");
   const year = d.getFullYear();

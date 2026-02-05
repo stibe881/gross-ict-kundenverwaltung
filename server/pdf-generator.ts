@@ -33,12 +33,11 @@ function formatCurrency(amount: number): string {
 }
 
 function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString("de-CH", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  const d = new Date(dateString);
+  const day = d.getDate().toString().padStart(2, "0");
+  const month = (d.getMonth() + 1).toString().padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}.${month}.${year}`;
 }
 
 function generateInvoiceHTML(data: InvoiceData): string {
@@ -174,7 +173,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     try {
       await unlink(tempHTMLPath);
       await unlink(tempPDFPath);
-    } catch {}
+    } catch { }
     throw error;
   }
 }

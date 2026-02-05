@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,12 +17,14 @@ interface CustomerFormModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  editCustomer?: any; // Kunde zum Bearbeiten
 }
 
 export function CustomerFormModal({
   visible,
   onClose,
   onSuccess,
+  editCustomer,
 }: CustomerFormModalProps) {
   const colors = useColors();
   const [formData, setFormData] = useState({
@@ -37,26 +39,56 @@ export function CustomerFormModal({
     country: "Schweiz",
   });
 
+  // Formular zurücksetzen oder mit bestehenden Daten füllen
+  useEffect(() => {
+    if (visible) {
+      if (editCustomer) {
+        setFormData({
+          firstName: editCustomer.firstName || "",
+          lastName: editCustomer.lastName || "",
+          companyName: editCustomer.companyName || "",
+          email: editCustomer.email || "",
+          phone: editCustomer.phone || "",
+          address: editCustomer.address || "",
+          city: editCustomer.city || "",
+          postalCode: editCustomer.postalCode || "",
+          country: editCustomer.country || "Schweiz",
+        });
+      } else {
+        setFormData({
+          firstName: "",
+          lastName: "",
+          companyName: "",
+          email: "",
+          phone: "",
+          address: "",
+          city: "",
+          postalCode: "",
+          country: "Schweiz",
+        });
+      }
+    }
+  }, [visible, editCustomer]);
+
   const createCustomer = trpc.customers.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       Alert.alert("Erfolg", "Kunde wurde erfolgreich erstellt");
       onSuccess?.();
       onClose();
-      // Reset form
-      setFormData({
-        firstName: "",
-        lastName: "",
-        companyName: "",
-        email: "",
-        phone: "",
-        address: "",
-        city: "",
-        postalCode: "",
-        country: "Schweiz",
-      });
     },
     onError: (error) => {
       Alert.alert("Fehler", `Kunde konnte nicht erstellt werden: ${error.message}`);
+    },
+  });
+
+  const updateCustomer = trpc.customers.update.useMutation({
+    onSuccess: (data) => {
+      Alert.alert("Erfolg", "Kunde wurde erfolgreich aktualisiert");
+      onSuccess?.();
+      onClose();
+    },
+    onError: (error) => {
+      Alert.alert("Fehler", `Kunde konnte nicht aktualisiert werden: ${error.message}`);
     },
   });
 
@@ -66,12 +98,18 @@ export function CustomerFormModal({
       return;
     }
 
-    console.log("Submitting customer:", formData);
-    createCustomer.mutate({
-      ...formData,
-      status: "active",
-    });
+    if (editCustomer) {
+      updateCustomer.mutate({
+        id: editCustomer.id,
+        ...formData,
+        country: formData.country || undefined, // Optional machen falls leer
+      });
+    } else {
+      createCustomer.mutate(formData);
+    }
   };
+
+  const isSubmitting = createCustomer.isPending || updateCustomer.isPending;
 
   return (
     <Modal
@@ -88,7 +126,7 @@ export function CustomerFormModal({
           {/* Header */}
           <View className="flex-row items-center justify-between p-4 border-b border-border">
             <Text className="text-2xl font-bold text-foreground">
-              Neuer Kunde
+              {editCustomer ? "Kunde bearbeiten" : "Neuer Kunde"}
             </Text>
             <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
               <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
