@@ -69,11 +69,11 @@ export default function LoginScreen() {
         <View className="items-center mb-8">
           <Image
             source={require("@/assets/images/icon.png")}
-            style={{ width: 120, height: 120, marginBottom: 16 }}
+            style={{ width: 180, height: 180, marginBottom: 24 }}
             contentFit="contain"
           />
-          <Text className="text-base text-muted text-center">
-            Kundenverwaltung
+          <Text className="text-lg text-muted text-center font-semibold">
+            Kundenportal
           </Text>
         </View>
 

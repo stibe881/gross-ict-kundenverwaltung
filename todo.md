@@ -360,3 +360,9 @@
 - [x] Test-Benutzer-Hinweis vom Login-Screen entfernen
 - [x] Logo statt Text "Gross ICT" im Login-Screen anzeigen
 - [x] Ticket-Statistik-Kacheln-Höhe reduziert (p-4 → p-3, text-2xl → text-xl, text-sm → text-xs)
+
+## Login-Screen Anpassungen
+- [x] Logo vergrößert (120x120 → 180x180)
+- [x] Untertitel geändert: "Kundenverwaltung" → "Kundenportal"
+- [x] Schriftgröße des Untertitels erhöht (text-base → text-lg)
+- [x] Font-Weight hinzugefügt (font-semibold)
