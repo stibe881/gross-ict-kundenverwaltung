@@ -291,6 +291,21 @@ export async function getAllInvoices() {
   return data || [];
 }
 
+export async function getInvoiceById(id: string) {
+  const { data, error } = await supabase
+    .from("invoices")
+    .select(`
+      *,
+      customer:customers(*),
+      items:invoice_items(*)
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 export async function getCustomerInvoices(customerId: string) {
   const { data, error } = await supabase
     .from("invoices")

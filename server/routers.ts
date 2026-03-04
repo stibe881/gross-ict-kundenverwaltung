@@ -397,6 +397,12 @@ export const appRouter = router({
       return supabaseDb.getNextInvoiceNumber();
     }),
 
+    getById: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .query(async ({ input }) => {
+        return supabaseDb.getInvoiceById(input.id);
+      }),
+
     getByCustomer: protectedProcedure
       .input(z.object({ customerId: z.string() }))
       .query(async ({ input }) => {

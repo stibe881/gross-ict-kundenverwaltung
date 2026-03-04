@@ -13,6 +13,7 @@ import { useColors } from "@/hooks/use-colors";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { trpc } from "@/lib/trpc";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { router as expoRouter } from "expo-router";
 
 export default function AccountingScreen() {
   const colors = useColors();
@@ -160,9 +161,11 @@ export default function AccountingScreen() {
                     `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() ||
                     "Unbekannt";
                   return (
-                    <View
+                    <TouchableOpacity
                       key={invoice.id}
                       className="bg-surface rounded-xl p-4 border border-border"
+                      activeOpacity={0.7}
+                      onPress={() => expoRouter.push(`/invoice/${invoice.id}` as any)}
                     >
                       <View className="flex-row items-center justify-between mb-2">
                         <Text className="text-base font-bold text-foreground">
@@ -183,7 +186,7 @@ export default function AccountingScreen() {
                           {formatCurrency(invoice.total)}
                         </Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
