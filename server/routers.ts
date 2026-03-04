@@ -462,6 +462,60 @@ export const appRouter = router({
 
         return supabaseDb.createInvoice(invoice, itemsData);
       }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          customerId: z.string(),
+          invoiceNumber: z.string(),
+          invoiceDate: z.string(),
+          dueDate: z.string(),
+          items: z.array(
+            z.object({
+              productId: z.string().optional(),
+              description: z.string(),
+              quantity: z.number(),
+              unitPrice: z.number(),
+              vatRate: z.number(),
+              total: z.number(),
+            })
+          ),
+          notes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { id, items, ...invoiceData } = input;
+
+        const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+        const vatAmount = items.reduce(
+          (sum, item) => sum + (item.total * item.vatRate) / 100,
+          0
+        );
+        const total = subtotal + vatAmount;
+
+        const invoice = {
+          customer_id: invoiceData.customerId,
+          invoice_number: invoiceData.invoiceNumber,
+          invoice_date: invoiceData.invoiceDate,
+          due_date: invoiceData.dueDate,
+          subtotal,
+          vat_amount: vatAmount,
+          total,
+          notes: invoiceData.notes,
+        };
+
+        const itemsData = items.map((item) => ({
+          product_id: item.productId,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          vat_rate: item.vatRate,
+          total: item.total,
+        }));
+
+        return supabaseDb.updateInvoice(id, invoice, itemsData);
+      }),
   }),
 
   // Kunden-Portal

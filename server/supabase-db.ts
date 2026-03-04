@@ -345,6 +345,42 @@ export async function createInvoice(invoice: any, items: any[]) {
   return invoiceData;
 }
 
+export async function updateInvoice(id: string, invoice: any, items: any[]) {
+  // Rechnung aktualisieren
+  const { data: invoiceData, error: invoiceError } = await supabase
+    .from("invoices")
+    .update(invoice)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (invoiceError) throw new Error(invoiceError.message);
+
+  // Alte Positionen löschen
+  const { error: deleteError } = await supabase
+    .from("invoice_items")
+    .delete()
+    .eq("invoice_id", id);
+
+  if (deleteError) throw new Error(deleteError.message);
+
+  // Neue Positionen erstellen
+  if (items.length > 0) {
+    const itemsWithInvoiceId = items.map((item) => ({
+      ...item,
+      invoice_id: id,
+    }));
+
+    const { error: itemsError } = await supabase
+      .from("invoice_items")
+      .insert(itemsWithInvoiceId);
+
+    if (itemsError) throw new Error(itemsError.message);
+  }
+
+  return invoiceData;
+}
+
 // ==================== BENUTZER ====================
 
 export async function getAllUsers() {

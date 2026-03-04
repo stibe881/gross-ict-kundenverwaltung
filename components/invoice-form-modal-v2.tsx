@@ -28,12 +28,14 @@ interface InvoiceFormModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  editInvoice?: any;
 }
 
 export function InvoiceFormModal({
   visible,
   onClose,
   onSuccess,
+  editInvoice,
 }: InvoiceFormModalProps) {
   const colors = useColors();
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -41,15 +43,34 @@ export function InvoiceFormModal({
 
   // Nächste Rechnungsnummer laden
   const { data: nextNumber } = trpc.invoices.nextNumber.useQuery(undefined, {
-    enabled: visible,
+    enabled: visible && !editInvoice,
   });
 
-  // Rechnungsnummer automatisch setzen wenn Modal geöffnet wird
+  const isEditMode = !!editInvoice;
+
+  // Formular mit Daten füllen (Edit oder Neu)
   useEffect(() => {
-    if (visible && nextNumber && !invoiceNumber) {
+    if (visible && editInvoice) {
+      // Edit-Modus: Daten aus bestehender Rechnung laden
+      setInvoiceNumber(editInvoice.invoice_number || "");
+      setSelectedCustomerId(editInvoice.customer_id || null);
+      if (editInvoice.items && editInvoice.items.length > 0) {
+        setItems(
+          editInvoice.items.map((item: any, index: number) => ({
+            id: item.id || String(index + 1),
+            productId: item.product_id,
+            name: item.description?.split("\n")[0] || "",
+            description: item.description?.split("\n").slice(1).join("\n") || "",
+            quantity: String(item.quantity || 1),
+            unitPrice: String(item.unit_price || ""),
+            vatRate: item.vat_rate || VAT_RATES.normal,
+          }))
+        );
+      }
+    } else if (visible && nextNumber && !invoiceNumber) {
       setInvoiceNumber(nextNumber);
     }
-  }, [visible, nextNumber]);
+  }, [visible, editInvoice, nextNumber]);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: "1", name: "", description: "", quantity: "1", unitPrice: "", vatRate: VAT_RATES.normal },
@@ -151,11 +172,9 @@ export function InvoiceFormModal({
     onSuccess: () => {
       utils.invoices.list.invalidate();
       utils.invoices.nextNumber.invalidate();
+      utils.invoices.getById.invalidate();
       showAlert("Erfolg", "Rechnung wurde erfolgreich erstellt");
-      // Reset form
-      setInvoiceNumber("");
-      setSelectedCustomerId(null);
-      setItems([{ id: "1", name: "", description: "", quantity: "1", unitPrice: "", vatRate: VAT_RATES.normal }]);
+      resetForm();
       onSuccess?.();
       onClose();
     },
@@ -163,6 +182,25 @@ export function InvoiceFormModal({
       showAlert("Fehler", `Rechnung konnte nicht erstellt werden: ${error.message}`);
     },
   });
+
+  const updateInvoice = trpc.invoices.update.useMutation({
+    onSuccess: () => {
+      utils.invoices.list.invalidate();
+      utils.invoices.getById.invalidate();
+      showAlert("Erfolg", "Rechnung wurde aktualisiert");
+      onSuccess?.();
+      onClose();
+    },
+    onError: (error) => {
+      showAlert("Fehler", `Rechnung konnte nicht aktualisiert werden: ${error.message}`);
+    },
+  });
+
+  const resetForm = () => {
+    setInvoiceNumber("");
+    setSelectedCustomerId(null);
+    setItems([{ id: "1", name: "", description: "", quantity: "1", unitPrice: "", vatRate: VAT_RATES.normal }]);
+  };
 
   // Produkt erstellen
   const createProduct = trpc.products.create.useMutation({
@@ -216,7 +254,7 @@ export function InvoiceFormModal({
     const today = new Date().toISOString().split("T")[0];
     const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-    createInvoice.mutate({
+    const invoicePayload = {
       customerId: selectedCustomerId,
       invoiceNumber,
       invoiceDate: today,
@@ -229,7 +267,13 @@ export function InvoiceFormModal({
         vatRate: item.vatRate,
         total: (parseFloat(item.quantity) || 1) * (parseFloat(item.unitPrice) || 0),
       })),
-    });
+    };
+
+    if (isEditMode) {
+      updateInvoice.mutate({ id: editInvoice.id, ...invoicePayload });
+    } else {
+      createInvoice.mutate(invoicePayload);
+    }
   };
 
   return (
@@ -247,7 +291,7 @@ export function InvoiceFormModal({
           {/* Header */}
           <View className="flex-row items-center justify-between p-4 border-b border-border">
             <Text className="text-2xl font-bold text-foreground">
-              Neue Rechnung
+              {isEditMode ? "Rechnung bearbeiten" : "Neue Rechnung"}
             </Text>
             <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
               <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
@@ -538,7 +582,7 @@ export function InvoiceFormModal({
               activeOpacity={0.8}
             >
               <Text className="text-background font-semibold text-center">
-                Erstellen
+                {isEditMode ? "Speichern" : "Erstellen"}
               </Text>
             </TouchableOpacity>
           </View>

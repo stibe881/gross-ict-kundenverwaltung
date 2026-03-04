@@ -12,15 +12,17 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { trpc } from "@/lib/trpc";
 import { formatDate, formatCurrency } from "@/lib/format";
+import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 
 export default function InvoiceDetailScreen() {
     const { id } = useLocalSearchParams();
     const colors = useColors();
 
-    const { data: invoice, isLoading } = trpc.invoices.getById.useQuery(
+    const { data: invoice, isLoading, refetch } = trpc.invoices.getById.useQuery(
         { id: id as string },
         { enabled: !!id }
     );
+    const [showEditModal, setShowEditModal] = useState(false);
 
     const getStatusLabel = (status: string) => {
         switch (status) {
@@ -85,10 +87,19 @@ export default function InvoiceDetailScreen() {
                         <IconSymbol name="chevron.left" size={20} color={colors.primary} />
                         <Text className="text-primary font-semibold ml-1">Zurück</Text>
                     </TouchableOpacity>
-                    <View className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
-                        <Text className="text-xs font-semibold text-white">
-                            {getStatusLabel(invoice.status)}
-                        </Text>
+                    <View className="flex-row items-center gap-3">
+                        <TouchableOpacity
+                            onPress={() => setShowEditModal(true)}
+                            activeOpacity={0.7}
+                            className="bg-primary px-4 py-2 rounded-lg"
+                        >
+                            <Text className="text-background font-semibold text-sm">Bearbeiten</Text>
+                        </TouchableOpacity>
+                        <View className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
+                            <Text className="text-xs font-semibold text-white">
+                                {getStatusLabel(invoice.status)}
+                            </Text>
+                        </View>
                     </View>
                 </View>
 
@@ -191,6 +202,14 @@ export default function InvoiceDetailScreen() {
                     )}
                 </View>
             </ScrollView>
+
+            {/* Edit Modal */}
+            <InvoiceFormModal
+                visible={showEditModal}
+                onClose={() => setShowEditModal(false)}
+                onSuccess={() => refetch()}
+                editInvoice={invoice}
+            />
         </ScreenContainer>
     );
 }
