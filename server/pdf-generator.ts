@@ -1,6 +1,7 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import { writeFile, unlink } from "fs/promises";
+import { readFileSync } from "fs";
 import path from "path";
 import os from "os";
 
@@ -48,6 +49,16 @@ function fmtDate(dateString: string): string {
 }
 
 function generateInvoiceHTML(data: InvoiceData): string {
+  // Logo als base64 laden
+  let logoBase64 = "";
+  try {
+    const logoPath = path.resolve(__dirname, "..", "assets", "images", "splash-icon.png");
+    const logoBuffer = readFileSync(logoPath);
+    logoBase64 = `data:image/png;base64,${logoBuffer.toString("base64")}`;
+  } catch (e) {
+    console.warn("[PDF] Logo konnte nicht geladen werden", e);
+  }
+
   const itemsHTML = data.items
     .map(
       (item) => `
@@ -97,21 +108,9 @@ function generateInvoiceHTML(data: InvoiceData): string {
       align-items: center;
       gap: 8px;
     }
-    .logo-bracket {
-      font-size: 52pt;
-      font-weight: 200;
-      color: #DAA520;
-      line-height: 1;
-    }
-    .logo-text {
-      font-size: 22pt;
-      font-weight: 300;
-      color: #555;
-      letter-spacing: 1px;
-    }
-    .logo-dot {
-      color: #DAA520;
-      margin: 0 6px;
+    .logo-area img {
+      height: 50px;
+      width: auto;
     }
     .rechnung-title {
       font-size: 18pt;
@@ -282,9 +281,7 @@ function generateInvoiceHTML(data: InvoiceData): string {
   <!-- Header: Logo + RECHNUNG -->
   <div class="header">
     <div class="logo-area">
-      <span class="logo-bracket">(</span>
-      <span class="logo-bracket" style="margin-left:-15px; margin-right:5px;">)</span>
-      <span class="logo-text">Gross<span class="logo-dot"> · </span>ICT</span>
+      ${logoBase64 ? `<img src="${logoBase64}" alt="Gross ICT" />` : `<span style="font-size:22pt;font-weight:300;color:#555;">Gross · ICT</span>`}
     </div>
     <div class="rechnung-title">RECHNUNG</div>
   </div>
