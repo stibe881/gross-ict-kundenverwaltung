@@ -215,8 +215,13 @@ function ProductFormModal({
 
   const updateProduct = trpc.products.update.useMutation({
     onSuccess: () => {
+      console.log("[products] Update success!");
       onSuccess?.();
       onClose();
+    },
+    onError: (err) => {
+      console.error("[products] Update error:", err.message);
+      alert("Fehler beim Speichern: " + err.message);
     },
   });
 
@@ -226,22 +231,26 @@ function ProductFormModal({
       return;
     }
 
+    console.log("[products] handleSubmit - product:", product?.id, "formData:", JSON.stringify(formData));
+
     if (product) {
-      updateProduct.mutate({
+      const payload = {
         id: product.id,
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.unitPrice) || 0,
-        vatRate: parseFloat(formData.vatRate) || 8.1,
+        vatRate: isNaN(parseFloat(formData.vatRate)) ? 8.1 : parseFloat(formData.vatRate),
         unit: formData.unit,
         type: formData.type as "product" | "service",
-      });
+      };
+      console.log("[products] Sending update:", JSON.stringify(payload));
+      updateProduct.mutate(payload);
     } else {
       createProduct.mutate({
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.unitPrice) || 0,
-        vatRate: parseFloat(formData.vatRate) || 8.1,
+        vatRate: isNaN(parseFloat(formData.vatRate)) ? 8.1 : parseFloat(formData.vatRate),
         unit: formData.unit,
         type: formData.type as "product" | "service",
       });

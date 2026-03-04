@@ -360,6 +360,7 @@ export const appRouter = router({
           description: input.description,
           price: input.price,
           vat_rate: input.vatRate,
+          unit: input.unit,
           type: input.type,
         });
       }),
@@ -379,14 +380,20 @@ export const appRouter = router({
       )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
-        return supabaseDb.updateProduct(id, {
+        const dbData = {
           name: data.name,
           description: data.description,
           price: data.price,
           vat_rate: data.vatRate,
+          unit: data.unit,
           type: data.type,
           is_active: data.isActive,
-        });
+        };
+        console.log("[products.update] Input:", JSON.stringify(input));
+        console.log("[products.update] DB data:", JSON.stringify(dbData));
+        const result = await supabaseDb.updateProduct(id, dbData);
+        console.log("[products.update] Result:", JSON.stringify(result));
+        return result;
       }),
   }),
 
