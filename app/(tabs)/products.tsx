@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ScrollView,
   Text,
@@ -191,6 +191,20 @@ function ProductFormModal({
     unit: product?.unit || "Stück",
     vatRate: product?.vat_rate ? String(product.vat_rate) : "8.10",
   });
+
+  // Formular zurücksetzen wenn ein anderes Produkt ausgewählt wird
+  useEffect(() => {
+    if (visible) {
+      setFormData({
+        type: product?.type || "product",
+        name: product?.name || "",
+        description: product?.description || "",
+        unitPrice: product?.price ? String(product.price) : "",
+        unit: product?.unit || "Stück",
+        vatRate: product?.vat_rate ? String(product.vat_rate) : "8.10",
+      });
+    }
+  }, [visible, product]);
 
   const createProduct = trpc.products.create.useMutation({
     onSuccess: () => {
