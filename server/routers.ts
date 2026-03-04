@@ -360,7 +360,6 @@ export const appRouter = router({
           description: input.description,
           price: input.price,
           vat_rate: input.vatRate,
-          unit: input.unit,
           type: input.type,
         });
       }),
@@ -385,7 +384,6 @@ export const appRouter = router({
           description: data.description,
           price: data.price,
           vat_rate: data.vatRate,
-          unit: data.unit,
           type: data.type,
           is_active: data.isActive,
         });
