@@ -238,9 +238,17 @@ export async function createProduct(product: any) {
 }
 
 export async function updateProduct(id: string, product: any) {
+  // Undefined-Werte entfernen, damit sie nicht auf NULL gesetzt werden
+  const cleanProduct: any = {};
+  for (const [key, value] of Object.entries(product)) {
+    if (value !== undefined) {
+      cleanProduct[key] = value;
+    }
+  }
+
   const { data, error } = await supabase
     .from("products")
-    .update(product)
+    .update(cleanProduct)
     .eq("id", id)
     .select()
     .single();
