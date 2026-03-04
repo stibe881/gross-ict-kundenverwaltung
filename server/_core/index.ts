@@ -60,6 +60,40 @@ async function startServer() {
     res.json({ ok: true, timestamp: Date.now() });
   });
 
+  // Tracking-Pixel für Rechnungs-Öffnung
+  app.get("/api/track/:invoiceId", async (req, res) => {
+    try {
+      const { invoiceId } = req.params;
+      const { addInvoiceActivity, getInvoiceById } = await import("../supabase-db");
+      const { notifyOwner } = await import("./notification");
+
+      // Prüfen ob Rechnung existiert
+      const invoice = await getInvoiceById(invoiceId);
+      if (invoice) {
+        await addInvoiceActivity(invoiceId, "opened", "Rechnung wurde vom Kunden geöffnet");
+
+        // Push-Notification senden
+        const customerName = invoice.customer?.company_name ||
+          `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "Unbekannt";
+        await notifyOwner({
+          title: `📧 Rechnung ${invoice.invoice_number} geöffnet`,
+          content: `${customerName} hat die Rechnung ${invoice.invoice_number} geöffnet.`,
+        }).catch(() => { }); // Fehler ignorieren
+      }
+    } catch (err) {
+      console.error("[tracking] Error:", err);
+    }
+
+    // 1x1 transparenter GIF-Pixel
+    const pixel = Buffer.from(
+      "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+      "base64"
+    );
+    res.set("Content-Type", "image/gif");
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.send(pixel);
+  });
+
   app.use(
     "/api/trpc",
     createExpressMiddleware({

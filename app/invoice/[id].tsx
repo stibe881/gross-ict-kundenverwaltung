@@ -27,6 +27,10 @@ export default function InvoiceDetailScreen() {
         { id: id as string },
         { enabled: !!id }
     );
+    const { data: activities } = trpc.invoices.activities.useQuery(
+        { invoiceId: id as string },
+        { enabled: !!id }
+    );
     const [showEditModal, setShowEditModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState("");
@@ -92,26 +96,40 @@ export default function InvoiceDetailScreen() {
         }
     };
 
+
+
+    const sendEmailMutation = trpc.invoices.sendEmail.useMutation({
+        onSuccess: () => {
+            showAlert("Erfolg", "Rechnung wurde per E-Mail gesendet!");
+            utils.invoices.activities.invalidate({ invoiceId: id as string });
+        },
+        onError: (error) => {
+            showAlert("Fehler", `E-Mail konnte nicht gesendet werden: ${error.message}`);
+        },
+    });
+
+    const sendReminderMutation = trpc.invoices.sendReminder.useMutation({
+        onSuccess: () => {
+            showAlert("Erfolg", "Zahlungserinnerung wurde per E-Mail gesendet!");
+            utils.invoices.activities.invalidate({ invoiceId: id as string });
+        },
+        onError: (error) => {
+            showAlert("Fehler", `Mahnung konnte nicht gesendet werden: ${error.message}`);
+        },
+    });
+
     const handleSendInvoice = () => {
         const email = invoice?.customer?.email;
         if (!email) {
             showAlert("Fehler", "Dieser Kunde hat keine E-Mail-Adresse hinterlegt.");
             return;
         }
-        const subject = encodeURIComponent(`Rechnung ${invoice.invoice_number} - Gross ICT`);
-        const body = encodeURIComponent(
-            `Sehr geehrte Damen und Herren,\n\n` +
-            `anbei erhalten Sie die Rechnung ${invoice.invoice_number} über ${formatCurrency(invoice.total)}.\n\n` +
-            `Rechnungsdatum: ${formatDate(invoice.invoice_date)}\n` +
-            `Fälligkeitsdatum: ${formatDate(invoice.due_date)}\n\n` +
-            `Bitte überweisen Sie den Betrag bis zum ${formatDate(invoice.due_date)} auf folgendes Konto:\n\n` +
-            `Kontoinhaber: Gross ICT\n` +
-            `IBAN: CH93 0900 0000 1553 0590 0\n` +
-            `BIC: POFICHBEXXX\n\n` +
-            `Bei Fragen stehen wir Ihnen gerne zur Verfügung.\n\n` +
-            `Freundliche Grüsse\nGross ICT`
+        showConfirm(
+            "Rechnung senden",
+            `Rechnung ${invoice.invoice_number} an ${email} senden?`,
+            () => sendEmailMutation.mutate({ id: id as string }),
+            "Senden"
         );
-        Linking.openURL(`mailto:${email}?subject=${subject}&body=${body}`);
     };
 
     const handleSendReminder = () => {
@@ -120,23 +138,12 @@ export default function InvoiceDetailScreen() {
             showAlert("Fehler", "Dieser Kunde hat keine E-Mail-Adresse hinterlegt.");
             return;
         }
-        const subject = encodeURIComponent(`Zahlungserinnerung: Rechnung ${invoice.invoice_number} - Gross ICT`);
-        const body = encodeURIComponent(
-            `Sehr geehrte Damen und Herren,\n\n` +
-            `wir möchten Sie freundlich daran erinnern, dass die Rechnung ${invoice.invoice_number} ` +
-            `über ${formatCurrency(remainingAmount)} seit dem ${formatDate(invoice.due_date)} fällig ist.\n\n` +
-            `Rechnungsnummer: ${invoice.invoice_number}\n` +
-            `Rechnungsdatum: ${formatDate(invoice.invoice_date)}\n` +
-            `Fälligkeitsdatum: ${formatDate(invoice.due_date)}\n` +
-            `Offener Betrag: ${formatCurrency(remainingAmount)}\n\n` +
-            `Bitte überweisen Sie den ausstehenden Betrag auf folgendes Konto:\n\n` +
-            `Kontoinhaber: Gross ICT\n` +
-            `IBAN: CH93 0900 0000 1553 0590 0\n` +
-            `BIC: POFICHBEXXX\n\n` +
-            `Sollten Sie die Zahlung bereits veranlasst haben, betrachten Sie diese Erinnerung bitte als gegenstandslos.\n\n` +
-            `Freundliche Grüsse\nGross ICT`
+        showConfirm(
+            "Mahnung senden",
+            `Zahlungserinnerung für Rechnung ${invoice.invoice_number} an ${email} senden?`,
+            () => sendReminderMutation.mutate({ id: id as string }),
+            "Senden"
         );
-        Linking.openURL(`mailto:${email}?subject=${subject}&body=${body}`);
     };
 
     const getStatusLabel = (status: string) => {
@@ -383,6 +390,48 @@ export default function InvoiceDetailScreen() {
                             <Text className="text-sm text-foreground">{invoice.notes}</Text>
                         </View>
                     )}
+
+                    {/* Aktivitätsverlauf */}
+                    <View className="bg-surface rounded-xl border border-border p-4 mb-4">
+                        <Text className="text-lg font-bold text-foreground mb-3">Verlauf</Text>
+                        {!activities || activities.length === 0 ? (
+                            <Text className="text-sm text-muted">Noch keine Aktivitäten.</Text>
+                        ) : (
+                            <View className="gap-3">
+                                {activities.map((activity: any, index: number) => {
+                                    const icons: Record<string, string> = {
+                                        created: "📝",
+                                        edited: "✏️",
+                                        sent: "📧",
+                                        reminder_sent: "⚠️",
+                                        opened: "👁️",
+                                        payment_added: "💰",
+                                    };
+                                    return (
+                                        <View key={activity.id} className="flex-row items-start gap-3">
+                                            <View className="items-center">
+                                                <Text className="text-base">{icons[activity.type] || "•"}</Text>
+                                                {index < activities.length - 1 && (
+                                                    <View className="w-[1px] flex-1 bg-border mt-1" style={{ minHeight: 20 }} />
+                                                )}
+                                            </View>
+                                            <View className="flex-1">
+                                                <Text className="text-sm text-foreground">{activity.description}</Text>
+                                                <View className="flex-row items-center gap-2 mt-1">
+                                                    <Text className="text-xs text-muted">
+                                                        {formatDate(activity.created_at)}
+                                                    </Text>
+                                                    {activity.user_name && (
+                                                        <Text className="text-xs text-muted">• {activity.user_name}</Text>
+                                                    )}
+                                                </View>
+                                            </View>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        )}
+                    </View>
                 </View>
             </ScrollView>
 

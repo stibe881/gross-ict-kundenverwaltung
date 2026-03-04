@@ -475,6 +475,40 @@ export async function addPayment(invoiceId: string, amount: number) {
   return data;
 }
 
+// ==================== RECHNUNGS-AKTIVITÄTEN ====================
+
+export async function getInvoiceActivities(invoiceId: string) {
+  const { data, error } = await supabase
+    .from("invoice_activities")
+    .select("*")
+    .eq("invoice_id", invoiceId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function addInvoiceActivity(
+  invoiceId: string,
+  type: string,
+  description: string,
+  userName?: string
+) {
+  const { data, error } = await supabase
+    .from("invoice_activities")
+    .insert({
+      invoice_id: invoiceId,
+      type,
+      description,
+      user_name: userName || "System",
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 // ==================== BENUTZER ====================
 
 export async function getAllUsers() {

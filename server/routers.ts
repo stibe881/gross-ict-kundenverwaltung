@@ -4,7 +4,8 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import * as supabaseDb from "./supabase-db";
-import { generateInvoiceHTMLPreview } from "./pdf-generator";
+import { generateInvoiceHTMLPreview, generateInvoicePDF } from "./pdf-generator";
+import { sendInvoiceEmail, sendReminderEmail } from "./email";
 
 export const appRouter = router({
   system: systemRouter,
@@ -470,7 +471,15 @@ export const appRouter = router({
           total: item.total,
         }));
 
-        return supabaseDb.createInvoice(invoice, itemsData);
+        return supabaseDb.createInvoice(invoice, itemsData).then(async (result) => {
+          // Aktivität loggen
+          await supabaseDb.addInvoiceActivity(
+            result.id,
+            "created",
+            `Rechnung ${invoiceData.invoiceNumber} erstellt`
+          );
+          return result;
+        });
       }),
 
     update: protectedProcedure
@@ -524,7 +533,13 @@ export const appRouter = router({
           total: item.total,
         }));
 
-        return supabaseDb.updateInvoice(id, invoice, itemsData);
+        const result = await supabaseDb.updateInvoice(id, invoice, itemsData);
+        await supabaseDb.addInvoiceActivity(
+          id,
+          "edited",
+          `Rechnung bearbeitet`
+        );
+        return result;
       }),
 
     delete: protectedProcedure
@@ -536,7 +551,13 @@ export const appRouter = router({
     addPayment: protectedProcedure
       .input(z.object({ invoiceId: z.string(), amount: z.number() }))
       .mutation(async ({ input }) => {
-        return supabaseDb.addPayment(input.invoiceId, input.amount);
+        const result = await supabaseDb.addPayment(input.invoiceId, input.amount);
+        await supabaseDb.addInvoiceActivity(
+          input.invoiceId,
+          "payment_added",
+          `Zahlung von CHF ${input.amount.toFixed(2)} erfasst`
+        );
+        return result;
       }),
 
     generatePDF: protectedProcedure
@@ -574,6 +595,133 @@ export const appRouter = router({
         });
 
         return { html, invoiceNumber: invoice.invoice_number };
+      }),
+
+    // Aktivitätsverlauf
+    activities: protectedProcedure
+      .input(z.object({ invoiceId: z.string() }))
+      .query(async ({ input }) => {
+        return supabaseDb.getInvoiceActivities(input.invoiceId);
+      }),
+
+    // Rechnung per E-Mail senden
+    sendEmail: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const invoice = await supabaseDb.getInvoiceById(input.id);
+        if (!invoice) throw new Error("Rechnung nicht gefunden");
+        if (!invoice.customer?.email) throw new Error("Kunde hat keine E-Mail-Adresse");
+
+        const customerName = invoice.customer?.company_name ||
+          `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "Unbekannt";
+        const addressParts = [
+          customerName,
+          invoice.customer?.street,
+          `${invoice.customer?.zip || ""} ${invoice.customer?.city || ""}`.trim(),
+        ].filter(Boolean);
+
+        const pdfBuffer = await generateInvoicePDF({
+          invoiceNumber: invoice.invoice_number,
+          customerNumber: invoice.customer?.customer_number,
+          invoiceDate: invoice.invoice_date,
+          dueDate: invoice.due_date,
+          paymentMethod: "Überweisung",
+          customerName,
+          customerAddress: addressParts.join("\n"),
+          items: (invoice.items || []).map((item: any) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unit_price,
+            vatRate: item.vat_rate,
+            total: item.total,
+          })),
+          subtotal: invoice.subtotal,
+          totalVat: invoice.vat_amount,
+          total: invoice.total,
+        });
+
+        const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || `http://localhost:3000`;
+        const trackingUrl = `${baseUrl}/api/track/${input.id}`;
+
+        await sendInvoiceEmail({
+          to: invoice.customer.email,
+          invoiceNumber: invoice.invoice_number,
+          invoiceDate: new Date(invoice.invoice_date).toLocaleDateString("de-CH"),
+          dueDate: new Date(invoice.due_date).toLocaleDateString("de-CH"),
+          total: invoice.total.toFixed(2),
+          pdfBuffer,
+          trackingUrl,
+        });
+
+        await supabaseDb.addInvoiceActivity(
+          input.id,
+          "sent",
+          `Rechnung per E-Mail an ${invoice.customer.email} gesendet`,
+          ctx.user?.name || ctx.user?.email || undefined
+        );
+
+        return { success: true };
+      }),
+
+    // Mahnung senden
+    sendReminder: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const invoice = await supabaseDb.getInvoiceById(input.id);
+        if (!invoice) throw new Error("Rechnung nicht gefunden");
+        if (!invoice.customer?.email) throw new Error("Kunde hat keine E-Mail-Adresse");
+
+        const remainingAmount = invoice.total - (invoice.paid_amount || 0);
+
+        const customerName = invoice.customer?.company_name ||
+          `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "Unbekannt";
+        const addressParts = [
+          customerName,
+          invoice.customer?.street,
+          `${invoice.customer?.zip || ""} ${invoice.customer?.city || ""}`.trim(),
+        ].filter(Boolean);
+
+        const pdfBuffer = await generateInvoicePDF({
+          invoiceNumber: invoice.invoice_number,
+          customerNumber: invoice.customer?.customer_number,
+          invoiceDate: invoice.invoice_date,
+          dueDate: invoice.due_date,
+          paymentMethod: "Überweisung",
+          customerName,
+          customerAddress: addressParts.join("\n"),
+          items: (invoice.items || []).map((item: any) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unit_price,
+            vatRate: item.vat_rate,
+            total: item.total,
+          })),
+          subtotal: invoice.subtotal,
+          totalVat: invoice.vat_amount,
+          total: invoice.total,
+        });
+
+        const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || `http://localhost:3000`;
+        const trackingUrl = `${baseUrl}/api/track/${input.id}`;
+
+        await sendReminderEmail({
+          to: invoice.customer.email,
+          invoiceNumber: invoice.invoice_number,
+          invoiceDate: new Date(invoice.invoice_date).toLocaleDateString("de-CH"),
+          dueDate: new Date(invoice.due_date).toLocaleDateString("de-CH"),
+          remainingAmount: remainingAmount.toFixed(2),
+          pdfBuffer,
+          trackingUrl,
+        });
+
+        await supabaseDb.addInvoiceActivity(
+          input.id,
+          "reminder_sent",
+          `Zahlungserinnerung per E-Mail an ${invoice.customer.email} gesendet`,
+          ctx.user?.name || ctx.user?.email || undefined
+        );
+
+        return { success: true };
       }),
   }),
 
