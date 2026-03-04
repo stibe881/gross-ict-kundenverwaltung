@@ -131,8 +131,8 @@ export function InvoiceFormModal({
               productId: product.id,
               name: product.name,
               description: product.description || "",
-              unitPrice: product.unitPrice,
-              vatRate: parseFloat(product.vatRate),
+              unitPrice: String(product.price),
+              vatRate: parseFloat(product.vat_rate),
             }
             : item
         )
@@ -505,7 +505,7 @@ export function InvoiceFormModal({
                                   {product.name}
                                 </Text>
                                 <Text className="text-xs text-muted">
-                                  {formatCurrency(parseFloat(product.unitPrice))} | MwSt: {product.vatRate}%
+                                  {formatCurrency(parseFloat(product.price))} | MwSt: {product.vat_rate}%
                                 </Text>
                               </TouchableOpacity>
                             ))
