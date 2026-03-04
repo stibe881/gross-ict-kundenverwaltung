@@ -86,6 +86,20 @@ export default function CustomerDetailScreen() {
     { key: "portal", label: "Portal", icon: "person.2.fill" },
   ];
 
+  // Daten für Tabs vorladen (Hooks müssen immer aufgerufen werden)
+  const { data: contracts, isLoading: contractsLoading } = trpc.contracts.getByCustomer.useQuery(
+    { customerId: id as string },
+    { enabled: !!id }
+  );
+  const { data: invoices, isLoading: invoicesLoading } = trpc.invoices.getByCustomer.useQuery(
+    { customerId: id as string },
+    { enabled: !!id }
+  );
+  const { data: tickets, isLoading: ticketsLoading } = trpc.tickets.getByCustomer.useQuery(
+    { customerId: id as string },
+    { enabled: !!id }
+  );
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "stammdaten":
@@ -216,10 +230,6 @@ export default function CustomerDetailScreen() {
         );
 
       case "vertraege": {
-        const { data: contracts, isLoading: contractsLoading } = trpc.contracts.getByCustomer.useQuery(
-          { customerId: id as string },
-          { enabled: !!id }
-        );
 
         if (contractsLoading) {
           return (
@@ -256,18 +266,18 @@ export default function CustomerDetailScreen() {
                   </Text>
                   <View
                     className={`px-2 py-1 rounded-lg ${contract.status === "active"
-                        ? "bg-success/20"
-                        : contract.status === "cancelled"
-                          ? "bg-error/20"
-                          : "bg-warning/20"
+                      ? "bg-success/20"
+                      : contract.status === "cancelled"
+                        ? "bg-error/20"
+                        : "bg-warning/20"
                       }`}
                   >
                     <Text
                       className={`text-xs font-semibold ${contract.status === "active"
-                          ? "text-success"
-                          : contract.status === "cancelled"
-                            ? "text-error"
-                            : "text-warning"
+                        ? "text-success"
+                        : contract.status === "cancelled"
+                          ? "text-error"
+                          : "text-warning"
                         }`}
                     >
                       {contract.status === "active"
@@ -298,10 +308,6 @@ export default function CustomerDetailScreen() {
       }
 
       case "rechnungen": {
-        const { data: invoices, isLoading: invoicesLoading } = trpc.invoices.getByCustomer.useQuery(
-          { customerId: id as string },
-          { enabled: !!id }
-        );
 
         if (invoicesLoading) {
           return (
@@ -375,10 +381,6 @@ export default function CustomerDetailScreen() {
       }
 
       case "tickets": {
-        const { data: tickets, isLoading: ticketsLoading } = trpc.tickets.getByCustomer.useQuery(
-          { customerId: id as string },
-          { enabled: !!id }
-        );
 
         if (ticketsLoading) {
           return (
@@ -426,18 +428,18 @@ export default function CustomerDetailScreen() {
                   </Text>
                   <View
                     className={`px-2 py-1 rounded-lg ${ticket.status === "open"
-                        ? "bg-primary/20"
-                        : ticket.status === "in_progress"
-                          ? "bg-warning/20"
-                          : "bg-success/20"
+                      ? "bg-primary/20"
+                      : ticket.status === "in_progress"
+                        ? "bg-warning/20"
+                        : "bg-success/20"
                       }`}
                   >
                     <Text
                       className={`text-xs font-semibold ${ticket.status === "open"
-                          ? "text-primary"
-                          : ticket.status === "in_progress"
-                            ? "text-warning"
-                            : "text-success"
+                        ? "text-primary"
+                        : ticket.status === "in_progress"
+                          ? "text-warning"
+                          : "text-success"
                         }`}
                     >
                       {ticket.status === "open"
