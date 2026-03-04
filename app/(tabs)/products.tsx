@@ -43,14 +43,12 @@ export default function ProductsScreen() {
             )}
           </View>
           <View
-            className={`px-2 py-1 rounded-lg ${
-              item.type === "article" ? "bg-primary/20" : "bg-success/20"
-            }`}
+            className={`px-2 py-1 rounded-lg ${item.type === "article" ? "bg-primary/20" : "bg-success/20"
+              }`}
           >
             <Text
-              className={`text-xs font-semibold ${
-                item.type === "article" ? "text-primary" : "text-success"
-              }`}
+              className={`text-xs font-semibold ${item.type === "article" ? "text-primary" : "text-success"
+                }`}
             >
               {item.type === "article" ? "Artikel" : "Dienstleistung"}
             </Text>
@@ -60,10 +58,10 @@ export default function ProductsScreen() {
         <View className="flex-row items-center justify-between">
           <View>
             <Text className="text-xl font-bold text-primary">
-              {formatCurrency(parseFloat(item.unitPrice))}
+              {formatCurrency(parseFloat(item.price))}
             </Text>
             <Text className="text-xs text-muted">
-              {item.unit || "Stück"} | MwSt: {item.vatRate}%
+              {item.unit || "Stück"} | MwSt: {item.vat_rate}%
             </Text>
           </View>
           <TouchableOpacity
@@ -189,9 +187,9 @@ function ProductFormModal({
     type: product?.type || "article",
     name: product?.name || "",
     description: product?.description || "",
-    unitPrice: product?.unitPrice || "",
+    unitPrice: product?.price ? String(product.price) : "",
     unit: product?.unit || "Stück",
-    vatRate: product?.vatRate || "8.10",
+    vatRate: product?.vat_rate ? String(product.vat_rate) : "8.10",
   });
 
   const createProduct = trpc.products.create.useMutation({
@@ -215,9 +213,22 @@ function ProductFormModal({
     }
 
     if (product) {
-      updateProduct.mutate({ id: product.id, ...formData });
+      updateProduct.mutate({
+        id: product.id,
+        name: formData.name,
+        description: formData.description,
+        price: parseFloat(formData.unitPrice) || 0,
+        vatRate: parseFloat(formData.vatRate) || 8.1,
+        type: formData.type as "product" | "service",
+      });
     } else {
-      createProduct.mutate(formData);
+      createProduct.mutate({
+        name: formData.name,
+        description: formData.description,
+        price: parseFloat(formData.unitPrice) || 0,
+        vatRate: parseFloat(formData.vatRate) || 8.1,
+        type: formData.type as "product" | "service",
+      });
     }
   };
 
@@ -253,39 +264,35 @@ function ProductFormModal({
                 </Text>
                 <View className="flex-row gap-3">
                   <TouchableOpacity
-                    className={`flex-1 py-3 rounded-lg ${
-                      formData.type === "article"
+                    className={`flex-1 py-3 rounded-lg ${formData.type === "article"
                         ? "bg-primary"
                         : "bg-surface border border-border"
-                    }`}
+                      }`}
                     onPress={() => setFormData({ ...formData, type: "article" })}
                     activeOpacity={0.7}
                   >
                     <Text
-                      className={`text-center font-semibold ${
-                        formData.type === "article"
+                      className={`text-center font-semibold ${formData.type === "article"
                           ? "text-background"
                           : "text-foreground"
-                      }`}
+                        }`}
                     >
                       Artikel
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    className={`flex-1 py-3 rounded-lg ${
-                      formData.type === "service"
+                    className={`flex-1 py-3 rounded-lg ${formData.type === "service"
                         ? "bg-primary"
                         : "bg-surface border border-border"
-                    }`}
+                      }`}
                     onPress={() => setFormData({ ...formData, type: "service" })}
                     activeOpacity={0.7}
                   >
                     <Text
-                      className={`text-center font-semibold ${
-                        formData.type === "service"
+                      className={`text-center font-semibold ${formData.type === "service"
                           ? "text-background"
                           : "text-foreground"
-                      }`}
+                        }`}
                     >
                       Dienstleistung
                     </Text>
@@ -374,22 +381,20 @@ function ProductFormModal({
                   ].map((rate) => (
                     <TouchableOpacity
                       key={rate.value}
-                      className={`flex-1 py-3 rounded-lg ${
-                        formData.vatRate === rate.value
+                      className={`flex-1 py-3 rounded-lg ${formData.vatRate === rate.value
                           ? "bg-primary"
                           : "bg-surface border border-border"
-                      }`}
+                        }`}
                       onPress={() =>
                         setFormData({ ...formData, vatRate: rate.value })
                       }
                       activeOpacity={0.7}
                     >
                       <Text
-                        className={`text-center font-semibold ${
-                          formData.vatRate === rate.value
+                        className={`text-center font-semibold ${formData.vatRate === rate.value
                             ? "text-background"
                             : "text-foreground"
-                        }`}
+                          }`}
                       >
                         {rate.label}
                       </Text>
