@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   ScrollView,
   Text,
@@ -7,7 +7,9 @@ import {
   TextInput,
   ActivityIndicator,
   FlatList,
+  RefreshControl,
 } from "react-native";
+import { showAlert, showConfirm } from "@/lib/alert";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -23,22 +25,54 @@ export default function CustomersScreen() {
 
   // Kunden laden
   const { data: customers, isLoading, refetch } = trpc.customers.list.useQuery();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
+  // Kunde löschen
+  const deleteCustomer = trpc.customers.delete.useMutation({
+    onSuccess: () => {
+      showAlert("Erfolg", "Kunde wurde erfolgreich gelöscht");
+      refetch();
+    },
+    onError: (error) => {
+      showAlert("Fehler", `Kunde konnte nicht gelöscht werden: ${error.message}`);
+    },
+  });
+
+  const handleDelete = (customerId: string, displayName: string) => {
+    showConfirm(
+      "Kunde löschen",
+      `Möchten Sie "${displayName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      () => deleteCustomer.mutate({ id: customerId }),
+      "Löschen"
+    );
+  };
 
   // Gefilterte Kunden basierend auf Suche
-  const filteredCustomers = customers?.filter((customer) => {
-    const query = searchQuery.toLowerCase();
-    return (
-      customer.firstName?.toLowerCase().includes(query) ||
-      customer.lastName?.toLowerCase().includes(query) ||
-      customer.companyName?.toLowerCase().includes(query) ||
-      customer.email?.toLowerCase().includes(query)
-    );
-  });
+  const getDisplayName = (c: any) =>
+    c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unbenannt";
+
+  const filteredCustomers = customers
+    ?.filter((customer: any) => {
+      const query = searchQuery.toLowerCase();
+      return (
+        customer.first_name?.toLowerCase().includes(query) ||
+        customer.last_name?.toLowerCase().includes(query) ||
+        customer.company_name?.toLowerCase().includes(query) ||
+        customer.email?.toLowerCase().includes(query)
+      );
+    })
+    .sort((a: any, b: any) => getDisplayName(a).localeCompare(getDisplayName(b), "de"));
 
   const renderCustomerItem = ({ item }: { item: any }) => {
     const displayName =
-      item.companyName ||
-      `${item.firstName || ""} ${item.lastName || ""}`.trim() ||
+      item.company_name ||
+      `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
       "Unbenannt";
 
     return (
@@ -65,14 +99,25 @@ export default function CustomersScreen() {
               </View>
             )}
           </View>
-          <View
-            className={`px-3 py-1 rounded-full ${
-              item.status === "active" ? "bg-success" : "bg-muted"
-            }`}
-          >
-            <Text className="text-xs font-semibold text-white">
-              {item.status === "active" ? "Aktiv" : "Inaktiv"}
-            </Text>
+          <View className="flex-row items-center gap-3">
+            <View
+              className={`px-3 py-1 rounded-full ${item.status === "active" ? "bg-success" : "bg-muted"
+                }`}
+            >
+              <Text className="text-xs font-semibold text-white">
+                {item.status === "active" ? "Aktiv" : "Inaktiv"}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDelete(item.id, displayName);
+              }}
+              activeOpacity={0.6}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <IconSymbol name="trash.fill" size={18} color={colors.error || "#EF4444"} />
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -133,6 +178,14 @@ export default function CustomersScreen() {
             renderItem={renderCustomerItem}
             keyExtractor={(item) => item.id.toString()}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
           />
         ) : (
           <View className="flex-1 items-center justify-center">
@@ -155,3 +208,4 @@ export default function CustomersScreen() {
     </ScreenContainer>
   );
 }
+

@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabase } from "./supabase-client";
 
 // ==================== KUNDEN ====================
 
@@ -250,6 +250,32 @@ export async function updateProduct(id: string, product: any) {
 }
 
 // ==================== RECHNUNGEN ====================
+
+export async function getNextInvoiceNumber(): Promise<string> {
+  const currentYear = new Date().getFullYear();
+  const prefix = `RE-${currentYear}-`;
+
+  // Finde die höchste bestehende Rechnungsnummer für dieses Jahr
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("invoice_number")
+    .like("invoice_number", `${prefix}%`)
+    .order("invoice_number", { ascending: false })
+    .limit(1);
+
+  if (error) throw new Error(error.message);
+
+  let nextNumber = 1;
+  if (data && data.length > 0) {
+    const lastNumber = data[0].invoice_number;
+    const lastSeq = parseInt(lastNumber.replace(prefix, ""), 10);
+    if (!isNaN(lastSeq)) {
+      nextNumber = lastSeq + 1;
+    }
+  }
+
+  return `${prefix}${String(nextNumber).padStart(3, "0")}`;
+}
 
 export async function getAllInvoices() {
   const { data, error } = await supabase
@@ -511,7 +537,7 @@ export async function authenticateCustomerUser(email: string, password: string) 
 
   // TODO: Passwort-Verifikation mit bcrypt/argon2
   // Für jetzt: Einfacher Vergleich (NICHT PRODUKTIONSREIF!)
-  
+
   // Update last_login
   await supabase
     .from("customer_users")

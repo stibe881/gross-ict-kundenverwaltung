@@ -8,14 +8,33 @@ export type TrpcContext = {
   user: User | null;
 };
 
+// Dev-only dummy user for local development without OAuth
+const DEV_USER: User = {
+  id: 1,
+  openId: "dev-user",
+  name: "Dev Admin",
+  email: "admin@gross-ict.ch",
+  loginMethod: "dev",
+  role: "admin",
+  isActive: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  lastSignedIn: new Date(),
+};
+
 export async function createContext(opts: CreateExpressContextOptions): Promise<TrpcContext> {
   let user: User | null = null;
 
-  try {
-    user = await sdk.authenticateRequest(opts.req);
-  } catch (error) {
-    // Authentication is optional for public procedures.
-    user = null;
+  // In development, bypass OAuth and use a dummy admin user
+  if (process.env.NODE_ENV === "development") {
+    user = DEV_USER;
+  } else {
+    try {
+      user = await sdk.authenticateRequest(opts.req);
+    } catch (error) {
+      // Authentication is optional for public procedures.
+      user = null;
+    }
   }
 
   return {
@@ -24,3 +43,4 @@ export async function createContext(opts: CreateExpressContextOptions): Promise<
     user,
   };
 }
+

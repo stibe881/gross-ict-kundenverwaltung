@@ -2,37 +2,43 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { writeFile, unlink } from "fs/promises";
 import path from "path";
+import os from "os";
 
 const execAsync = promisify(exec);
 
 interface InvoiceItem {
   description: string;
   quantity: number;
+  unit?: string; // z.B. "Std.", "Stk.", "Benutzer"
   unitPrice: number;
+  discount?: number; // Rabatt in %
   vatRate: number;
   total: number;
 }
 
 interface InvoiceData {
   invoiceNumber: string;
+  customerNumber?: string;
   invoiceDate: string;
   dueDate: string;
+  serviceDate?: string;
+  paymentMethod?: string; // z.B. "Überweisung"
   customerName: string;
-  customerAddress: string;
+  customerAddress: string; // Mehrzeilige Adresse (mit \n)
   items: InvoiceItem[];
   subtotal: number;
   totalVat: number;
   total: number;
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("de-CH", {
-    style: "currency",
-    currency: "CHF",
-  }).format(amount);
+function fmtCHF(amount: number): string {
+  return amount.toLocaleString("de-CH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
-function formatDate(dateString: string): string {
+function fmtDate(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleDateString("de-CH", {
     day: "2-digit",
@@ -46,76 +52,299 @@ function generateInvoiceHTML(data: InvoiceData): string {
     .map(
       (item) => `
     <tr>
-      <td style="padding: 8px; border-bottom: 1px solid #E5E7EB;">${item.description}</td>
-      <td style="padding: 8px; border-bottom: 1px solid #E5E7EB; text-align: right;">${item.quantity}</td>
-      <td style="padding: 8px; border-bottom: 1px solid #E5E7EB; text-align: right;">${formatCurrency(item.unitPrice)}</td>
-      <td style="padding: 8px; border-bottom: 1px solid #E5E7EB; text-align: right;">${item.vatRate}%</td>
-      <td style="padding: 8px; border-bottom: 1px solid #E5E7EB; text-align: right; font-weight: 600;">${formatCurrency(item.total)}</td>
+      <td class="cell-left">${item.description}</td>
+      <td class="cell-right">${item.quantity} ${item.unit || "Stk."}</td>
+      <td class="cell-right">${fmtCHF(item.unitPrice)}</td>
+      <td class="cell-right">${fmtCHF(item.discount ?? 0)}</td>
+      <td class="cell-right">${fmtCHF(item.total)}</td>
     </tr>
   `
     )
     .join("");
+
+  // Kundenadresse: Zeilenumbrüche in HTML umwandeln
+  const customerAddressHTML = data.customerAddress
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("<br>");
 
   return `
 <!DOCTYPE html>
 <html lang="de-CH">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rechnung ${data.invoiceNumber}</title>
   <style>
+    @page { size: A4; margin: 20mm 20mm 25mm 20mm; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10pt; color: #11181C; padding: 40px; }
-    .header { margin-bottom: 40px; }
-    .company-name { font-size: 18pt; font-weight: bold; color: #0a7ea4; margin-bottom: 8px; }
-    .invoice-title { font-size: 24pt; font-weight: bold; margin-bottom: 20px; }
-    .info-section { margin-bottom: 30px; }
-    .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
-    .label { font-weight: 600; color: #687076; }
-    .customer-box { background: #F5F5F5; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-    th { background: #0a7ea4; color: white; padding: 10px 8px; text-align: left; font-weight: 600; }
-    th:nth-child(2), th:nth-child(3), th:nth-child(4), th:nth-child(5) { text-align: right; }
-    .totals { margin-left: auto; width: 300px; }
-    .totals-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #E5E7EB; }
-    .totals-row.final { border-top: 2px solid #11181C; border-bottom: 2px solid #11181C; font-weight: bold; font-size: 12pt; margin-top: 8px; padding-top: 12px; }
-    .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #E5E7EB; font-size: 9pt; color: #687076; text-align: center; }
+    body {
+      font-family: 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+      font-size: 9.5pt;
+      color: #333;
+      line-height: 1.5;
+    }
+
+    /* ─── Header ─── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-bracket {
+      font-size: 52pt;
+      font-weight: 200;
+      color: #DAA520;
+      line-height: 1;
+    }
+    .logo-text {
+      font-size: 22pt;
+      font-weight: 300;
+      color: #555;
+      letter-spacing: 1px;
+    }
+    .logo-dot {
+      color: #DAA520;
+      margin: 0 6px;
+    }
+    .rechnung-title {
+      font-size: 18pt;
+      font-weight: 400;
+      color: #333;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+
+    /* ─── Company Info (right) ─── */
+    .company-info {
+      text-align: right;
+      font-size: 9pt;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .company-info .name {
+      font-weight: 700;
+    }
+    .company-info .separator {
+      height: 10px;
+    }
+
+    /* ─── Customer + Invoice Meta ─── */
+    .meta-section {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .customer-address {
+      font-size: 10pt;
+      line-height: 1.6;
+      min-width: 200px;
+      padding-top: 10px;
+    }
+    .invoice-meta {
+      text-align: right;
+      font-size: 9pt;
+    }
+    .invoice-meta table {
+      margin-left: auto;
+      border-collapse: collapse;
+    }
+    .invoice-meta td {
+      padding: 2px 0;
+    }
+    .invoice-meta td:first-child {
+      text-align: left;
+      padding-right: 30px;
+      color: #555;
+    }
+    .invoice-meta td:last-child {
+      text-align: right;
+      font-weight: 600;
+    }
+    .invoice-meta .separator {
+      height: 8px;
+    }
+
+    /* ─── Intro Text ─── */
+    .intro {
+      margin: 15px 0 10px;
+      font-style: italic;
+      font-size: 9pt;
+      color: #555;
+    }
+
+    /* ─── Items Table ─── */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 5px;
+    }
+    .items-table thead th {
+      background: #F0F0F0;
+      border-top: 1px solid #999;
+      border-bottom: 1px solid #999;
+      padding: 6px 8px;
+      font-size: 8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #333;
+    }
+    .items-table thead th:first-child { text-align: left; }
+    .items-table thead th:not(:first-child) { text-align: right; }
+    .items-table tbody td {
+      padding: 8px 8px;
+      border-bottom: 1px solid #E0E0E0;
+      font-size: 9pt;
+      vertical-align: top;
+    }
+    .cell-left { text-align: left; }
+    .cell-right { text-align: right; }
+
+    /* ─── Totals ─── */
+    .totals-section {
+      margin-top: 0;
+    }
+    .totals-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      padding: 4px 8px;
+      font-size: 9pt;
+    }
+    .totals-row .label {
+      text-align: right;
+      margin-right: 20px;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 8pt;
+      color: #555;
+    }
+    .totals-row .value {
+      min-width: 120px;
+      text-align: right;
+      font-weight: 600;
+    }
+    .zu-bezahlen {
+      background: #F5F5F0;
+      border-top: 2px solid #999;
+      border-bottom: 2px solid #999;
+      padding: 10px 8px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-top: 4px;
+    }
+    .zu-bezahlen .label {
+      font-size: 14pt;
+      font-weight: 700;
+      margin-right: 30px;
+      color: #333;
+    }
+    .zu-bezahlen .value {
+      font-size: 14pt;
+      font-weight: 700;
+      min-width: 140px;
+      text-align: right;
+      color: #333;
+    }
+
+    /* ─── Footer / Bankverbindung ─── */
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 20mm;
+      right: 20mm;
+      border-top: 1px solid #CCC;
+      padding-top: 10px;
+      font-size: 8pt;
+      color: #555;
+    }
+    .footer .bank-title {
+      font-weight: 700;
+      font-size: 8pt;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .footer .bank-details {
+      font-size: 8pt;
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
+
+  <!-- Header: Logo + RECHNUNG -->
   <div class="header">
-    <div class="company-name">Ihr Firmenname</div>
-    <div>Musterstrasse 123 • 8000 Zürich • Schweiz</div>
-    <div>Tel: +41 44 123 45 67 • info@firma.ch</div>
-  </div>
-
-  <div class="invoice-title">Rechnung</div>
-
-  <div class="info-section">
-    <div class="info-row">
-      <div><span class="label">Rechnungsnummer:</span> ${data.invoiceNumber}</div>
-      <div><span class="label">Rechnungsdatum:</span> ${formatDate(data.invoiceDate)}</div>
+    <div class="logo-area">
+      <span class="logo-bracket">(</span>
+      <span class="logo-bracket" style="margin-left:-15px; margin-right:5px;">)</span>
+      <span class="logo-text">Gross<span class="logo-dot"> · </span>ICT</span>
     </div>
-    <div class="info-row">
-      <div></div>
-      <div><span class="label">Fälligkeitsdatum:</span> ${formatDate(data.dueDate)}</div>
+    <div class="rechnung-title">RECHNUNG</div>
+  </div>
+
+  <!-- Company Info (right-aligned) -->
+  <div class="company-info">
+    <div class="name">Gross ICT</div>
+    <div>Neuhushof 3</div>
+    <div>6144 Zell LU</div>
+    <div>Schweiz</div>
+    <div class="separator"></div>
+    <div class="name">Stefan Gross</div>
+    <div>+41794140616</div>
+    <div>stefan.gross@hotmail.ch</div>
+  </div>
+
+  <!-- Customer Address + Invoice Meta -->
+  <div class="meta-section">
+    <div class="customer-address">
+      ${customerAddressHTML}
+    </div>
+    <div class="invoice-meta">
+      <table>
+        <tr>
+          <td>Rechnungsnummer</td>
+          <td>${data.invoiceNumber}</td>
+        </tr>
+        ${data.customerNumber ? `<tr><td>Kundennummer</td><td>${data.customerNumber}</td></tr>` : ""}
+        <tr>
+          <td>Ausstellungsdatum</td>
+          <td>${fmtDate(data.invoiceDate)}</td>
+        </tr>
+        <tr>
+          <td>Zahlungsziel</td>
+          <td>${fmtDate(data.dueDate)}</td>
+        </tr>
+        <tr><td colspan="2" class="separator"></td></tr>
+        ${data.serviceDate ? `<tr><td>Leistungsdatum</td><td>${fmtDate(data.serviceDate)}</td></tr>` : ""}
+        <tr>
+          <td>Zahlungsform</td>
+          <td>${data.paymentMethod || "Überweisung"}</td>
+        </tr>
+      </table>
     </div>
   </div>
 
-  <div class="customer-box">
-    <div class="label" style="margin-bottom: 8px;">Rechnungsadresse:</div>
-    <div style="font-weight: 600;">${data.customerName}</div>
-    <div>${data.customerAddress}</div>
+  <!-- Intro -->
+  <div class="intro">
+    Wir bedanken uns für Ihren Auftrag und stellen folgende Positionen in Rechnung:
   </div>
 
-  <table>
+  <!-- Items Table -->
+  <table class="items-table">
     <thead>
       <tr>
         <th>Beschreibung</th>
-        <th style="text-align: right;">Menge</th>
-        <th style="text-align: right;">Einzelpreis</th>
-        <th style="text-align: right;">MwSt</th>
-        <th style="text-align: right;">Betrag</th>
+        <th>Menge</th>
+        <th>Preis (CHF)</th>
+        <th>Rabatt %</th>
+        <th>Betrag (CHF)</th>
       </tr>
     </thead>
     <tbody>
@@ -123,26 +352,30 @@ function generateInvoiceHTML(data: InvoiceData): string {
     </tbody>
   </table>
 
-  <div class="totals">
+  <!-- Totals -->
+  <div class="totals-section">
     <div class="totals-row">
-      <span>Zwischensumme:</span>
-      <span>${formatCurrency(data.subtotal)}</span>
+      <span class="label">Gesamtbetrag</span>
+      <span class="value">${fmtCHF(data.total)} CHF</span>
     </div>
-    <div class="totals-row">
-      <span>MwSt:</span>
-      <span>${formatCurrency(data.totalVat)}</span>
-    </div>
-    <div class="totals-row final">
-      <span>Gesamtbetrag:</span>
-      <span>${formatCurrency(data.total)}</span>
+    <div class="zu-bezahlen">
+      <span class="label">ZU BEZAHLEN</span>
+      <span class="value">${fmtCHF(data.total)} CHF</span>
     </div>
   </div>
 
+  <!-- Bank Footer -->
   <div class="footer">
-    <div>Zahlbar innerhalb von 30 Tagen nach Rechnungsdatum.</div>
-    <div style="margin-top: 8px;">Bankverbindung: IBAN CH00 0000 0000 0000 0000 0 • BIC: XXXXXXXX</div>
-    <div style="margin-top: 8px;">UID: CHE-123.456.789 MWST</div>
+    <div class="bank-title">Bankverbindung:</div>
+    <div class="bank-details">
+      Zahlungsempfänger: <strong>Stefan Gross</strong> &nbsp;·&nbsp;
+      Bankname: <strong>Bank Cler AG</strong> &nbsp;·&nbsp;
+      Kontonr.: <strong>2610.4165.2001</strong><br>
+      IBAN: <strong>CH3906440261041652001</strong> &nbsp;&nbsp;
+      SWIFT/BIC: <strong>BCLRCHBB</strong>
+    </div>
   </div>
+
 </body>
 </html>
   `;
@@ -150,31 +383,37 @@ function generateInvoiceHTML(data: InvoiceData): string {
 
 export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   const html = generateInvoiceHTML(data);
-  const tempHTMLPath = path.join("/tmp", `invoice-${data.invoiceNumber}-${Date.now()}.html`);
-  const tempPDFPath = path.join("/tmp", `invoice-${data.invoiceNumber}-${Date.now()}.pdf`);
+  const tmpDir = os.tmpdir();
+  const tempHTMLPath = path.join(tmpDir, `invoice-${data.invoiceNumber}-${Date.now()}.html`);
+  const tempPDFPath = path.join(tmpDir, `invoice-${data.invoiceNumber}-${Date.now()}.pdf`);
 
   try {
-    // HTML-Datei schreiben
     await writeFile(tempHTMLPath, html, "utf-8");
 
     // PDF mit wkhtmltopdf generieren
-    await execAsync(`wkhtmltopdf --page-size A4 --margin-top 10mm --margin-bottom 10mm --margin-left 10mm --margin-right 10mm "${tempHTMLPath}" "${tempPDFPath}"`);
+    await execAsync(
+      `wkhtmltopdf --page-size A4 --margin-top 20mm --margin-bottom 25mm --margin-left 20mm --margin-right 20mm --enable-local-file-access "${tempHTMLPath}" "${tempPDFPath}"`
+    );
 
-    // PDF-Datei lesen
     const fs = require("fs");
     const pdfBuffer = fs.readFileSync(tempPDFPath);
 
-    // Temporäre Dateien löschen
     await unlink(tempHTMLPath);
     await unlink(tempPDFPath);
 
     return pdfBuffer;
   } catch (error) {
-    // Cleanup bei Fehler
     try {
       await unlink(tempHTMLPath);
       await unlink(tempPDFPath);
-    } catch {}
+    } catch { }
     throw error;
   }
+}
+
+/**
+ * Gibt das generierte HTML zurück (zum Testen im Browser).
+ */
+export function generateInvoiceHTMLPreview(data: InvoiceData): string {
+  return generateInvoiceHTML(data);
 }

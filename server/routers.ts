@@ -393,6 +393,10 @@ export const appRouter = router({
       return supabaseDb.getAllInvoices();
     }),
 
+    nextNumber: protectedProcedure.query(async () => {
+      return supabaseDb.getNextInvoiceNumber();
+    }),
+
     getByCustomer: protectedProcedure
       .input(z.object({ customerId: z.string() }))
       .query(async ({ input }) => {

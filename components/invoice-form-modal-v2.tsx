@@ -35,7 +35,19 @@ export function InvoiceFormModal({
 }: InvoiceFormModalProps) {
   const colors = useColors();
   const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+
+  // Nächste Rechnungsnummer laden
+  const { data: nextNumber } = trpc.invoices.nextNumber.useQuery(undefined, {
+    enabled: visible,
+  });
+
+  // Rechnungsnummer automatisch setzen wenn Modal geöffnet wird
+  useEffect(() => {
+    if (visible && nextNumber && !invoiceNumber) {
+      setInvoiceNumber(nextNumber);
+    }
+  }, [visible, nextNumber]);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: "1", description: "", quantity: "1", unitPrice: "", vatRate: VAT_RATES.normal },
@@ -45,11 +57,11 @@ export function InvoiceFormModal({
 
   // Kunden laden
   const { data: customers } = trpc.customers.list.useQuery();
-  
+
   // Produkte laden
   const { data: products } = trpc.products.list.useQuery();
 
-  const selectedCustomer = customers?.find((c) => c.id === selectedCustomerId);
+  const selectedCustomer = customers?.find((c: any) => c.id === selectedCustomerId);
 
   const addItem = () => {
     setItems([
@@ -85,12 +97,12 @@ export function InvoiceFormModal({
         items.map((item) =>
           item.id === itemId
             ? {
-                ...item,
-                productId: product.id,
-                description: product.name,
-                unitPrice: product.unitPrice,
-                vatRate: parseFloat(product.vatRate),
-              }
+              ...item,
+              productId: product.id,
+              description: product.name,
+              unitPrice: product.unitPrice,
+              vatRate: parseFloat(product.vatRate),
+            }
             : item
         )
       );
@@ -199,8 +211,9 @@ export function InvoiceFormModal({
                 >
                   <Text className={selectedCustomer ? "text-foreground" : "text-muted"}>
                     {selectedCustomer
-                      ? selectedCustomer.companyName ||
-                        `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
+                      ? selectedCustomer.company_name ||
+                      `${selectedCustomer.first_name || ""} ${selectedCustomer.last_name || ""}`.trim() ||
+                      "Unbenannt"
                       : "Kunde auswählen..."}
                   </Text>
                 </TouchableOpacity>
@@ -311,22 +324,20 @@ export function InvoiceFormModal({
                         ].map((rate) => (
                           <TouchableOpacity
                             key={rate.value}
-                            className={`flex-1 py-2 rounded-lg ${
-                              item.vatRate === rate.value
+                            className={`flex-1 py-2 rounded-lg ${item.vatRate === rate.value
                                 ? "bg-primary"
                                 : "bg-background border border-border"
-                            }`}
+                              }`}
                             onPress={() =>
                               updateItem(item.id, "vatRate", rate.value)
                             }
                             activeOpacity={0.7}
                           >
                             <Text
-                              className={`text-center text-xs font-semibold ${
-                                item.vatRate === rate.value
+                              className={`text-center text-xs font-semibold ${item.vatRate === rate.value
                                   ? "text-background"
                                   : "text-foreground"
-                              }`}
+                                }`}
                             >
                               {rate.label}
                             </Text>
@@ -476,8 +487,9 @@ export function InvoiceFormModal({
                     activeOpacity={0.7}
                   >
                     <Text className="text-base font-semibold text-foreground">
-                      {customer.companyName ||
-                        `${customer.firstName} ${customer.lastName}`}
+                      {customer.company_name ||
+                        `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
+                        "Unbenannt"}
                     </Text>
                     {customer.email && (
                       <Text className="text-sm text-muted">{customer.email}</Text>

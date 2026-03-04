@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
+import { showAlert, showConfirm } from "@/lib/alert";
 import { useLocalSearchParams, router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { trpc } from "@/lib/trpc";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { CustomerPortalManagement } from "@/components/customer-portal-management";
 
@@ -19,19 +21,60 @@ export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams();
   const colors = useColors();
   const [activeTab, setActiveTab] = useState<Tab>("stammdaten");
-  const [loading, setLoading] = useState(false);
   const [portalEnabled, setPortalEnabled] = useState(false);
 
-  // TODO: Kundendaten aus Supabase laden
-  const customer = {
-    id: id as string,
-    name: "Max Mustermann",
-    company: "Musterfirma GmbH",
-    email: "max@musterfirma.ch",
-    phone: "+41 44 123 45 67",
-    address: "Musterstrasse 123, 8000 Zürich",
-    notes: "Wichtiger Kunde seit 2020",
-    createdAt: "2020-01-15",
+  // Kundendaten aus Supabase laden
+  const { data: customer, isLoading: loading } = trpc.customers.getById.useQuery(
+    { id: id as string },
+    { enabled: !!id }
+  );
+
+  // Kunde löschen
+  const deleteCustomer = trpc.customers.delete.useMutation({
+    onSuccess: () => {
+      showAlert("Erfolg", "Kunde wurde erfolgreich gelöscht");
+      router.back();
+    },
+    onError: (error) => {
+      showAlert("Fehler", `Kunde konnte nicht gelöscht werden: ${error.message}`);
+    },
+  });
+
+  // Kundenstatus ändern
+  const utils = trpc.useUtils();
+  const updateCustomer = trpc.customers.update.useMutation({
+    onSuccess: () => {
+      utils.customers.getById.invalidate({ id: id as string });
+      utils.customers.list.invalidate();
+      showAlert("Erfolg", "Kundenstatus wurde geändert");
+    },
+    onError: (error) => {
+      showAlert("Fehler", `Status konnte nicht geändert werden: ${error.message}`);
+    },
+  });
+
+  const handleToggleStatus = () => {
+    const newStatus = customer?.status === "active" ? "inactive" : "active";
+    const label = newStatus === "active" ? "aktivieren" : "deaktivieren";
+    showConfirm(
+      "Status ändern",
+      `Möchten Sie diesen Kunden wirklich ${label}?`,
+      () => updateCustomer.mutate({ id: id as string, status: newStatus }),
+      newStatus === "active" ? "Aktivieren" : "Deaktivieren"
+    );
+  };
+
+  const handleDelete = () => {
+    const displayName =
+      customer?.company_name ||
+      `${customer?.first_name || ""} ${customer?.last_name || ""}`.trim() ||
+      "Dieser Kunde";
+    showConfirm(
+      "Kunde löschen",
+      `Möchten Sie "${displayName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      () => deleteCustomer.mutate({ id: id as string }),
+      "Löschen"
+    );
   };
 
   const tabs: { key: Tab; label: string; icon: any }[] = [
@@ -48,120 +91,118 @@ export default function CustomerDetailScreen() {
       case "stammdaten":
         return (
           <View className="gap-4">
-            <View className="bg-surface p-4 rounded-lg border border-border">
-              <Text className="text-sm font-semibold text-muted mb-2">
-                Firma
-              </Text>
-              <Text className="text-base text-foreground">
-                {customer.company}
-              </Text>
-            </View>
+            {/* Status */}
+            <TouchableOpacity
+              onPress={handleToggleStatus}
+              activeOpacity={0.7}
+              className="bg-surface p-4 rounded-lg border border-border flex-row items-center justify-between"
+            >
+              <View>
+                <Text className="text-sm font-semibold text-muted mb-2">
+                  Status
+                </Text>
+                <View className={`px-3 py-1 rounded-full self-start ${customer?.status === "active" ? "bg-success" : "bg-muted"}`}>
+                  <Text className="text-xs font-semibold text-white">
+                    {customer?.status === "active" ? "Aktiv" : "Inaktiv"}
+                  </Text>
+                </View>
+              </View>
+              <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+            </TouchableOpacity>
 
-            <View className="bg-surface p-4 rounded-lg border border-border">
-              <Text className="text-sm font-semibold text-muted mb-2">
-                Kontaktperson
-              </Text>
-              <Text className="text-base text-foreground">
-                {customer.name}
-              </Text>
-            </View>
+            {customer?.company_name ? (
+              <View className="bg-surface p-4 rounded-lg border border-border">
+                <Text className="text-sm font-semibold text-muted mb-2">
+                  Firma
+                </Text>
+                <Text className="text-base text-foreground">
+                  {customer.company_name}
+                </Text>
+              </View>
+            ) : null}
 
-            <View className="bg-surface p-4 rounded-lg border border-border">
-              <Text className="text-sm font-semibold text-muted mb-2">
-                E-Mail
-              </Text>
-              <Text className="text-base text-foreground">
-                {customer.email}
-              </Text>
-            </View>
+            {(customer?.first_name || customer?.last_name) ? (
+              <View className="bg-surface p-4 rounded-lg border border-border">
+                <Text className="text-sm font-semibold text-muted mb-2">
+                  Kontaktperson
+                </Text>
+                <Text className="text-base text-foreground">
+                  {`${customer?.first_name || ""} ${customer?.last_name || ""}`.trim()}
+                </Text>
+              </View>
+            ) : null}
 
-            <View className="bg-surface p-4 rounded-lg border border-border">
-              <Text className="text-sm font-semibold text-muted mb-2">
-                Telefon
-              </Text>
-              <Text className="text-base text-foreground">
-                {customer.phone}
-              </Text>
-            </View>
+            {customer?.email ? (
+              <View className="bg-surface p-4 rounded-lg border border-border">
+                <Text className="text-sm font-semibold text-muted mb-2">
+                  E-Mail
+                </Text>
+                <Text className="text-base text-foreground">
+                  {customer.email}
+                </Text>
+              </View>
+            ) : null}
 
-            <View className="bg-surface p-4 rounded-lg border border-border">
-              <Text className="text-sm font-semibold text-muted mb-2">
-                Adresse
-              </Text>
-              <Text className="text-base text-foreground">
-                {customer.address}
-              </Text>
-            </View>
+            {customer?.phone ? (
+              <View className="bg-surface p-4 rounded-lg border border-border">
+                <Text className="text-sm font-semibold text-muted mb-2">
+                  Telefon
+                </Text>
+                <Text className="text-base text-foreground">
+                  {customer.phone}
+                </Text>
+              </View>
+            ) : null}
 
-            <View className="bg-surface p-4 rounded-lg border border-border">
-              <Text className="text-sm font-semibold text-muted mb-2">
-                Notizen
-              </Text>
-              <Text className="text-base text-foreground">
-                {customer.notes}
-              </Text>
-            </View>
+            {customer?.address ? (
+              <View className="bg-surface p-4 rounded-lg border border-border">
+                <Text className="text-sm font-semibold text-muted mb-2">
+                  Adresse
+                </Text>
+                <Text className="text-base text-foreground">
+                  {customer.address}
+                  {customer.postal_code || customer.city
+                    ? `\n${customer.postal_code || ""} ${customer.city || ""}`.trim()
+                    : ""}
+                  {customer.country ? `\n${customer.country}` : ""}
+                </Text>
+              </View>
+            ) : null}
 
-            <View className="bg-surface p-4 rounded-lg border border-border">
-              <Text className="text-sm font-semibold text-muted mb-2">
-                Kunde seit
-              </Text>
-              <Text className="text-base text-foreground">
-                {formatDate(customer.createdAt)}
-              </Text>
-            </View>
+            {customer?.notes ? (
+              <View className="bg-surface p-4 rounded-lg border border-border">
+                <Text className="text-sm font-semibold text-muted mb-2">
+                  Notizen
+                </Text>
+                <Text className="text-base text-foreground">
+                  {customer.notes}
+                </Text>
+              </View>
+            ) : null}
+
+            {customer?.created_at ? (
+              <View className="bg-surface p-4 rounded-lg border border-border">
+                <Text className="text-sm font-semibold text-muted mb-2">
+                  Kunde seit
+                </Text>
+                <Text className="text-base text-foreground">
+                  {formatDate(customer.created_at)}
+                </Text>
+              </View>
+            ) : null}
           </View>
         );
 
       case "kommunikation":
         return (
           <View className="gap-4">
-            {/* Beispiel-Kommunikationshistorie */}
-            {[
-              {
-                id: 1,
-                type: "E-Mail",
-                subject: "Angebot für Projekt X",
-                date: "2024-02-01",
-                notes: "Angebot versendet, Rückmeldung ausstehend",
-              },
-              {
-                id: 2,
-                type: "Anruf",
-                subject: "Rückfrage zu Rechnung",
-                date: "2024-01-28",
-                notes: "Kunde hatte Fragen zur letzten Rechnung, geklärt",
-              },
-              {
-                id: 3,
-                type: "Meeting",
-                subject: "Jahresgespräch 2024",
-                date: "2024-01-15",
-                notes: "Ziele für 2024 besprochen, sehr positiv",
-              },
-            ].map((comm) => (
-              <View
-                key={comm.id}
-                className="bg-surface p-4 rounded-lg border border-border"
-              >
-                <View className="flex-row items-center justify-between mb-2">
-                  <View className="flex-row items-center gap-2">
-                    <View className="bg-primary/20 px-3 py-1 rounded-full">
-                      <Text className="text-xs font-semibold text-primary">
-                        {comm.type}
-                      </Text>
-                    </View>
-                    <Text className="text-sm text-muted">
-                      {formatDate(comm.date)}
-                    </Text>
-                  </View>
-                </View>
-                <Text className="text-base font-semibold text-foreground mb-1">
-                  {comm.subject}
-                </Text>
-                <Text className="text-sm text-muted">{comm.notes}</Text>
-              </View>
-            ))}
+            <View className="flex-1 items-center justify-center py-12">
+              <IconSymbol name="envelope.fill" size={48} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4 mb-2">Keine Kommunikation</Text>
+              <Text className="text-sm text-muted text-center">
+                Für diesen Kunden wurden noch keine Kommunikationen erfasst.
+              </Text>
+            </View>
 
             <TouchableOpacity
               className="bg-primary py-3 rounded-lg"
@@ -177,208 +218,39 @@ export default function CustomerDetailScreen() {
       case "vertraege":
         return (
           <View className="gap-4">
-            {/* Beispiel-Verträge */}
-            {[
-              {
-                id: 1,
-                title: "Wartungsvertrag 2024",
-                startDate: "2024-01-01",
-                endDate: "2024-12-31",
-                amount: 12000,
-                status: "active",
-              },
-              {
-                id: 2,
-                title: "Hosting-Vertrag",
-                startDate: "2023-06-01",
-                endDate: "2025-05-31",
-                amount: 2400,
-                status: "active",
-              },
-            ].map((contract) => (
-              <View
-                key={contract.id}
-                className="bg-surface p-4 rounded-lg border border-border"
-              >
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-base font-semibold text-foreground">
-                    {contract.title}
-                  </Text>
-                  <View className="bg-success/20 px-3 py-1 rounded-full">
-                    <Text className="text-xs font-semibold text-success">
-                      Aktiv
-                    </Text>
-                  </View>
-                </View>
-                <Text className="text-sm text-muted mb-1">
-                  Laufzeit: {formatDate(contract.startDate)} -{" "}
-                  {formatDate(contract.endDate)}
-                </Text>
-                <Text className="text-sm font-semibold text-foreground">
-                  {formatCurrency(contract.amount)} / Jahr
-                </Text>
-              </View>
-            ))}
+            <View className="flex-1 items-center justify-center py-12">
+              <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4 mb-2">Keine Verträge</Text>
+              <Text className="text-sm text-muted text-center">
+                Für diesen Kunden wurden noch keine Verträge erfasst.
+              </Text>
+            </View>
           </View>
         );
 
       case "rechnungen":
         return (
           <View className="gap-4">
-            {/* Beispiel-Rechnungen */}
-            {[
-              {
-                id: 1,
-                number: "RE-2024-001",
-                date: "2024-02-01",
-                amount: 5250,
-                status: "open",
-              },
-              {
-                id: 2,
-                number: "RE-2024-002",
-                date: "2024-01-15",
-                amount: 3800,
-                status: "paid",
-              },
-              {
-                id: 3,
-                number: "RE-2023-045",
-                date: "2023-12-20",
-                amount: 7200,
-                status: "paid",
-              },
-            ].map((invoice) => (
-              <View
-                key={invoice.id}
-                className="bg-surface p-4 rounded-lg border border-border"
-              >
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-base font-semibold text-foreground">
-                    {invoice.number}
-                  </Text>
-                  <View
-                    className={`px-3 py-1 rounded-full ${
-                      invoice.status === "paid"
-                        ? "bg-success/20"
-                        : "bg-warning/20"
-                    }`}
-                  >
-                    <Text
-                      className={`text-xs font-semibold ${
-                        invoice.status === "paid"
-                          ? "text-success"
-                          : "text-warning"
-                      }`}
-                    >
-                      {invoice.status === "paid" ? "Bezahlt" : "Offen"}
-                    </Text>
-                  </View>
-                </View>
-                <Text className="text-sm text-muted mb-1">
-                  {formatDate(invoice.date)}
-                </Text>
-                <Text className="text-lg font-bold text-foreground">
-                  {formatCurrency(invoice.amount)}
-                </Text>
-              </View>
-            ))}
+            <View className="flex-1 items-center justify-center py-12">
+              <IconSymbol name="chart.bar.fill" size={48} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4 mb-2">Keine Rechnungen</Text>
+              <Text className="text-sm text-muted text-center">
+                Für diesen Kunden wurden noch keine Rechnungen erstellt.
+              </Text>
+            </View>
           </View>
         );
 
       case "tickets":
         return (
           <View className="gap-4">
-            {/* Beispiel-Tickets */}
-            {[
-              {
-                id: 1,
-                title: "Passwort zurücksetzen",
-                status: "open",
-                priority: "high",
-                createdAt: "2024-02-03",
-              },
-              {
-                id: 2,
-                title: "Frage zur Rechnung",
-                status: "in_progress",
-                priority: "medium",
-                createdAt: "2024-01-30",
-              },
-              {
-                id: 3,
-                title: "Technisches Problem",
-                status: "closed",
-                priority: "low",
-                createdAt: "2024-01-25",
-              },
-            ].map((ticket) => (
-              <View
-                key={ticket.id}
-                className="bg-surface p-4 rounded-lg border border-border"
-              >
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-base font-semibold text-foreground">
-                    {ticket.title}
-                  </Text>
-                  <View
-                    className={`px-3 py-1 rounded-full ${
-                      ticket.priority === "high"
-                        ? "bg-error/20"
-                        : ticket.priority === "medium"
-                        ? "bg-warning/20"
-                        : "bg-success/20"
-                    }`}
-                  >
-                    <Text
-                      className={`text-xs font-semibold ${
-                        ticket.priority === "high"
-                          ? "text-error"
-                          : ticket.priority === "medium"
-                          ? "text-warning"
-                          : "text-success"
-                      }`}
-                    >
-                      {ticket.priority === "high"
-                        ? "Hoch"
-                        : ticket.priority === "medium"
-                        ? "Mittel"
-                        : "Niedrig"}
-                    </Text>
-                  </View>
-                </View>
-                <View className="flex-row items-center gap-2">
-                  <View
-                    className={`px-3 py-1 rounded-full ${
-                      ticket.status === "open"
-                        ? "bg-warning/20"
-                        : ticket.status === "in_progress"
-                        ? "bg-primary/20"
-                        : "bg-success/20"
-                    }`}
-                  >
-                    <Text
-                      className={`text-xs font-semibold ${
-                        ticket.status === "open"
-                          ? "text-warning"
-                          : ticket.status === "in_progress"
-                          ? "text-primary"
-                          : "text-success"
-                      }`}
-                    >
-                      {ticket.status === "open"
-                        ? "Offen"
-                        : ticket.status === "in_progress"
-                        ? "In Bearbeitung"
-                        : "Geschlossen"}
-                    </Text>
-                  </View>
-                  <Text className="text-sm text-muted">
-                    {formatDate(ticket.createdAt)}
-                  </Text>
-                </View>
-              </View>
-            ))}
+            <View className="flex-1 items-center justify-center py-12">
+              <IconSymbol name="ticket.fill" size={48} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4 mb-2">Keine Tickets</Text>
+              <Text className="text-sm text-muted text-center">
+                Für diesen Kunden wurden noch keine Tickets erstellt.
+              </Text>
+            </View>
           </View>
         );
 
@@ -413,10 +285,21 @@ export default function CustomerDetailScreen() {
           </TouchableOpacity>
           <View className="flex-1">
             <Text className="text-2xl font-bold text-foreground">
-              {customer.company}
+              {customer?.company_name || `${customer?.first_name || ""} ${customer?.last_name || ""}`.trim() || "Kunde"}
             </Text>
-            <Text className="text-sm text-muted">{customer.name}</Text>
+            {customer?.company_name && (customer?.first_name || customer?.last_name) ? (
+              <Text className="text-sm text-muted">
+                {`${customer?.first_name || ""} ${customer?.last_name || ""}`.trim()}
+              </Text>
+            ) : null}
           </View>
+          <TouchableOpacity
+            onPress={handleDelete}
+            activeOpacity={0.6}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <IconSymbol name="trash.fill" size={22} color={colors.error || "#EF4444"} />
+          </TouchableOpacity>
         </View>
 
         {/* Tabs */}
@@ -429,17 +312,15 @@ export default function CustomerDetailScreen() {
             <TouchableOpacity
               key={tab.key}
               onPress={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-lg ${
-                activeTab === tab.key
-                  ? "bg-primary"
-                  : "bg-surface border border-border"
-              }`}
+              className={`px-4 py-2 rounded-lg ${activeTab === tab.key
+                ? "bg-primary"
+                : "bg-surface border border-border"
+                }`}
               activeOpacity={0.7}
             >
               <Text
-                className={`text-sm font-semibold ${
-                  activeTab === tab.key ? "text-background" : "text-foreground"
-                }`}
+                className={`text-sm font-semibold ${activeTab === tab.key ? "text-background" : "text-foreground"
+                  }`}
               >
                 {tab.label}
               </Text>
