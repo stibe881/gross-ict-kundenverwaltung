@@ -259,7 +259,7 @@ function generateInvoiceHTML(data: InvoiceData): string {
       bottom: 0;
       left: 0;
       right: 0;
-      padding: 10px 20mm 15mm 20mm;
+      padding: 10px 20mm 3mm 20mm;
       border-top: 1px solid #CCC;
       font-size: 8pt;
       color: #555;
