@@ -54,6 +54,7 @@ export function InvoiceFormModal({
   ]);
   const [showProductPicker, setShowProductPicker] = useState<string | null>(null);
   const [showNewProductForm, setShowNewProductForm] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
 
   // Kunden laden
   const { data: customers } = trpc.customers.list.useQuery();
@@ -325,8 +326,8 @@ export function InvoiceFormModal({
                           <TouchableOpacity
                             key={rate.value}
                             className={`flex-1 py-2 rounded-lg ${item.vatRate === rate.value
-                                ? "bg-primary"
-                                : "bg-background border border-border"
+                              ? "bg-primary"
+                              : "bg-background border border-border"
                               }`}
                             onPress={() =>
                               updateItem(item.id, "vatRate", rate.value)
@@ -335,8 +336,8 @@ export function InvoiceFormModal({
                           >
                             <Text
                               className={`text-center text-xs font-semibold ${item.vatRate === rate.value
-                                  ? "text-background"
-                                  : "text-foreground"
+                                ? "text-background"
+                                : "text-foreground"
                                 }`}
                             >
                               {rate.label}
@@ -474,33 +475,60 @@ export function InvoiceFormModal({
                 <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
               </TouchableOpacity>
             </View>
+            {/* Suchfeld */}
+            <View className="px-4 pt-3 pb-1">
+              <View className="bg-surface rounded-xl p-3 flex-row items-center border border-border">
+                <IconSymbol name="magnifyingglass" size={18} color={colors.muted} />
+                <TextInput
+                  className="flex-1 ml-2 text-base text-foreground"
+                  placeholder="Kunde suchen..."
+                  placeholderTextColor={colors.muted}
+                  value={customerSearch}
+                  onChangeText={setCustomerSearch}
+                  autoFocus
+                />
+              </View>
+            </View>
             <ScrollView className="p-4">
-              {customers && customers.length > 0 ? (
-                customers.map((customer) => (
-                  <TouchableOpacity
-                    key={customer.id}
-                    className="py-3 border-b border-border"
-                    onPress={() => {
-                      setSelectedCustomerId(customer.id);
-                      setShowCustomerPicker(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text className="text-base font-semibold text-foreground">
-                      {customer.company_name ||
-                        `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
-                        "Unbenannt"}
-                    </Text>
-                    {customer.email && (
-                      <Text className="text-sm text-muted">{customer.email}</Text>
-                    )}
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <Text className="text-center text-muted py-4">
-                  Keine Kunden vorhanden
-                </Text>
-              )}
+              {(() => {
+                const query = customerSearch.toLowerCase();
+                const filtered = customers?.filter((c: any) => {
+                  if (!query) return true;
+                  return (
+                    c.company_name?.toLowerCase().includes(query) ||
+                    c.first_name?.toLowerCase().includes(query) ||
+                    c.last_name?.toLowerCase().includes(query) ||
+                    c.email?.toLowerCase().includes(query)
+                  );
+                }) || [];
+                return filtered.length > 0 ? (
+                  filtered.map((customer: any) => (
+                    <TouchableOpacity
+                      key={customer.id}
+                      className="py-3 border-b border-border"
+                      onPress={() => {
+                        setSelectedCustomerId(customer.id);
+                        setShowCustomerPicker(false);
+                        setCustomerSearch("");
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text className="text-base font-semibold text-foreground">
+                        {customer.company_name ||
+                          `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
+                          "Unbenannt"}
+                      </Text>
+                      {customer.email && (
+                        <Text className="text-sm text-muted">{customer.email}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text className="text-center text-muted py-4">
+                    {customerSearch ? "Kein Kunde gefunden" : "Keine Kunden vorhanden"}
+                  </Text>
+                );
+              })()}
             </ScrollView>
           </View>
         </View>
