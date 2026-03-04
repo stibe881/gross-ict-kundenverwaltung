@@ -16,6 +16,7 @@ import { trpc } from "@/lib/trpc";
 interface InvoiceItem {
   id: string;
   productId?: number;
+  name: string;
   description: string;
   quantity: string;
   unitPrice: string;
@@ -50,7 +51,7 @@ export function InvoiceFormModal({
   }, [visible, nextNumber]);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: "1", description: "", quantity: "1", unitPrice: "", vatRate: VAT_RATES.normal },
+    { id: "1", name: "", description: "", quantity: "1", unitPrice: "", vatRate: VAT_RATES.normal },
   ]);
   const [showProductPicker, setShowProductPicker] = useState<string | null>(null);
   const [showNewProductForm, setShowNewProductForm] = useState(false);
@@ -69,6 +70,7 @@ export function InvoiceFormModal({
       ...items,
       {
         id: Date.now().toString(),
+        name: "",
         description: "",
         quantity: "1",
         unitPrice: "",
@@ -92,7 +94,7 @@ export function InvoiceFormModal({
   };
 
   const selectProduct = (itemId: string, productId: number) => {
-    const product = products?.find((p) => p.id === productId);
+    const product = products?.find((p: any) => p.id === productId);
     if (product) {
       setItems(
         items.map((item) =>
@@ -100,7 +102,8 @@ export function InvoiceFormModal({
             ? {
               ...item,
               productId: product.id,
-              description: product.name,
+              name: product.name,
+              description: product.description || "",
               unitPrice: product.unitPrice,
               vatRate: parseFloat(product.vatRate),
             }
@@ -142,8 +145,8 @@ export function InvoiceFormModal({
       return;
     }
 
-    if (items.some((item) => !item.description || !item.unitPrice)) {
-      alert("Bitte füllen Sie alle Positionen vollständig aus");
+    if (items.some((item) => !item.name || !item.unitPrice)) {
+      alert("Bitte füllen Sie alle Positionen vollständig aus (Name und Preis)");
       return;
     }
 
@@ -271,16 +274,34 @@ export function InvoiceFormModal({
                       </View>
                     </View>
 
+                    {/* Name */}
+                    <View className="mb-2">
+                      <Text className="text-xs text-muted mb-1">Name *</Text>
+                      <TextInput
+                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                        placeholder="z.B. Microsoft 365 Business"
+                        placeholderTextColor={colors.muted}
+                        value={item.name}
+                        onChangeText={(text) =>
+                          updateItem(item.id, "name", text)
+                        }
+                      />
+                    </View>
+
                     {/* Beschreibung */}
-                    <TextInput
-                      className="bg-background border border-border rounded-lg px-3 py-2 text-foreground mb-2"
-                      placeholder="Beschreibung"
-                      placeholderTextColor={colors.muted}
-                      value={item.description}
-                      onChangeText={(text) =>
-                        updateItem(item.id, "description", text)
-                      }
-                    />
+                    <View className="mb-2">
+                      <Text className="text-xs text-muted mb-1">Beschreibung</Text>
+                      <TextInput
+                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                        placeholder="Optionale Beschreibung"
+                        placeholderTextColor={colors.muted}
+                        value={item.description}
+                        onChangeText={(text) =>
+                          updateItem(item.id, "description", text)
+                        }
+                        multiline
+                      />
+                    </View>
 
                     {/* Menge & Preis */}
                     <View className="flex-row gap-2 mb-2">
