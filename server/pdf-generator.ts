@@ -257,12 +257,18 @@ function generateInvoiceHTML(data: InvoiceData): string {
     .footer {
       position: fixed;
       bottom: 0;
-      left: 20mm;
-      right: 20mm;
+      left: 0;
+      right: 0;
+      padding: 10px 20mm 15mm 20mm;
       border-top: 1px solid #CCC;
-      padding-top: 10px;
       font-size: 8pt;
       color: #555;
+    }
+    @media print {
+      .footer {
+        position: fixed;
+        bottom: 0;
+      }
     }
     .footer .bank-title {
       font-weight: 700;
