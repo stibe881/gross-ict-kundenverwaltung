@@ -189,7 +189,7 @@ function ProductFormModal({
     description: product?.description || "",
     unitPrice: product?.price ? String(product.price) : "",
     unit: product?.unit || "Stück",
-    vatRate: product?.vat_rate ? String(product.vat_rate) : "8.10",
+    vatRate: product?.vat_rate ? Number(product.vat_rate).toFixed(2) : "8.10",
   });
 
   // Formular zurücksetzen wenn ein anderes Produkt ausgewählt wird
@@ -201,10 +201,10 @@ function ProductFormModal({
         description: product?.description || "",
         unitPrice: product?.price ? String(product.price) : "",
         unit: product?.unit || "Stück",
-        vatRate: product?.vat_rate ? String(product.vat_rate) : "8.10",
+        vatRate: product?.vat_rate ? Number(product.vat_rate).toFixed(2) : "8.10",
       });
     }
-  }, [visible, product]);
+  }, [visible, product?.id]);
 
   const createProduct = trpc.products.create.useMutation({
     onSuccess: () => {
