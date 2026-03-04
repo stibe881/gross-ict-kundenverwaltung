@@ -1,24 +1,72 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   ScrollView,
   Text,
   View,
   TouchableOpacity,
-  Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
+import { trpc } from "@/lib/trpc";
+import { formatCurrency, formatDate } from "@/lib/format";
 
 export default function AccountingScreen() {
   const colors = useColors();
   const [activeTab, setActiveTab] = useState<"overview" | "invoices" | "expenses">("overview");
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Rechnungen laden
+  const { data: invoices, isLoading, refetch } = trpc.invoices.list.useQuery();
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "open": return "Offen";
+      case "paid": return "Bezahlt";
+      case "overdue": return "Überfällig";
+      case "cancelled": return "Storniert";
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "open": return "bg-warning";
+      case "paid": return "bg-success";
+      case "overdue": return "bg-error";
+      case "cancelled": return "bg-muted";
+      default: return "bg-muted";
+    }
+  };
+
+  // Statistiken berechnen
+  const totalOpen = invoices?.filter((i: any) => i.status === "open").reduce((sum: number, i: any) => sum + (i.total || 0), 0) || 0;
+  const totalPaid = invoices?.filter((i: any) => i.status === "paid").reduce((sum: number, i: any) => sum + (i.total || 0), 0) || 0;
+  const totalAll = invoices?.reduce((sum: number, i: any) => sum + (i.total || 0), 0) || 0;
 
   return (
     <ScreenContainer>
-      <ScrollView className="flex-1 p-4">
+      <ScrollView
+        className="flex-1 p-4"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
         {/* Header */}
         <View className="flex-row items-center justify-between mb-4">
           <Text className="text-3xl font-bold text-foreground">Buchhaltung</Text>
@@ -33,105 +81,58 @@ export default function AccountingScreen() {
 
         {/* Tab Navigation */}
         <View className="flex-row gap-2 mb-4">
-          <TouchableOpacity
-            className={`flex-1 py-3 rounded-lg ${
-              activeTab === "overview" ? "bg-primary" : "bg-surface border border-border"
-            }`}
-            onPress={() => setActiveTab("overview")}
-          >
-            <Text
-              className={`text-center font-semibold ${
-                activeTab === "overview" ? "text-background" : "text-foreground"
-              }`}
+          {(["overview", "invoices", "expenses"] as const).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              className={`flex-1 py-3 rounded-lg ${activeTab === tab ? "bg-primary" : "bg-surface border border-border"
+                }`}
+              onPress={() => setActiveTab(tab)}
             >
-              Übersicht
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className={`flex-1 py-3 rounded-lg ${
-              activeTab === "invoices" ? "bg-primary" : "bg-surface border border-border"
-            }`}
-            onPress={() => setActiveTab("invoices")}
-          >
-            <Text
-              className={`text-center font-semibold ${
-                activeTab === "invoices" ? "text-background" : "text-foreground"
-              }`}
-            >
-              Rechnungen
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className={`flex-1 py-3 rounded-lg ${
-              activeTab === "expenses" ? "bg-primary" : "bg-surface border border-border"
-            }`}
-            onPress={() => setActiveTab("expenses")}
-          >
-            <Text
-              className={`text-center font-semibold ${
-                activeTab === "expenses" ? "text-background" : "text-foreground"
-              }`}
-            >
-              Ausgaben
-            </Text>
-          </TouchableOpacity>
+              <Text
+                className={`text-center font-semibold ${activeTab === tab ? "text-background" : "text-foreground"
+                  }`}
+              >
+                {tab === "overview" ? "Übersicht" : tab === "invoices" ? "Rechnungen" : "Ausgaben"}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* Übersicht */}
         {activeTab === "overview" && (
           <View className="gap-4">
-            {/* Statistik-Karten */}
             <View className="flex-row gap-3">
               <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                <Text className="text-sm text-muted mb-1">Umsatz (Monat)</Text>
-                <Text className="text-2xl font-bold text-success">CHF 0.00</Text>
+                <Text className="text-sm text-muted mb-1">Umsatz (gesamt)</Text>
+                <Text className="text-2xl font-bold text-success">{formatCurrency(totalAll)}</Text>
               </View>
               <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                <Text className="text-sm text-muted mb-1">Ausgaben</Text>
-                <Text className="text-2xl font-bold text-error">CHF 0.00</Text>
+                <Text className="text-sm text-muted mb-1">Bezahlt</Text>
+                <Text className="text-2xl font-bold text-primary">{formatCurrency(totalPaid)}</Text>
               </View>
             </View>
 
             <View className="flex-row gap-3">
               <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
                 <Text className="text-sm text-muted mb-1">Offene Posten</Text>
-                <Text className="text-2xl font-bold text-warning">CHF 0.00</Text>
+                <Text className="text-2xl font-bold text-warning">{formatCurrency(totalOpen)}</Text>
               </View>
               <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                <Text className="text-sm text-muted mb-1">Gewinn</Text>
-                <Text className="text-2xl font-bold text-primary">CHF 0.00</Text>
+                <Text className="text-sm text-muted mb-1">Rechnungen</Text>
+                <Text className="text-2xl font-bold text-foreground">{invoices?.length || 0}</Text>
               </View>
             </View>
 
-            {/* Schnellaktionen */}
             <View className="mt-4">
               <Text className="text-lg font-bold text-foreground mb-3">Schnellaktionen</Text>
-              <View className="gap-3">
-                <TouchableOpacity
-                  className="bg-primary py-4 rounded-lg flex-row items-center justify-center"
-                  activeOpacity={0.8}
-                  onPress={() => setShowInvoiceModal(true)}
-                >
-                  <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
-                  <Text className="text-background font-semibold ml-2">Neue Rechnung</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  className="bg-surface py-4 rounded-lg flex-row items-center justify-center border border-border"
-                  activeOpacity={0.8}
-                >
-                  <IconSymbol name="plus.circle.fill" size={20} color={colors.primary} />
-                  <Text className="text-foreground font-semibold ml-2">Neue Ausgabe</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  className="bg-surface py-4 rounded-lg flex-row items-center justify-center border border-border"
-                  activeOpacity={0.8}
-                >
-                  <IconSymbol name="doc.text.fill" size={20} color={colors.primary} />
-                  <Text className="text-foreground font-semibold ml-2">Berichte anzeigen</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                className="bg-primary py-4 rounded-lg flex-row items-center justify-center"
+                activeOpacity={0.8}
+                onPress={() => setShowInvoiceModal(true)}
+              >
+                <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
+                <Text className="text-background font-semibold ml-2">Neue Rechnung</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -139,118 +140,69 @@ export default function AccountingScreen() {
         {/* Rechnungen */}
         {activeTab === "invoices" && (
           <View>
-            <View className="bg-surface rounded-xl p-4 mb-4">
-              <Text className="text-sm text-muted mb-3">
-                💡 Tipp: Rechnungen können als PDF heruntergeladen oder per E-Mail versendet werden.
-              </Text>
-              <TouchableOpacity
-                className="bg-primary py-3 rounded-lg flex-row items-center justify-center"
-                activeOpacity={0.8}
-                onPress={async () => {
-                  try {
-                    // Erstelle Beispiel-Rechnung als HTML
-                    const htmlContent = `
-                      <!DOCTYPE html>
-                      <html>
-                      <head>
-                        <meta charset="UTF-8">
-                        <title>Rechnung RE-2026-001</title>
-                        <style>
-                          body { font-family: Arial, sans-serif; margin: 40px; }
-                          .header { text-align: right; margin-bottom: 40px; }
-                          .invoice-title { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
-                          .info { margin-bottom: 30px; }
-                          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                          th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-                          th { background-color: #f5f5f5; }
-                          .total { font-weight: bold; font-size: 18px; text-align: right; margin-top: 20px; }
-                        </style>
-                      </head>
-                      <body>
-                        <div class="header">
-                          <strong>Gross ICT</strong><br>
-                          Musterstrasse 123<br>
-                          8000 Zürich<br>
-                          Schweiz
-                        </div>
-                        <div class="invoice-title">Rechnung RE-2026-001</div>
-                        <div class="info">
-                          <strong>Kunde:</strong><br>
-                          Muster AG<br>
-                          Beispielweg 456<br>
-                          9000 St. Gallen
-                        </div>
-                        <div class="info">
-                          <strong>Rechnungsdatum:</strong> 04.02.2026<br>
-                          <strong>Fällig am:</strong> 04.03.2026
-                        </div>
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Position</th>
-                              <th>Menge</th>
-                              <th>Einzelpreis</th>
-                              <th>Gesamt</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <td>IT-Support Paket</td>
-                              <td>1</td>
-                              <td>CHF 500.00</td>
-                              <td>CHF 500.00</td>
-                            </tr>
-                            <tr>
-                              <td>Server-Wartung</td>
-                              <td>2</td>
-                              <td>CHF 250.00</td>
-                              <td>CHF 500.00</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                        <div class="total">
-                          Gesamtbetrag: CHF 1'000.00
-                        </div>
-                      </body>
-                      </html>
-                    `;
+            {isLoading ? (
+              <View className="flex-1 items-center justify-center py-12">
+                <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+            ) : invoices && invoices.length > 0 ? (
+              <View className="gap-3">
+                <TouchableOpacity
+                  className="bg-primary py-3 rounded-lg flex-row items-center justify-center mb-2"
+                  activeOpacity={0.8}
+                  onPress={() => setShowInvoiceModal(true)}
+                >
+                  <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
+                  <Text className="text-background font-semibold ml-2">Neue Rechnung</Text>
+                </TouchableOpacity>
 
-                    // Erstelle Blob und Download-Link
-                    const blob = new Blob([htmlContent], { type: 'text/html' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'Rechnung-RE-2026-001.html';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-
-                    Alert.alert("Erfolg", "Beispiel-Rechnung wurde heruntergeladen");
-                  } catch (error) {
-                    Alert.alert("Fehler", "Download fehlgeschlagen");
-                  }
-                }}
-              >
-                <IconSymbol name="arrow.down.doc.fill" size={20} color="#FFFFFF" />
-                <Text className="text-background font-semibold ml-2">Beispiel-Rechnung herunterladen</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View className="flex-1 items-center justify-center py-12">
-              <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
-              <Text className="text-lg text-muted mt-4 mb-2">Keine Rechnungen</Text>
-              <Text className="text-sm text-muted text-center mb-6">
-                Erstellen Sie Ihre erste Rechnung
-              </Text>
-              <TouchableOpacity
-                className="bg-primary px-6 py-3 rounded-lg"
-                activeOpacity={0.8}
-                onPress={() => setShowInvoiceModal(true)}
-              >
-                <Text className="text-background font-semibold">Rechnung erstellen</Text>
-              </TouchableOpacity>
-            </View>
+                {invoices.map((invoice: any) => {
+                  const customerName = invoice.customer?.company_name ||
+                    `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() ||
+                    "Unbekannt";
+                  return (
+                    <View
+                      key={invoice.id}
+                      className="bg-surface rounded-xl p-4 border border-border"
+                    >
+                      <View className="flex-row items-center justify-between mb-2">
+                        <Text className="text-base font-bold text-foreground">
+                          {invoice.invoice_number}
+                        </Text>
+                        <View className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
+                          <Text className="text-xs font-semibold text-white">
+                            {getStatusLabel(invoice.status)}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text className="text-sm text-foreground mb-1">{customerName}</Text>
+                      <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-border">
+                        <Text className="text-xs text-muted">
+                          {formatDate(invoice.invoice_date)} · Fällig: {formatDate(invoice.due_date)}
+                        </Text>
+                        <Text className="text-base font-bold text-primary">
+                          {formatCurrency(invoice.total)}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <View className="flex-1 items-center justify-center py-12">
+                <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
+                <Text className="text-lg text-muted mt-4 mb-2">Keine Rechnungen</Text>
+                <Text className="text-sm text-muted text-center mb-6">
+                  Erstellen Sie Ihre erste Rechnung
+                </Text>
+                <TouchableOpacity
+                  className="bg-primary px-6 py-3 rounded-lg"
+                  activeOpacity={0.8}
+                  onPress={() => setShowInvoiceModal(true)}
+                >
+                  <Text className="text-background font-semibold">Rechnung erstellen</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
 
@@ -276,7 +228,7 @@ export default function AccountingScreen() {
       <InvoiceFormModal
         visible={showInvoiceModal}
         onClose={() => setShowInvoiceModal(false)}
-        onSuccess={() => {}}
+        onSuccess={() => refetch()}
       />
     </ScreenContainer>
   );
