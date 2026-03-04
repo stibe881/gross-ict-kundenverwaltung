@@ -43,14 +43,14 @@ export default function ProductsScreen() {
             )}
           </View>
           <View
-            className={`px-2 py-1 rounded-lg ${item.type === "article" ? "bg-primary/20" : "bg-success/20"
+            className={`px-2 py-1 rounded-lg ${item.type === "product" ? "bg-primary/20" : "bg-success/20"
               }`}
           >
             <Text
-              className={`text-xs font-semibold ${item.type === "article" ? "text-primary" : "text-success"
+              className={`text-xs font-semibold ${item.type === "product" ? "text-primary" : "text-success"
                 }`}
             >
-              {item.type === "article" ? "Artikel" : "Dienstleistung"}
+              {item.type === "product" ? "Artikel" : "Dienstleistung"}
             </Text>
           </View>
         </View>
@@ -109,7 +109,7 @@ export default function ProductsScreen() {
           </View>
           <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
             <Text className="text-2xl font-bold text-primary">
-              {products?.filter((p) => p.type === "article").length || 0}
+              {products?.filter((p) => p.type === "product").length || 0}
             </Text>
             <Text className="text-sm text-muted">Artikel</Text>
           </View>
@@ -184,7 +184,7 @@ function ProductFormModal({
 }) {
   const colors = useColors();
   const [formData, setFormData] = useState({
-    type: product?.type || "article",
+    type: product?.type || "product",
     name: product?.name || "",
     description: product?.description || "",
     unitPrice: product?.price ? String(product.price) : "",
@@ -264,17 +264,17 @@ function ProductFormModal({
                 </Text>
                 <View className="flex-row gap-3">
                   <TouchableOpacity
-                    className={`flex-1 py-3 rounded-lg ${formData.type === "article"
-                        ? "bg-primary"
-                        : "bg-surface border border-border"
+                    className={`flex-1 py-3 rounded-lg ${formData.type === "product"
+                      ? "bg-primary"
+                      : "bg-surface border border-border"
                       }`}
-                    onPress={() => setFormData({ ...formData, type: "article" })}
+                    onPress={() => setFormData({ ...formData, type: "product" })}
                     activeOpacity={0.7}
                   >
                     <Text
-                      className={`text-center font-semibold ${formData.type === "article"
-                          ? "text-background"
-                          : "text-foreground"
+                      className={`text-center font-semibold ${formData.type === "product"
+                        ? "text-background"
+                        : "text-foreground"
                         }`}
                     >
                       Artikel
@@ -282,16 +282,16 @@ function ProductFormModal({
                   </TouchableOpacity>
                   <TouchableOpacity
                     className={`flex-1 py-3 rounded-lg ${formData.type === "service"
-                        ? "bg-primary"
-                        : "bg-surface border border-border"
+                      ? "bg-primary"
+                      : "bg-surface border border-border"
                       }`}
                     onPress={() => setFormData({ ...formData, type: "service" })}
                     activeOpacity={0.7}
                   >
                     <Text
                       className={`text-center font-semibold ${formData.type === "service"
-                          ? "text-background"
-                          : "text-foreground"
+                        ? "text-background"
+                        : "text-foreground"
                         }`}
                     >
                       Dienstleistung
@@ -382,8 +382,8 @@ function ProductFormModal({
                     <TouchableOpacity
                       key={rate.value}
                       className={`flex-1 py-3 rounded-lg ${formData.vatRate === rate.value
-                          ? "bg-primary"
-                          : "bg-surface border border-border"
+                        ? "bg-primary"
+                        : "bg-surface border border-border"
                         }`}
                       onPress={() =>
                         setFormData({ ...formData, vatRate: rate.value })
@@ -392,8 +392,8 @@ function ProductFormModal({
                     >
                       <Text
                         className={`text-center font-semibold ${formData.vatRate === rate.value
-                            ? "text-background"
-                            : "text-foreground"
+                          ? "text-background"
+                          : "text-foreground"
                           }`}
                       >
                         {rate.label}
