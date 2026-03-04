@@ -4,6 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import * as supabaseDb from "./supabase-db";
+import { generateInvoiceHTMLPreview } from "./pdf-generator";
 
 export const appRouter = router({
   system: systemRouter,
@@ -515,6 +516,55 @@ export const appRouter = router({
         }));
 
         return supabaseDb.updateInvoice(id, invoice, itemsData);
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input }) => {
+        return supabaseDb.deleteInvoice(input.id);
+      }),
+
+    addPayment: protectedProcedure
+      .input(z.object({ invoiceId: z.string(), amount: z.number() }))
+      .mutation(async ({ input }) => {
+        return supabaseDb.addPayment(input.invoiceId, input.amount);
+      }),
+
+    generatePDF: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .query(async ({ input }) => {
+        const invoice = await supabaseDb.getInvoiceById(input.id);
+        if (!invoice) throw new Error("Rechnung nicht gefunden");
+
+        const customerName = invoice.customer?.company_name ||
+          `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "Unbekannt";
+        const addressParts = [
+          customerName,
+          invoice.customer?.street,
+          `${invoice.customer?.zip || ""} ${invoice.customer?.city || ""}`.trim(),
+        ].filter(Boolean);
+
+        const html = generateInvoiceHTMLPreview({
+          invoiceNumber: invoice.invoice_number,
+          customerNumber: invoice.customer?.customer_number,
+          invoiceDate: invoice.invoice_date,
+          dueDate: invoice.due_date,
+          paymentMethod: "Überweisung",
+          customerName,
+          customerAddress: addressParts.join("\n"),
+          items: (invoice.items || []).map((item: any) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unit_price,
+            vatRate: item.vat_rate,
+            total: item.total,
+          })),
+          subtotal: invoice.subtotal,
+          totalVat: invoice.vat_amount,
+          total: invoice.total,
+        });
+
+        return { html, invoiceNumber: invoice.invoice_number };
       }),
   }),
 

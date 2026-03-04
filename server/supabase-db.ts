@@ -381,6 +381,44 @@ export async function updateInvoice(id: string, invoice: any, items: any[]) {
   return invoiceData;
 }
 
+// ==================== RECHNUNGS-AKTIONEN ====================
+
+export async function deleteInvoice(id: string) {
+  const { error: itemsError } = await supabase
+    .from("invoice_items")
+    .delete()
+    .eq("invoice_id", id);
+  if (itemsError) throw new Error(itemsError.message);
+
+  const { error } = await supabase
+    .from("invoices")
+    .delete()
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  return { success: true };
+}
+
+export async function addPayment(invoiceId: string, amount: number) {
+  const { data: invoice, error: fetchError } = await supabase
+    .from("invoices")
+    .select("total, paid_amount")
+    .eq("id", invoiceId)
+    .single();
+  if (fetchError) throw new Error(fetchError.message);
+
+  const newPaidAmount = (invoice.paid_amount || 0) + amount;
+  const newStatus = newPaidAmount >= invoice.total ? "paid" : "open";
+
+  const { data, error } = await supabase
+    .from("invoices")
+    .update({ paid_amount: newPaidAmount, status: newStatus })
+    .eq("id", invoiceId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 // ==================== BENUTZER ====================
 
 export async function getAllUsers() {
