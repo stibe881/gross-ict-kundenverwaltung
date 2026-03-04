@@ -75,6 +75,8 @@ export default function CustomersScreen() {
       `${item.first_name || ""} ${item.last_name || ""}`.trim() ||
       "Unbenannt";
 
+    const counts = item._counts;
+
     return (
       <TouchableOpacity
         className="bg-surface rounded-xl p-4 mb-3 border border-border"
@@ -120,6 +122,36 @@ export default function CustomersScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Indikatoren: Verträge, Tickets, Rechnungen */}
+        {counts && (counts.activeContracts > 0 || counts.openTickets > 0 || counts.openInvoices > 0) && (
+          <View className="flex-row items-center gap-2 mt-3 pt-3 border-t border-border">
+            {counts.activeContracts > 0 && (
+              <View className="flex-row items-center bg-success/15 px-2 py-1 rounded-lg">
+                <Text className="text-xs">📄</Text>
+                <Text className="text-xs font-semibold text-success ml-1">
+                  {counts.activeContracts} {counts.activeContracts === 1 ? "Vertrag" : "Verträge"}
+                </Text>
+              </View>
+            )}
+            {counts.openTickets > 0 && (
+              <View className="flex-row items-center bg-warning/15 px-2 py-1 rounded-lg">
+                <Text className="text-xs">🎫</Text>
+                <Text className="text-xs font-semibold text-warning ml-1">
+                  {counts.openTickets} {counts.openTickets === 1 ? "Ticket" : "Tickets"}
+                </Text>
+              </View>
+            )}
+            {counts.openInvoices > 0 && (
+              <View className="flex-row items-center bg-error/15 px-2 py-1 rounded-lg">
+                <Text className="text-xs">💰</Text>
+                <Text className="text-xs font-semibold text-error ml-1">
+                  {counts.openInvoices} {counts.openInvoices === 1 ? "Rechnung" : "Rechnungen"}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </TouchableOpacity>
     );
   };

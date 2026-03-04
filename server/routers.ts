@@ -74,7 +74,7 @@ export const appRouter = router({
   // CRM - Kundenverwaltung
   customers: router({
     list: protectedProcedure.query(async () => {
-      return supabaseDb.getAllCustomers();
+      return supabaseDb.getCustomersWithCounts();
     }),
 
     getById: protectedProcedure

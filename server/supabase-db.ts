@@ -12,6 +12,54 @@ export async function getAllCustomers() {
   return data || [];
 }
 
+export async function getCustomersWithCounts() {
+  // Kunden laden
+  const { data: customers, error } = await supabase
+    .from("customers")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  if (!customers || customers.length === 0) return [];
+
+  // Parallel: Counts für Verträge, Tickets, Rechnungen laden
+  const [contractsRes, ticketsRes, invoicesRes] = await Promise.all([
+    supabase.from("contracts").select("customer_id, status"),
+    supabase.from("tickets").select("customer_id, status"),
+    supabase.from("invoices").select("customer_id, status"),
+  ]);
+
+  const contracts = contractsRes.data || [];
+  const tickets = ticketsRes.data || [];
+  const invoices = invoicesRes.data || [];
+
+  // Counts pro Kunde aggregieren
+  return customers.map((customer: any) => {
+    const activeContracts = contracts.filter(
+      (c: any) => c.customer_id === customer.id && c.status === "active"
+    ).length;
+    const openTickets = tickets.filter(
+      (t: any) =>
+        t.customer_id === customer.id &&
+        (t.status === "open" || t.status === "in_progress")
+    ).length;
+    const openInvoices = invoices.filter(
+      (i: any) =>
+        i.customer_id === customer.id &&
+        (i.status === "open" || i.status === "overdue")
+    ).length;
+
+    return {
+      ...customer,
+      _counts: {
+        activeContracts,
+        openTickets,
+        openInvoices,
+      },
+    };
+  });
+}
+
 export async function getCustomerById(id: string) {
   const { data, error } = await supabase
     .from("customers")

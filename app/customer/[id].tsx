@@ -215,44 +215,257 @@ export default function CustomerDetailScreen() {
           </View>
         );
 
-      case "vertraege":
-        return (
-          <View className="gap-4">
-            <View className="flex-1 items-center justify-center py-12">
-              <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
-              <Text className="text-lg text-muted mt-4 mb-2">Keine Verträge</Text>
-              <Text className="text-sm text-muted text-center">
-                Für diesen Kunden wurden noch keine Verträge erfasst.
-              </Text>
-            </View>
-          </View>
+      case "vertraege": {
+        const { data: contracts, isLoading: contractsLoading } = trpc.contracts.getByCustomer.useQuery(
+          { customerId: id as string },
+          { enabled: !!id }
         );
 
-      case "rechnungen":
-        return (
-          <View className="gap-4">
+        if (contractsLoading) {
+          return (
             <View className="flex-1 items-center justify-center py-12">
-              <IconSymbol name="chart.bar.fill" size={48} color={colors.muted} />
-              <Text className="text-lg text-muted mt-4 mb-2">Keine Rechnungen</Text>
-              <Text className="text-sm text-muted text-center">
-                Für diesen Kunden wurden noch keine Rechnungen erstellt.
-              </Text>
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
+          );
+        }
+
+        if (!contracts || contracts.length === 0) {
+          return (
+            <View className="gap-4">
+              <View className="flex-1 items-center justify-center py-12">
+                <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
+                <Text className="text-lg text-muted mt-4 mb-2">Keine Verträge</Text>
+                <Text className="text-sm text-muted text-center">
+                  Für diesen Kunden wurden noch keine Verträge erfasst.
+                </Text>
+              </View>
+            </View>
+          );
+        }
+
+        return (
+          <View className="gap-3">
+            {contracts.map((contract: any) => (
+              <View
+                key={contract.id}
+                className="bg-surface p-4 rounded-xl border border-border"
+              >
+                <View className="flex-row items-start justify-between mb-2">
+                  <Text className="text-lg font-semibold text-foreground flex-1">
+                    {contract.title}
+                  </Text>
+                  <View
+                    className={`px-2 py-1 rounded-lg ${contract.status === "active"
+                        ? "bg-success/20"
+                        : contract.status === "cancelled"
+                          ? "bg-error/20"
+                          : "bg-warning/20"
+                      }`}
+                  >
+                    <Text
+                      className={`text-xs font-semibold ${contract.status === "active"
+                          ? "text-success"
+                          : contract.status === "cancelled"
+                            ? "text-error"
+                            : "text-warning"
+                        }`}
+                    >
+                      {contract.status === "active"
+                        ? "Aktiv"
+                        : contract.status === "cancelled"
+                          ? "Gekündigt"
+                          : "Abgelaufen"}
+                    </Text>
+                  </View>
+                </View>
+                {contract.description ? (
+                  <Text className="text-sm text-muted mb-2">
+                    {contract.description}
+                  </Text>
+                ) : null}
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-sm text-muted">
+                    {formatDate(contract.start_date)} – {formatDate(contract.end_date)}
+                  </Text>
+                  <Text className="text-base font-bold text-primary">
+                    {formatCurrency(contract.annual_amount)}/Jahr
+                  </Text>
+                </View>
+              </View>
+            ))}
           </View>
+        );
+      }
+
+      case "rechnungen": {
+        const { data: invoices, isLoading: invoicesLoading } = trpc.invoices.getByCustomer.useQuery(
+          { customerId: id as string },
+          { enabled: !!id }
         );
 
-      case "tickets":
-        return (
-          <View className="gap-4">
+        if (invoicesLoading) {
+          return (
             <View className="flex-1 items-center justify-center py-12">
-              <IconSymbol name="ticket.fill" size={48} color={colors.muted} />
-              <Text className="text-lg text-muted mt-4 mb-2">Keine Tickets</Text>
-              <Text className="text-sm text-muted text-center">
-                Für diesen Kunden wurden noch keine Tickets erstellt.
-              </Text>
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
+          );
+        }
+
+        if (!invoices || invoices.length === 0) {
+          return (
+            <View className="gap-4">
+              <View className="flex-1 items-center justify-center py-12">
+                <IconSymbol name="chart.bar.fill" size={48} color={colors.muted} />
+                <Text className="text-lg text-muted mt-4 mb-2">Keine Rechnungen</Text>
+                <Text className="text-sm text-muted text-center">
+                  Für diesen Kunden wurden noch keine Rechnungen erstellt.
+                </Text>
+              </View>
+            </View>
+          );
+        }
+
+        const statusColors: Record<string, { bg: string; text: string; label: string }> = {
+          draft: { bg: "bg-muted/20", text: "text-muted", label: "Entwurf" },
+          open: { bg: "bg-primary/20", text: "text-primary", label: "Offen" },
+          paid: { bg: "bg-success/20", text: "text-success", label: "Bezahlt" },
+          overdue: { bg: "bg-error/20", text: "text-error", label: "Überfällig" },
+          cancelled: { bg: "bg-muted/20", text: "text-muted", label: "Storniert" },
+        };
+
+        return (
+          <View className="gap-3">
+            {invoices.map((invoice: any) => {
+              const status = statusColors[invoice.status] || statusColors.open;
+              return (
+                <TouchableOpacity
+                  key={invoice.id}
+                  className="bg-surface p-4 rounded-xl border border-border"
+                  activeOpacity={0.7}
+                  onPress={() => router.push(`/invoice/${invoice.id}`)}
+                >
+                  <View className="flex-row items-start justify-between mb-2">
+                    <View>
+                      <Text className="text-lg font-semibold text-foreground">
+                        {invoice.invoice_number}
+                      </Text>
+                      <Text className="text-sm text-muted">
+                        {formatDate(invoice.invoice_date)}
+                      </Text>
+                    </View>
+                    <View className={`px-2 py-1 rounded-lg ${status.bg}`}>
+                      <Text className={`text-xs font-semibold ${status.text}`}>
+                        {status.label}
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-sm text-muted">
+                      Fällig: {formatDate(invoice.due_date)}
+                    </Text>
+                    <Text className="text-xl font-bold text-primary">
+                      {formatCurrency(invoice.total)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         );
+      }
+
+      case "tickets": {
+        const { data: tickets, isLoading: ticketsLoading } = trpc.tickets.getByCustomer.useQuery(
+          { customerId: id as string },
+          { enabled: !!id }
+        );
+
+        if (ticketsLoading) {
+          return (
+            <View className="flex-1 items-center justify-center py-12">
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          );
+        }
+
+        if (!tickets || tickets.length === 0) {
+          return (
+            <View className="gap-4">
+              <View className="flex-1 items-center justify-center py-12">
+                <IconSymbol name="ticket.fill" size={48} color={colors.muted} />
+                <Text className="text-lg text-muted mt-4 mb-2">Keine Tickets</Text>
+                <Text className="text-sm text-muted text-center">
+                  Für diesen Kunden wurden noch keine Tickets erstellt.
+                </Text>
+              </View>
+            </View>
+          );
+        }
+
+        const priorityColors: Record<string, string> = {
+          low: "text-success",
+          medium: "text-warning",
+          high: "text-error",
+        };
+        const priorityLabels: Record<string, string> = {
+          low: "Niedrig",
+          medium: "Mittel",
+          high: "Hoch",
+        };
+
+        return (
+          <View className="gap-3">
+            {tickets.map((ticket: any) => (
+              <View
+                key={ticket.id}
+                className="bg-surface p-4 rounded-xl border border-border"
+              >
+                <View className="flex-row items-start justify-between mb-2">
+                  <Text className="text-lg font-semibold text-foreground flex-1">
+                    {ticket.title}
+                  </Text>
+                  <View
+                    className={`px-2 py-1 rounded-lg ${ticket.status === "open"
+                        ? "bg-primary/20"
+                        : ticket.status === "in_progress"
+                          ? "bg-warning/20"
+                          : "bg-success/20"
+                      }`}
+                  >
+                    <Text
+                      className={`text-xs font-semibold ${ticket.status === "open"
+                          ? "text-primary"
+                          : ticket.status === "in_progress"
+                            ? "text-warning"
+                            : "text-success"
+                        }`}
+                    >
+                      {ticket.status === "open"
+                        ? "Offen"
+                        : ticket.status === "in_progress"
+                          ? "In Bearbeitung"
+                          : "Geschlossen"}
+                    </Text>
+                  </View>
+                </View>
+                {ticket.description ? (
+                  <Text className="text-sm text-muted mb-2" numberOfLines={2}>
+                    {ticket.description}
+                  </Text>
+                ) : null}
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-sm text-muted">
+                    {formatDate(ticket.created_at)}
+                  </Text>
+                  <Text className={`text-sm font-semibold ${priorityColors[ticket.priority] || "text-muted"}`}>
+                    Priorität: {priorityLabels[ticket.priority] || ticket.priority}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        );
+      }
 
       case "portal":
         return (
