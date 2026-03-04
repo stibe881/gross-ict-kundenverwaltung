@@ -233,6 +233,7 @@ function ProductFormModal({
         description: formData.description,
         price: parseFloat(formData.unitPrice) || 0,
         vatRate: parseFloat(formData.vatRate) || 8.1,
+        unit: formData.unit,
         type: formData.type as "product" | "service",
       });
     } else {
@@ -241,6 +242,7 @@ function ProductFormModal({
         description: formData.description,
         price: parseFloat(formData.unitPrice) || 0,
         vatRate: parseFloat(formData.vatRate) || 8.1,
+        unit: formData.unit,
         type: formData.type as "product" | "service",
       });
     }

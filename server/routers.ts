@@ -350,6 +350,7 @@ export const appRouter = router({
           description: z.string().optional(),
           price: z.number(),
           vatRate: z.number().default(8.1),
+          unit: z.string().optional(),
           type: z.enum(["product", "service"]).default("service"),
         })
       )
@@ -359,6 +360,7 @@ export const appRouter = router({
           description: input.description,
           price: input.price,
           vat_rate: input.vatRate,
+          unit: input.unit,
           type: input.type,
         });
       }),
@@ -371,6 +373,7 @@ export const appRouter = router({
           description: z.string().optional(),
           price: z.number().optional(),
           vatRate: z.number().optional(),
+          unit: z.string().optional(),
           type: z.enum(["product", "service"]).optional(),
           isActive: z.boolean().optional(),
         })
@@ -382,6 +385,7 @@ export const appRouter = router({
           description: data.description,
           price: data.price,
           vat_rate: data.vatRate,
+          unit: data.unit,
           type: data.type,
           is_active: data.isActive,
         });
