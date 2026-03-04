@@ -12,6 +12,7 @@ import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { formatCurrency, VAT_RATES, calculateVAT } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
+import { showAlert } from "@/lib/alert";
 
 interface InvoiceItem {
   id: string;
@@ -56,6 +57,11 @@ export function InvoiceFormModal({
   const [showProductPicker, setShowProductPicker] = useState<string | null>(null);
   const [showNewProductForm, setShowNewProductForm] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [newProductName, setNewProductName] = useState("");
+  const [newProductDesc, setNewProductDesc] = useState("");
+  const [newProductPrice, setNewProductPrice] = useState("");
+  const [newProductVat, setNewProductVat] = useState<number>(VAT_RATES.normal);
+  const [newProductForItem, setNewProductForItem] = useState<string | null>(null);
 
   // Kunden laden
   const { data: customers } = trpc.customers.list.useQuery();
@@ -139,29 +145,91 @@ export function InvoiceFormModal({
 
   const { totalNet, totalVAT, totalGross } = calculateTotals();
 
+  // Rechnung speichern
+  const utils = trpc.useUtils();
+  const createInvoice = trpc.invoices.create.useMutation({
+    onSuccess: () => {
+      utils.invoices.list.invalidate();
+      utils.invoices.nextNumber.invalidate();
+      showAlert("Erfolg", "Rechnung wurde erfolgreich erstellt");
+      // Reset form
+      setInvoiceNumber("");
+      setSelectedCustomerId(null);
+      setItems([{ id: "1", name: "", description: "", quantity: "1", unitPrice: "", vatRate: VAT_RATES.normal }]);
+      onSuccess?.();
+      onClose();
+    },
+    onError: (error) => {
+      showAlert("Fehler", `Rechnung konnte nicht erstellt werden: ${error.message}`);
+    },
+  });
+
+  // Produkt erstellen
+  const createProduct = trpc.products.create.useMutation({
+    onSuccess: (newProduct: any) => {
+      utils.products.list.invalidate();
+      // Position automatisch mit neuem Produkt füllen
+      if (newProductForItem) {
+        setItems(
+          items.map((item) =>
+            item.id === newProductForItem
+              ? {
+                ...item,
+                productId: newProduct.id,
+                name: newProduct.name,
+                description: newProduct.description || "",
+                unitPrice: String(newProduct.price || newProduct.unit_price || ""),
+                vatRate: parseFloat(newProduct.vat_rate || newProduct.vatRate || "8.1"),
+              }
+              : item
+          )
+        );
+      }
+      setShowNewProductForm(false);
+      resetNewProductForm();
+      showAlert("Erfolg", "Produkt wurde erstellt und eingefügt");
+    },
+    onError: (error) => {
+      showAlert("Fehler", `Produkt konnte nicht erstellt werden: ${error.message}`);
+    },
+  });
+
+  const resetNewProductForm = () => {
+    setNewProductName("");
+    setNewProductDesc("");
+    setNewProductPrice("");
+    setNewProductVat(VAT_RATES.normal);
+    setNewProductForItem(null);
+  };
+
   const handleSubmit = () => {
     if (!selectedCustomerId || !invoiceNumber) {
-      alert("Bitte wählen Sie einen Kunden und geben Sie eine Rechnungsnummer ein");
+      showAlert("Fehler", "Bitte wählen Sie einen Kunden und geben Sie eine Rechnungsnummer ein");
       return;
     }
 
     if (items.some((item) => !item.name || !item.unitPrice)) {
-      alert("Bitte füllen Sie alle Positionen vollständig aus (Name und Preis)");
+      showAlert("Fehler", "Bitte füllen Sie alle Positionen vollständig aus (Name und Preis)");
       return;
     }
 
-    // TODO: API-Call implementieren
-    console.log("Rechnung erstellen:", {
+    const today = new Date().toISOString().split("T")[0];
+    const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+    createInvoice.mutate({
       customerId: selectedCustomerId,
       invoiceNumber,
-      items,
-      totalNet,
-      totalVAT,
-      totalGross,
+      invoiceDate: today,
+      dueDate,
+      items: items.map((item) => ({
+        productId: item.productId ? String(item.productId) : undefined,
+        description: item.name + (item.description ? `\n${item.description}` : ""),
+        quantity: parseFloat(item.quantity) || 1,
+        unitPrice: parseFloat(item.unitPrice) || 0,
+        vatRate: item.vatRate,
+        total: (parseFloat(item.quantity) || 1) * (parseFloat(item.unitPrice) || 0),
+      })),
     });
-
-    onSuccess?.();
-    onClose();
   };
 
   return (
@@ -406,6 +474,7 @@ export function InvoiceFormModal({
                             className="bg-primary py-2 rounded-lg mt-2"
                             onPress={() => {
                               setShowProductPicker(null);
+                              setNewProductForItem(item.id);
                               setShowNewProductForm(true);
                             }}
                             activeOpacity={0.8}
@@ -551,6 +620,136 @@ export function InvoiceFormModal({
                 );
               })()}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Neues Produkt erstellen Modal */}
+      <Modal
+        visible={showNewProductForm}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          setShowNewProductForm(false);
+          resetNewProductForm();
+        }}
+      >
+        <View className="flex-1 bg-black/50 justify-end">
+          <View className="bg-background rounded-t-3xl" style={{ maxHeight: "70%" }}>
+            <View className="flex-row items-center justify-between p-4 border-b border-border">
+              <Text className="text-xl font-bold text-foreground">
+                Neues Produkt erstellen
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowNewProductForm(false);
+                  resetNewProductForm();
+                }}
+                activeOpacity={0.7}
+              >
+                <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView className="p-4">
+              <View className="gap-4">
+                <View>
+                  <Text className="text-sm font-semibold text-foreground mb-2">Name *</Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="z.B. Microsoft 365 Business"
+                    placeholderTextColor={colors.muted}
+                    value={newProductName}
+                    onChangeText={setNewProductName}
+                    autoFocus
+                  />
+                </View>
+                <View>
+                  <Text className="text-sm font-semibold text-foreground mb-2">Beschreibung</Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="Optionale Beschreibung"
+                    placeholderTextColor={colors.muted}
+                    value={newProductDesc}
+                    onChangeText={setNewProductDesc}
+                    multiline
+                  />
+                </View>
+                <View>
+                  <Text className="text-sm font-semibold text-foreground mb-2">Preis (CHF) *</Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="100.00"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="decimal-pad"
+                    value={newProductPrice}
+                    onChangeText={setNewProductPrice}
+                  />
+                </View>
+                <View>
+                  <Text className="text-sm font-semibold text-foreground mb-2">MwSt-Satz</Text>
+                  <View className="flex-row gap-2">
+                    {[
+                      { label: "8.1%", value: VAT_RATES.normal },
+                      { label: "2.6%", value: VAT_RATES.reduced },
+                      { label: "0%", value: VAT_RATES.none },
+                    ].map((rate) => (
+                      <TouchableOpacity
+                        key={rate.value}
+                        className={`flex-1 py-2 rounded-lg ${newProductVat === rate.value
+                          ? "bg-primary"
+                          : "bg-surface border border-border"
+                          }`}
+                        onPress={() => setNewProductVat(rate.value)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          className={`text-center text-sm font-semibold ${newProductVat === rate.value
+                            ? "text-background"
+                            : "text-foreground"
+                            }`}
+                        >
+                          {rate.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+            <View className="p-4 border-t border-border flex-row gap-3">
+              <TouchableOpacity
+                className="flex-1 bg-surface border border-border py-3 rounded-lg"
+                onPress={() => {
+                  setShowNewProductForm(false);
+                  resetNewProductForm();
+                }}
+                activeOpacity={0.7}
+              >
+                <Text className="text-foreground font-semibold text-center">
+                  Abbrechen
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 bg-primary py-3 rounded-lg"
+                onPress={() => {
+                  if (!newProductName || !newProductPrice) {
+                    showAlert("Fehler", "Bitte geben Sie Name und Preis ein");
+                    return;
+                  }
+                  createProduct.mutate({
+                    name: newProductName,
+                    description: newProductDesc || undefined,
+                    price: parseFloat(newProductPrice) || 0,
+                    vatRate: newProductVat,
+                  });
+                }}
+                activeOpacity={0.8}
+              >
+                <Text className="text-background font-semibold text-center">
+                  Erstellen
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
