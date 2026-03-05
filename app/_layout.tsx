@@ -49,11 +49,16 @@ export default function RootLayout() {
     });
   }, []);
 
+  // Track segments in a ref to avoid re-subscribing on every navigation
+  const segmentsRef = useRef(segments);
+  useEffect(() => { segmentsRef.current = segments; }, [segments]);
+
   // Global Supabase auth state listener — handles SSO callback
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") && session && !authHandled.current) {
+        // Only navigate on actual sign-in, NOT on token refresh or initial session
+        if (event === "SIGNED_IN" && session && !authHandled.current) {
           authHandled.current = true;
           await AsyncStorage.setItem("isLoggedIn", "true");
           await AsyncStorage.setItem("userEmail", session.user.email || "");
@@ -64,13 +69,18 @@ export default function RootLayout() {
             session.user.email || ""
           );
           console.log("[Auth] Session stored for:", session.user.email);
-          // Only navigate if we're not already on the tabs
-          const currentSegment = segments[0];
+          // Only navigate if we're on the login/oauth screen
+          const currentSegment = segmentsRef.current[0];
           if (currentSegment !== "(tabs)") {
             router.replace("/(tabs)");
           }
           // Reset flag after a delay so future sign-ins are handled
           setTimeout(() => { authHandled.current = false; }, 2000);
+        }
+        if (event === "INITIAL_SESSION" && session) {
+          // Just store the session, don't navigate
+          await AsyncStorage.setItem("isLoggedIn", "true");
+          await AsyncStorage.setItem("userEmail", session.user.email || "");
         }
         if (event === "SIGNED_OUT") {
           authHandled.current = false;
@@ -81,7 +91,7 @@ export default function RootLayout() {
       }
     );
     return () => subscription.unsubscribe();
-  }, [segments]);
+  }, []);
 
   const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
     setInsets(metrics.insets);
