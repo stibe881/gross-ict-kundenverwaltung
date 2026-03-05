@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { useLocalSearchParams, router } from "expo-router";
@@ -23,6 +24,7 @@ export default function CustomerDetailScreen() {
   const colors = useColors();
   const [activeTab, setActiveTab] = useState<Tab>("stammdaten");
   const [portalEnabled, setPortalEnabled] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<any>(null);
 
   // Kundendaten aus Supabase laden
   const { data: customer, isLoading: loading } = useQuery({
@@ -268,7 +270,7 @@ export default function CustomerDetailScreen() {
                 key={contract.id}
                 className="bg-surface p-4 rounded-xl border border-border"
                 activeOpacity={0.7}
-                onPress={() => router.push("/contracts" as any)}
+                onPress={() => setSelectedContract(contract)}
               >
                 <View className="flex-row items-start justify-between mb-2">
                   <Text className="text-lg font-semibold text-foreground flex-1">
@@ -494,76 +496,150 @@ export default function CustomerDetailScreen() {
   };
 
   return (
-    <ScreenContainer>
-      {/* Header */}
-      <View className="p-4 border-b border-border">
-        <View className="flex-row items-center gap-3 mb-4">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-          >
-            <IconSymbol
-              name="chevron.left"
-              size={24}
-              color={colors.foreground}
-            />
-          </TouchableOpacity>
-          <View className="flex-1">
-            <Text className="text-2xl font-bold text-foreground">
-              {customer?.company_name || `${customer?.first_name || ""} ${customer?.last_name || ""}`.trim() || "Kunde"}
-            </Text>
-            {customer?.company_name && (customer?.first_name || customer?.last_name) ? (
-              <Text className="text-sm text-muted">
-                {`${customer?.first_name || ""} ${customer?.last_name || ""}`.trim()}
-              </Text>
-            ) : null}
-          </View>
-          <TouchableOpacity
-            onPress={handleDelete}
-            activeOpacity={0.6}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <IconSymbol name="trash.fill" size={22} color={colors.error || "#EF4444"} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Tabs */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="flex-row gap-2"
-        >
-          {tabs.map((tab) => (
+    <>
+      <ScreenContainer>
+        {/* Header */}
+        <View className="p-4 border-b border-border">
+          <View className="flex-row items-center gap-3 mb-4">
             <TouchableOpacity
-              key={tab.key}
-              onPress={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-lg ${activeTab === tab.key
-                ? "bg-primary"
-                : "bg-surface border border-border"
-                }`}
+              onPress={() => router.back()}
               activeOpacity={0.7}
             >
-              <Text
-                className={`text-sm font-semibold ${activeTab === tab.key ? "text-background" : "text-foreground"
-                  }`}
-              >
-                {tab.label}
-              </Text>
+              <IconSymbol
+                name="chevron.left"
+                size={24}
+                color={colors.foreground}
+              />
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Content */}
-      <ScrollView className="flex-1 p-4">
-        {loading ? (
-          <View className="flex-1 items-center justify-center py-12">
-            <ActivityIndicator size="large" color={colors.primary} />
+            <View className="flex-1">
+              <Text className="text-2xl font-bold text-foreground">
+                {customer?.company_name || `${customer?.first_name || ""} ${customer?.last_name || ""}`.trim() || "Kunde"}
+              </Text>
+              {customer?.company_name && (customer?.first_name || customer?.last_name) ? (
+                <Text className="text-sm text-muted">
+                  {`${customer?.first_name || ""} ${customer?.last_name || ""}`.trim()}
+                </Text>
+              ) : null}
+            </View>
+            <TouchableOpacity
+              onPress={handleDelete}
+              activeOpacity={0.6}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <IconSymbol name="trash.fill" size={22} color={colors.error || "#EF4444"} />
+            </TouchableOpacity>
           </View>
-        ) : (
-          renderTabContent()
-        )}
-      </ScrollView>
-    </ScreenContainer>
+
+          {/* Tabs */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="flex-row gap-2"
+          >
+            {tabs.map((tab) => (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key)}
+                className={`px-4 py-2 rounded-lg ${activeTab === tab.key
+                  ? "bg-primary"
+                  : "bg-surface border border-border"
+                  }`}
+                activeOpacity={0.7}
+              >
+                <Text
+                  className={`text-sm font-semibold ${activeTab === tab.key ? "text-background" : "text-foreground"
+                    }`}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Content */}
+        <ScrollView className="flex-1 p-4">
+          {loading ? (
+            <View className="flex-1 items-center justify-center py-12">
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
+            renderTabContent()
+          )}
+        </ScrollView>
+      </ScreenContainer>
+
+      {/* Vertragsdetail-Modal */}
+      {
+        selectedContract && (
+          <Modal visible={true} animationType="slide" transparent onRequestClose={() => setSelectedContract(null)}>
+            <View className="flex-1 bg-black/50 justify-end">
+              <View className="bg-background rounded-t-3xl" style={{ maxHeight: "90%" }}>
+                <View className="flex-row items-center justify-between p-4 border-b border-border">
+                  <Text className="text-2xl font-bold text-foreground">Vertragsdetails</Text>
+                  <TouchableOpacity onPress={() => setSelectedContract(null)} activeOpacity={0.7}>
+                    <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
+                  <View className="gap-4">
+                    <View className="flex-row items-start justify-between">
+                      <View className="flex-1">
+                        <Text className="text-xl font-bold text-foreground mb-1">{selectedContract.title}</Text>
+                      </View>
+                      <View className={`px-3 py-1 rounded-full ${selectedContract.status === 'active' ? 'bg-success/20' : selectedContract.status === 'cancelled' ? 'bg-error/20' : 'bg-warning/20'}`}>
+                        <Text className={`text-sm font-semibold ${selectedContract.status === 'active' ? 'text-success' : selectedContract.status === 'cancelled' ? 'text-error' : 'text-warning'}`}>
+                          {selectedContract.status === 'active' ? 'Aktiv' : selectedContract.status === 'cancelled' ? 'Gekündigt' : 'Abgelaufen'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {selectedContract.description ? (
+                      <Text className="text-base text-muted">{selectedContract.description}</Text>
+                    ) : null}
+
+                    <View className="bg-surface rounded-xl p-4 border border-border gap-3">
+                      <View>
+                        <Text className="text-sm text-muted mb-1">Laufzeit</Text>
+                        <Text className="text-base text-foreground">
+                          {formatDate(selectedContract.start_date)} - {formatDate(selectedContract.end_date)}
+                        </Text>
+                      </View>
+                      <View>
+                        <Text className="text-sm text-muted mb-1">Dauer</Text>
+                        <Text className="text-base text-foreground">
+                          {selectedContract.duration_months} Monate
+                        </Text>
+                      </View>
+                      <View>
+                        <Text className="text-sm text-muted mb-1">Jahresbetrag</Text>
+                        <Text className="text-lg font-bold text-success">
+                          {formatCurrency(selectedContract.amount)}
+                        </Text>
+                      </View>
+                      <View>
+                        <Text className="text-sm text-muted mb-1">Kündigungsfrist</Text>
+                        <Text className="text-base text-foreground">
+                          {selectedContract.notice_period_months} {selectedContract.notice_period_months === 1 ? 'Monat' : 'Monate'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </ScrollView>
+                <View className="p-4 border-t border-border">
+                  <TouchableOpacity
+                    className="bg-surface border border-border py-3 rounded-lg"
+                    onPress={() => setSelectedContract(null)}
+                    activeOpacity={0.8}
+                  >
+                    <Text className="text-foreground font-semibold text-center">Schließen</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )
+      }
+    </>
   );
 }
