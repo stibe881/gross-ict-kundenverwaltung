@@ -38,6 +38,7 @@ export function ContractFormModal({
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [customerSearch, setCustomerSearch] = useState("");
 
   // Kunden laden
   const { data: customers } = useQuery({
@@ -51,7 +52,20 @@ export function ContractFormModal({
     queryFn: Data.getContractTemplates,
   });
 
-  const selectedCustomer = customers?.find((c) => c.id === formData.customerId);
+  const selectedCustomer = customers?.find((c: any) => c.id === formData.customerId);
+
+  const getCustomerName = (c: any) => c.company_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || 'Unbekannt';
+
+  const filteredCustomers = customers?.filter((c: any) => {
+    if (!customerSearch.trim()) return true;
+    const search = customerSearch.toLowerCase();
+    return (
+      (c.company_name || '').toLowerCase().includes(search) ||
+      (c.first_name || '').toLowerCase().includes(search) ||
+      (c.last_name || '').toLowerCase().includes(search) ||
+      (c.email || '').toLowerCase().includes(search)
+    );
+  });
 
   const applyTemplate = (template: any) => {
     setSelectedTemplate(template);
@@ -68,11 +82,17 @@ export function ContractFormModal({
 
   // Enddatum automatisch berechnen
   const calculateEndDate = () => {
-    if (!formData.startDate || !formData.durationMonths) return "";
-    const start = new Date(formData.startDate);
-    const end = new Date(start);
-    end.setMonth(end.getMonth() + parseInt(formData.durationMonths));
-    return end.toISOString().split("T")[0];
+    try {
+      if (!formData.startDate || !formData.durationMonths) return "";
+      const start = new Date(formData.startDate);
+      if (isNaN(start.getTime())) return "";
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + parseInt(formData.durationMonths));
+      if (isNaN(end.getTime())) return "";
+      return end.toISOString().split("T")[0];
+    } catch {
+      return "";
+    }
   };
 
   const handleSubmit = () => {
@@ -162,13 +182,12 @@ export function ContractFormModal({
                 </Text>
                 <TouchableOpacity
                   className="bg-surface border border-border rounded-lg px-4 py-3"
-                  onPress={() => setShowCustomerPicker(true)}
+                  onPress={() => { setCustomerSearch(''); setShowCustomerPicker(true); }}
                   activeOpacity={0.7}
                 >
                   <Text className={selectedCustomer ? "text-foreground" : "text-muted"}>
                     {selectedCustomer
-                      ? selectedCustomer.companyName ||
-                      `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
+                      ? getCustomerName(selectedCustomer)
                       : "Kunde auswählen..."}
                   </Text>
                 </TouchableOpacity>
@@ -335,9 +354,20 @@ export function ContractFormModal({
                 <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
               </TouchableOpacity>
             </View>
+            {/* Suchfeld */}
+            <View className="px-4 pt-3">
+              <TextInput
+                className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                placeholder="Kunde suchen..."
+                placeholderTextColor={colors.muted}
+                value={customerSearch}
+                onChangeText={setCustomerSearch}
+                autoFocus
+              />
+            </View>
             <ScrollView className="p-4">
-              {customers && customers.length > 0 ? (
-                customers.map((customer) => (
+              {filteredCustomers && filteredCustomers.length > 0 ? (
+                filteredCustomers.map((customer: any) => (
                   <TouchableOpacity
                     key={customer.id}
                     className="py-3 border-b border-border"
@@ -348,8 +378,7 @@ export function ContractFormModal({
                     activeOpacity={0.7}
                   >
                     <Text className="text-base font-semibold text-foreground">
-                      {customer.companyName ||
-                        `${customer.firstName} ${customer.lastName}`}
+                      {getCustomerName(customer)}
                     </Text>
                     {customer.email && (
                       <Text className="text-sm text-muted">{customer.email}</Text>
@@ -358,7 +387,7 @@ export function ContractFormModal({
                 ))
               ) : (
                 <Text className="text-center text-muted py-4">
-                  Keine Kunden vorhanden
+                  {customerSearch ? "Kein Kunde gefunden" : "Keine Kunden vorhanden"}
                 </Text>
               )}
             </ScrollView>
