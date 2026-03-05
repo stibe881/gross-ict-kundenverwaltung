@@ -264,9 +264,11 @@ export default function CustomerDetailScreen() {
         return (
           <View className="gap-3">
             {contracts.map((contract: any) => (
-              <View
+              <TouchableOpacity
                 key={contract.id}
                 className="bg-surface p-4 rounded-xl border border-border"
+                activeOpacity={0.7}
+                onPress={() => router.push("/contracts" as any)}
               >
                 <View className="flex-row items-start justify-between mb-2">
                   <Text className="text-lg font-semibold text-foreground flex-1">
@@ -306,10 +308,10 @@ export default function CustomerDetailScreen() {
                     {formatDate(contract.start_date)} – {formatDate(contract.end_date)}
                   </Text>
                   <Text className="text-base font-bold text-primary">
-                    {formatCurrency(contract.annual_amount)}/Jahr
+                    {formatCurrency(contract.amount)}/Jahr
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         );
