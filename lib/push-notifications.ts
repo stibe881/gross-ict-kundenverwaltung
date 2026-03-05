@@ -56,14 +56,14 @@ export async function getPushToken(): Promise<string | null> {
 
   try {
     const token = await Notifications.getExpoPushTokenAsync({
-      projectId: "your-project-id", // TODO: Ersetzen mit echtem Expo Project ID
+      projectId: "f1e370f0-264c-4354-bec5-3295208bfd21",
     });
-    
+
     console.log("[Push] Token:", token.data);
-    
+
     // Speichere Token lokal
     await AsyncStorage.setItem("pushToken", token.data);
-    
+
     return token.data;
   } catch (error) {
     console.error("[Push] Error getting token:", error);
@@ -93,7 +93,7 @@ export async function sendTicketNotification(
       },
       trigger: null, // Sofort senden
     });
-    
+
     console.log("[Push] Ticket notification sent");
   } catch (error) {
     console.error("[Push] Error sending notification:", error);
@@ -131,7 +131,7 @@ export async function scheduleLocalNotification(
  */
 export async function initializePushNotifications(): Promise<void> {
   const hasPermission = await requestPermissions();
-  
+
   if (hasPermission) {
     await getPushToken();
   }
