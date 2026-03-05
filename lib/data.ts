@@ -397,18 +397,6 @@ export async function createCommunication(communication: any) {
     return data;
 }
 
-// ==================== CONTRACTS (Create) ====================
-
-export async function createContract(contract: any) {
-    const { data, error } = await supabase
-        .from("contracts")
-        .insert([contract])
-        .select()
-        .single();
-
-    if (error) throw new Error(error.message);
-    return data;
-}
 
 // ==================== ANGEBOTE (QUOTES) ====================
 
@@ -546,6 +534,62 @@ export async function convertQuoteToInvoice(quoteId: string) {
     await supabase.from("quotes").update({ status: "accepted" }).eq("id", quoteId);
 
     return invoice;
+}
+
+// ==================== VERTRÄGE ====================
+
+export async function getContracts() {
+    const { data, error } = await supabase
+        .from("contracts")
+        .select("*, customers(company_name, first_name, last_name)")
+        .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return (data || []).map((c: any) => ({
+        ...c,
+        customer_name: c.customers?.company_name ||
+            `${c.customers?.first_name || ''} ${c.customers?.last_name || ''}`.trim() ||
+            'Unbekannt',
+    }));
+}
+
+export async function createContract(contract: {
+    customer_id: string;
+    title: string;
+    description?: string;
+    amount?: number;
+    start_date: string;
+    end_date?: string;
+    duration_months?: number;
+    notice_period_months?: number;
+    template_id?: string;
+}) {
+    const { data, error } = await supabase
+        .from("contracts")
+        .insert([{ ...contract, status: "active" }])
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateContract(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from("contracts")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteContract(id: string) {
+    const { error } = await supabase.from("contracts").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    return { success: true };
 }
 
 // ==================== VERTRAGSVORLAGEN ====================

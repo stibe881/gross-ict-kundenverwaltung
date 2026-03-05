@@ -95,22 +95,30 @@ export function ContractFormModal({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.title || !formData.customerId || !formData.amount || !formData.startDate) {
       alert("Bitte füllen Sie alle Pflichtfelder aus");
       return;
     }
 
-    // TODO: API-Call implementieren
-    console.log("Vertrag erstellen:", {
-      ...formData,
-      amount: parseFloat(formData.amount),
-      durationMonths: parseInt(formData.durationMonths),
-      noticePeriodMonths: parseInt(formData.noticePeriodMonths),
-      endDate: calculateEndDate(),
-    });
-    onSuccess?.();
-    onClose();
+    try {
+      const endDate = calculateEndDate();
+      await Data.createContract({
+        customer_id: formData.customerId,
+        title: formData.title,
+        description: formData.description || undefined,
+        amount: parseFloat(formData.amount),
+        start_date: formData.startDate,
+        end_date: endDate || undefined,
+        duration_months: parseInt(formData.durationMonths) || 12,
+        notice_period_months: parseInt(formData.noticePeriodMonths) || 3,
+        template_id: selectedTemplate?.id || undefined,
+      });
+      onSuccess?.();
+      onClose();
+    } catch (error: any) {
+      alert("Fehler beim Erstellen: " + error.message);
+    }
   };
 
   return (

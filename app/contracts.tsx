@@ -21,65 +21,22 @@ import { showAlert, showConfirm } from "@/lib/alert";
 
 type ContractStatus = "active" | "cancelled" | "expired";
 
-interface Contract {
-  id: number;
-  title: string;
-  customer: string;
-  customerId: number;
-  amount: number;
-  startDate: string;
-  endDate: string;
-  status: ContractStatus;
-  noticePeriod: number;
-}
-
-const mockContracts: Contract[] = [
-  {
-    id: 1,
-    title: "Wartungsvertrag Standard",
-    customer: "Musterfirma GmbH",
-    customerId: 1,
-    amount: 1200,
-    startDate: "2024-01-01",
-    endDate: "2025-12-31",
-    status: "active",
-    noticePeriod: 3,
-  },
-  {
-    id: 2,
-    title: "Software-Lizenz Premium",
-    customer: "Schmidt AG",
-    customerId: 2,
-    amount: 2500,
-    startDate: "2025-06-01",
-    endDate: "2026-05-31",
-    status: "active",
-    noticePeriod: 1,
-  },
-  {
-    id: 3,
-    title: "Support-Vertrag",
-    customer: "Müller & Co",
-    customerId: 3,
-    amount: 800,
-    startDate: "2023-01-01",
-    endDate: "2024-12-31",
-    status: "expired",
-    noticePeriod: 6,
-  },
-];
-
 export default function ContractsScreen() {
   const colors = useColors();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [contracts] = useState<Contract[]>(mockContracts);
   const [filter, setFilter] = useState<"all" | ContractStatus>("all");
+
+  // Verträge aus DB laden
+  const { data: contracts = [], isLoading: contractsLoading } = useQuery({
+    queryKey: ["contracts"],
+    queryFn: Data.getContracts,
+  });
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
-  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [selectedContract, setSelectedContract] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"contracts" | "templates">("contracts");
 
   // Vorlagen laden
@@ -154,10 +111,10 @@ export default function ContractsScreen() {
     return colorMap[status];
   };
 
-  const filteredContracts =
+  const filteredContracts: any[] =
     filter === "all" ? contracts : contracts.filter((c) => c.status === filter);
 
-  const renderContractItem = ({ item }: { item: Contract }) => (
+  const renderContractItem = ({ item }: { item: any }) => (
     <TouchableOpacity
       className="bg-surface rounded-xl p-4 mb-3 border border-border"
       activeOpacity={0.7}
@@ -166,7 +123,7 @@ export default function ContractsScreen() {
       <View className="flex-row items-start justify-between mb-2">
         <View className="flex-1">
           <Text className="text-lg font-semibold text-foreground mb-1">{item.title}</Text>
-          <Text className="text-sm text-muted">{item.customer}</Text>
+          <Text className="text-sm text-muted">{item.customer_name}</Text>
         </View>
         <View
           className="px-3 py-1 rounded-full ml-2"
@@ -185,7 +142,7 @@ export default function ContractsScreen() {
         <View>
           <Text className="text-xs text-muted">Laufzeit</Text>
           <Text className="text-sm text-foreground">
-            {formatDate(item.startDate)} - {formatDate(item.endDate)}
+            {formatDate(item.start_date)} - {formatDate(item.end_date)}
           </Text>
         </View>
         <View>
@@ -198,7 +155,7 @@ export default function ContractsScreen() {
 
       <View className="mt-2">
         <Text className="text-xs text-muted">
-          Kündigungsfrist: {item.noticePeriod} {item.noticePeriod === 1 ? "Monat" : "Monate"}
+          Kündigungsfrist: {item.notice_period_months} {item.notice_period_months === 1 ? "Monat" : "Monate"}
         </Text>
       </View>
     </TouchableOpacity>
@@ -457,7 +414,10 @@ export default function ContractsScreen() {
       <ContractFormModal
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSuccess={() => { }}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["contracts"] });
+          queryClient.invalidateQueries({ queryKey: ["customers"] });
+        }}
       />
 
       {/* Vorlagen-Formular Modal */}
@@ -491,7 +451,7 @@ function ContractDetailsModal({
   getStatusLabel,
   getStatusColor,
 }: {
-  contract: Contract;
+  contract: any;
   onClose: () => void;
   getStatusLabel: (status: ContractStatus) => string;
   getStatusColor: (status: ContractStatus) => string;
@@ -502,14 +462,14 @@ function ContractDetailsModal({
       id: 1,
       type: "system" as const,
       text: "Vertrag erstellt",
-      createdAt: contract.startDate,
+      createdAt: contract.start_date || contract.created_at,
       user: "System",
     },
     {
       id: 2,
       type: "activity" as const,
       text: "Vertrag vom Kunden unterzeichnet",
-      createdAt: contract.startDate,
+      createdAt: contract.start_date || contract.created_at,
       user: "Admin User",
     },
   ]);
@@ -535,7 +495,7 @@ function ContractDetailsModal({
                     <Text className="text-xl font-bold text-foreground mb-1">
                       {contract.title}
                     </Text>
-                    <Text className="text-base text-muted">{contract.customer}</Text>
+                    <Text className="text-base text-muted">{contract.customer_name}</Text>
                   </View>
                   <View
                     className="px-3 py-1 rounded-full"
@@ -556,7 +516,7 @@ function ContractDetailsModal({
                   <View>
                     <Text className="text-sm text-muted mb-1">Laufzeit</Text>
                     <Text className="text-base text-foreground">
-                      {formatDate(contract.startDate)} - {formatDate(contract.endDate)}
+                      {formatDate(contract.start_date)} - {formatDate(contract.end_date)}
                     </Text>
                   </View>
                   <View>
@@ -568,7 +528,7 @@ function ContractDetailsModal({
                   <View>
                     <Text className="text-sm text-muted mb-1">Kündigungsfrist</Text>
                     <Text className="text-base text-foreground">
-                      {contract.noticePeriod} {contract.noticePeriod === 1 ? "Monat" : "Monate"}
+                      {contract.notice_period_months} {contract.notice_period_months === 1 ? "Monat" : "Monate"}
                     </Text>
                   </View>
                 </View>
