@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
-import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { CustomerFormModal } from "@/components/customer-form-modal";
@@ -23,15 +23,25 @@ interface DashboardTile {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { user, isAuthenticated, loading } = useAuth();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const colors = useColors();
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
 
-  // Auth-Check wird bereits im Tab-Layout durchgeführt
-  // Hier nur noch Loading-State anzeigen falls nötig
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   if (loading) {
     return (
       <ScreenContainer className="items-center justify-center">

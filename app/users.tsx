@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ScrollView,
   Text,
@@ -10,7 +10,7 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase";
 
 type UserRole = "admin" | "manager" | "accounting" | "sales" | "support";
 
@@ -61,9 +61,15 @@ const mockUsers: User[] = [
 export default function UsersScreen() {
   const colors = useColors();
   const router = useRouter();
-  const { user } = useAuth();
+  const [user, setUser] = useState<any>(null);
   const [users] = useState<User[]>(mockUsers);
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+  }, []);
 
   // Nur Admins dürfen diesen Screen sehen
   if ((user as any)?.role !== "admin") {
@@ -113,8 +119,8 @@ export default function UsersScreen() {
     filter === "all"
       ? users
       : filter === "active"
-      ? users.filter((u) => u.isActive)
-      : users.filter((u) => !u.isActive);
+        ? users.filter((u) => u.isActive)
+        : users.filter((u) => !u.isActive);
 
   const renderUserItem = ({ item }: { item: User }) => (
     <TouchableOpacity
@@ -205,15 +211,13 @@ export default function UsersScreen() {
             ].map((status) => (
               <TouchableOpacity
                 key={status.key}
-                className={`px-4 py-2 rounded-lg ${
-                  filter === status.key ? "bg-primary" : "bg-surface border border-border"
-                }`}
+                className={`px-4 py-2 rounded-lg ${filter === status.key ? "bg-primary" : "bg-surface border border-border"
+                  }`}
                 onPress={() => setFilter(status.key as any)}
               >
                 <Text
-                  className={`font-semibold ${
-                    filter === status.key ? "text-background" : "text-foreground"
-                  }`}
+                  className={`font-semibold ${filter === status.key ? "text-background" : "text-foreground"
+                    }`}
                 >
                   {status.label}
                 </Text>
