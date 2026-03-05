@@ -11,7 +11,8 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
-import { trpc } from "@/lib/trpc";
+import { useQuery } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { router as expoRouter } from "expo-router";
 
@@ -22,7 +23,10 @@ export default function AccountingScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Rechnungen laden
-  const { data: invoices, isLoading, refetch } = trpc.invoices.list.useQuery();
+  const { data: invoices, isLoading, refetch } = useQuery({
+    queryKey: ["invoices"],
+    queryFn: Data.getAllInvoices,
+  });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

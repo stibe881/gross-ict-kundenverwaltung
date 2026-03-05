@@ -19,55 +19,39 @@ export function useAuth(options?: UseAuthOptions) {
       setLoading(true);
       setError(null);
 
-      // Web platform: use cookie-based auth, fetch user from API
-      if (Platform.OS === "web") {
-        console.log("[useAuth] Web platform: fetching user from API...");
-        const apiUser = await Api.getMe();
-        console.log("[useAuth] API user response:", apiUser);
-
-        if (apiUser) {
-          const userInfo: Auth.User = {
-            id: apiUser.id,
-            openId: apiUser.openId,
-            name: apiUser.name,
-            email: apiUser.email,
-            loginMethod: apiUser.loginMethod,
-            lastSignedIn: new Date(apiUser.lastSignedIn),
-          };
-          setUser(userInfo);
-          // Cache user info in localStorage for faster subsequent loads
-          await Auth.setUserInfo(userInfo);
-          console.log("[useAuth] Web user set from API:", userInfo);
-        } else {
-          console.log("[useAuth] Web: No authenticated user from API");
-          setUser(null);
-          await Auth.clearUserInfo();
-        }
-        return;
-      }
-
-      // Native platform: use token-based auth
-      console.log("[useAuth] Native platform: checking for session token...");
-      const sessionToken = await Auth.getSessionToken();
-      console.log(
-        "[useAuth] Session token:",
-        sessionToken ? `present (${sessionToken.substring(0, 20)}...)` : "missing",
-      );
-      if (!sessionToken) {
-        console.log("[useAuth] No session token, setting user to null");
-        setUser(null);
-        return;
-      }
-
-      // Use cached user info for native (token validates the session)
+      // Both web and native: check cached user info from AsyncStorage/localStorage
+      // (The old Express API server is no longer running — we use direct Supabase now)
       const cachedUser = await Auth.getUserInfo();
       console.log("[useAuth] Cached user:", cachedUser);
       if (cachedUser) {
-        console.log("[useAuth] Using cached user info");
         setUser(cachedUser);
       } else {
-        console.log("[useAuth] No cached user, setting user to null");
-        setUser(null);
+        // Fallback: check AsyncStorage "isLoggedIn" flag (set by login.tsx)
+        if (Platform.OS === "web") {
+          const isLoggedIn = window.localStorage.getItem("isLoggedIn");
+          const userEmail = window.localStorage.getItem("userEmail");
+          const userName = window.localStorage.getItem("userName");
+          if (isLoggedIn === "true") {
+            const basicUser: Auth.User = {
+              id: 0,
+              openId: "",
+              name: userName || "Benutzer",
+              email: userEmail || null,
+              loginMethod: "local",
+              lastSignedIn: new Date(),
+            };
+            setUser(basicUser);
+            await Auth.setUserInfo(basicUser);
+          } else {
+            setUser(null);
+          }
+        } else {
+          // Native: check for session token
+          const sessionToken = await Auth.getSessionToken();
+          if (!sessionToken) {
+            setUser(null);
+          }
+        }
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error("Failed to fetch user");

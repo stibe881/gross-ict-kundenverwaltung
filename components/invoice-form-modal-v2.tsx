@@ -7,11 +7,14 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { formatCurrency, VAT_RATES, calculateVAT } from "@/lib/format";
-import { trpc } from "@/lib/trpc";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
 import { showAlert } from "@/lib/alert";
 
 interface InvoiceItem {
@@ -42,7 +45,9 @@ export function InvoiceFormModal({
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   // Nächste Rechnungsnummer laden
-  const { data: nextNumber } = trpc.invoices.nextNumber.useQuery(undefined, {
+  const { data: nextNumber } = useQuery({
+    queryKey: ["invoices", "nextNumber"],
+    queryFn: Data.getNextInvoiceNumber,
     enabled: visible && !editInvoice,
   });
 
@@ -78,6 +83,8 @@ export function InvoiceFormModal({
   const [showProductPicker, setShowProductPicker] = useState<string | null>(null);
   const [showNewProductForm, setShowNewProductForm] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [productSearch, setProductSearch] = useState("");
+  const [dismissedAutocomplete, setDismissedAutocomplete] = useState<Set<string>>(new Set());
   const [newProductName, setNewProductName] = useState("");
   const [newProductDesc, setNewProductDesc] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
@@ -85,10 +92,16 @@ export function InvoiceFormModal({
   const [newProductForItem, setNewProductForItem] = useState<string | null>(null);
 
   // Kunden laden
-  const { data: customers } = trpc.customers.list.useQuery();
+  const { data: customers } = useQuery({
+    queryKey: ["customers"],
+    queryFn: Data.getCustomersWithCounts,
+  });
 
   // Produkte laden
-  const { data: products } = trpc.products.list.useQuery();
+  const { data: products } = useQuery({
+    queryKey: ["products"],
+    queryFn: Data.getAllProducts,
+  });
 
   const selectedCustomer = customers?.find((c: any) => c.id === selectedCustomerId);
 
@@ -118,6 +131,14 @@ export function InvoiceFormModal({
         item.id === id ? { ...item, [field]: value } : item
       )
     );
+    // Wenn der Benutzer den Namen ändert, Autocomplete wieder einblenden
+    if (field === "name") {
+      setDismissedAutocomplete((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   };
 
   const selectProduct = (itemId: string, productId: number) => {
@@ -132,13 +153,16 @@ export function InvoiceFormModal({
               name: product.name,
               description: product.description || "",
               unitPrice: String(product.price),
-              vatRate: parseFloat(product.vat_rate),
+              vatRate: product.vat_rate != null ? parseFloat(String(product.vat_rate)) : VAT_RATES.normal,
             }
             : item
         )
       );
     }
     setShowProductPicker(null);
+    setProductSearch("");
+    // Autocomplete für dieses Item unterdrücken
+    setDismissedAutocomplete((prev) => new Set(prev).add(itemId));
   };
 
   const calculateItemTotal = (item: InvoiceItem) => {
@@ -167,31 +191,67 @@ export function InvoiceFormModal({
   const { totalNet, totalVAT, totalGross } = calculateTotals();
 
   // Rechnung speichern
-  const utils = trpc.useUtils();
-  const createInvoice = trpc.invoices.create.useMutation({
+  const queryClient = useQueryClient();
+  const createInvoiceMut = useMutation({
+    mutationFn: (payload: any) => {
+      const { items: payloadItems, ...invoiceData } = payload;
+      return Data.createInvoice({
+        customer_id: invoiceData.customerId,
+        invoice_number: invoiceData.invoiceNumber,
+        invoice_date: invoiceData.invoiceDate,
+        due_date: invoiceData.dueDate,
+        subtotal: 0,
+        tax: 0,
+        total: payloadItems.reduce((s: number, i: any) => s + i.total, 0),
+        status: "open",
+      }, payloadItems.map((i: any) => ({
+        description: i.description,
+        quantity: i.quantity,
+        unit_price: i.unitPrice,
+        vat_rate: i.vatRate,
+        total: i.total,
+        product_id: i.productId || null,
+      })));
+    },
     onSuccess: () => {
-      utils.invoices.list.invalidate();
-      utils.invoices.nextNumber.invalidate();
-      utils.invoices.getById.invalidate();
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
       showAlert("Erfolg", "Rechnung wurde erfolgreich erstellt");
       resetForm();
       onSuccess?.();
       onClose();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       showAlert("Fehler", `Rechnung konnte nicht erstellt werden: ${error.message}`);
     },
   });
 
-  const updateInvoice = trpc.invoices.update.useMutation({
+  const updateInvoiceMut = useMutation({
+    mutationFn: (payload: any) => {
+      const { id, items: payloadItems, ...invoiceData } = payload;
+      return Data.updateInvoice(id, {
+        customer_id: invoiceData.customerId,
+        invoice_number: invoiceData.invoiceNumber,
+        invoice_date: invoiceData.invoiceDate,
+        due_date: invoiceData.dueDate,
+        subtotal: 0,
+        tax: 0,
+        total: payloadItems.reduce((s: number, i: any) => s + i.total, 0),
+      }, payloadItems.map((i: any) => ({
+        description: i.description,
+        quantity: i.quantity,
+        unit_price: i.unitPrice,
+        vat_rate: i.vatRate,
+        total: i.total,
+        product_id: i.productId || null,
+      })));
+    },
     onSuccess: () => {
-      utils.invoices.list.invalidate();
-      utils.invoices.getById.invalidate();
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
       showAlert("Erfolg", "Rechnung wurde aktualisiert");
       onSuccess?.();
       onClose();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       showAlert("Fehler", `Rechnung konnte nicht aktualisiert werden: ${error.message}`);
     },
   });
@@ -203,10 +263,16 @@ export function InvoiceFormModal({
   };
 
   // Produkt erstellen
-  const createProduct = trpc.products.create.useMutation({
+  const createProduct = useMutation({
+    mutationFn: (data: any) => Data.createProduct({
+      name: data.name,
+      description: data.description,
+      price: data.price,
+      vat_rate: data.vatRate,
+      type: "product",
+    }),
     onSuccess: (newProduct: any) => {
-      utils.products.list.invalidate();
-      // Position automatisch mit neuem Produkt füllen
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       if (newProductForItem) {
         setItems(
           items.map((item) =>
@@ -227,7 +293,7 @@ export function InvoiceFormModal({
       resetNewProductForm();
       showAlert("Erfolg", "Produkt wurde erstellt und eingefügt");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       showAlert("Fehler", `Produkt konnte nicht erstellt werden: ${error.message}`);
     },
   });
@@ -247,7 +313,7 @@ export function InvoiceFormModal({
     }
 
     if (items.some((item) => !item.name || !item.unitPrice)) {
-      showAlert("Fehler", "Bitte füllen Sie alle Positionen vollständig aus (Name und Preis)");
+      showAlert("Fehler", "Bitte füllen Sie alle Positionen vollständig aus (Produkt und Preis)");
       return;
     }
 
@@ -270,9 +336,9 @@ export function InvoiceFormModal({
     };
 
     if (isEditMode) {
-      updateInvoice.mutate({ id: editInvoice.id, ...invoicePayload });
+      updateInvoiceMut.mutate({ id: editInvoice.id, ...invoicePayload });
     } else {
-      createInvoice.mutate(invoicePayload);
+      createInvoiceMut.mutate(invoicePayload);
     }
   };
 
@@ -284,7 +350,8 @@ export function InvoiceFormModal({
       onRequestClose={onClose}
     >
       <View className="flex-1 bg-black/50 justify-end">
-        <View
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           className="bg-background rounded-t-3xl"
           style={{ maxHeight: "95%" }}
         >
@@ -299,7 +366,7 @@ export function InvoiceFormModal({
           </View>
 
           {/* Form */}
-          <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
+          <ScrollView className="p-4" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View className="gap-4">
               {/* Rechnungsnummer */}
               <View>
@@ -341,15 +408,6 @@ export function InvoiceFormModal({
                   <Text className="text-sm font-semibold text-foreground">
                     Positionen
                   </Text>
-                  <TouchableOpacity
-                    className="bg-primary px-3 py-1 rounded-lg"
-                    onPress={addItem}
-                    activeOpacity={0.8}
-                  >
-                    <Text className="text-background text-xs font-semibold">
-                      + Position
-                    </Text>
-                  </TouchableOpacity>
                 </View>
 
                 {items.map((item, index) => (
@@ -386,9 +444,9 @@ export function InvoiceFormModal({
                       </View>
                     </View>
 
-                    {/* Name */}
+                    {/* Produkt */}
                     <View className="mb-2">
-                      <Text className="text-xs text-muted mb-1">Name *</Text>
+                      <Text className="text-xs text-muted mb-1">Produkt *</Text>
                       <TextInput
                         className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
                         placeholder="z.B. Microsoft 365 Business"
@@ -399,6 +457,32 @@ export function InvoiceFormModal({
                         }
                       />
                     </View>
+
+                    {/* Autocomplete Vorschläge */}
+                    {item.name && item.name.length >= 2 && showProductPicker !== item.id && !dismissedAutocomplete.has(item.id) && (() => {
+                      const q = item.name.toLowerCase();
+                      const suggestions = products?.filter((p: any) =>
+                        p.name?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q)
+                      ).slice(0, 5) || [];
+                      if (suggestions.length === 0) return null;
+                      return (
+                        <View className="bg-background border border-border rounded-b-lg -mt-2 mb-2 overflow-hidden">
+                          {suggestions.map((product: any) => (
+                            <TouchableOpacity
+                              key={product.id}
+                              className="px-3 py-2 border-b border-border"
+                              onPress={() => selectProduct(item.id, product.id)}
+                              activeOpacity={0.7}
+                            >
+                              <Text className="text-sm text-foreground">{product.name}</Text>
+                              <Text className="text-xs text-muted">
+                                {formatCurrency(parseFloat(product.price))} | MwSt: {product.vat_rate}%
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      );
+                    })()}
 
                     {/* Beschreibung */}
                     <View className="mb-2">
@@ -491,24 +575,38 @@ export function InvoiceFormModal({
 
                     {/* Produkt-Picker für diese Position */}
                     {showProductPicker === item.id && (
-                      <View className="mt-2 p-2 bg-background rounded-lg border border-border max-h-40">
+                      <View className="mt-2 p-2 bg-background rounded-lg border border-border" style={{ maxHeight: 200 }}>
+                        <TextInput
+                          className="bg-surface border border-border rounded-lg px-3 py-2 text-foreground text-sm mb-2"
+                          placeholder="Produkt suchen..."
+                          placeholderTextColor={colors.muted}
+                          value={productSearch}
+                          onChangeText={setProductSearch}
+                          autoFocus
+                        />
                         <ScrollView>
                           {products && products.length > 0 ? (
-                            products.map((product) => (
-                              <TouchableOpacity
-                                key={product.id}
-                                className="py-2 border-b border-border"
-                                onPress={() => selectProduct(item.id, product.id)}
-                                activeOpacity={0.7}
-                              >
-                                <Text className="text-sm font-semibold text-foreground">
-                                  {product.name}
-                                </Text>
-                                <Text className="text-xs text-muted">
-                                  {formatCurrency(parseFloat(product.price))} | MwSt: {product.vat_rate}%
-                                </Text>
-                              </TouchableOpacity>
-                            ))
+                            products
+                              .filter((product) => {
+                                if (!productSearch.trim()) return true;
+                                const q = productSearch.toLowerCase();
+                                return product.name?.toLowerCase().includes(q) || product.category?.toLowerCase().includes(q);
+                              })
+                              .map((product) => (
+                                <TouchableOpacity
+                                  key={product.id}
+                                  className="py-2 border-b border-border"
+                                  onPress={() => selectProduct(item.id, product.id)}
+                                  activeOpacity={0.7}
+                                >
+                                  <Text className="text-sm font-semibold text-foreground">
+                                    {product.name}
+                                  </Text>
+                                  <Text className="text-xs text-muted">
+                                    {formatCurrency(parseFloat(product.price))} | MwSt: {product.vat_rate}%
+                                  </Text>
+                                </TouchableOpacity>
+                              ))
                           ) : (
                             <Text className="text-sm text-muted text-center py-2">
                               Keine Produkte vorhanden
@@ -532,6 +630,15 @@ export function InvoiceFormModal({
                     )}
                   </View>
                 ))}
+                <TouchableOpacity
+                  className="bg-primary px-4 py-2 rounded-lg self-start"
+                  onPress={addItem}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-background text-sm font-semibold">
+                    + Position
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               {/* Gesamtsumme */}
@@ -586,7 +693,7 @@ export function InvoiceFormModal({
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </View>
 
       {/* Kunden-Picker Modal */}
@@ -797,6 +904,6 @@ export function InvoiceFormModal({
           </View>
         </View>
       </Modal>
-    </Modal>
+    </Modal >
   );
 }

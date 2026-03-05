@@ -14,7 +14,8 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { trpc } from "@/lib/trpc";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
 import { CustomerFormModal } from "@/components/customer-form-modal";
 
 export default function CustomersScreen() {
@@ -24,7 +25,10 @@ export default function CustomersScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Kunden laden
-  const { data: customers, isLoading, refetch } = trpc.customers.list.useQuery();
+  const { data: customers, isLoading, refetch } = useQuery({
+    queryKey: ["customers"],
+    queryFn: Data.getCustomersWithCounts,
+  });
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -34,12 +38,13 @@ export default function CustomersScreen() {
   }, [refetch]);
 
   // Kunde löschen
-  const deleteCustomer = trpc.customers.delete.useMutation({
+  const deleteCustomer = useMutation({
+    mutationFn: (id: string) => Data.deleteCustomer(id),
     onSuccess: () => {
       showAlert("Erfolg", "Kunde wurde erfolgreich gelöscht");
       refetch();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       showAlert("Fehler", `Kunde konnte nicht gelöscht werden: ${error.message}`);
     },
   });
@@ -48,7 +53,7 @@ export default function CustomersScreen() {
     showConfirm(
       "Kunde löschen",
       `Möchten Sie "${displayName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
-      () => deleteCustomer.mutate({ id: customerId }),
+      () => deleteCustomer.mutate(customerId),
       "Löschen"
     );
   };

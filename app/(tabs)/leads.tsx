@@ -13,7 +13,8 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { LeadFormModal } from "@/components/lead-form-modal";
-import { trpc } from "@/lib/trpc";
+import { useMutation } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
 
 type LeadStatus = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
 
@@ -233,7 +234,7 @@ export default function LeadsScreen() {
           setShowAddModal(false);
           setEditingLead(null);
         }}
-        onSuccess={() => {}}
+        onSuccess={() => { }}
       />
 
       {/* Convert Lead to Customer Modal */}
@@ -266,12 +267,21 @@ function ConvertLeadModal({
   const colors = useColors();
   const [isConverting, setIsConverting] = useState(false);
 
-  const createCustomer = trpc.customers.create.useMutation({
+  const createCustomer = useMutation({
+    mutationFn: (data: any) => Data.createCustomer({
+      first_name: data.firstName,
+      last_name: data.lastName,
+      company_name: data.companyName,
+      email: data.email,
+      phone: data.phone,
+      status: data.status,
+      notes: data.notes,
+    }),
     onSuccess: () => {
       alert("Lead wurde erfolgreich als Kunde erfasst!");
       onClose();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       alert("Fehler beim Erstellen des Kunden: " + error.message);
       setIsConverting(false);
     },
@@ -279,8 +289,7 @@ function ConvertLeadModal({
 
   const handleConvert = () => {
     setIsConverting(true);
-    
-    // Lead-Daten in Kunden-Format umwandeln
+
     const nameParts = lead.name.split(" ");
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
@@ -289,8 +298,8 @@ function ConvertLeadModal({
       firstName,
       lastName,
       companyName: lead.company,
-      email: "", // Lead hat kein E-Mail-Feld in der aktuellen Struktur
-      phone: "", // Lead hat kein Telefon-Feld in der aktuellen Struktur
+      email: "",
+      phone: "",
       status: "active",
       notes: `Konvertiert aus Lead (Wert: CHF ${lead.value.toLocaleString("de-CH")})`,
     });
@@ -308,7 +317,7 @@ function ConvertLeadModal({
           <Text className="text-2xl font-bold text-foreground mb-4">
             Als Kunde erfassen
           </Text>
-          
+
           <View className="bg-surface rounded-lg p-4 mb-6">
             <Text className="text-sm text-muted mb-2">Lead-Informationen:</Text>
             <Text className="text-base font-semibold text-foreground">
@@ -495,15 +504,13 @@ function LeadDetailsModal({
                 {activities.map((activity) => (
                   <View
                     key={activity.id}
-                    className={`mb-3 p-3 rounded-lg ${
-                      activity.type === "system" ? "bg-surface" : "bg-primary/10"
-                    }`}
+                    className={`mb-3 p-3 rounded-lg ${activity.type === "system" ? "bg-surface" : "bg-primary/10"
+                      }`}
                   >
                     <View className="flex-row items-center justify-between mb-1">
                       <Text
-                        className={`text-xs font-semibold ${
-                          activity.type === "system" ? "text-muted" : "text-primary"
-                        }`}
+                        className={`text-xs font-semibold ${activity.type === "system" ? "text-muted" : "text-primary"
+                          }`}
                       >
                         {activity.user}
                       </Text>

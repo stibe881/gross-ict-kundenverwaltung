@@ -9,6 +9,7 @@ import { CustomerFormModal } from "@/components/customer-form-modal";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { TicketFormModal } from "@/components/ticket-form-modal";
 import { LogoutButton } from "@/components/logout-button";
+import { QuoteFormModal } from "@/components/quote-form-modal";
 
 
 interface DashboardTile {
@@ -27,6 +28,7 @@ export default function DashboardScreen() {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
 
   // Auth-Check wird bereits im Tab-Layout durchgeführt
   // Hier nur noch Loading-State anzeigen falls nötig
@@ -86,6 +88,14 @@ export default function DashboardScreen() {
       icon: "envelope.fill",
       color: "#8B5CF6",
       route: "/newsletter",
+    },
+    {
+      id: "quotes",
+      title: "Angebote",
+      value: "Offerten",
+      icon: "doc.text.fill",
+      color: "#EC4899",
+      route: "/quotes",
     },
   ];
 
@@ -180,6 +190,15 @@ export default function DashboardScreen() {
               <IconSymbol name="plus.circle.fill" size={20} color={colors.primary} />
               <Text className="text-foreground font-semibold ml-2">Neue Rechnung</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              className="bg-surface px-4 py-3 rounded-lg flex-row items-center border border-border"
+              activeOpacity={0.8}
+              onPress={() => setShowQuoteModal(true)}
+            >
+              <IconSymbol name="plus.circle.fill" size={20} color={colors.primary} />
+              <Text className="text-foreground font-semibold ml-2">Neues Angebot</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -188,17 +207,22 @@ export default function DashboardScreen() {
       <CustomerFormModal
         visible={showCustomerModal}
         onClose={() => setShowCustomerModal(false)}
-        onSuccess={() => {}}
+        onSuccess={() => { }}
       />
       <TicketFormModal
         visible={showTicketModal}
         onClose={() => setShowTicketModal(false)}
-        onSuccess={() => {}}
+        onSuccess={() => { }}
       />
       <InvoiceFormModal
         visible={showInvoiceModal}
         onClose={() => setShowInvoiceModal(false)}
-        onSuccess={() => {}}
+        onSuccess={() => { }}
+      />
+      <QuoteFormModal
+        visible={showQuoteModal}
+        onClose={() => setShowQuoteModal(false)}
+        onSuccess={() => { }}
       />
     </ScreenContainer>
   );

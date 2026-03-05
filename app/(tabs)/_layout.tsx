@@ -24,12 +24,36 @@ export default function TabLayout() {
 
   const checkLoginStatus = async () => {
     try {
+      // Fast path: check AsyncStorage first
       const loggedIn = await AsyncStorage.getItem("isLoggedIn");
-      setIsLoggedIn(loggedIn === "true");
-      
-      if (loggedIn !== "true") {
-        router.replace("/login");
+      if (loggedIn === "true") {
+        setIsLoggedIn(true);
+        return;
       }
+
+      // After SSO redirect, Supabase auto-detects tokens from the URL hash
+      // and strips them before our code runs. We must always check the
+      // Supabase session before redirecting to /login.
+      if (Platform.OS === "web") {
+        const { supabase } = await import("@/lib/supabase");
+        // Give Supabase time to process any URL tokens
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await AsyncStorage.setItem("isLoggedIn", "true");
+          await AsyncStorage.setItem("userEmail", session.user.email || "");
+          await AsyncStorage.setItem("userName",
+            session.user.user_metadata?.full_name ||
+            session.user.user_metadata?.name ||
+            session.user.email || "");
+          setIsLoggedIn(true);
+          return;
+        }
+      }
+
+      // No session found — redirect to login
+      setIsLoggedIn(false);
+      router.replace("/login");
     } catch (error) {
       setIsLoggedIn(false);
       router.replace("/login");
@@ -101,6 +125,13 @@ export default function TabLayout() {
         options={{
           title: "Tickets",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="ticket.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="quotes"
+        options={{
+          title: "Angebote",
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="doc.text.fill" color={color} />,
         }}
       />
       <Tabs.Screen

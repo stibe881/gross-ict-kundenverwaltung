@@ -10,7 +10,8 @@ import {
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { trpc } from "@/lib/trpc";
+import { useQuery } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
 import { sendTicketNotification } from "@/lib/push-notifications";
 
 interface TicketFormModalProps {
@@ -36,7 +37,10 @@ export function TicketFormModal({
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
 
   // Kunden laden
-  const { data: customers } = trpc.customers.list.useQuery();
+  const { data: customers } = useQuery({
+    queryKey: ["customers"],
+    queryFn: Data.getCustomersWithCounts,
+  });
 
   const selectedCustomer = customers?.find((c) => c.id === formData.customerId);
 
@@ -47,7 +51,7 @@ export function TicketFormModal({
     }
 
     console.log("Ticket submitted:", formData);
-    
+
     // Sende Push-Benachrichtigung für neues Ticket
     if (!ticket && selectedCustomer) {
       await sendTicketNotification(
@@ -55,7 +59,7 @@ export function TicketFormModal({
         selectedCustomer.name
       );
     }
-    
+
     onClose();
   };
 
@@ -132,22 +136,20 @@ export function TicketFormModal({
                   ].map((priority) => (
                     <TouchableOpacity
                       key={priority.value}
-                      className={`flex-1 py-3 rounded-lg ${
-                        formData.priority === priority.value
+                      className={`flex-1 py-3 rounded-lg ${formData.priority === priority.value
                           ? "bg-primary"
                           : "bg-surface border border-border"
-                      }`}
+                        }`}
                       onPress={() =>
                         setFormData({ ...formData, priority: priority.value })
                       }
                       activeOpacity={0.7}
                     >
                       <Text
-                        className={`text-center font-semibold ${
-                          formData.priority === priority.value
+                        className={`text-center font-semibold ${formData.priority === priority.value
                             ? "text-background"
                             : "text-foreground"
-                        }`}
+                          }`}
                       >
                         {priority.label}
                       </Text>
@@ -169,7 +171,7 @@ export function TicketFormModal({
                   <Text className={selectedCustomer ? "text-foreground" : "text-muted"}>
                     {selectedCustomer
                       ? selectedCustomer.companyName ||
-                        `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
+                      `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
                       : "Kunde auswählen..."}
                   </Text>
                 </TouchableOpacity>

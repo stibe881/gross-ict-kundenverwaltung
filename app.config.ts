@@ -52,7 +52,8 @@ const config: ExpoConfig = {
     bundleIdentifier: env.iosBundleId,
     buildNumber: "3",
     "infoPlist": {
-      "ITSAppUsesNonExemptEncryption": false
+      "ITSAppUsesNonExemptEncryption": false,
+      "NSFaceIDUsageDescription": "Wir nutzen Face ID für den schnellen Login."
     }
   },
   android: {

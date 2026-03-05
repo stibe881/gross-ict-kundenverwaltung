@@ -1,39 +1,29 @@
-import { TouchableOpacity, Text, Alert } from "react-native";
+import { TouchableOpacity, Text } from "react-native";
 import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColors } from "@/hooks/use-colors";
+import { showConfirm, showAlert } from "@/lib/alert";
+import * as Auth from "@/lib/auth";
+import * as BiometricsLib from "@/lib/biometrics";
 
 export function LogoutButton() {
   const colors = useColors();
   const router = useRouter();
 
-  const handleLogout = async () => {
-    Alert.alert(
+  const handleLogout = () => {
+    showConfirm(
       "Abmelden",
       "Möchten Sie sich wirklich abmelden?",
-      [
-        {
-          text: "Abbrechen",
-          style: "cancel",
-        },
-        {
-          text: "Abmelden",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // Lösche Login-Status
-              await AsyncStorage.removeItem("isLoggedIn");
-              await AsyncStorage.removeItem("userEmail");
-              await AsyncStorage.removeItem("userName");
-
-              // Navigiere zur Login-Seite
-              router.replace("/login");
-            } catch (error) {
-              Alert.alert("Fehler", "Abmeldung fehlgeschlagen");
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          await Auth.signOut();
+          await BiometricsLib.clearCredentials();
+          await BiometricsLib.setBiometricsEnabled(false);
+          router.replace("/login");
+        } catch (error) {
+          showAlert("Fehler", "Abmeldung fehlgeschlagen");
+        }
+      },
+      "Abmelden"
     );
   };
 

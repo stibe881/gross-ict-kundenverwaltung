@@ -1,28 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { Image } from "expo-image";
 import { PasswordResetModal } from "@/components/password-reset-modal";
-
-// Einfache lokale Authentifizierung (ohne OAuth/Datenbank)
-// Test-Credentials:
-// - stefan.gross@gross-ict.ch / !LeliBist.1561!
-// - joel.hediger@gross-ict.ch / Lümmel.620!
-
-const VALID_USERS = [
-  { email: "stefan.gross@gross-ict.ch", password: "!LeliBist.1561!", name: "Stefan Gross" },
-  { email: "joel.hediger@gross-ict.ch", password: "Lümmel.620!", name: "Joel Hediger" },
-];
+import { showAlert } from "@/lib/alert";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import Svg, { Rect as SvgRect } from "react-native-svg";
+import * as Auth from "@/lib/auth";
+import * as Biometrics from "@/lib/biometrics";
 
 export default function LoginScreen() {
   const colors = useColors();
@@ -31,34 +25,100 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showResetModal, setShowResetModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [ssoLoading, setSsoLoading] = useState(false);
+  const [biometricType, setBiometricType] = useState("");
+  const [showBiometric, setShowBiometric] = useState(false);
 
+  // Check if biometric login is available on mount
+  useEffect(() => {
+    checkBiometrics();
+  }, []);
+
+  const checkBiometrics = async () => {
+    const available = await Biometrics.isBiometricsAvailable();
+    const enabled = await Biometrics.isBiometricsEnabled();
+    const credentials = await Biometrics.getStoredCredentials();
+
+    if (available && enabled && credentials) {
+      setShowBiometric(true);
+      const type = await Biometrics.getBiometricType();
+      setBiometricType(type);
+      // Auto-trigger biometric on launch
+      handleBiometricLogin();
+    } else if (available) {
+      const type = await Biometrics.getBiometricType();
+      setBiometricType(type);
+    }
+  };
+
+  // Normal email/password login
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Fehler", "Bitte E-Mail und Passwort eingeben");
+      showAlert("Fehler", "Bitte E-Mail und Passwort eingeben");
       return;
     }
 
     setLoading(true);
-
     try {
-      // Prüfe Credentials
-      const user = VALID_USERS.find(
-        (u) => u.email === email && u.password === password
-      );
+      await Auth.signInWithPassword(email, password);
 
-      if (user) {
-        // Speichere Login-Status
-        await AsyncStorage.setItem("isLoggedIn", "true");
-        await AsyncStorage.setItem("userEmail", user.email);
-        await AsyncStorage.setItem("userName", user.name);
-
-        // Navigiere zum Dashboard
-        router.replace("/(tabs)");
-      } else {
-        Alert.alert("Fehler", "Ungültige E-Mail oder Passwort");
+      // Offer to enable biometrics after successful login
+      const available = await Biometrics.isBiometricsAvailable();
+      const enabled = await Biometrics.isBiometricsEnabled();
+      if (available && !enabled) {
+        const type = await Biometrics.getBiometricType();
+        await Biometrics.saveCredentials(email, password);
+        await Biometrics.setBiometricsEnabled(true);
+        // Silently enable — user can disable in settings
+      } else if (available && enabled) {
+        // Update stored credentials
+        await Biometrics.saveCredentials(email, password);
       }
-    } catch (error) {
-      Alert.alert("Fehler", "Login fehlgeschlagen");
+
+      router.replace("/(tabs)");
+    } catch (error: any) {
+      showAlert("Fehler", error.message || "Ungültige E-Mail oder Passwort");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Microsoft SSO login
+  const handleMicrosoftLogin = async () => {
+    setSsoLoading(true);
+    try {
+      await Auth.signInWithMicrosoft();
+      // On native: the callback handles navigation
+      // On web: page redirects
+      if (Platform.OS !== "web") {
+        router.replace("/(tabs)");
+      }
+    } catch (error: any) {
+      showAlert("Fehler", error.message || "Microsoft-Anmeldung fehlgeschlagen");
+    } finally {
+      setSsoLoading(false);
+    }
+  };
+
+  // Face ID / Touch ID login
+  const handleBiometricLogin = async () => {
+    try {
+      const success = await Biometrics.authenticateWithBiometrics();
+      if (!success) return;
+
+      const credentials = await Biometrics.getStoredCredentials();
+      if (!credentials) {
+        showAlert("Fehler", "Keine gespeicherten Zugangsdaten gefunden. Bitte melden Sie sich manuell an.");
+        await Biometrics.setBiometricsEnabled(false);
+        setShowBiometric(false);
+        return;
+      }
+
+      setLoading(true);
+      await Auth.signInWithPassword(credentials.email, credentials.password);
+      router.replace("/(tabs)");
+    } catch (error: any) {
+      showAlert("Fehler", "Automatische Anmeldung fehlgeschlagen. Bitte melden Sie sich manuell an.");
     } finally {
       setLoading(false);
     }
@@ -71,13 +131,31 @@ export default function LoginScreen() {
         <View className="items-center mb-8">
           <Image
             source={require("@/assets/images/icon.png")}
-            style={{ width: 180, height: 180, marginBottom: 24 }}
+            style={{ width: 160, height: 160, marginBottom: 20 }}
             contentFit="contain"
           />
           <Text className="text-lg text-muted text-center font-semibold">
             Kundenportal
           </Text>
         </View>
+
+        {/* Face ID Button (wenn verfügbar) */}
+        {showBiometric && (
+          <TouchableOpacity
+            onPress={handleBiometricLogin}
+            style={{
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            }}
+            className="p-4 rounded-xl items-center mb-6 border flex-row justify-center"
+            activeOpacity={0.7}
+          >
+            <IconSymbol name="faceid" size={28} color={colors.primary} />
+            <Text className="text-foreground font-semibold text-base ml-3">
+              Mit {biometricType} anmelden
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Login-Formular */}
         <View className="gap-4">
@@ -123,6 +201,7 @@ export default function LoginScreen() {
             />
           </View>
 
+          {/* Login Button */}
           <TouchableOpacity
             onPress={handleLogin}
             disabled={loading}
@@ -130,7 +209,8 @@ export default function LoginScreen() {
               backgroundColor: colors.primary,
               opacity: loading ? 0.7 : 1,
             }}
-            className="p-4 rounded-lg items-center mt-4"
+            className="p-4 rounded-lg items-center mt-2"
+            activeOpacity={0.8}
           >
             {loading ? (
               <ActivityIndicator color={colors.background} />
@@ -141,10 +221,46 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Passwort vergessen Link */}
+          {/* Divider */}
+          <View className="flex-row items-center my-2">
+            <View className="flex-1 h-[1px]" style={{ backgroundColor: colors.border }} />
+            <Text className="text-muted text-sm mx-4">oder</Text>
+            <View className="flex-1 h-[1px]" style={{ backgroundColor: colors.border }} />
+          </View>
+
+          {/* Microsoft SSO Button */}
+          <TouchableOpacity
+            onPress={handleMicrosoftLogin}
+            disabled={ssoLoading}
+            style={{
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              opacity: ssoLoading ? 0.7 : 1,
+            }}
+            className="p-4 rounded-lg items-center border flex-row justify-center"
+            activeOpacity={0.7}
+          >
+            {ssoLoading ? (
+              <ActivityIndicator color={colors.foreground} />
+            ) : (
+              <>
+                <Svg width={20} height={20} viewBox="0 0 21 21">
+                  <SvgRect x="1" y="1" width="9" height="9" fill="#F25022" />
+                  <SvgRect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+                  <SvgRect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+                  <SvgRect x="11" y="11" width="9" height="9" fill="#FFB900" />
+                </Svg>
+                <Text className="text-foreground font-semibold text-base ml-3">
+                  Mit Microsoft anmelden
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* Passwort vergessen */}
           <TouchableOpacity
             onPress={() => setShowResetModal(true)}
-            className="mt-4"
+            className="mt-2"
             activeOpacity={0.7}
           >
             <Text className="text-sm text-muted text-center">

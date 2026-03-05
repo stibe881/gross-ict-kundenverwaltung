@@ -11,7 +11,8 @@ import { useLocalSearchParams, router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { trpc } from "@/lib/trpc";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { CustomerPortalManagement } from "@/components/customer-portal-management";
 
@@ -24,31 +25,35 @@ export default function CustomerDetailScreen() {
   const [portalEnabled, setPortalEnabled] = useState(false);
 
   // Kundendaten aus Supabase laden
-  const { data: customer, isLoading: loading } = trpc.customers.getById.useQuery(
-    { id: id as string },
-    { enabled: !!id }
-  );
+  const { data: customer, isLoading: loading } = useQuery({
+    queryKey: ["customer", id],
+    queryFn: () => Data.getCustomerById(id as string),
+    enabled: !!id,
+  });
 
   // Kunde löschen
-  const deleteCustomer = trpc.customers.delete.useMutation({
+  const queryClient = useQueryClient();
+  const deleteCustomer = useMutation({
+    mutationFn: (custId: string) => Data.deleteCustomer(custId),
     onSuccess: () => {
       showAlert("Erfolg", "Kunde wurde erfolgreich gelöscht");
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
       router.back();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       showAlert("Fehler", `Kunde konnte nicht gelöscht werden: ${error.message}`);
     },
   });
 
   // Kundenstatus ändern
-  const utils = trpc.useUtils();
-  const updateCustomer = trpc.customers.update.useMutation({
+  const updateCustomer = useMutation({
+    mutationFn: ({ custId, ...data }: any) => Data.updateCustomer(custId, data),
     onSuccess: () => {
-      utils.customers.getById.invalidate({ id: id as string });
-      utils.customers.list.invalidate();
+      queryClient.invalidateQueries({ queryKey: ["customer", id] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
       showAlert("Erfolg", "Kundenstatus wurde geändert");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       showAlert("Fehler", `Status konnte nicht geändert werden: ${error.message}`);
     },
   });
@@ -59,7 +64,7 @@ export default function CustomerDetailScreen() {
     showConfirm(
       "Status ändern",
       `Möchten Sie diesen Kunden wirklich ${label}?`,
-      () => updateCustomer.mutate({ id: id as string, status: newStatus }),
+      () => updateCustomer.mutate({ custId: id as string, status: newStatus }),
       newStatus === "active" ? "Aktivieren" : "Deaktivieren"
     );
   };
@@ -72,7 +77,7 @@ export default function CustomerDetailScreen() {
     showConfirm(
       "Kunde löschen",
       `Möchten Sie "${displayName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
-      () => deleteCustomer.mutate({ id: id as string }),
+      () => deleteCustomer.mutate(id as string),
       "Löschen"
     );
   };
@@ -86,19 +91,22 @@ export default function CustomerDetailScreen() {
     { key: "portal", label: "Portal", icon: "person.2.fill" },
   ];
 
-  // Daten für Tabs vorladen (Hooks müssen immer aufgerufen werden)
-  const { data: contracts, isLoading: contractsLoading } = trpc.contracts.getByCustomer.useQuery(
-    { customerId: id as string },
-    { enabled: !!id }
-  );
-  const { data: invoices, isLoading: invoicesLoading } = trpc.invoices.getByCustomer.useQuery(
-    { customerId: id as string },
-    { enabled: !!id }
-  );
-  const { data: tickets, isLoading: ticketsLoading } = trpc.tickets.getByCustomer.useQuery(
-    { customerId: id as string },
-    { enabled: !!id }
-  );
+  // Daten für Tabs vorladen
+  const { data: contracts, isLoading: contractsLoading } = useQuery({
+    queryKey: ["contracts", id],
+    queryFn: () => Data.getCustomerContracts(id as string),
+    enabled: !!id,
+  });
+  const { data: invoices, isLoading: invoicesLoading } = useQuery({
+    queryKey: ["invoices", "customer", id],
+    queryFn: () => Data.getCustomerInvoices(id as string),
+    enabled: !!id,
+  });
+  const { data: tickets, isLoading: ticketsLoading } = useQuery({
+    queryKey: ["tickets", "customer", id],
+    queryFn: () => Data.getCustomerTickets(id as string),
+    enabled: !!id,
+  });
 
   const renderTabContent = () => {
     switch (activeTab) {

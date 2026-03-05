@@ -11,7 +11,8 @@ import {
 import { showAlert } from "@/lib/alert";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { trpc } from "@/lib/trpc";
+import { useMutation } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
 
 interface CustomerFormModalProps {
   visible: boolean;
@@ -37,12 +38,22 @@ export function CustomerFormModal({
     country: "Schweiz",
   });
 
-  const createCustomer = trpc.customers.create.useMutation({
+  const createCustomer = useMutation({
+    mutationFn: (data: any) => Data.createCustomer({
+      first_name: data.firstName,
+      last_name: data.lastName,
+      company_name: data.companyName,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      city: data.city,
+      postal_code: data.postalCode,
+      country: data.country,
+    }),
     onSuccess: () => {
       showAlert("Erfolg", "Kunde wurde erfolgreich erstellt");
       onSuccess?.();
       onClose();
-      // Reset form
       setFormData({
         firstName: "",
         lastName: "",
@@ -55,7 +66,7 @@ export function CustomerFormModal({
         country: "Schweiz",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       showAlert("Fehler", `Kunde konnte nicht erstellt werden: ${error.message}`);
     },
   });

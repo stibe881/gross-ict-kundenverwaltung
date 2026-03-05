@@ -1,0 +1,210 @@
+import { useState, useCallback } from "react";
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    FlatList,
+    ActivityIndicator,
+    RefreshControl,
+} from "react-native";
+import { useRouter, useFocusEffect } from "expo-router";
+import { ScreenContainer } from "@/components/screen-container";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useColors } from "@/hooks/use-colors";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { QuoteFormModal } from "@/components/quote-form-modal";
+
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+    draft: { label: "Entwurf", color: "#6B7280" },
+    sent: { label: "Gesendet", color: "#3B82F6" },
+    accepted: { label: "Angenommen", color: "#10B981" },
+    rejected: { label: "Abgelehnt", color: "#EF4444" },
+    expired: { label: "Abgelaufen", color: "#F59E0B" },
+};
+
+export default function QuotesScreen() {
+    const colors = useColors();
+    const router = useRouter();
+    const queryClient = useQueryClient();
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [filterStatus, setFilterStatus] = useState<string | null>(null);
+
+    const {
+        data: quotes,
+        isLoading,
+        refetch,
+    } = useQuery({
+        queryKey: ["quotes"],
+        queryFn: Data.getAllQuotes,
+    });
+
+    useFocusEffect(
+        useCallback(() => {
+            refetch();
+        }, [])
+    );
+
+    const filteredQuotes = filterStatus
+        ? (quotes || []).filter((q: any) => q.status === filterStatus)
+        : quotes || [];
+
+    const totalValue = filteredQuotes.reduce(
+        (sum: number, q: any) => sum + (q.total || 0),
+        0
+    );
+
+    const getStatusBadge = (status: string) => {
+        const config = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
+        return (
+            <View
+                style={{ backgroundColor: config.color + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+            >
+                <Text style={{ color: config.color, fontSize: 12, fontWeight: "600" }}>
+                    {config.label}
+                </Text>
+            </View>
+        );
+    };
+
+    const renderQuote = ({ item }: { item: any }) => {
+        const customerName =
+            item.customer?.company_name ||
+            `${item.customer?.first_name || ""} ${item.customer?.last_name || ""}`.trim() ||
+            "Unbekannt";
+
+        return (
+            <TouchableOpacity
+                className="bg-surface rounded-xl p-4 mb-3 border border-border"
+                activeOpacity={0.7}
+                onPress={() => router.push(`/quote/${item.id}` as any)}
+            >
+                <View className="flex-row justify-between items-start mb-2">
+                    <View className="flex-1">
+                        <Text className="text-base font-semibold text-foreground">
+                            {item.quote_number}
+                        </Text>
+                        <Text className="text-sm text-muted mt-1">{customerName}</Text>
+                    </View>
+                    {getStatusBadge(item.status)}
+                </View>
+                <View className="flex-row justify-between items-center mt-2">
+                    <Text className="text-sm text-muted">
+                        {formatDate(item.quote_date)} {item.valid_until ? `· Gültig bis ${formatDate(item.valid_until)}` : ""}
+                    </Text>
+                    <Text className="text-base font-bold text-foreground">
+                        {formatCurrency(item.total)}
+                    </Text>
+                </View>
+            </TouchableOpacity>
+        );
+    };
+
+    return (
+        <ScreenContainer>
+            <View className="flex-1 p-4">
+                {/* Header */}
+                <View className="flex-row justify-between items-center mb-4">
+                    <View>
+                        <Text className="text-2xl font-bold text-foreground">Angebote</Text>
+                        <Text className="text-sm text-muted mt-1">
+                            {filteredQuotes.length} Angebote · Gesamt: {formatCurrency(totalValue)}
+                        </Text>
+                    </View>
+                    <TouchableOpacity
+                        onPress={() => setShowCreateModal(true)}
+                        style={{ backgroundColor: colors.primary }}
+                        className="w-10 h-10 rounded-full items-center justify-center"
+                    >
+                        <IconSymbol name="plus" size={20} color="#fff" />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Filter */}
+                <View className="flex-row gap-2 mb-4">
+                    <TouchableOpacity
+                        onPress={() => setFilterStatus(null)}
+                        style={{
+                            backgroundColor: filterStatus === null ? colors.primary : colors.surface,
+                            borderColor: colors.border,
+                        }}
+                        className="px-3 py-1.5 rounded-full border"
+                    >
+                        <Text
+                            style={{
+                                color: filterStatus === null ? "#fff" : colors.foreground,
+                                fontSize: 13,
+                                fontWeight: "600",
+                            }}
+                        >
+                            Alle
+                        </Text>
+                    </TouchableOpacity>
+                    {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                        <TouchableOpacity
+                            key={key}
+                            onPress={() => setFilterStatus(key)}
+                            style={{
+                                backgroundColor: filterStatus === key ? config.color : colors.surface,
+                                borderColor: colors.border,
+                            }}
+                            className="px-3 py-1.5 rounded-full border"
+                        >
+                            <Text
+                                style={{
+                                    color: filterStatus === key ? "#fff" : colors.foreground,
+                                    fontSize: 13,
+                                    fontWeight: "600",
+                                }}
+                            >
+                                {config.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                {/* Liste */}
+                {isLoading && !quotes ? (
+                    <View className="flex-1 items-center justify-center">
+                        <ActivityIndicator size="large" color={colors.primary} />
+                    </View>
+                ) : (
+                    <FlatList
+                        data={filteredQuotes}
+                        renderItem={renderQuote}
+                        keyExtractor={(item) => item.id}
+                        refreshControl={
+                            <RefreshControl refreshing={false} onRefresh={refetch} />
+                        }
+                        ListEmptyComponent={
+                            <View className="items-center justify-center py-12">
+                                <IconSymbol name="doc.text" size={48} color={colors.muted} />
+                                <Text className="text-muted text-base mt-4">
+                                    Keine Angebote vorhanden
+                                </Text>
+                                <TouchableOpacity
+                                    onPress={() => setShowCreateModal(true)}
+                                    style={{ backgroundColor: colors.primary }}
+                                    className="mt-4 px-6 py-3 rounded-lg"
+                                >
+                                    <Text className="text-background font-semibold">
+                                        Erstes Angebot erstellen
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        }
+                    />
+                )}
+            </View>
+
+            <QuoteFormModal
+                visible={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                onSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ["quotes"] });
+                }}
+            />
+        </ScreenContainer>
+    );
+}

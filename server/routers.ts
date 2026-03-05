@@ -646,8 +646,8 @@ export const appRouter = router({
         await sendInvoiceEmail({
           to: invoice.customer.email,
           invoiceNumber: invoice.invoice_number,
-          invoiceDate: new Date(invoice.invoice_date).toLocaleDateString("de-CH"),
-          dueDate: new Date(invoice.due_date).toLocaleDateString("de-CH"),
+          invoiceDate: (() => { const d = new Date(invoice.invoice_date); return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`; })(),
+          dueDate: (() => { const d = new Date(invoice.due_date); return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`; })(),
           total: invoice.total.toFixed(2),
           pdfBuffer,
           trackingUrl,
@@ -707,8 +707,8 @@ export const appRouter = router({
         await sendReminderEmail({
           to: invoice.customer.email,
           invoiceNumber: invoice.invoice_number,
-          invoiceDate: new Date(invoice.invoice_date).toLocaleDateString("de-CH"),
-          dueDate: new Date(invoice.due_date).toLocaleDateString("de-CH"),
+          invoiceDate: (() => { const d = new Date(invoice.invoice_date); return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`; })(),
+          dueDate: (() => { const d = new Date(invoice.due_date); return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`; })(),
           remainingAmount: remainingAmount.toFixed(2),
           pdfBuffer,
           trackingUrl,

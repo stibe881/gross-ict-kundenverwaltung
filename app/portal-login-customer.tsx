@@ -11,7 +11,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { trpc } from "@/lib/trpc";
+import { supabase } from "@/lib/supabase";
 
 export default function PortalLoginScreen() {
   const colors = useColors();
@@ -28,17 +28,20 @@ export default function PortalLoginScreen() {
     setLoading(true);
 
     try {
-      // API-Call zum Kunden-Login
-      const response = await trpc.customerPortal.authenticate.mutate({ 
-        email, 
-        password 
+      // Direct Supabase auth for customer portal
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-      
-      if (response.success && response.user) {
-        // Speichere Kunden-Session (separate von Mitarbeiter-Auth)
-        await AsyncStorage.setItem('customer_portal_user', JSON.stringify(response.user));
-        
-        // Nach erfolgreichem Login zur Ticket-Übersicht navigieren
+
+      if (error) throw error;
+
+      if (data.user) {
+        await AsyncStorage.setItem('customer_portal_user', JSON.stringify({
+          id: data.user.id,
+          email: data.user.email,
+        }));
+
         router.replace("/portal-tickets-customer");
       } else {
         Alert.alert("Fehler", "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.");

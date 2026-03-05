@@ -11,7 +11,7 @@ export function formatCurrency(amount: number, decimals: number = 2): string {
 }
 
 /**
- * Formatiert ein Datum im Schweizer Format (TT.MM.JJJJ)
+ * Formatiert ein Datum im Format DD.MM.YYYY
  * @param date Datum als Date-Objekt oder ISO-String
  */
 export function formatDate(date: Date | string): string {

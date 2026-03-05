@@ -55,7 +55,7 @@ export function CustomerPortalManagement({
   const handleAddUser = () => {
     // TODO: API-Call zum Erstellen des Benutzers
     console.log("Creating user:", newUser);
-    
+
     // Reset form
     setNewUser({
       email: "",
@@ -65,7 +65,7 @@ export function CustomerPortalManagement({
       role: "user",
     });
     setShowAddUserModal(false);
-    
+
     Alert.alert("Erfolg", "Benutzer wurde erstellt");
   };
 
@@ -179,7 +179,7 @@ export function CustomerPortalManagement({
                     <View className="flex-row items-center justify-between">
                       <Text className="text-xs text-muted">
                         {user.last_login
-                          ? `Letzter Login: ${new Date(user.last_login).toLocaleDateString("de-CH")}`
+                          ? `Letzter Login: ${(() => { const d = new Date(user.last_login); return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`; })()}`
                           : "Noch nie eingeloggt"}
                       </Text>
                       <View className="flex-row items-center gap-2">

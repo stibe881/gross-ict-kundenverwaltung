@@ -14,49 +14,56 @@ import { useLocalSearchParams, router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { trpc } from "@/lib/trpc";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
+import { downloadInvoicePDF } from "@/lib/pdf-utils";
 import { showAlert, showConfirm } from "@/lib/alert";
 
 export default function InvoiceDetailScreen() {
     const { id } = useLocalSearchParams();
     const colors = useColors();
 
-    const { data: invoice, isLoading, refetch } = trpc.invoices.getById.useQuery(
-        { id: id as string },
-        { enabled: !!id }
-    );
-    const { data: activities } = trpc.invoices.activities.useQuery(
-        { invoiceId: id as string },
-        { enabled: !!id }
-    );
+    const { data: invoice, isLoading, refetch } = useQuery({
+        queryKey: ["invoice", id],
+        queryFn: () => Data.getInvoiceById(id as string),
+        enabled: !!id,
+    });
+    const { data: activities } = useQuery({
+        queryKey: ["invoiceActivities", id],
+        queryFn: () => Data.getInvoiceActivities(id as string),
+        enabled: !!id,
+    });
     const [showEditModal, setShowEditModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState("");
 
-    const utils = trpc.useUtils();
+    const queryClient = useQueryClient();
 
-    const deleteInvoice = trpc.invoices.delete.useMutation({
+    const deleteInvoice = useMutation({
+        mutationFn: (invoiceId: string) => Data.deleteInvoice(invoiceId),
         onSuccess: () => {
-            utils.invoices.list.invalidate();
+            queryClient.invalidateQueries({ queryKey: ["invoices"] });
             showAlert("Erfolg", "Rechnung wurde gelöscht");
             router.back();
         },
-        onError: (error) => {
+        onError: (error: any) => {
             showAlert("Fehler", `Rechnung konnte nicht gelöscht werden: ${error.message}`);
         },
     });
 
-    const addPayment = trpc.invoices.addPayment.useMutation({
+    const addPaymentMut = useMutation({
+        mutationFn: ({ invoiceId, amount }: { invoiceId: string; amount: number }) =>
+            Data.addPayment(invoiceId, amount),
         onSuccess: () => {
-            utils.invoices.list.invalidate();
+            queryClient.invalidateQueries({ queryKey: ["invoices"] });
             refetch();
             setShowPaymentModal(false);
             setPaymentAmount("");
             showAlert("Erfolg", "Zahlung wurde erfasst");
         },
-        onError: (error) => {
+        onError: (error: any) => {
             showAlert("Fehler", `Zahlung konnte nicht erfasst werden: ${error.message}`);
         },
     });
@@ -65,7 +72,7 @@ export default function InvoiceDetailScreen() {
         showConfirm(
             "Rechnung löschen",
             "Möchten Sie diese Rechnung wirklich unwiderruflich löschen?",
-            () => deleteInvoice.mutate({ id: id as string })
+            () => deleteInvoice.mutate(id as string)
         );
     };
 
@@ -75,75 +82,34 @@ export default function InvoiceDetailScreen() {
             showAlert("Fehler", "Bitte geben Sie einen gültigen Betrag ein");
             return;
         }
-        addPayment.mutate({ invoiceId: id as string, amount });
+        addPaymentMut.mutate({ invoiceId: id as string, amount });
     };
 
     const handleDownloadPDF = async () => {
+        if (!invoice) return;
         try {
-            const result = await utils.invoices.generatePDF.fetch({ id: id as string });
-            if (Platform.OS === "web") {
-                const printWindow = window.open("", "_blank");
-                if (printWindow) {
-                    printWindow.document.write(result.html);
-                    printWindow.document.close();
-                    setTimeout(() => printWindow.print(), 500);
-                }
-            } else {
-                showAlert("Info", "PDF-Download ist derzeit nur im Web-Browser verfügbar.");
-            }
+            await downloadInvoicePDF(invoice);
         } catch (error: any) {
-            showAlert("Fehler", `PDF konnte nicht generiert werden: ${error.message}`);
+            showAlert("Fehler", "PDF konnte nicht erstellt werden: " + (error.message || ""));
         }
     };
 
-
-
-    const sendEmailMutation = trpc.invoices.sendEmail.useMutation({
-        onSuccess: () => {
-            showAlert("Erfolg", "Rechnung wurde per E-Mail gesendet!");
-            utils.invoices.activities.invalidate({ invoiceId: id as string });
-        },
-        onError: (error) => {
-            showAlert("Fehler", `E-Mail konnte nicht gesendet werden: ${error.message}`);
-        },
-    });
-
-    const sendReminderMutation = trpc.invoices.sendReminder.useMutation({
-        onSuccess: () => {
-            showAlert("Erfolg", "Zahlungserinnerung wurde per E-Mail gesendet!");
-            utils.invoices.activities.invalidate({ invoiceId: id as string });
-        },
-        onError: (error) => {
-            showAlert("Fehler", `Mahnung konnte nicht gesendet werden: ${error.message}`);
-        },
-    });
-
-    const handleSendInvoice = () => {
-        const email = invoice?.customer?.email;
-        if (!email) {
-            showAlert("Fehler", "Dieser Kunde hat keine E-Mail-Adresse hinterlegt.");
-            return;
+    const handleSendInvoice = async () => {
+        if (!invoice) return;
+        try {
+            await downloadInvoicePDF(invoice);
+        } catch (error: any) {
+            showAlert("Fehler", "PDF konnte nicht erstellt werden: " + (error.message || ""));
         }
-        showConfirm(
-            "Rechnung senden",
-            `Rechnung ${invoice.invoice_number} an ${email} senden?`,
-            () => sendEmailMutation.mutate({ id: id as string }),
-            "Senden"
-        );
     };
 
-    const handleSendReminder = () => {
-        const email = invoice?.customer?.email;
-        if (!email) {
-            showAlert("Fehler", "Dieser Kunde hat keine E-Mail-Adresse hinterlegt.");
-            return;
+    const handleSendReminder = async () => {
+        if (!invoice) return;
+        try {
+            await downloadInvoicePDF(invoice);
+        } catch (error: any) {
+            showAlert("Fehler", "PDF konnte nicht erstellt werden: " + (error.message || ""));
         }
-        showConfirm(
-            "Mahnung senden",
-            `Zahlungserinnerung für Rechnung ${invoice.invoice_number} an ${email} senden?`,
-            () => sendReminderMutation.mutate({ id: id as string }),
-            "Senden"
-        );
     };
 
     const getStatusLabel = (status: string) => {

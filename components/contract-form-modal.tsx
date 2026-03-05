@@ -9,7 +9,8 @@ import {
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { trpc } from "@/lib/trpc";
+import { useQuery } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
 
 interface ContractFormModalProps {
   visible: boolean;
@@ -37,7 +38,10 @@ export function ContractFormModal({
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
 
   // Kunden laden
-  const { data: customers } = trpc.customers.list.useQuery();
+  const { data: customers } = useQuery({
+    queryKey: ["customers"],
+    queryFn: Data.getCustomersWithCounts,
+  });
 
   const selectedCustomer = customers?.find((c) => c.id === formData.customerId);
 
@@ -106,7 +110,7 @@ export function ContractFormModal({
                   <Text className={selectedCustomer ? "text-foreground" : "text-muted"}>
                     {selectedCustomer
                       ? selectedCustomer.companyName ||
-                        `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
+                      `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
                       : "Kunde auswählen..."}
                   </Text>
                 </TouchableOpacity>
@@ -171,7 +175,7 @@ export function ContractFormModal({
                 </Text>
                 <TextInput
                   className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="YYYY-MM-DD"
+                  placeholder="DD.MM.YYYY"
                   placeholderTextColor={colors.muted}
                   value={formData.startDate}
                   onChangeText={(text) =>
@@ -222,11 +226,7 @@ export function ContractFormModal({
                 <View className="bg-primary/10 rounded-lg p-3">
                   <Text className="text-sm text-muted mb-1">Berechnetes Enddatum</Text>
                   <Text className="text-base font-semibold text-primary">
-                    {new Date(calculateEndDate()).toLocaleDateString("de-CH", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    })}
+                    {(() => { const d = new Date(calculateEndDate()); return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`; })()}
                   </Text>
                 </View>
               )}
