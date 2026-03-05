@@ -3,7 +3,8 @@
  * @param amount Betrag in Rappen oder Franken
  * @param decimals Anzahl Dezimalstellen (Standard: 2)
  */
-export function formatCurrency(amount: number, decimals: number = 2): string {
+export function formatCurrency(amount: number | null | undefined, decimals: number = 2): string {
+  if (amount == null) return "CHF 0.00";
   return `CHF ${amount.toLocaleString("de-CH", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
