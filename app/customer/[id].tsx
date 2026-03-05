@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { CustomerPortalManagement } from "@/components/customer-portal-management";
+import { ContractFormModal } from "@/components/contract-form-modal";
 
 type Tab = "stammdaten" | "kommunikation" | "vertraege" | "rechnungen" | "tickets" | "portal";
 
@@ -25,6 +26,7 @@ export default function CustomerDetailScreen() {
   const [activeTab, setActiveTab] = useState<Tab>("stammdaten");
   const [portalEnabled, setPortalEnabled] = useState(false);
   const [selectedContract, setSelectedContract] = useState<any>(null);
+  const [editingContract, setEditingContract] = useState<any>(null);
 
   // Kundendaten aus Supabase laden
   const { data: customer, isLoading: loading } = useQuery({
@@ -626,13 +628,23 @@ export default function CustomerDetailScreen() {
                     </View>
                   </View>
                 </ScrollView>
-                <View className="p-4 border-t border-border">
+                <View className="p-4 border-t border-border flex-row gap-3">
                   <TouchableOpacity
-                    className="bg-surface border border-border py-3 rounded-lg"
+                    className="flex-1 bg-surface border border-border py-3 rounded-lg"
                     onPress={() => setSelectedContract(null)}
                     activeOpacity={0.8}
                   >
                     <Text className="text-foreground font-semibold text-center">Schließen</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    className="flex-1 bg-primary py-3 rounded-lg"
+                    onPress={() => {
+                      setEditingContract(selectedContract);
+                      setSelectedContract(null);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text className="text-background font-semibold text-center">Bearbeiten</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -640,6 +652,18 @@ export default function CustomerDetailScreen() {
           </Modal>
         )
       }
+      {editingContract && (
+        <ContractFormModal
+          visible={true}
+          contract={editingContract}
+          onClose={() => setEditingContract(null)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["customer-contracts", id] });
+            queryClient.invalidateQueries({ queryKey: ["customers"] });
+            setEditingContract(null);
+          }}
+        />
+      )}
     </>
   );
 }

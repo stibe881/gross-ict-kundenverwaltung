@@ -29,11 +29,11 @@ export function ContractFormModal({
   const [formData, setFormData] = useState({
     title: contract?.title || "",
     description: contract?.description || "",
-    customerId: contract?.customerId || null,
+    customerId: contract?.customer_id || contract?.customerId || null,
     amount: contract?.amount?.toString() || "",
-    startDate: contract?.startDate || "",
-    durationMonths: contract?.durationMonths?.toString() || "12",
-    noticePeriodMonths: contract?.noticePeriodMonths?.toString() || "3",
+    startDate: contract?.start_date || contract?.startDate || "",
+    durationMonths: (contract?.duration_months || contract?.durationMonths)?.toString() || "12",
+    noticePeriodMonths: (contract?.notice_period_months || contract?.noticePeriodMonths)?.toString() || "3",
   });
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
@@ -103,7 +103,7 @@ export function ContractFormModal({
 
     try {
       const endDate = calculateEndDate();
-      await Data.createContract({
+      const contractData = {
         customer_id: formData.customerId,
         title: formData.title,
         description: formData.description || undefined,
@@ -113,11 +113,17 @@ export function ContractFormModal({
         duration_months: parseInt(formData.durationMonths) || 12,
         notice_period_months: parseInt(formData.noticePeriodMonths) || 3,
         template_id: selectedTemplate?.id || undefined,
-      });
+      };
+
+      if (contract?.id) {
+        await Data.updateContract(contract.id, contractData);
+      } else {
+        await Data.createContract(contractData);
+      }
       onSuccess?.();
       onClose();
     } catch (error: any) {
-      alert("Fehler beim Erstellen: " + error.message);
+      alert("Fehler: " + error.message);
     }
   };
 
