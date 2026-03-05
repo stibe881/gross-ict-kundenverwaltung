@@ -69,10 +69,14 @@ export async function signInWithMicrosoft() {
 
             if (result.type === "success" && result.url) {
                 // Extract tokens from the callback URL hash
-                const url = new URL(result.url);
-                const params = new URLSearchParams(url.hash.substring(1));
+                // Use string parsing instead of new URL() because custom schemes may not parse correctly
+                const hashIndex = result.url.indexOf("#");
+                const hash = hashIndex >= 0 ? result.url.substring(hashIndex + 1) : "";
+                const params = new URLSearchParams(hash);
                 const accessToken = params.get("access_token");
                 const refreshToken = params.get("refresh_token");
+
+                console.log("[Auth] OAuth callback result:", { hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken, url: result.url.substring(0, 80) });
 
                 if (accessToken) {
                     const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
@@ -89,7 +93,11 @@ export async function signInWithMicrosoft() {
                     }
 
                     return sessionData;
+                } else {
+                    console.error("[Auth] No access_token found in callback URL:", result.url);
                 }
+            } else {
+                console.log("[Auth] OAuth browser result:", result.type);
             }
         }
     }
