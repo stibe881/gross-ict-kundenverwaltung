@@ -36,6 +36,8 @@ export function ContractFormModal({
     noticePeriodMonths: contract?.noticePeriodMonths?.toString() || "3",
   });
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
 
   // Kunden laden
   const { data: customers } = useQuery({
@@ -43,7 +45,26 @@ export function ContractFormModal({
     queryFn: Data.getCustomersWithCounts,
   });
 
+  // Vorlagen laden
+  const { data: templates } = useQuery({
+    queryKey: ["contract_templates"],
+    queryFn: Data.getContractTemplates,
+  });
+
   const selectedCustomer = customers?.find((c) => c.id === formData.customerId);
+
+  const applyTemplate = (template: any) => {
+    setSelectedTemplate(template);
+    setFormData({
+      ...formData,
+      title: template.name || formData.title,
+      amount: template.default_amount?.toString() || formData.amount,
+      durationMonths: template.default_duration_months?.toString() || formData.durationMonths,
+      noticePeriodMonths: template.default_notice_period_months?.toString() || formData.noticePeriodMonths,
+      description: template.description || formData.description,
+    });
+    setShowTemplatePicker(false);
+  };
 
   // Enddatum automatisch berechnen
   const calculateEndDate = () => {
@@ -97,6 +118,43 @@ export function ContractFormModal({
           {/* Form */}
           <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
             <View className="gap-4">
+              {/* Vorlage auswählen */}
+              {!contract && templates && templates.length > 0 && (
+                <View>
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    Vorlage verwenden
+                  </Text>
+                  <TouchableOpacity
+                    className="bg-surface border border-border rounded-lg px-4 py-3 flex-row items-center justify-between"
+                    onPress={() => setShowTemplatePicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text className={selectedTemplate ? "text-foreground" : "text-muted"}>
+                      {selectedTemplate ? selectedTemplate.name : "Vorlage auswählen (optional)..."}
+                    </Text>
+                    <IconSymbol name="doc.on.doc.fill" size={18} color={selectedTemplate ? colors.primary : colors.muted} />
+                  </TouchableOpacity>
+                  {selectedTemplate && (
+                    <TouchableOpacity
+                      className="mt-1"
+                      onPress={() => {
+                        setSelectedTemplate(null);
+                        setFormData({
+                          ...formData,
+                          title: "",
+                          description: "",
+                          amount: "",
+                          durationMonths: "12",
+                          noticePeriodMonths: "3",
+                        });
+                      }}
+                    >
+                      <Text className="text-sm text-primary">Vorlage entfernen</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
               {/* Kunde auswählen */}
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
@@ -301,6 +359,63 @@ export function ContractFormModal({
               ) : (
                 <Text className="text-center text-muted py-4">
                   Keine Kunden vorhanden
+                </Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Vorlagen-Picker Modal */}
+      <Modal
+        visible={showTemplatePicker}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowTemplatePicker(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-end">
+          <View className="bg-background rounded-t-3xl" style={{ maxHeight: "70%" }}>
+            <View className="flex-row items-center justify-between p-4 border-b border-border">
+              <Text className="text-xl font-bold text-foreground">
+                Vorlage auswählen
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowTemplatePicker(false)}
+                activeOpacity={0.7}
+              >
+                <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView className="p-4">
+              {templates && templates.length > 0 ? (
+                templates.map((template: any) => (
+                  <TouchableOpacity
+                    key={template.id}
+                    className="py-3 border-b border-border"
+                    onPress={() => applyTemplate(template)}
+                    activeOpacity={0.7}
+                  >
+                    <Text className="text-base font-semibold text-foreground">
+                      {template.name}
+                    </Text>
+                    {template.description && (
+                      <Text className="text-sm text-muted">{template.description}</Text>
+                    )}
+                    <View className="flex-row gap-4 mt-1">
+                      {template.default_amount && (
+                        <Text className="text-xs text-muted">
+                          CHF {template.default_amount}/Jahr
+                        </Text>
+                      )}
+                      <Text className="text-xs text-muted">
+                        {template.default_duration_months} Monate
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text className="text-center text-muted py-4">
+                  Keine Vorlagen vorhanden
                 </Text>
               )}
             </ScrollView>

@@ -1,0 +1,197 @@
+import { useState, useEffect } from "react";
+import {
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    ScrollView,
+    Modal,
+} from "react-native";
+import { useColors } from "@/hooks/use-colors";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+
+interface ContractTemplateFormModalProps {
+    visible: boolean;
+    template?: any;
+    onClose: () => void;
+    onSubmit: (data: any) => void;
+}
+
+export function ContractTemplateFormModal({
+    visible,
+    template,
+    onClose,
+    onSubmit,
+}: ContractTemplateFormModalProps) {
+    const colors = useColors();
+    const [formData, setFormData] = useState({
+        name: "",
+        description: "",
+        default_amount: "",
+        default_duration_months: "12",
+        default_notice_period_months: "3",
+    });
+
+    useEffect(() => {
+        if (template) {
+            setFormData({
+                name: template.name || "",
+                description: template.description || "",
+                default_amount: template.default_amount?.toString() || "",
+                default_duration_months: template.default_duration_months?.toString() || "12",
+                default_notice_period_months: template.default_notice_period_months?.toString() || "3",
+            });
+        } else {
+            setFormData({
+                name: "",
+                description: "",
+                default_amount: "",
+                default_duration_months: "12",
+                default_notice_period_months: "3",
+            });
+        }
+    }, [template, visible]);
+
+    const handleSubmit = () => {
+        if (!formData.name.trim()) {
+            alert("Bitte geben Sie einen Namen für die Vorlage ein");
+            return;
+        }
+
+        onSubmit({
+            name: formData.name.trim(),
+            description: formData.description.trim() || null,
+            default_amount: formData.default_amount ? parseFloat(formData.default_amount) : null,
+            default_duration_months: parseInt(formData.default_duration_months) || 12,
+            default_notice_period_months: parseInt(formData.default_notice_period_months) || 3,
+        });
+    };
+
+    return (
+        <Modal
+            visible={visible}
+            animationType="slide"
+            transparent
+            onRequestClose={onClose}
+        >
+            <View className="flex-1 bg-black/50 justify-end">
+                <View className="bg-background rounded-t-3xl" style={{ maxHeight: "90%" }}>
+                    {/* Header */}
+                    <View className="flex-row items-center justify-between p-4 border-b border-border">
+                        <Text className="text-2xl font-bold text-foreground">
+                            {template ? "Vorlage bearbeiten" : "Neue Vorlage"}
+                        </Text>
+                        <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+                            <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Form */}
+                    <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
+                        <View className="gap-4">
+                            {/* Name */}
+                            <View>
+                                <Text className="text-sm font-semibold text-foreground mb-2">
+                                    Vorlagenname *
+                                </Text>
+                                <TextInput
+                                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                    placeholder="z.B. Wartungsvertrag"
+                                    placeholderTextColor={colors.muted}
+                                    value={formData.name}
+                                    onChangeText={(text) => setFormData({ ...formData, name: text })}
+                                />
+                            </View>
+
+                            {/* Beschreibung */}
+                            <View>
+                                <Text className="text-sm font-semibold text-foreground mb-2">
+                                    Beschreibung
+                                </Text>
+                                <TextInput
+                                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                    placeholder="Optionale Beschreibung der Vorlage"
+                                    placeholderTextColor={colors.muted}
+                                    multiline
+                                    numberOfLines={3}
+                                    textAlignVertical="top"
+                                    value={formData.description}
+                                    onChangeText={(text) => setFormData({ ...formData, description: text })}
+                                />
+                            </View>
+
+                            {/* Standard-Betrag */}
+                            <View>
+                                <Text className="text-sm font-semibold text-foreground mb-2">
+                                    Standard-Jahresbetrag (CHF)
+                                </Text>
+                                <TextInput
+                                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                    placeholder="0.00"
+                                    placeholderTextColor={colors.muted}
+                                    keyboardType="decimal-pad"
+                                    value={formData.default_amount}
+                                    onChangeText={(text) => setFormData({ ...formData, default_amount: text })}
+                                />
+                            </View>
+
+                            {/* Standard-Laufzeit */}
+                            <View>
+                                <Text className="text-sm font-semibold text-foreground mb-2">
+                                    Standard-Laufzeit (Monate)
+                                </Text>
+                                <TextInput
+                                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                    placeholder="12"
+                                    placeholderTextColor={colors.muted}
+                                    keyboardType="number-pad"
+                                    value={formData.default_duration_months}
+                                    onChangeText={(text) =>
+                                        setFormData({ ...formData, default_duration_months: text })
+                                    }
+                                />
+                            </View>
+
+                            {/* Standard-Kündigungsfrist */}
+                            <View>
+                                <Text className="text-sm font-semibold text-foreground mb-2">
+                                    Standard-Kündigungsfrist (Monate)
+                                </Text>
+                                <TextInput
+                                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                    placeholder="3"
+                                    placeholderTextColor={colors.muted}
+                                    keyboardType="number-pad"
+                                    value={formData.default_notice_period_months}
+                                    onChangeText={(text) =>
+                                        setFormData({ ...formData, default_notice_period_months: text })
+                                    }
+                                />
+                            </View>
+                        </View>
+                    </ScrollView>
+
+                    {/* Footer */}
+                    <View className="p-4 border-t border-border flex-row gap-3">
+                        <TouchableOpacity
+                            className="flex-1 bg-surface border border-border py-3 rounded-lg"
+                            onPress={onClose}
+                            activeOpacity={0.7}
+                        >
+                            <Text className="text-foreground font-semibold text-center">Abbrechen</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            className="flex-1 bg-primary py-3 rounded-lg"
+                            onPress={handleSubmit}
+                            activeOpacity={0.8}
+                        >
+                            <Text className="text-background font-semibold text-center">
+                                {template ? "Aktualisieren" : "Erstellen"}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        </Modal>
+    );
+}

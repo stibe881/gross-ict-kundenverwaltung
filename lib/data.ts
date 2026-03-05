@@ -547,3 +547,50 @@ export async function convertQuoteToInvoice(quoteId: string) {
 
     return invoice;
 }
+
+// ==================== VERTRAGSVORLAGEN ====================
+
+export async function getContractTemplates() {
+    const { data, error } = await supabase
+        .from("contract_templates")
+        .select("*")
+        .order("name", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createContractTemplate(template: {
+    name: string;
+    description?: string;
+    default_amount?: number;
+    default_duration_months?: number;
+    default_notice_period_months?: number;
+}) {
+    const { data, error } = await supabase
+        .from("contract_templates")
+        .insert([template])
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateContractTemplate(id: string, template: any) {
+    const { data, error } = await supabase
+        .from("contract_templates")
+        .update(template)
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteContractTemplate(id: string) {
+    const { error } = await supabase.from("contract_templates").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
