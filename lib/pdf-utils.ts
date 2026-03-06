@@ -1,3 +1,4 @@
+import { LOGO_BASE64 } from "./logo-base64";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { Paths, File as FSFile } from "expo-file-system";
@@ -68,7 +69,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       const nameParts = (item.description || "").split("\n");
       const mainName = nameParts[0] || "";
       const subLines = nameParts.slice(1).filter(Boolean);
-      const prefix = item.optional ? '<span style="color:#0d9488;font-weight:600;">OPTIONAL</span> – ' : "";
+      const prefix = item.optional ? '<span style="color:#D4A432;font-weight:600;">OPTIONAL</span> – ' : "";
       const descHTML =
         `${prefix}${mainName}` +
         (subLines.length > 0
@@ -107,7 +108,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     /* ── Accent Bar ── */
     .accent-bar {
       height: 6px;
-      background: linear-gradient(90deg, #0d9488, #14b8a6);
+      background: linear-gradient(90deg, #D4A432, #E8B84A);
     }
 
     /* ── Container ── */
@@ -126,12 +127,12 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       color: #1a1a2e;
       letter-spacing: 2px;
     }
-    .logo span { color: #0d9488; font-weight: 600; }
+    .logo span { color: #D4A432; font-weight: 600; }
     .doc-type {
       text-align: right;
       font-size: 22pt;
       font-weight: 700;
-      color: #0d9488;
+      color: #D4A432;
       letter-spacing: 3px;
       text-transform: uppercase;
     }
@@ -186,7 +187,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     /* ── Items Table ── */
     .items-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
     .items-table thead th {
-      background: #0d9488;
+      background: #D4A432;
       color: #fff;
       padding: 10px 12px;
       font-size: 7.5pt;
@@ -217,7 +218,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     .totals-value { text-align: right; font-weight: 600; color: #1a1a2e; min-width: 100px; }
     .totals-sep td { height: 2px; padding: 0; }
     .totals-sep td div { height: 2px; background: #e2e8f0; }
-    .total-row { background: #0d9488; }
+    .total-row { background: #D4A432; }
     .total-row td {
       padding: 12px 14px !important;
       font-size: 13pt !important;
@@ -232,7 +233,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       margin-top: 30px;
       padding: 14px 16px;
       background: #f8fafb;
-      border-left: 3px solid #0d9488;
+      border-left: 3px solid #D4A432;
       font-size: 9pt;
       color: #475569;
       line-height: 1.6;
@@ -242,7 +243,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       font-size: 8pt;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: #0d9488;
+      color: #D4A432;
       margin-bottom: 4px;
     }
 
@@ -260,7 +261,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     }
     .footer-table { width: 100%; border-collapse: collapse; }
     .footer-table td { border: none; padding: 0; vertical-align: top; color: #cbd5e1; }
-    .footer-label { font-weight: 700; color: #0d9488; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
+    .footer-label { font-weight: 700; color: #D4A432; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
     .footer-val { font-weight: 600; color: #fff; }
   </style>
 </head>
@@ -273,7 +274,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     <!-- Header -->
     <table class="header-table">
       <tr>
-        <td><div class="logo">Gross · <span>ICT</span></div></td>
+        <td><img src="${LOGO_BASE64}" style="height:45px;width:auto;" alt="Gross ICT" /></td>
         <td><div class="doc-type">Angebot</div></td>
       </tr>
     </table>
@@ -477,13 +478,13 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     @page { size: A4; margin: 0; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #1a1a2e; line-height: 1.5; }
-    .accent-bar { height: 6px; background: linear-gradient(90deg, #0d9488, #14b8a6); }
+    .accent-bar { height: 6px; background: linear-gradient(90deg, #D4A432, #E8B84A); }
     .page { padding: 30px 40px 120px 40px; min-height: 100%; }
     .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
     .header-table td { border: none; padding: 0; vertical-align: bottom; }
     .logo { font-size: 26pt; font-weight: 300; color: #1a1a2e; letter-spacing: 2px; }
-    .logo span { color: #0d9488; font-weight: 600; }
-    .doc-type { text-align: right; font-size: 22pt; font-weight: 700; color: #0d9488; letter-spacing: 3px; text-transform: uppercase; }
+    .logo span { color: #D4A432; font-weight: 600; }
+    .doc-type { text-align: right; font-size: 22pt; font-weight: 700; color: #D4A432; letter-spacing: 3px; text-transform: uppercase; }
     .company-bar { text-align: right; font-size: 8pt; color: #64748b; padding: 6px 0 20px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 24px; line-height: 1.7; }
     .addr-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
     .addr-meta-table td { border: none; padding: 0; vertical-align: top; }
@@ -496,7 +497,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     .meta-table td:last-child { font-weight: 600; text-align: right; color: #1a1a2e; }
     .intro { font-size: 10pt; color: #475569; margin-bottom: 20px; line-height: 1.6; }
     .items-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-    .items-table thead th { background: #0d9488; color: #fff; padding: 10px 12px; font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+    .items-table thead th { background: #D4A432; color: #fff; padding: 10px 12px; font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
     .items-table thead th:first-child { border-radius: 4px 0 0 0; text-align: center; width: 40px; }
     .items-table thead th:last-child { border-radius: 0 4px 0 0; }
     .items-table thead th:not(:first-child):not(:nth-child(2)) { text-align: right; }
@@ -510,12 +511,12 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     .totals-value { text-align: right; font-weight: 600; color: #1a1a2e; min-width: 100px; }
     .totals-sep td { height: 2px; padding: 0; }
     .totals-sep td div { height: 2px; background: #e2e8f0; }
-    .total-row { background: #0d9488; }
+    .total-row { background: #D4A432; }
     .total-row td { padding: 12px 14px !important; font-size: 13pt !important; font-weight: 700 !important; color: #fff !important; border-radius: 4px; }
     .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; }
     .footer-table { width: 100%; border-collapse: collapse; }
     .footer-table td { border: none; padding: 0; vertical-align: top; color: #cbd5e1; }
-    .footer-label { font-weight: 700; color: #0d9488; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
+    .footer-label { font-weight: 700; color: #D4A432; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
     .footer-val { font-weight: 600; color: #fff; }
   </style>
 </head>
@@ -524,7 +525,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
   <div class="page">
     <table class="header-table">
       <tr>
-        <td><div class="logo">Gross · <span>ICT</span></div></td>
+        <td><img src="${LOGO_BASE64}" style="height:45px;width:auto;" alt="Gross ICT" /></td>
         <td><div class="doc-type">Rechnung</div></td>
       </tr>
     </table>

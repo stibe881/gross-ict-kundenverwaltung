@@ -276,7 +276,7 @@ export default function ContractsScreen() {
             </View>
 
             {/* Filter */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
               <View className="flex-row gap-2">
                 {["all", "active", "cancelled", "expired"].map((status) => (
                   <TouchableOpacity
@@ -437,12 +437,29 @@ export default function ContractsScreen() {
         <ContractDetailsModal
           contract={selectedContract}
           onClose={() => setSelectedContract(null)}
-          getStatusLabel={getStatusLabel}
-          getStatusColor={getStatusColor}
           onEdit={(c: any) => {
             setSelectedContract(null);
             setEditingContract(c);
           }}
+          onDelete={(c: any) => {
+            showConfirm(
+              "Vertrag löschen",
+              `Möchten Sie den Vertrag "${c.title}" wirklich löschen?`,
+              async () => {
+                try {
+                  await Data.deleteContract(c.id);
+                  setSelectedContract(null);
+                  queryClient.invalidateQueries({ queryKey: ["contracts"] });
+                  showAlert("Erfolg", "Vertrag wurde gelöscht");
+                } catch (e: any) {
+                  showAlert("Fehler", e.message);
+                }
+              },
+              "Löschen"
+            );
+          }}
+          getStatusLabel={getStatusLabel}
+          getStatusColor={getStatusColor}
         />
       )}
 
@@ -468,12 +485,14 @@ function ContractDetailsModal({
   contract,
   onClose,
   onEdit,
+  onDelete,
   getStatusLabel,
   getStatusColor,
 }: {
   contract: any;
   onClose: () => void;
   onEdit?: (contract: any) => void;
+  onDelete?: (contract: any) => void;
   getStatusLabel: (status: ContractStatus) => string;
   getStatusColor: (status: ContractStatus) => string;
 }) {
@@ -582,20 +601,29 @@ function ContractDetailsModal({
           </ScrollView>
 
           {/* Footer */}
-          <View className="p-4 border-t border-border flex-row gap-3">
+          <View className="p-4 border-t border-border gap-2">
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                className="flex-1 bg-surface border border-border py-3 rounded-lg"
+                onPress={onClose}
+                activeOpacity={0.8}
+              >
+                <Text className="text-foreground font-semibold text-center">Schließen</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 bg-primary py-3 rounded-lg"
+                activeOpacity={0.8}
+                onPress={() => onEdit?.(contract)}
+              >
+                <Text className="text-background font-semibold text-center">Bearbeiten</Text>
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity
-              className="flex-1 bg-surface border border-border py-3 rounded-lg"
-              onPress={onClose}
+              className="bg-error/10 border border-error/30 py-3 rounded-lg"
               activeOpacity={0.8}
+              onPress={() => onDelete?.(contract)}
             >
-              <Text className="text-foreground font-semibold text-center">Schließen</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="flex-1 bg-primary py-3 rounded-lg"
-              activeOpacity={0.8}
-              onPress={() => onEdit?.(contract)}
-            >
-              <Text className="text-background font-semibold text-center">Bearbeiten</Text>
+              <Text className="text-error font-semibold text-center">Vertrag löschen</Text>
             </TouchableOpacity>
           </View>
         </View>

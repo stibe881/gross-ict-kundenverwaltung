@@ -183,20 +183,18 @@ export default function TicketsScreen() {
         </View>
 
         {/* Filter */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
           <View className="flex-row gap-2">
             {["all", "open", "in_progress", "waiting", "closed"].map((status) => (
               <TouchableOpacity
                 key={status}
-                className={`px-3 py-1.5 rounded-md ${
-                  filter === status ? "bg-primary" : "bg-surface border border-border"
-                }`}
+                className={`px-3 py-1.5 rounded-md ${filter === status ? "bg-primary" : "bg-surface border border-border"
+                  }`}
                 onPress={() => setFilter(status as any)}
               >
                 <Text
-                  className={`text-sm font-semibold ${
-                    filter === status ? "text-background" : "text-foreground"
-                  }`}
+                  className={`text-sm font-semibold ${filter === status ? "text-background" : "text-foreground"
+                    }`}
                 >
                   {status === "all"
                     ? "Alle"
@@ -232,7 +230,7 @@ export default function TicketsScreen() {
       <TicketFormModal
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSuccess={() => {}}
+        onSuccess={() => { }}
       />
 
       {/* Ticket-Details Modal */}
@@ -369,33 +367,33 @@ function TicketDetailsModal({
               <View className="flex-row gap-3">
                 <View className="flex-1">
                   <Text className="text-sm text-muted mb-1">Status</Text>
-              <View
-                className="px-3 py-2 rounded-lg"
-                style={{ backgroundColor: getStatusColor(ticket.status) + "20" }}
-              >
-                <Text
-                  className="text-sm font-semibold text-center"
-                  style={{ color: getStatusColor(ticket.status) }}
-                >
-                  {getStatusLabel(ticket.status)}
-                </Text>
+                  <View
+                    className="px-3 py-2 rounded-lg"
+                    style={{ backgroundColor: getStatusColor(ticket.status) + "20" }}
+                  >
+                    <Text
+                      className="text-sm font-semibold text-center"
+                      style={{ color: getStatusColor(ticket.status) }}
+                    >
+                      {getStatusLabel(ticket.status)}
+                    </Text>
+                  </View>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm text-muted mb-1">Priorität</Text>
+                  <View
+                    className="px-3 py-2 rounded-lg"
+                    style={{ backgroundColor: getPriorityColor(ticket.priority) + "20" }}
+                  >
+                    <Text
+                      className="text-sm font-semibold text-center"
+                      style={{ color: getPriorityColor(ticket.priority) }}
+                    >
+                      {getPriorityLabel(ticket.priority)}
+                    </Text>
+                  </View>
+                </View>
               </View>
-            </View>
-            <View className="flex-1">
-              <Text className="text-sm text-muted mb-1">Priorität</Text>
-              <View
-                className="px-3 py-2 rounded-lg"
-                style={{ backgroundColor: getPriorityColor(ticket.priority) + "20" }}
-              >
-                <Text
-                  className="text-sm font-semibold text-center"
-                  style={{ color: getPriorityColor(ticket.priority) }}
-                >
-                  {getPriorityLabel(ticket.priority)}
-                </Text>
-              </View>
-            </View>
-          </View>
 
               <View>
                 <Text className="text-sm text-muted mb-1">Erstellt am</Text>
@@ -407,111 +405,109 @@ function TicketDetailsModal({
             <View className="mt-6">
               <Text className="text-lg font-bold text-foreground mb-3">Historie</Text>
               <ScrollView className="max-h-64 mb-4" showsVerticalScrollIndicator={false}>
-            {comments.map((comment) => (
-              <View
-                key={comment.id}
-                className={`mb-3 p-3 rounded-lg ${
-                  comment.type === "system" ? "bg-surface" : "bg-primary/10"
-                }`}
-              >
-                <View className="flex-row items-center justify-between mb-1">
-                  <View className="flex-row items-center gap-2">
-                    <Text
-                      className={`text-xs font-semibold ${
-                        comment.type === "system" ? "text-muted" : "text-primary"
+                {comments.map((comment) => (
+                  <View
+                    key={comment.id}
+                    className={`mb-3 p-3 rounded-lg ${comment.type === "system" ? "bg-surface" : "bg-primary/10"
                       }`}
-                    >
-                      {comment.user}
-                    </Text>
-                    {comment.type === "comment" && (
-                      <View
-                        style={{
-                          backgroundColor: comment.isInternal
-                            ? colors.warning + "20"
-                            : colors.success + "20",
-                        }}
-                        className="px-2 py-0.5 rounded"
-                      >
+                  >
+                    <View className="flex-row items-center justify-between mb-1">
+                      <View className="flex-row items-center gap-2">
                         <Text
-                          style={{
-                            color: comment.isInternal ? colors.warning : colors.success,
-                          }}
-                          className="text-xs font-semibold"
+                          className={`text-xs font-semibold ${comment.type === "system" ? "text-muted" : "text-primary"
+                            }`}
                         >
-                          {comment.isInternal ? "Intern" : "Extern"}
+                          {comment.user}
                         </Text>
+                        {comment.type === "comment" && (
+                          <View
+                            style={{
+                              backgroundColor: comment.isInternal
+                                ? colors.warning + "20"
+                                : colors.success + "20",
+                            }}
+                            className="px-2 py-0.5 rounded"
+                          >
+                            <Text
+                              style={{
+                                color: comment.isInternal ? colors.warning : colors.success,
+                              }}
+                              className="text-xs font-semibold"
+                            >
+                              {comment.isInternal ? "Intern" : "Extern"}
+                            </Text>
+                          </View>
+                        )}
                       </View>
-                    )}
+                      <Text className="text-xs text-muted">
+                        {formatDateTime(comment.createdAt)}
+                      </Text>
+                    </View>
+                    <Text className="text-sm text-foreground">{comment.text}</Text>
                   </View>
-                  <Text className="text-xs text-muted">
-                    {formatDateTime(comment.createdAt)}
-                  </Text>
-                </View>
-                <Text className="text-sm text-foreground">{comment.text}</Text>
-              </View>
-            ))}
-          </ScrollView>
+                ))}
+              </ScrollView>
 
               {/* Kommentar hinzufügen */}
               <View className="gap-2">
-            {/* Internal/External Toggle */}
-            <View className="flex-row items-center justify-between bg-surface p-3 rounded-lg border border-border">
-              <View className="flex-row items-center gap-2">
-                <Text className="text-sm font-semibold text-foreground">
-                  {isInternal ? "Interner Kommentar" : "Externer Kommentar"}
-                </Text>
-                <View
-                  style={{
-                    backgroundColor: isInternal
-                      ? colors.warning + "20"
-                      : colors.success + "20",
-                  }}
-                  className="px-2 py-1 rounded"
-                >
-                  <Text
-                    style={{
-                      color: isInternal ? colors.warning : colors.success,
-                    }}
-                    className="text-xs font-semibold"
-                  >
-                    {isInternal ? "Nur für Mitarbeiter" : "Für Kunden sichtbar"}
-                  </Text>
+                {/* Internal/External Toggle */}
+                <View className="flex-row items-center justify-between bg-surface p-3 rounded-lg border border-border">
+                  <View className="flex-row items-center gap-2">
+                    <Text className="text-sm font-semibold text-foreground">
+                      {isInternal ? "Interner Kommentar" : "Externer Kommentar"}
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: isInternal
+                          ? colors.warning + "20"
+                          : colors.success + "20",
+                      }}
+                      className="px-2 py-1 rounded"
+                    >
+                      <Text
+                        style={{
+                          color: isInternal ? colors.warning : colors.success,
+                        }}
+                        className="text-xs font-semibold"
+                      >
+                        {isInternal ? "Nur für Mitarbeiter" : "Für Kunden sichtbar"}
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={!isInternal}
+                    onValueChange={(value) => setIsInternal(!value)}
+                    trackColor={{ false: colors.warning, true: colors.success }}
+                    thumbColor={colors.background}
+                  />
                 </View>
-              </View>
-              <Switch
-                value={!isInternal}
-                onValueChange={(value) => setIsInternal(!value)}
-                trackColor={{ false: colors.warning, true: colors.success }}
-                thumbColor={colors.background}
-              />
-            </View>
 
-            <TextInput
-              className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-              placeholder="Kommentar hinzufügen..."
-              placeholderTextColor={colors.muted}
-              multiline
-              numberOfLines={2}
-              textAlignVertical="top"
-              value={newComment}
-              onChangeText={setNewComment}
-            />
-            <TouchableOpacity
-              className="bg-primary py-2 rounded-lg"
-              onPress={handleAddComment}
-              activeOpacity={0.8}
-            >
-              <Text className="text-background font-semibold text-center">
-                Kommentar hinzufügen
-              </Text>
-              </TouchableOpacity>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="Kommentar hinzufügen..."
+                  placeholderTextColor={colors.muted}
+                  multiline
+                  numberOfLines={2}
+                  textAlignVertical="top"
+                  value={newComment}
+                  onChangeText={setNewComment}
+                />
+                <TouchableOpacity
+                  className="bg-primary py-2 rounded-lg"
+                  onPress={handleAddComment}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-background font-semibold text-center">
+                    Kommentar hinzufügen
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
           </ScrollView>
 
           {/* Footer */}
           <View className="p-4 border-t border-border">
-              <TouchableOpacity
+            <TouchableOpacity
               className="bg-surface border border-border py-3 rounded-lg"
               onPress={onClose}
               activeOpacity={0.8}

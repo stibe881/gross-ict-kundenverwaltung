@@ -103,6 +103,7 @@ export default function TabLayout() {
         name="customers"
         options={{
           title: "Kunden",
+          href: null,
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
         }}
       />
@@ -117,6 +118,7 @@ export default function TabLayout() {
         name="leads"
         options={{
           title: "Akquise",
+          href: null,
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="briefcase.fill" color={color} />,
         }}
       />
@@ -138,6 +140,7 @@ export default function TabLayout() {
         name="products"
         options={{
           title: "Produkte",
+          href: null,
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="cube.box.fill" color={color} />,
         }}
       />
