@@ -41,7 +41,9 @@ export async function signInWithMicrosoft() {
     // will detect the SIGNED_IN event and navigate to the dashboard.
     const redirectTo = Platform.OS === "web"
         ? window.location.origin
-        : "manus20260204080741://oauth/callback";
+        : Linking.createURL("oauth/callback");
+
+    console.log("[Auth] OAuth redirectTo:", redirectTo);
 
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "azure",

@@ -37,6 +37,7 @@ export default function ContractsScreen() {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [selectedContract, setSelectedContract] = useState<any>(null);
+  const [editingContract, setEditingContract] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"contracts" | "templates">("contracts");
 
   // Vorlagen laden
@@ -438,6 +439,24 @@ export default function ContractsScreen() {
           onClose={() => setSelectedContract(null)}
           getStatusLabel={getStatusLabel}
           getStatusColor={getStatusColor}
+          onEdit={(c: any) => {
+            setSelectedContract(null);
+            setEditingContract(c);
+          }}
+        />
+      )}
+
+      {/* Vertrag bearbeiten */}
+      {editingContract && (
+        <ContractFormModal
+          visible={true}
+          contract={editingContract}
+          onClose={() => setEditingContract(null)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["contracts"] });
+            queryClient.invalidateQueries({ queryKey: ["customers"] });
+            setEditingContract(null);
+          }}
         />
       )}
     </ScreenContainer>
@@ -448,11 +467,13 @@ export default function ContractsScreen() {
 function ContractDetailsModal({
   contract,
   onClose,
+  onEdit,
   getStatusLabel,
   getStatusColor,
 }: {
   contract: any;
   onClose: () => void;
+  onEdit?: (contract: any) => void;
   getStatusLabel: (status: ContractStatus) => string;
   getStatusColor: (status: ContractStatus) => string;
 }) {
@@ -572,6 +593,7 @@ function ContractDetailsModal({
             <TouchableOpacity
               className="flex-1 bg-primary py-3 rounded-lg"
               activeOpacity={0.8}
+              onPress={() => onEdit?.(contract)}
             >
               <Text className="text-background font-semibold text-center">Bearbeiten</Text>
             </TouchableOpacity>
