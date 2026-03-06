@@ -117,9 +117,6 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       print-color-adjust: exact;
       padding: 0;
       margin: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
     }
 
     /* ── Accent Bar ── */
@@ -131,7 +128,6 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     .page {
       padding: 30px 40px 30px 40px;
       position: relative;
-      flex: 1;
     }
 
     /* ── Header ── */
@@ -270,7 +266,6 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       padding: 14px 40px;
       font-size: 7.5pt;
       line-height: 1.7;
-      margin-top: auto;
     }
 
     /* ── Page break hints ── */
@@ -401,9 +396,16 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
   <script>
     window.onload = function() {
       var spacer = document.getElementById('footer-spacer');
-      var footer = document.getElementById('pdf-footer');
       spacer.style.height = '0px';
-      var pageH = 842; // A4 Höhe in Punkten
+      // Seitenhöhe dynamisch messen mit 100vh
+      var m = document.createElement('div');
+      m.style.height = '100vh';
+      m.style.position = 'absolute';
+      m.style.top = '-9999px';
+      document.body.appendChild(m);
+      var pageH = m.offsetHeight;
+      document.body.removeChild(m);
+      if (pageH < 100) pageH = 842; // Fallback
       var contentH = document.body.scrollHeight;
       var pages = Math.max(1, Math.ceil(contentH / pageH));
       var targetH = pages * pageH;
@@ -549,12 +551,9 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       print-color-adjust: exact;
       padding: 0;
       margin: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
     }
     .accent-bar { height: 6px; background: linear-gradient(90deg, #D4A432, #E8B84A); }
-    .page { padding: 30px 40px 30px 40px; position: relative; flex: 1; }
+    .page { padding: 30px 40px 30px 40px; position: relative; }
     .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
     .header-table td { border: none; padding: 0; vertical-align: bottom; }
     .logo { font-size: 26pt; font-weight: 300; color: #1a1a2e; letter-spacing: 2px; }
@@ -590,7 +589,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     .total-row td { padding: 12px 14px !important; font-size: 13pt !important; font-weight: 700 !important; color: #fff !important; border-radius: 4px; }
     .notes { clear: both; margin-top: 30px; padding: 14px 16px; background: #f8fafb; border-left: 3px solid #D4A432; font-size: 9pt; color: #475569; line-height: 1.6; }
     .notes-title { font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; color: #D4A432; margin-bottom: 4px; }
-    .footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; margin-top: auto; }
+    .footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; }
     .totals-wrap { page-break-inside: avoid; }
     .notes { page-break-inside: avoid; }
     .footer-table { width: 100%; border-collapse: collapse; }
@@ -697,7 +696,14 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     window.onload = function() {
       var spacer = document.getElementById('footer-spacer');
       spacer.style.height = '0px';
-      var pageH = 842;
+      var m = document.createElement('div');
+      m.style.height = '100vh';
+      m.style.position = 'absolute';
+      m.style.top = '-9999px';
+      document.body.appendChild(m);
+      var pageH = m.offsetHeight;
+      document.body.removeChild(m);
+      if (pageH < 100) pageH = 842;
       var contentH = document.body.scrollHeight;
       var pages = Math.max(1, Math.ceil(contentH / pageH));
       var targetH = pages * pageH;
