@@ -124,9 +124,6 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     .page {
       padding: 30px 40px 30px 40px;
       position: relative;
-      min-height: calc(100vh - 6px);
-      display: flex;
-      flex-direction: column;
     }
 
     /* ── Header ── */
@@ -265,7 +262,6 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       padding: 14px 40px;
       font-size: 7.5pt;
       line-height: 1.7;
-      margin-top: auto;
     }
 
     /* ── Page break hints ── */
