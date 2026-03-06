@@ -121,11 +121,12 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       background: linear-gradient(90deg, #D4A432, #E8B84A);
     }
 
-    /* ── Container ── */
     .page {
-      padding: 30px 40px 120px 40px;
+      padding: 30px 40px 30px 40px;
       position: relative;
-      min-height: 100%;
+      min-height: calc(100vh - 6px);
+      display: flex;
+      flex-direction: column;
     }
 
     /* ── Header ── */
@@ -259,16 +260,18 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
 
     /* ── Footer ── */
     .footer {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
       background: #1a1a2e;
       color: #cbd5e1;
       padding: 14px 40px;
       font-size: 7.5pt;
       line-height: 1.7;
+      margin-top: auto;
     }
+
+    /* ── Page break hints ── */
+    .totals-wrap { page-break-inside: avoid; }
+    .notes { page-break-inside: avoid; }
+    .footer { page-break-inside: avoid; }
     .footer-table { width: 100%; border-collapse: collapse; }
     .footer-table td { border: none; padding: 0; vertical-align: top; color: #cbd5e1; }
     .footer-label { font-weight: 700; color: #D4A432; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
