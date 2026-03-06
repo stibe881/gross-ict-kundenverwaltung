@@ -55,6 +55,7 @@ interface QuoteForPDF {
   items?: Array<{
     description: string;
     quantity: number;
+    unit?: string;
     unit_price: number;
     vat_rate: number;
     total: number;
@@ -117,7 +118,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       <tr${rowBg}>
         <td class="cell-center">${idx + 1}</td>
         <td class="cell-left">${descHTML}</td>
-        <td class="cell-right">${item.quantity}</td>
+        <td class="cell-right">${item.quantity} ${item.unit || 'Stk.'}</td>
         <td class="cell-right">${fmtCHF(item.unit_price)}</td>
         <td class="cell-right">${fmtCHF(item.total)}</td>
       </tr>`;

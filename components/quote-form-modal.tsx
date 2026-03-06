@@ -29,6 +29,7 @@ interface LineItem {
     name: string;
     description: string;
     quantity: string;
+    unit: string;
     unitPrice: string;
     vatRate: string;
     optional: boolean;
@@ -42,7 +43,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: Quote
     const [validUntil, setValidUntil] = useState("");
     const [notes, setNotes] = useState("");
     const [items, setItems] = useState<LineItem[]>([
-        { id: "1", name: "", description: "", quantity: "1", unitPrice: "", vatRate: "8.1", optional: false },
+        { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", vatRate: "8.1", optional: false },
     ]);
     const [loading, setLoading] = useState(false);
     const [showProductPicker, setShowProductPicker] = useState<string | null>(null);
@@ -88,6 +89,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: Quote
                     name: item.description?.split("\n")[0] || "",
                     description: item.description?.split("\n").slice(1).join("\n") || "",
                     quantity: String(item.quantity || 1),
+                    unit: item.unit || "Stk.",
                     unitPrice: String(item.unit_price || ""),
                     vatRate: String(item.vat_rate ?? 8.1),
                     optional: item.optional || false,
@@ -103,7 +105,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: Quote
         setValidUntil("");
         setNotes("");
         setItems([
-            { id: "1", name: "", description: "", quantity: "1", unitPrice: "", vatRate: "8.1", optional: false },
+            { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", vatRate: "8.1", optional: false },
         ]);
         setShowProductPicker(null);
         setProductSearch("");
@@ -117,6 +119,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: Quote
                 name: "",
                 description: "",
                 quantity: "1",
+                unit: "Stk.",
                 unitPrice: "",
                 vatRate: "8.1",
                 optional: false,
@@ -153,6 +156,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: Quote
                             ...item,
                             name: product.name,
                             description: product.description || "",
+                            unit: product.unit || "Stk.",
                             unitPrice: String(product.price),
                             vatRate: String(product.vat_rate ?? 8.1),
                         }
@@ -237,6 +241,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: Quote
                     return {
                         description: item.name + (item.description ? `\n${item.description}` : ""),
                         quantity: qty,
+                        unit: item.unit || "Stk.",
                         unit_price: unitPrice,
                         vat_rate: vatRate,
                         total: qty * unitPrice * (1 + vatRate / 100),
