@@ -581,24 +581,24 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     </table>
 
     <div class="company-bar">
-      <strong>Gross ICT</strong> &middot; Neuhushof 3 &middot; 6144 Zell LU &middot; Schweiz<br>
-      Stefan Gross &middot; +41 79 414 06 16 &middot; info@gross-ict.ch
+      <strong>Gross ICT</strong> · Neuhushof 3 · 6144 Zell LU · Schweiz<br>
+      Stefan Gross · +41 79 414 06 16 · info@gross-ict.ch
     </div>
 
     <table class="addr-meta-table">
       <tr>
         <td style="width:55%;">
-          <div class="customer-label">Empf&auml;nger</div>
+          <div class="customer-label">Empfänger</div>
           <div class="customer-address">${customerAddressHTML}</div>
         </td>
         <td style="width:45%;">
           <div class="meta-box">
             <table class="meta-table">
               <tr><td>Rechnungsnr.</td><td>${invoice.invoice_number}</td></tr>
-              ${invoice.customer?.customer_number ? \`<tr><td>Kundennr.</td><td>${invoice.customer.customer_number}</td></tr>\` : ""}
+              ${invoice.customer?.customer_number ? `<tr><td>Kundennr.</td><td>${invoice.customer.customer_number}</td></tr>` : ""}
               <tr><td>Datum</td><td>${fmtDate(invoice.invoice_date)}</td></tr>
               <tr><td>Zahlungsziel</td><td>${fmtDate(invoice.due_date)}</td></tr>
-              <tr><td>Zahlungsform</td><td>&Uuml;berweisung</td></tr>
+              <tr><td>Zahlungsform</td><td>Überweisung</td></tr>
             </table>
           </div>
         </td>
@@ -607,7 +607,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
 
     <div class="intro">
       Guten Tag<br><br>
-      Wir bedanken uns f&uuml;r Ihren Auftrag und stellen folgende Positionen in Rechnung:
+      Wir bedanken uns für Ihren Auftrag und stellen folgende Positionen in Rechnung:
     </div>
 
     <table class="items-table">
@@ -634,18 +634,18 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       </table>
     </div>
 
-    ${invoice.notes ? \`
+    ${invoice.notes ? `
     <div class="notes">
       <div class="notes-title">Anmerkungen</div>
-      ${invoice.notes.replace(/\\n/g, "<br>")}
-    </div>\` : ""}
+      ${invoice.notes.replace(/\n/g, "<br>")}
+    </div>` : ""}
   </div>
 
   <div class="footer">
     <table class="footer-table">
       <tr>
         <td style="width:33%;">
-          <div class="footer-label">Zahlungsempf&auml;nger</div>
+          <div class="footer-label">Zahlungsempfänger</div>
           <span class="footer-val">Stefan Gross</span>
         </td>
         <td style="width:33%;">
