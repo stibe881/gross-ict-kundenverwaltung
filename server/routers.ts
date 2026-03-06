@@ -898,6 +898,9 @@ export const appRouter = router({
           return `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
         };
 
+        const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || `http://localhost:3000`;
+        const trackingUrl = `${baseUrl}/api/track-quote/${input.quoteId}`;
+
         await sendQuoteEmail({
           to: quote.customer.email,
           quoteNumber: quote.quote_number,
@@ -905,6 +908,7 @@ export const appRouter = router({
           validUntil: quote.valid_until ? formatDate(quote.valid_until) : "Auf Anfrage",
           total: Number(quote.total).toFixed(2),
           pdfBuffer: Buffer.from(input.pdfBase64, "base64"),
+          trackingUrl,
         });
 
         // Update quote status to "sent"

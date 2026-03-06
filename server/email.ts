@@ -155,10 +155,15 @@ interface SendQuoteEmailOptions {
   validUntil: string;
   total: string;
   pdfBuffer: Buffer;
+  trackingUrl?: string;
 }
 
 export async function sendQuoteEmail(options: SendQuoteEmailOptions) {
-  const { to, quoteNumber, quoteDate, validUntil, total, pdfBuffer } = options;
+  const { to, quoteNumber, quoteDate, validUntil, total, pdfBuffer, trackingUrl } = options;
+
+  const trackingPixel = trackingUrl
+    ? `<img src="${trackingUrl}" width="1" height="1" style="display:none" alt="" />`
+    : "";
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -187,6 +192,7 @@ export async function sendQuoteEmail(options: SendQuoteEmailOptions) {
         <p>Wir freuen uns auf Ihre Rückmeldung.</p>
         <p>Freundliche Grüsse<br/><strong>Gross ICT</strong></p>
       </div>
+      ${trackingPixel}
     </div>
   `;
 

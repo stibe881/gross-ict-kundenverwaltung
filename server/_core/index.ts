@@ -94,6 +94,35 @@ async function startServer() {
     res.send(pixel);
   });
 
+  // Tracking-Pixel für Angebots-Öffnung
+  app.get("/api/track-quote/:quoteId", async (req, res) => {
+    try {
+      const { quoteId } = req.params;
+      const { getQuoteById } = await import("../supabase-db");
+      const { notifyOwner } = await import("./notification");
+
+      const quote = await getQuoteById(quoteId);
+      if (quote) {
+        const customerName = quote.customer?.company_name ||
+          `${quote.customer?.first_name || ""} ${quote.customer?.last_name || ""}`.trim() || "Unbekannt";
+        await notifyOwner({
+          title: `📋 Angebot ${quote.quote_number} geöffnet`,
+          content: `${customerName} hat das Angebot ${quote.quote_number} geöffnet.`,
+        }).catch(() => { });
+      }
+    } catch (err) {
+      console.error("[tracking-quote] Error:", err);
+    }
+
+    const pixel = Buffer.from(
+      "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+      "base64"
+    );
+    res.set("Content-Type", "image/gif");
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.send(pixel);
+  });
+
   app.use(
     "/api/trpc",
     createExpressMiddleware({
