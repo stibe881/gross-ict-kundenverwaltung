@@ -30,12 +30,8 @@ export const API_BASE_URL = env.apiBaseUrl;
  * URL pattern: https://PORT-sandboxid.region.domain
  */
 export function getApiBaseUrl(): string {
-  // If API_BASE_URL is set, use it
-  if (API_BASE_URL) {
-    return API_BASE_URL.replace(/\/$/, "");
-  }
-
   // On web, derive from current hostname — use same host with port 3000
+  // This takes priority because the .env IP may not be reachable from browser
   if (ReactNative.Platform.OS === "web" && typeof window !== "undefined" && window.location) {
     const { protocol, hostname } = window.location;
     // Pattern for sandboxes: 8081-sandboxid.region.domain -> 3000-sandboxid.region.domain
@@ -45,6 +41,11 @@ export function getApiBaseUrl(): string {
     }
     // Standard setup: same hostname, port 3000
     return `${protocol}//${hostname}:3000`;
+  }
+
+  // Native: If API_BASE_URL is set, use it
+  if (API_BASE_URL) {
+    return API_BASE_URL.replace(/\/$/, "");
   }
 
   // Fallback to empty (will use relative URL)

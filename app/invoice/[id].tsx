@@ -20,6 +20,7 @@ import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { downloadInvoicePDF } from "@/lib/pdf-utils";
 import { showAlert, showConfirm } from "@/lib/alert";
+import { getApiBaseUrl } from "@/constants/oauth";
 
 export default function InvoiceDetailScreen() {
     const { id } = useLocalSearchParams();
@@ -105,13 +106,18 @@ export default function InvoiceDetailScreen() {
             `Rechnung ${invoice.invoice_number} an ${invoice.customer.email} senden?`,
             async () => {
                 try {
-                    const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3000";
+                    const apiBase = getApiBaseUrl() || "http://localhost:3000";
                     const res = await fetch(`${apiBase}/api/trpc/invoices.sendEmail`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ json: { id: invoice.id } }),
+                        credentials: "include",
+                        body: JSON.stringify({ "0": { json: { id: invoice.id } } }),
                     });
-                    if (!res.ok) throw new Error("E-Mail konnte nicht gesendet werden");
+                    const data = await res.json();
+                    if (!res.ok) {
+                        const msg = data?.[0]?.error?.json?.message || data?.error?.message || "E-Mail konnte nicht gesendet werden";
+                        throw new Error(msg);
+                    }
                     showAlert("Erfolg", `Rechnung wurde an ${invoice.customer.email} gesendet.`);
                     refetch();
                 } catch (error: any) {
@@ -133,13 +139,18 @@ export default function InvoiceDetailScreen() {
             `Zahlungserinnerung für ${invoice.invoice_number} an ${invoice.customer.email} senden?`,
             async () => {
                 try {
-                    const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3000";
+                    const apiBase = getApiBaseUrl() || "http://localhost:3000";
                     const res = await fetch(`${apiBase}/api/trpc/invoices.sendReminder`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ json: { id: invoice.id } }),
+                        credentials: "include",
+                        body: JSON.stringify({ "0": { json: { id: invoice.id } } }),
                     });
-                    if (!res.ok) throw new Error("Mahnung konnte nicht gesendet werden");
+                    const data = await res.json();
+                    if (!res.ok) {
+                        const msg = data?.[0]?.error?.json?.message || data?.error?.message || "Mahnung konnte nicht gesendet werden";
+                        throw new Error(msg);
+                    }
                     showAlert("Erfolg", `Mahnung wurde an ${invoice.customer.email} gesendet.`);
                     refetch();
                 } catch (error: any) {

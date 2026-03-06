@@ -556,8 +556,8 @@ export async function autoExpireQuotes() {
 }
 
 export async function sendQuoteEmail(quoteId: string, pdfBase64: string) {
-    const apiBase =
-        process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3000";
+    const { getApiBaseUrl } = await import("@/constants/oauth");
+    const apiBase = getApiBaseUrl() || "http://localhost:3000";
     const res = await fetch(`${apiBase}/api/trpc/quotes.sendEmail`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
