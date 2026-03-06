@@ -373,8 +373,11 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     </div>` : ""}
   </div>
 
+  <!-- Spacer: wird per JS auf die richtige Höhe gesetzt -->
+  <div id="footer-spacer"></div>
+
   <!-- Footer -->
-  <div class="footer">
+  <div id="pdf-footer" class="footer">
     <table class="footer-table">
       <tr>
         <td style="width:33%;">
@@ -396,13 +399,17 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
   </div>
 
   <script>
-    // Footer immer am unteren Seitenrand: Body-Höhe auf volle Seitenhöhe auffüllen
-    (function() {
-      var ph = window.innerHeight || 842;
-      var bh = document.body.scrollHeight;
-      var pages = Math.ceil(bh / ph);
-      if (pages > 0) document.body.style.minHeight = (pages * ph) + 'px';
-    })();
+    window.onload = function() {
+      var spacer = document.getElementById('footer-spacer');
+      var footer = document.getElementById('pdf-footer');
+      spacer.style.height = '0px';
+      var pageH = 842; // A4 Höhe in Punkten
+      var contentH = document.body.scrollHeight;
+      var pages = Math.max(1, Math.ceil(contentH / pageH));
+      var targetH = pages * pageH;
+      var gap = targetH - contentH;
+      if (gap > 0) spacer.style.height = gap + 'px';
+    };
   </script>
 </body>
 </html>`;
@@ -663,7 +670,9 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     </div>` : ""}
   </div>
 
-  <div class="footer">
+  <div id="footer-spacer"></div>
+
+  <div id="pdf-footer" class="footer">
     <table class="footer-table">
       <tr>
         <td style="width:33%;">
@@ -683,13 +692,18 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       </tr>
     </table>
   </div>
+
   <script>
-    (function() {
-      var ph = window.innerHeight || 842;
-      var bh = document.body.scrollHeight;
-      var pages = Math.ceil(bh / ph);
-      if (pages > 0) document.body.style.minHeight = (pages * ph) + 'px';
-    })();
+    window.onload = function() {
+      var spacer = document.getElementById('footer-spacer');
+      spacer.style.height = '0px';
+      var pageH = 842;
+      var contentH = document.body.scrollHeight;
+      var pages = Math.max(1, Math.ceil(contentH / pageH));
+      var targetH = pages * pageH;
+      var gap = targetH - contentH;
+      if (gap > 0) spacer.style.height = gap + 'px';
+    };
   </script>
 </body>
 </html>`;
