@@ -521,24 +521,6 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
   const calculatedTotal = itemsTotal > 0 ? itemsTotal : invoice.total;
 
   const isWebInv = Platform.OS === "web";
-  let invSpacerH = 0;
-  if (!isWebInv) {
-    const PAGE_H = 297;
-    const HEADER_H = 62; const ADDR_H = 42; const INTRO_H = 16;
-    const TABLE_HEAD_H = 12; const ITEM_ROW_H = 11; const SUB_LINE_H = 5;
-    const TOTALS_H = 35;
-    const NOTES_H = invoice.notes ? 22 : 0;
-    const FOOTER_H = 22; const SAFETY = 30;
-    let invoiceItemsH = 0;
-    for (const item of (invoice.items || [])) {
-      const lines = (item.description || "").split("\n");
-      invoiceItemsH += ITEM_ROW_H + Math.max(0, lines.length - 1) * SUB_LINE_H;
-    }
-    const invContentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + invoiceItemsH + TOTALS_H + NOTES_H + FOOTER_H + SAFETY;
-    const invPages = Math.max(1, Math.ceil(invContentH / PAGE_H));
-    invSpacerH = Math.max(0, invPages * PAGE_H - invContentH);
-    console.log("[PDF Invoice] items:", (invoice.items || []).length, "contentH:", invContentH, "pages:", invPages, "spacerH:", invSpacerH, "mm");
-  }
 
   const itemsHTML = (invoice.items || [])
     .map((item, idx) => {
@@ -573,9 +555,10 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       print-color-adjust: exact;
       padding: 0;
       margin: 0;
+      ${!isWebInv ? 'display: flex; flex-direction: column; min-height: 100vh;' : ''}
     }
     .accent-bar { height: 6px; background: linear-gradient(90deg, #D4A432, #E8B84A); }
-    .page { padding: 30px 40px ${isWebInv ? '80px' : '30px'} 40px; position: relative; }
+    .page { padding: 30px 40px ${isWebInv ? '80px' : '30px'} 40px; position: relative; ${!isWebInv ? 'flex: 1;' : ''} }
     .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
     .header-table td { border: none; padding: 0; vertical-align: bottom; }
     .logo { font-size: 26pt; font-weight: 300; color: #1a1a2e; letter-spacing: 2px; }
@@ -691,7 +674,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     </div>` : ""}
   </div>
 
-  <div id="footer-spacer" style="height: ${invSpacerH}mm;"></div>
+
 
   <div id="pdf-footer" class="footer">
     <table class="footer-table">
