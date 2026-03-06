@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { supabase } from "@/lib/supabase";
@@ -30,6 +30,7 @@ export default function DashboardScreen() {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [showFabMenu, setShowFabMenu] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -50,79 +51,40 @@ export default function DashboardScreen() {
     );
   }
 
-  const tiles: DashboardTile[] = [
+  const tileCategories = [
     {
-      id: "customers",
-      title: "Kunden",
-      value: "Verwalten",
-      icon: "person.2.fill",
-      color: colors.primary,
-      route: "/customers",
+      label: "CRM",
+      tiles: [
+        { id: "customers", title: "Kunden", value: "Verwalten", icon: "person.2.fill", color: colors.primary, route: "/customers" },
+        { id: "leads", title: "Akquise", value: "Pipeline", icon: "briefcase.fill", color: "#17A2B8", route: "/leads" },
+      ],
     },
     {
-      id: "leads",
-      title: "Akquise",
-      value: "Pipeline",
-      icon: "briefcase.fill",
-      color: "#17A2B8",
-      route: "/leads",
+      label: "Finanzen",
+      tiles: [
+        { id: "accounting", title: "Buchhaltung", value: "Rechnungen", icon: "chart.bar.fill", color: colors.success, route: "/accounting" },
+        { id: "quotes", title: "Angebote", value: "Offerten", icon: "doc.text.fill", color: "#EC4899", route: "/quotes" },
+        { id: "contracts", title: "Verträge", value: "Verwaltung", icon: "doc.text.fill", color: "#6366F1", route: "/contracts" },
+      ],
     },
     {
-      id: "tickets",
-      title: "Tickets",
-      value: "Support",
-      icon: "ticket.fill",
-      color: colors.warning,
-      route: "/tickets",
-    },
-    {
-      id: "accounting",
-      title: "Buchhaltung",
-      value: "Rechnungen",
-      icon: "chart.bar.fill",
-      color: colors.success,
-      route: "/accounting",
-    },
-    {
-      id: "contracts",
-      title: "Verträge",
-      value: "Verwaltung",
-      icon: "doc.text.fill",
-      color: "#6366F1",
-      route: "/contracts",
-    },
-    {
-      id: "newsletter",
-      title: "Newsletter",
-      value: "Kampagnen",
-      icon: "envelope.fill",
-      color: "#8B5CF6",
-      route: "/newsletter",
-    },
-    {
-      id: "quotes",
-      title: "Angebote",
-      value: "Offerten",
-      icon: "doc.text.fill",
-      color: "#EC4899",
-      route: "/quotes",
+      label: "Support & Kommunikation",
+      tiles: [
+        { id: "tickets", title: "Tickets", value: "Support", icon: "ticket.fill", color: colors.warning, route: "/tickets" },
+        { id: "newsletter", title: "Newsletter", value: "Kampagnen", icon: "envelope.fill", color: "#8B5CF6", route: "/newsletter" },
+      ],
     },
   ];
 
   // Admin-spezifische Kacheln
-  const adminTiles: DashboardTile[] = [
-    {
-      id: "users",
-      title: "Benutzerverwaltung",
-      value: "Admin",
-      icon: "gear",
-      color: "#EF4444",
-      route: "/users",
-    },
-  ];
-
-  // Kombiniere Kacheln basierend auf Benutzerrolle
-  const allTiles = (user as any)?.role === "admin" ? [...tiles, ...adminTiles] : tiles;
+  if ((user as any)?.role === "admin") {
+    tileCategories.push({
+      label: "Administration",
+      tiles: [
+        { id: "users", title: "Benutzerverwaltung", value: "Admin", icon: "gear", color: "#EF4444", route: "/users" },
+      ],
+    });
+  }
 
   return (
     <ScreenContainer>
@@ -138,80 +100,88 @@ export default function DashboardScreen() {
           </Text>
         </View>
 
-        {/* Kacheln Grid */}
-        <View className="gap-4">
-          {allTiles.map((tile) => (
-            <TouchableOpacity
-              key={tile.id}
-              className="bg-surface rounded-2xl p-6 border border-border"
-              style={{ opacity: 1 }}
-              onPress={() => {
-                if (tile.route) {
-                  router.push(tile.route as any);
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <View className="flex-row items-center justify-between">
-                <View className="flex-1">
-                  <Text className="text-lg font-semibold text-foreground mb-1">
-                    {tile.title}
-                  </Text>
-                  <Text className="text-sm text-muted">{tile.value}</Text>
+        {/* Kategorisierte Kacheln */}
+        {tileCategories.map((category) => (
+          <View key={category.label} className="mb-6">
+            <Text className="text-sm font-bold text-muted uppercase tracking-wider mb-3">
+              {category.label}
+            </Text>
+            <View className="flex-row flex-wrap gap-3">
+              {category.tiles.map((tile) => (
+                <TouchableOpacity
+                  key={tile.id}
+                  className="bg-surface rounded-2xl p-5 border border-border"
+                  style={{ width: '48%', flexGrow: 1 }}
+                  onPress={() => {
+                    if (tile.route) {
+                      router.push(tile.route as any);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    className="w-10 h-10 rounded-xl items-center justify-center mb-3"
+                    style={{ backgroundColor: tile.color + "20" }}
+                  >
+                    <IconSymbol name={tile.icon as any} size={20} color={tile.color} />
+                  </View>
+                  <Text className="text-base font-semibold text-foreground">{tile.title}</Text>
+                  <Text className="text-xs text-muted mt-1">{tile.value}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+
+      {/* FAB Overlay */}
+      {showFabMenu && (
+        <TouchableOpacity
+          className="absolute inset-0 bg-black/40"
+          activeOpacity={1}
+          onPress={() => setShowFabMenu(false)}
+        >
+          <View className="absolute bottom-24 right-6 gap-3">
+            {[
+              { label: "Neuer Kunde", icon: "person.fill.badge.plus", onPress: () => { setShowFabMenu(false); setShowCustomerModal(true); } },
+              { label: "Neues Ticket", icon: "ticket.fill", onPress: () => { setShowFabMenu(false); setShowTicketModal(true); } },
+              { label: "Neue Rechnung", icon: "doc.text.fill", onPress: () => { setShowFabMenu(false); setShowInvoiceModal(true); } },
+              { label: "Neues Angebot", icon: "doc.text.fill", onPress: () => { setShowFabMenu(false); setShowQuoteModal(true); } },
+            ].map((item) => (
+              <TouchableOpacity
+                key={item.label}
+                className="flex-row items-center justify-end gap-3"
+                activeOpacity={0.7}
+                onPress={item.onPress}
+              >
+                <View className="bg-surface rounded-lg px-4 py-2.5 border border-border shadow-lg">
+                  <Text className="text-foreground font-semibold text-sm">{item.label}</Text>
                 </View>
                 <View
-                  className="w-12 h-12 rounded-full items-center justify-center"
-                  style={{ backgroundColor: tile.color + "20" }}
+                  className="w-11 h-11 rounded-full items-center justify-center shadow-lg"
+                  style={{ backgroundColor: colors.primary }}
                 >
-                  <IconSymbol name={tile.icon} size={24} color={tile.color} />
+                  <IconSymbol name={item.icon as any} size={20} color="#FFFFFF" />
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Schnellzugriff */}
-        <View className="mt-8">
-          <Text className="text-xl font-bold text-foreground mb-4">Schnellzugriff</Text>
-          <View className="gap-3">
-            <TouchableOpacity
-              className="bg-primary px-4 py-3 rounded-lg flex-row items-center"
-              activeOpacity={0.8}
-              onPress={() => setShowCustomerModal(true)}
-            >
-              <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
-              <Text className="text-background font-semibold ml-2">Neuer Kunde</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              className="bg-surface px-4 py-3 rounded-lg flex-row items-center border border-border"
-              activeOpacity={0.8}
-              onPress={() => setShowTicketModal(true)}
-            >
-              <IconSymbol name="plus.circle.fill" size={20} color={colors.primary} />
-              <Text className="text-foreground font-semibold ml-2">Neues Ticket</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              className="bg-surface px-4 py-3 rounded-lg flex-row items-center border border-border"
-              activeOpacity={0.8}
-              onPress={() => setShowInvoiceModal(true)}
-            >
-              <IconSymbol name="plus.circle.fill" size={20} color={colors.primary} />
-              <Text className="text-foreground font-semibold ml-2">Neue Rechnung</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              className="bg-surface px-4 py-3 rounded-lg flex-row items-center border border-border"
-              activeOpacity={0.8}
-              onPress={() => setShowQuoteModal(true)}
-            >
-              <IconSymbol name="plus.circle.fill" size={20} color={colors.primary} />
-              <Text className="text-foreground font-semibold ml-2">Neues Angebot</Text>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
           </View>
-        </View>
-      </ScrollView>
+        </TouchableOpacity>
+      )}
+
+      {/* FAB Button */}
+      <TouchableOpacity
+        className="absolute bottom-6 right-6 w-14 h-14 rounded-full items-center justify-center shadow-lg"
+        style={{ backgroundColor: colors.primary, elevation: 8 }}
+        activeOpacity={0.8}
+        onPress={() => setShowFabMenu(!showFabMenu)}
+      >
+        <IconSymbol
+          name={showFabMenu ? "xmark" : "plus"}
+          size={28}
+          color="#FFFFFF"
+        />
+      </TouchableOpacity>
 
       {/* Modals */}
       <CustomerFormModal

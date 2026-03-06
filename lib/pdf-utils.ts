@@ -359,8 +359,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       <tr>
         <td style="width:33%;">
           <div class="footer-label">Zahlungsempfänger</div>
-          <span class="footer-val">Stefan Gross</span><br>
-          Gross ICT
+          <span class="footer-val">Stefan Gross</span>
         </td>
         <td style="width:33%;">
           <div class="footer-label">Bankverbindung</div>
@@ -599,8 +598,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       <tr>
         <td style="width:33%;">
           <div class="footer-label">Zahlungsempfänger</div>
-          <span class="footer-val">Stefan Gross</span><br>
-          Gross ICT
+          <span class="footer-val">Stefan Gross</span>
         </td>
         <td style="width:33%;">
           <div class="footer-label">Bankverbindung</div>
