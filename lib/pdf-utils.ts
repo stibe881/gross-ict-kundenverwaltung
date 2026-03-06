@@ -66,11 +66,15 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
   const customerAddressHTML = buildCustomerAddressHTML(quote.customer);
 
   // Optionale Positionen berechnen
-  const optionalItems = (quote.items || []).filter(i => i.optional);
+  const optionalItems = (quote.items || []).filter(i => !!i.optional);
+  const nonOptionalItems = (quote.items || []).filter(i => !i.optional);
   const optionalSubtotal = optionalItems.reduce((sum, i) => sum + (i.total || 0), 0);
+  const nonOptionalSubtotal = nonOptionalItems.reduce((sum, i) => sum + (i.total || 0), 0);
   const optionalTax = optionalSubtotal * 0.081;
-  const optionalTotal = optionalSubtotal + optionalTax;
-  const grandTotal = quote.total + optionalTotal;
+  // quote.total beinhaltet alles — grandTotal = quote.total (bereits inkl. optional)
+  const nonOptionalTax = nonOptionalSubtotal * 0.081;
+  const nonOptionalTotal = nonOptionalSubtotal + nonOptionalTax;
+  const grandTotal = quote.total;
 
   const itemsHTML = (quote.items || [])
     .map((item, idx) => {
@@ -340,17 +344,13 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     <div class="totals-wrap">
       <table class="totals-table">
         <tr>
-          <td class="totals-label">Zwischensumme</td>
-          <td class="totals-value">${fmtCHF(quote.subtotal)}</td>
-        </tr>
-        <tr>
           <td class="totals-label">MwSt. 8.1%</td>
-          <td class="totals-value">${fmtCHF(quote.tax)}</td>
+          <td class="totals-value">${fmtCHF(nonOptionalTax)}</td>
         </tr>
         <tr class="totals-sep"><td colspan="2"><div></div></td></tr>
         <tr class="total-row">
           <td class="totals-label" style="color:#fff !important;">Total</td>
-          <td class="totals-value">${fmtCHF(quote.total)} CHF</td>
+          <td class="totals-value">${fmtCHF(nonOptionalTotal)} CHF</td>
         </tr>
         ${optionalSubtotal > 0 ? `
         <tr><td colspan="2" style="padding-top:12px;"></td></tr>
