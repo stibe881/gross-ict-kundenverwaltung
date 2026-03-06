@@ -77,18 +77,18 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
   console.log("[PDF] Quote items:", (quote.items || []).length, "optional:", optionalItems.length, "optionalSubtotal:", optionalSubtotal, "hasOptional:", hasOptional);
 
   // Spacer-Höhe vorab berechnen (in mm, da plattformunabhängig)
-  // A4 = 297mm
+  // A4 = 297mm. Schätzungen bewusst grosszügig damit Spacer nicht überläuft.
   const PAGE_H = 297;
-  const HEADER_H = 55;     // Logo + Company-Bar + Accent-Bar
-  const ADDR_H = 38;       // Adresse + Meta-Box
-  const INTRO_H = 14;      // Guten Tag...
-  const TABLE_HEAD_H = 10; // Tabellenkopf
-  const ITEM_ROW_H = 9;    // Pro Item-Zeile (Basisgrösse)
-  const SUB_LINE_H = 4;    // Pro Unterbeschreibungs-Zeile
-  const TOTALS_H = hasOptional ? 35 : 22; // Totals-Block
-  const NOTES_H = quote.notes ? 18 : 0;
-  const FOOTER_H = 20;
-  const MARGINS_H = 16;    // Top/Bottom padding
+  const HEADER_H = 62;     // Logo + Company-Bar + Accent-Bar
+  const ADDR_H = 42;       // Adresse + Meta-Box
+  const INTRO_H = 16;      // Guten Tag...
+  const TABLE_HEAD_H = 12; // Tabellenkopf
+  const ITEM_ROW_H = 11;   // Pro Item-Zeile (Basisgrösse)
+  const SUB_LINE_H = 5;    // Pro Unterbeschreibungs-Zeile
+  const TOTALS_H = hasOptional ? 42 : 28; // Totals-Block
+  const NOTES_H = quote.notes ? 22 : 0;
+  const FOOTER_H = 22;
+  const SAFETY = 25;       // Sicherheitspuffer
 
   // Items-Höhe berechnen
   let itemsH = 0;
@@ -97,7 +97,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     itemsH += ITEM_ROW_H + Math.max(0, lines.length - 1) * SUB_LINE_H;
   }
 
-  const contentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + itemsH + TOTALS_H + NOTES_H + FOOTER_H + MARGINS_H + 10; // +10mm Sicherheit
+  const contentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + itemsH + TOTALS_H + NOTES_H + FOOTER_H + SAFETY;
   const pages = Math.max(1, Math.ceil(contentH / PAGE_H));
   const spacerH = Math.max(0, pages * PAGE_H - contentH);
 
@@ -527,16 +527,16 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
 
   // Spacer-Höhe vorab berechnen (in mm)
   const PAGE_H = 297;
-  const HEADER_H = 55;
-  const ADDR_H = 38;
-  const INTRO_H = 14;
-  const TABLE_HEAD_H = 10;
-  const ITEM_ROW_H = 9;
-  const SUB_LINE_H = 4;
-  const TOTALS_H = 22;
-  const NOTES_H = invoice.notes ? 18 : 0;
-  const FOOTER_H = 20;
-  const MARGINS_H = 16;
+  const HEADER_H = 62;
+  const ADDR_H = 42;
+  const INTRO_H = 16;
+  const TABLE_HEAD_H = 12;
+  const ITEM_ROW_H = 11;
+  const SUB_LINE_H = 5;
+  const TOTALS_H = 28;
+  const NOTES_H = invoice.notes ? 22 : 0;
+  const FOOTER_H = 22;
+  const SAFETY = 25;
 
   let invoiceItemsH = 0;
   for (const item of (invoice.items || [])) {
@@ -544,7 +544,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     invoiceItemsH += ITEM_ROW_H + Math.max(0, lines.length - 1) * SUB_LINE_H;
   }
 
-  const invContentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + invoiceItemsH + TOTALS_H + NOTES_H + FOOTER_H + MARGINS_H + 10; // +10mm Sicherheit
+  const invContentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + invoiceItemsH + TOTALS_H + NOTES_H + FOOTER_H + SAFETY;
   const invPages = Math.max(1, Math.ceil(invContentH / PAGE_H));
   const invSpacerH = Math.max(0, invPages * PAGE_H - invContentH);
 
