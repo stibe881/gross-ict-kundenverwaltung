@@ -1,36 +1,26 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-// SMTP Transporter
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: parseInt(process.env.SMTP_PORT || "587"),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-});
-
-const SMTP_FROM = process.env.SMTP_FROM || "rechnung@gross-ict.ch";
+const resend = new Resend(process.env.RESEND_API_KEY);
+const EMAIL_FROM = "Gross ICT <info@gross-ict.ch>";
 
 interface SendInvoiceEmailOptions {
-    to: string;
-    invoiceNumber: string;
-    invoiceDate: string;
-    dueDate: string;
-    total: string;
-    pdfBuffer: Buffer;
-    trackingUrl?: string;
+  to: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  dueDate: string;
+  total: string;
+  pdfBuffer: Buffer;
+  trackingUrl?: string;
 }
 
 export async function sendInvoiceEmail(options: SendInvoiceEmailOptions) {
-    const { to, invoiceNumber, invoiceDate, dueDate, total, pdfBuffer, trackingUrl } = options;
+  const { to, invoiceNumber, invoiceDate, dueDate, total, pdfBuffer, trackingUrl } = options;
 
-    const trackingPixel = trackingUrl
-        ? `<img src="${trackingUrl}" width="1" height="1" style="display:none" alt="" />`
-        : "";
+  const trackingPixel = trackingUrl
+    ? `<img src="${trackingUrl}" width="1" height="1" style="display:none" alt="" />`
+    : "";
 
-    const html = `
+  const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #1a1a2e; color: white; padding: 24px; border-radius: 8px 8px 0 0;">
         <h1 style="margin: 0; font-size: 20px;">Gross ICT</h1>
@@ -55,9 +45,10 @@ export async function sendInvoiceEmail(options: SendInvoiceEmailOptions) {
         </table>
         <p>Bitte überweisen Sie den Betrag bis zum <strong>${dueDate}</strong> auf folgendes Konto:</p>
         <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
-          <p style="margin: 0 0 4px;"><strong>Kontoinhaber:</strong> Gross ICT</p>
-          <p style="margin: 0 0 4px;"><strong>IBAN:</strong> CH93 0900 0000 1553 0590 0</p>
-          <p style="margin: 0;"><strong>BIC:</strong> POFICHBEXXX</p>
+          <p style="margin: 0 0 4px;"><strong>Kontoinhaber:</strong> Stefan Gross</p>
+          <p style="margin: 0 0 4px;"><strong>Bank:</strong> Bank Cler AG</p>
+          <p style="margin: 0 0 4px;"><strong>IBAN:</strong> CH39 0844 0261 0416 9200 1</p>
+          <p style="margin: 0;"><strong>Konto:</strong> 2610.4169.200</p>
         </div>
         <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
         <p>Freundliche Grüsse<br/><strong>Gross ICT</strong></p>
@@ -66,39 +57,40 @@ export async function sendInvoiceEmail(options: SendInvoiceEmailOptions) {
     </div>
   `;
 
-    await transporter.sendMail({
-        from: `"Gross ICT" <${SMTP_FROM}>`,
-        to,
-        subject: `Rechnung ${invoiceNumber} - Gross ICT`,
-        html,
-        attachments: [
-            {
-                filename: `Rechnung_${invoiceNumber}.pdf`,
-                content: pdfBuffer,
-                contentType: "application/pdf",
-            },
-        ],
-    });
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: [to],
+    subject: `Rechnung ${invoiceNumber} - Gross ICT`,
+    html,
+    attachments: [
+      {
+        filename: `Rechnung_${invoiceNumber}.pdf`,
+        content: pdfBuffer.toString("base64"),
+      },
+    ],
+  });
+
+  if (error) throw new Error(`E-Mail konnte nicht gesendet werden: ${error.message}`);
 }
 
 interface SendReminderEmailOptions {
-    to: string;
-    invoiceNumber: string;
-    invoiceDate: string;
-    dueDate: string;
-    remainingAmount: string;
-    pdfBuffer: Buffer;
-    trackingUrl?: string;
+  to: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  dueDate: string;
+  remainingAmount: string;
+  pdfBuffer: Buffer;
+  trackingUrl?: string;
 }
 
 export async function sendReminderEmail(options: SendReminderEmailOptions) {
-    const { to, invoiceNumber, invoiceDate, dueDate, remainingAmount, pdfBuffer, trackingUrl } = options;
+  const { to, invoiceNumber, invoiceDate, dueDate, remainingAmount, pdfBuffer, trackingUrl } = options;
 
-    const trackingPixel = trackingUrl
-        ? `<img src="${trackingUrl}" width="1" height="1" style="display:none" alt="" />`
-        : "";
+  const trackingPixel = trackingUrl
+    ? `<img src="${trackingUrl}" width="1" height="1" style="display:none" alt="" />`
+    : "";
 
-    const html = `
+  const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #dc2626; color: white; padding: 24px; border-radius: 8px 8px 0 0;">
         <h1 style="margin: 0; font-size: 20px;">Gross ICT</h1>
@@ -128,9 +120,10 @@ export async function sendReminderEmail(options: SendReminderEmailOptions) {
         </table>
         <p>Bitte überweisen Sie den ausstehenden Betrag auf folgendes Konto:</p>
         <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
-          <p style="margin: 0 0 4px;"><strong>Kontoinhaber:</strong> Gross ICT</p>
-          <p style="margin: 0 0 4px;"><strong>IBAN:</strong> CH93 0900 0000 1553 0590 0</p>
-          <p style="margin: 0;"><strong>BIC:</strong> POFICHBEXXX</p>
+          <p style="margin: 0 0 4px;"><strong>Kontoinhaber:</strong> Stefan Gross</p>
+          <p style="margin: 0 0 4px;"><strong>Bank:</strong> Bank Cler AG</p>
+          <p style="margin: 0 0 4px;"><strong>IBAN:</strong> CH39 0844 0261 0416 9200 1</p>
+          <p style="margin: 0;"><strong>Konto:</strong> 2610.4169.200</p>
         </div>
         <p>Sollten Sie die Zahlung bereits veranlasst haben, betrachten Sie diese Erinnerung bitte als gegenstandslos.</p>
         <p>Freundliche Grüsse<br/><strong>Gross ICT</strong></p>
@@ -139,17 +132,111 @@ export async function sendReminderEmail(options: SendReminderEmailOptions) {
     </div>
   `;
 
-    await transporter.sendMail({
-        from: `"Gross ICT" <${SMTP_FROM}>`,
-        to,
-        subject: `Zahlungserinnerung: Rechnung ${invoiceNumber} - Gross ICT`,
-        html,
-        attachments: [
-            {
-                filename: `Rechnung_${invoiceNumber}.pdf`,
-                content: pdfBuffer,
-                contentType: "application/pdf",
-            },
-        ],
-    });
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: [to],
+    subject: `Zahlungserinnerung: Rechnung ${invoiceNumber} - Gross ICT`,
+    html,
+    attachments: [
+      {
+        filename: `Rechnung_${invoiceNumber}.pdf`,
+        content: pdfBuffer.toString("base64"),
+      },
+    ],
+  });
+
+  if (error) throw new Error(`E-Mail konnte nicht gesendet werden: ${error.message}`);
+}
+
+interface SendQuoteEmailOptions {
+  to: string;
+  quoteNumber: string;
+  quoteDate: string;
+  validUntil: string;
+  total: string;
+  pdfBuffer: Buffer;
+}
+
+export async function sendQuoteEmail(options: SendQuoteEmailOptions) {
+  const { to, quoteNumber, quoteDate, validUntil, total, pdfBuffer } = options;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1a1a2e; color: white; padding: 24px; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; font-size: 20px;">Gross ICT</h1>
+        <p style="margin: 4px 0 0; opacity: 0.8; font-size: 14px;">Angebot ${quoteNumber}</p>
+      </div>
+      <div style="padding: 24px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 8px 8px;">
+        <p>Sehr geehrte Damen und Herren,</p>
+        <p>vielen Dank für Ihr Interesse. Anbei erhalten Sie unser Angebot <strong>${quoteNumber}</strong> über <strong>CHF ${total}</strong>.</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Angebotsdatum:</strong></td>
+            <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right;">${quoteDate}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Gültig bis:</strong></td>
+            <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right;">${validUntil}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Gesamtbetrag:</strong></td>
+            <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; color: #1a1a2e;">CHF ${total}</td>
+          </tr>
+        </table>
+        <p>Das Angebot ist gültig bis zum <strong>${validUntil}</strong>. Bei Fragen oder wenn Sie das Angebot annehmen möchten, kontaktieren Sie uns bitte.</p>
+        <p>Wir freuen uns auf Ihre Rückmeldung.</p>
+        <p>Freundliche Grüsse<br/><strong>Gross ICT</strong></p>
+      </div>
+    </div>
+  `;
+
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: [to],
+    subject: `Angebot ${quoteNumber} - Gross ICT`,
+    html,
+    attachments: [
+      {
+        filename: `Angebot_${quoteNumber}.pdf`,
+        content: pdfBuffer.toString("base64"),
+      },
+    ],
+  });
+
+  if (error) throw new Error(`E-Mail konnte nicht gesendet werden: ${error.message}`);
+}
+
+interface SendNewsletterEmailOptions {
+  to: string;
+  subject: string;
+  htmlContent: string;
+}
+
+export async function sendNewsletterEmail(options: SendNewsletterEmailOptions) {
+  const { to, subject, htmlContent } = options;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1a1a2e; color: white; padding: 24px; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; font-size: 20px;">Gross ICT</h1>
+      </div>
+      <div style="padding: 24px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 8px 8px;">
+        ${htmlContent}
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #999;">
+          Gross ICT · Stefan Gross<br/>
+          Diese E-Mail wurde von Gross ICT versendet.
+        </p>
+      </div>
+    </div>
+  `;
+
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: [to],
+    subject,
+    html,
+  });
+
+  if (error) throw new Error(`Newsletter konnte nicht gesendet werden: ${error.message}`);
 }

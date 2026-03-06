@@ -15,7 +15,9 @@ import * as Data from "@/lib/data";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { QuoteFormModal } from "@/components/quote-form-modal";
-import { downloadQuotePDF } from "@/lib/pdf-utils";
+import { downloadQuotePDF, generateQuoteHTML } from "@/lib/pdf-utils";
+import * as Print from "expo-print";
+import { Platform } from "react-native";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
     draft: { label: "Entwurf", color: "#6B7280" },
@@ -31,6 +33,7 @@ export default function QuoteDetailScreen() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const [showEditModal, setShowEditModal] = useState(false);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
 
     const { data: quote, isLoading } = useQuery({
         queryKey: ["quote", id],
@@ -122,6 +125,52 @@ export default function QuoteDetailScreen() {
         } catch (error: any) {
             showAlert("Fehler", "PDF konnte nicht erstellt werden: " + (error.message || ""));
         }
+    };
+
+    const handleSendEmail = async () => {
+        if (!quote) return;
+        if (!quote.customer?.email) {
+            showAlert("Fehler", "Dieser Kunde hat keine E-Mail-Adresse hinterlegt.");
+            return;
+        }
+
+        showConfirm(
+            "Angebot per E-Mail senden",
+            `Angebot ${quote.quote_number} an ${quote.customer.email} senden?`,
+            async () => {
+                setIsSendingEmail(true);
+                try {
+                    const { data: { session } } = await (await import("@/lib/supabase")).supabase.auth.getSession();
+                    const userName = session?.user?.user_metadata?.full_name ||
+                        session?.user?.user_metadata?.name ||
+                        `${session?.user?.user_metadata?.first_name || ""} ${session?.user?.user_metadata?.last_name || ""}`.trim() ||
+                        "Stefan Gross";
+
+                    const html = generateQuoteHTML({ ...quote, creator_name: userName });
+
+                    let pdfBase64 = "";
+                    if (Platform.OS !== "web") {
+                        const { uri } = await Print.printToFileAsync({
+                            html,
+                            width: 595,
+                            height: 842,
+                        });
+                        const fs = require("expo-file-system");
+                        pdfBase64 = await fs.readAsStringAsync(uri, { encoding: fs.EncodingType.Base64 });
+                    }
+
+                    await Data.sendQuoteEmail(quote.id, pdfBase64);
+                    queryClient.invalidateQueries({ queryKey: ["quote", id] });
+                    queryClient.invalidateQueries({ queryKey: ["quotes"] });
+                    showAlert("Erfolg", `Angebot wurde an ${quote.customer.email} gesendet.`);
+                } catch (error: any) {
+                    showAlert("Fehler", error.message || "E-Mail konnte nicht gesendet werden");
+                } finally {
+                    setIsSendingEmail(false);
+                }
+            },
+            "Senden"
+        );
     };
 
     if (isLoading) {
@@ -281,6 +330,26 @@ export default function QuoteDetailScreen() {
 
                 {/* Actions */}
                 <View className="mt-6 gap-3">
+                    {/* Per E-Mail senden */}
+                    {quote.customer?.email && (
+                        <TouchableOpacity
+                            onPress={handleSendEmail}
+                            disabled={isSendingEmail}
+                            style={{ backgroundColor: "#8B5CF6" }}
+                            className="p-4 rounded-lg flex-row items-center justify-center"
+                            activeOpacity={0.8}
+                        >
+                            {isSendingEmail ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <>
+                                    <IconSymbol name="envelope.fill" size={20} color="#fff" />
+                                    <Text className="text-background font-semibold ml-2">Per E-Mail senden</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    )}
+
                     {/* PDF herunterladen */}
                     <TouchableOpacity
                         onPress={handleDownloadPDF}

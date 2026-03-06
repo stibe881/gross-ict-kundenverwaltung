@@ -5,7 +5,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import * as supabaseDb from "./supabase-db";
 import { generateInvoiceHTMLPreview, generateInvoicePDF } from "./pdf-generator";
-import { sendInvoiceEmail, sendReminderEmail } from "./email";
+import { sendInvoiceEmail, sendReminderEmail, sendQuoteEmail, sendNewsletterEmail } from "./email";
 
 export const appRouter = router({
   system: systemRouter,
@@ -878,6 +878,79 @@ export const appRouter = router({
           is_internal: input.isInternal,
           user_id: input.userId,
         });
+      }),
+  }),
+
+  // Angebote per E-Mail
+  quotes: router({
+    sendEmail: protectedProcedure
+      .input(z.object({
+        quoteId: z.string(),
+        pdfBase64: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const quote = await supabaseDb.getQuoteById(input.quoteId);
+        if (!quote) throw new Error("Angebot nicht gefunden");
+        if (!quote.customer?.email) throw new Error("Kunde hat keine E-Mail-Adresse");
+
+        const formatDate = (d: string) => {
+          const date = new Date(d);
+          return `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
+        };
+
+        await sendQuoteEmail({
+          to: quote.customer.email,
+          quoteNumber: quote.quote_number,
+          quoteDate: formatDate(quote.quote_date),
+          validUntil: quote.valid_until ? formatDate(quote.valid_until) : "Auf Anfrage",
+          total: Number(quote.total).toFixed(2),
+          pdfBuffer: Buffer.from(input.pdfBase64, "base64"),
+        });
+
+        // Update quote status to "sent"
+        await supabaseDb.updateQuoteStatus(input.quoteId, "sent");
+
+        return { success: true };
+      }),
+  }),
+
+  // Newsletter per E-Mail
+  newsletters: router({
+    send: protectedProcedure
+      .input(z.object({
+        newsletterId: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const newsletter = await supabaseDb.getNewsletterById(input.newsletterId);
+        if (!newsletter) throw new Error("Newsletter nicht gefunden");
+
+        const recipients = await supabaseDb.getNewsletterRecipients(input.newsletterId);
+        let sent = 0;
+
+        for (const r of recipients) {
+          if (r.email) {
+            try {
+              await sendNewsletterEmail({
+                to: r.email,
+                subject: newsletter.subject,
+                htmlContent: newsletter.content,
+              });
+              sent++;
+            } catch (err) {
+              console.error(`[newsletter] Failed to send to ${r.email}:`, err);
+            }
+          }
+        }
+
+        // Update newsletter status
+        await supabaseDb.updateNewsletter(input.newsletterId, {
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          total_recipients: recipients.length,
+          delivered: sent,
+        });
+
+        return { success: true, sent, total: recipients.length };
       }),
   }),
 });

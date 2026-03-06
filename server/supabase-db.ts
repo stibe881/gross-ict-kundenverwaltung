@@ -803,3 +803,59 @@ export async function createCustomerTicket(ticket: any, customerUserId: string) 
   if (error) throw new Error(error.message);
   return data;
 }
+
+// ==================== ANGEBOTE (SERVER) ====================
+
+export async function getQuoteById(id: string) {
+  const { data, error } = await supabase
+    .from("quotes")
+    .select(`*, customer:customers(*), items:quote_items(*)`)
+    .eq("id", id)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function updateQuoteStatus(quoteId: string, status: string) {
+  const { error } = await supabase
+    .from("quotes")
+    .update({ status })
+    .eq("id", quoteId);
+  if (error) throw new Error(error.message);
+}
+
+// ==================== NEWSLETTER ====================
+
+export async function getNewsletterById(id: string) {
+  const { data, error } = await supabase
+    .from("newsletters")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function getNewsletterRecipients(newsletterId: string) {
+  const { data, error } = await supabase
+    .from("newsletter_recipients")
+    .select("*")
+    .eq("newsletter_id", newsletterId);
+
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function updateNewsletter(id: string, updates: any) {
+  const { data, error } = await supabase
+    .from("newsletters")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}

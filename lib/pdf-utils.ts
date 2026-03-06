@@ -63,7 +63,7 @@ interface QuoteForPDF {
   }>;
 }
 
-function generateQuoteHTML(quote: QuoteForPDF): string {
+export function generateQuoteHTML(quote: QuoteForPDF): string {
   const customerAddressHTML = buildCustomerAddressHTML(quote.customer);
 
   // Optionale Positionen berechnen
