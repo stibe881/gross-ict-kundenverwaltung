@@ -1,9 +1,10 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { Paths, File as FSFile } from "expo-file-system";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 
-function fmtCHF(amount: number): string {
+function fmtCHF(amount: number | null | undefined): string {
+  if (amount == null) return "0.00";
   return amount.toLocaleString("de-CH", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -19,221 +20,8 @@ function fmtDate(dateString: string): string {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Gemeinsame CSS — kein Flexbox, nur Tables für iOS-Kompatibilität
+// Gemeinsame Bausteine
 // ──────────────────────────────────────────────────────────────
-const PDF_STYLES = `
-  @page { size: A4; margin: 20mm 20mm 25mm 20mm; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 9.5pt;
-    color: #333;
-    line-height: 1.5;
-  }
-
-  /* Layout-Tabelle (unsichtbar) */
-  .layout-table {
-    width: 100%;
-    border-collapse: collapse;
-    border: none;
-  }
-  .layout-table td {
-    border: none;
-    padding: 0;
-    vertical-align: top;
-  }
-
-  /* Header */
-  .logo-text {
-    font-size: 22pt;
-    font-weight: 300;
-    color: #555;
-  }
-  .doc-title {
-    font-size: 18pt;
-    font-weight: 400;
-    color: #333;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-    text-align: right;
-  }
-
-  /* Company Info */
-  .company-info {
-    text-align: right;
-    font-size: 9pt;
-    color: #333;
-    margin-bottom: 20px;
-  }
-  .company-info .name { font-weight: 700; }
-  .company-info .separator { height: 10px; }
-
-  /* Customer Address */
-  .customer-address {
-    font-size: 10pt;
-    line-height: 1.6;
-    padding-top: 10px;
-  }
-
-  /* Meta Table */
-  .meta-table {
-    margin-left: auto;
-    border-collapse: collapse;
-    font-size: 9pt;
-  }
-  .meta-table td {
-    padding: 2px 0;
-    border: none;
-  }
-  .meta-table td:first-child {
-    text-align: left;
-    padding-right: 30px;
-    color: #555;
-  }
-  .meta-table td:last-child {
-    text-align: right;
-    font-weight: 600;
-  }
-  .meta-table .sep { height: 8px; }
-
-  /* Intro */
-  .intro {
-    margin: 15px 0 10px;
-    font-style: italic;
-    font-size: 9pt;
-    color: #555;
-  }
-
-  /* Items Table */
-  .items-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 5px;
-  }
-  .items-table thead th {
-    background: #F0F0F0;
-    border-top: 1px solid #999;
-    border-bottom: 1px solid #999;
-    padding: 6px 8px;
-    font-size: 8pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #333;
-  }
-  .items-table thead th:first-child { text-align: left; }
-  .items-table thead th:not(:first-child) { text-align: right; }
-  .items-table tbody td {
-    padding: 8px 8px;
-    border-bottom: 1px solid #E0E0E0;
-    font-size: 9pt;
-    vertical-align: top;
-  }
-  .cell-left { text-align: left; }
-  .cell-right { text-align: right; }
-  .sub-desc {
-    font-size: 8pt;
-    color: #666;
-  }
-
-  /* Totals */
-  .totals-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 2px;
-  }
-  .totals-table td {
-    padding: 4px 8px;
-    font-size: 9pt;
-    border: none;
-  }
-  .totals-label {
-    text-align: right;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 8pt;
-    color: #555;
-  }
-  .totals-value {
-    text-align: right;
-    font-weight: 600;
-    width: 140px;
-  }
-  .total-highlight {
-    background: #F5F5F0;
-    border-top: 2px solid #999;
-    border-bottom: 2px solid #999;
-  }
-  .total-highlight td {
-    padding: 10px 8px;
-    font-size: 14pt;
-    font-weight: 700;
-    color: #333;
-  }
-
-  /* Footer */
-  .footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 10px 20mm 3mm 20mm;
-    border-top: 1px solid #CCC;
-    font-size: 8pt;
-    color: #555;
-  }
-  .footer .bank-title {
-    font-weight: 700;
-    font-size: 8pt;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-  }
-  .footer .bank-details {
-    font-size: 8pt;
-    line-height: 1.6;
-  }
-
-  /* Notes */
-  .notes {
-    margin-top: 20px;
-    padding: 10px;
-    background: #F9F9F6;
-    border: 1px solid #E0E0E0;
-    font-size: 9pt;
-    color: #555;
-  }
-  .notes-title {
-    font-weight: 700;
-    font-size: 8pt;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-`;
-
-const COMPANY_BLOCK = `
-  <div class="company-info">
-    <div class="name">Gross ICT</div>
-    <div>Neuhushof 3</div>
-    <div>6144 Zell LU</div>
-    <div>Schweiz</div>
-    <div class="separator"></div>
-    <div class="name">Stefan Gross</div>
-    <div>+41794140616</div>
-    <div>stefan.gross@hotmail.ch</div>
-  </div>
-`;
-
-const BANK_FOOTER = `
-  <div class="footer">
-    <div class="bank-title">Bankverbindung:</div>
-    <div class="bank-details">
-      Zahlungsempfänger: <strong>Stefan Gross</strong> &nbsp;·&nbsp;
-      Bankname: <strong>Bank Cler AG</strong> &nbsp;·&nbsp;
-      Kontonr.: <strong>2610.4165.2001</strong><br>
-      IBAN: <strong>CH3906440261041652001</strong> &nbsp;&nbsp;
-      SWIFT/BIC: <strong>BCLRCHBB</strong>
-    </div>
-  </div>
-`;
 
 function buildCustomerAddressHTML(customer: any): string {
   const customerName =
@@ -250,7 +38,7 @@ function buildCustomerAddressHTML(customer: any): string {
 }
 
 // ──────────────────────────────────────────────────────────────
-// ANGEBOT PDF
+// ANGEBOT PDF — Professionelles modernes Design
 // ──────────────────────────────────────────────────────────────
 
 interface QuoteForPDF {
@@ -276,25 +64,26 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
   const customerAddressHTML = buildCustomerAddressHTML(quote.customer);
 
   const itemsHTML = (quote.items || [])
-    .map((item) => {
+    .map((item, idx) => {
       const nameParts = (item.description || "").split("\n");
       const mainName = nameParts[0] || "";
       const subLines = nameParts.slice(1).filter(Boolean);
-      const prefix = item.optional ? "OPTIONAL - " : "";
+      const prefix = item.optional ? '<span style="color:#0d9488;font-weight:600;">OPTIONAL</span> – ' : "";
       const descHTML =
         `${prefix}${mainName}` +
         (subLines.length > 0
           ? "<br>" + subLines.map(l => `<span class="sub-desc">${l}</span>`).join("<br>")
           : "");
+      const rowBg = idx % 2 === 1 ? ' style="background:#f8fafb;"' : "";
 
       return `
-    <tr>
-      <td class="cell-left">${descHTML}</td>
-      <td class="cell-right">${item.quantity} Stk.</td>
-      <td class="cell-right">${fmtCHF(item.unit_price)}</td>
-      <td class="cell-right">${fmtCHF(0)}</td>
-      <td class="cell-right">${fmtCHF(item.total)}</td>
-    </tr>`;
+      <tr${rowBg}>
+        <td class="cell-center">${idx + 1}</td>
+        <td class="cell-left">${descHTML}</td>
+        <td class="cell-right">${item.quantity}</td>
+        <td class="cell-right">${fmtCHF(item.unit_price)}</td>
+        <td class="cell-right">${fmtCHF(item.total)}</td>
+      </tr>`;
     })
     .join("");
 
@@ -304,80 +93,287 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Angebot ${quote.quote_number}</title>
-  <style>${PDF_STYLES}</style>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 9.5pt;
+      color: #1a1a2e;
+      line-height: 1.5;
+      padding: 0;
+    }
+
+    /* ── Accent Bar ── */
+    .accent-bar {
+      height: 6px;
+      background: linear-gradient(90deg, #0d9488, #14b8a6);
+    }
+
+    /* ── Container ── */
+    .page {
+      padding: 30px 40px 120px 40px;
+      position: relative;
+      min-height: 100%;
+    }
+
+    /* ── Header ── */
+    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    .header-table td { border: none; padding: 0; vertical-align: bottom; }
+    .logo {
+      font-size: 26pt;
+      font-weight: 300;
+      color: #1a1a2e;
+      letter-spacing: 2px;
+    }
+    .logo span { color: #0d9488; font-weight: 600; }
+    .doc-type {
+      text-align: right;
+      font-size: 22pt;
+      font-weight: 700;
+      color: #0d9488;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    /* ── Company Info ── */
+    .company-bar {
+      text-align: right;
+      font-size: 8pt;
+      color: #64748b;
+      padding: 6px 0 20px 0;
+      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 24px;
+      line-height: 1.7;
+    }
+
+    /* ── Address + Meta ── */
+    .addr-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    .addr-meta-table td { border: none; padding: 0; vertical-align: top; }
+    .customer-label {
+      font-size: 7pt;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .customer-address {
+      font-size: 10pt;
+      line-height: 1.7;
+      color: #1a1a2e;
+    }
+    .meta-box {
+      background: #f8fafb;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 14px 18px;
+      float: right;
+    }
+    .meta-table { border-collapse: collapse; font-size: 9pt; }
+    .meta-table td { padding: 3px 0; border: none; }
+    .meta-table td:first-child { color: #64748b; padding-right: 24px; }
+    .meta-table td:last-child { font-weight: 600; text-align: right; color: #1a1a2e; }
+
+    /* ── Intro ── */
+    .intro {
+      font-size: 10pt;
+      color: #475569;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    /* ── Items Table ── */
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+    .items-table thead th {
+      background: #0d9488;
+      color: #fff;
+      padding: 10px 12px;
+      font-size: 7.5pt;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .items-table thead th:first-child { border-radius: 4px 0 0 0; text-align: center; width: 40px; }
+    .items-table thead th:last-child { border-radius: 0 4px 0 0; }
+    .items-table thead th:not(:first-child):not(:nth-child(2)) { text-align: right; }
+    .items-table thead th:nth-child(2) { text-align: left; }
+    .items-table tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 9pt;
+      vertical-align: top;
+    }
+    .cell-left { text-align: left; }
+    .cell-right { text-align: right; }
+    .cell-center { text-align: center; color: #94a3b8; font-weight: 600; }
+    .sub-desc { font-size: 8pt; color: #94a3b8; }
+
+    /* ── Totals ── */
+    .totals-wrap { width: 100%; margin-top: 6px; }
+    .totals-table { border-collapse: collapse; float: right; min-width: 280px; }
+    .totals-table td { padding: 6px 12px; font-size: 9pt; border: none; }
+    .totals-label { text-align: right; color: #64748b; font-weight: 500; }
+    .totals-value { text-align: right; font-weight: 600; color: #1a1a2e; min-width: 100px; }
+    .totals-sep td { height: 2px; padding: 0; }
+    .totals-sep td div { height: 2px; background: #e2e8f0; }
+    .total-row { background: #0d9488; }
+    .total-row td {
+      padding: 12px 14px !important;
+      font-size: 13pt !important;
+      font-weight: 700 !important;
+      color: #fff !important;
+      border-radius: 4px;
+    }
+
+    /* ── Notes ── */
+    .notes {
+      clear: both;
+      margin-top: 30px;
+      padding: 14px 16px;
+      background: #f8fafb;
+      border-left: 3px solid #0d9488;
+      font-size: 9pt;
+      color: #475569;
+      line-height: 1.6;
+    }
+    .notes-title {
+      font-weight: 700;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #0d9488;
+      margin-bottom: 4px;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1a1a2e;
+      color: #cbd5e1;
+      padding: 14px 40px;
+      font-size: 7.5pt;
+      line-height: 1.7;
+    }
+    .footer-table { width: 100%; border-collapse: collapse; }
+    .footer-table td { border: none; padding: 0; vertical-align: top; color: #cbd5e1; }
+    .footer-label { font-weight: 700; color: #0d9488; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
+    .footer-val { font-weight: 600; color: #fff; }
+  </style>
 </head>
 <body>
 
-  <!-- Header -->
-  <table class="layout-table">
-    <tr>
-      <td><span class="logo-text">Gross · ICT</span></td>
-      <td class="doc-title">ANGEBOT</td>
-    </tr>
-  </table>
+  <!-- Accent Bar -->
+  <div class="accent-bar"></div>
 
-  <!-- Company Info -->
-  ${COMPANY_BLOCK}
+  <div class="page">
+    <!-- Header -->
+    <table class="header-table">
+      <tr>
+        <td><div class="logo">Gross · <span>ICT</span></div></td>
+        <td><div class="doc-type">Angebot</div></td>
+      </tr>
+    </table>
 
-  <!-- Customer + Meta -->
-  <table class="layout-table" style="margin-bottom:20px;">
-    <tr>
-      <td class="customer-address" style="width:50%;">
-        ${customerAddressHTML}
-      </td>
-      <td style="width:50%;">
-        <table class="meta-table">
-          <tr>
-            <td>Angebotsnr.</td>
-            <td>${quote.quote_number}</td>
-          </tr>
-          ${quote.customer?.customer_number ? `<tr><td>Kundennummer:</td><td>${quote.customer.customer_number}</td></tr>` : ""}
-          <tr>
-            <td>Ausstellungsdatum</td>
-            <td>${fmtDate(quote.quote_date)}</td>
-          </tr>
-          ${quote.valid_until ? `<tr><td>Gültig bis</td><td>${fmtDate(quote.valid_until)}</td></tr>` : ""}
-        </table>
-      </td>
-    </tr>
-  </table>
+    <!-- Company Info Bar -->
+    <div class="company-bar">
+      <strong>Gross ICT</strong> · Neuhushof 3 · 6144 Zell LU · Schweiz<br>
+      Stefan Gross · +41 79 414 06 16 · stefan.gross@hotmail.ch
+    </div>
 
-  <!-- Intro -->
-  <div class="intro">
-    Wir erlauben uns Ihnen dieses Angebot zu unterbreiten:
+    <!-- Customer Address + Meta -->
+    <table class="addr-meta-table">
+      <tr>
+        <td style="width:55%;">
+          <div class="customer-label">Empfänger</div>
+          <div class="customer-address">${customerAddressHTML}</div>
+        </td>
+        <td style="width:45%;">
+          <div class="meta-box">
+            <table class="meta-table">
+              <tr><td>Angebotsnr.</td><td>${quote.quote_number}</td></tr>
+              ${quote.customer?.customer_number ? `<tr><td>Kundennr.</td><td>${quote.customer.customer_number}</td></tr>` : ""}
+              <tr><td>Datum</td><td>${fmtDate(quote.quote_date)}</td></tr>
+              ${quote.valid_until ? `<tr><td>Gültig bis</td><td>${fmtDate(quote.valid_until)}</td></tr>` : ""}
+            </table>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Intro -->
+    <div class="intro">
+      Guten Tag<br><br>
+      Gerne unterbreiten wir Ihnen folgendes Angebot:
+    </div>
+
+    <!-- Items Table -->
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Pos.</th>
+          <th>Beschreibung</th>
+          <th>Menge</th>
+          <th>Einzelpreis</th>
+          <th>Betrag (CHF)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsHTML}
+      </tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="totals-wrap">
+      <table class="totals-table">
+        <tr>
+          <td class="totals-label">Zwischensumme</td>
+          <td class="totals-value">${fmtCHF(quote.subtotal)}</td>
+        </tr>
+        <tr>
+          <td class="totals-label">MwSt. 8.1%</td>
+          <td class="totals-value">${fmtCHF(quote.tax)}</td>
+        </tr>
+        <tr class="totals-sep"><td colspan="2"><div></div></td></tr>
+        <tr class="total-row">
+          <td class="totals-label" style="color:#fff !important;">Total</td>
+          <td class="totals-value">${fmtCHF(quote.total)} CHF</td>
+        </tr>
+      </table>
+    </div>
+
+    ${quote.notes ? `
+    <div class="notes">
+      <div class="notes-title">Anmerkungen</div>
+      ${quote.notes.replace(/\n/g, "<br>")}
+    </div>` : ""}
   </div>
 
-  <!-- Items -->
-  <table class="items-table">
-    <thead>
+  <!-- Footer -->
+  <div class="footer">
+    <table class="footer-table">
       <tr>
-        <th>Beschreibung</th>
-        <th>Menge</th>
-        <th>Preis (CHF)</th>
-        <th>Rabatt %</th>
-        <th>Betrag (CHF)</th>
+        <td style="width:33%;">
+          <div class="footer-label">Zahlungsempfänger</div>
+          <span class="footer-val">Stefan Gross</span><br>
+          Gross ICT
+        </td>
+        <td style="width:33%;">
+          <div class="footer-label">Bankverbindung</div>
+          <span class="footer-val">Bank Cler AG</span><br>
+          Konto: 2610.4165.2001
+        </td>
+        <td style="width:34%;">
+          <div class="footer-label">IBAN / SWIFT</div>
+          <span class="footer-val">CH39 0644 0261 0416 5200 1</span><br>
+          SWIFT: BCLRCHBB
+        </td>
       </tr>
-    </thead>
-    <tbody>
-      ${itemsHTML}
-    </tbody>
-  </table>
-
-  <!-- Totals -->
-  <table class="totals-table">
-    <tr class="total-highlight">
-      <td class="totals-label" style="font-size:14pt;">ANGEBOTSBETRAG</td>
-      <td class="totals-value" style="font-size:14pt;">${fmtCHF(quote.total)} CHF</td>
-    </tr>
-  </table>
-
-  ${quote.notes ? `
-  <div class="notes">
-    <div class="notes-title">Anmerkungen:</div>
-    ${quote.notes.replace(/\n/g, "<br>")}
-  </div>` : ""}
-
-  ${BANK_FOOTER}
+    </table>
+  </div>
 
 </body>
 </html>`;
@@ -386,15 +382,30 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
 export async function downloadQuotePDF(quote: QuoteForPDF): Promise<void> {
   const html = generateQuoteHTML(quote);
 
-  // Schritt 1: HTML als PDF generieren
+  // Web: Blob-Download
+  if (Platform.OS === "web") {
+    try {
+      const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842 });
+      const link = document.createElement("a");
+      link.href = uri;
+      link.download = `Angebot-${quote.quote_number}.pdf`;
+      link.click();
+      return;
+    } catch {
+      // Fallback: print dialog
+      await Print.printAsync({ html });
+      return;
+    }
+  }
+
+  // Native: PDF erstellen und teilen
   try {
     const { uri } = await Print.printToFileAsync({
       html,
-      width: 595,   // A4
-      height: 842,  // A4
+      width: 595,
+      height: 842,
     });
 
-    // Schritt 2: PDF-Datei teilen
     await Sharing.shareAsync(uri, {
       UTI: "com.adobe.pdf",
       mimeType: "application/pdf",
@@ -417,7 +428,7 @@ export async function downloadQuotePDF(quote: QuoteForPDF): Promise<void> {
 }
 
 // ──────────────────────────────────────────────────────────────
-// RECHNUNG PDF
+// RECHNUNG PDF — Gleicher professioneller Stil wie Angebot
 // ──────────────────────────────────────────────────────────────
 
 interface InvoiceForPDF {
@@ -442,16 +453,17 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
   const customerAddressHTML = buildCustomerAddressHTML(invoice.customer);
 
   const itemsHTML = (invoice.items || [])
-    .map((item) => {
+    .map((item, idx) => {
       const descHTML = (item.description || "").replace(/\n/g, "<br>");
+      const rowBg = idx % 2 === 1 ? ' style="background:#f8fafb;"' : "";
       return `
-    <tr>
-      <td class="cell-left">${descHTML}</td>
-      <td class="cell-right">${item.quantity} Stk.</td>
-      <td class="cell-right">${fmtCHF(item.unit_price)}</td>
-      <td class="cell-right">${fmtCHF(0)}</td>
-      <td class="cell-right">${fmtCHF(item.total)}</td>
-    </tr>`;
+      <tr${rowBg}>
+        <td class="cell-center">${idx + 1}</td>
+        <td class="cell-left">${descHTML}</td>
+        <td class="cell-right">${item.quantity}</td>
+        <td class="cell-right">${fmtCHF(item.unit_price)}</td>
+        <td class="cell-right">${fmtCHF(item.total)}</td>
+      </tr>`;
     })
     .join("");
 
@@ -461,93 +473,167 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rechnung ${invoice.invoice_number}</title>
-  <style>${PDF_STYLES}</style>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #1a1a2e; line-height: 1.5; }
+    .accent-bar { height: 6px; background: linear-gradient(90deg, #0d9488, #14b8a6); }
+    .page { padding: 30px 40px 120px 40px; min-height: 100%; }
+    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    .header-table td { border: none; padding: 0; vertical-align: bottom; }
+    .logo { font-size: 26pt; font-weight: 300; color: #1a1a2e; letter-spacing: 2px; }
+    .logo span { color: #0d9488; font-weight: 600; }
+    .doc-type { text-align: right; font-size: 22pt; font-weight: 700; color: #0d9488; letter-spacing: 3px; text-transform: uppercase; }
+    .company-bar { text-align: right; font-size: 8pt; color: #64748b; padding: 6px 0 20px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 24px; line-height: 1.7; }
+    .addr-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    .addr-meta-table td { border: none; padding: 0; vertical-align: top; }
+    .customer-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-bottom: 6px; font-weight: 600; }
+    .customer-address { font-size: 10pt; line-height: 1.7; color: #1a1a2e; }
+    .meta-box { background: #f8fafb; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; float: right; }
+    .meta-table { border-collapse: collapse; font-size: 9pt; }
+    .meta-table td { padding: 3px 0; border: none; }
+    .meta-table td:first-child { color: #64748b; padding-right: 24px; }
+    .meta-table td:last-child { font-weight: 600; text-align: right; color: #1a1a2e; }
+    .intro { font-size: 10pt; color: #475569; margin-bottom: 20px; line-height: 1.6; }
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+    .items-table thead th { background: #0d9488; color: #fff; padding: 10px 12px; font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+    .items-table thead th:first-child { border-radius: 4px 0 0 0; text-align: center; width: 40px; }
+    .items-table thead th:last-child { border-radius: 0 4px 0 0; }
+    .items-table thead th:not(:first-child):not(:nth-child(2)) { text-align: right; }
+    .items-table thead th:nth-child(2) { text-align: left; }
+    .items-table tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 9pt; vertical-align: top; }
+    .cell-left { text-align: left; } .cell-right { text-align: right; } .cell-center { text-align: center; color: #94a3b8; font-weight: 600; }
+    .totals-wrap { width: 100%; margin-top: 6px; }
+    .totals-table { border-collapse: collapse; float: right; min-width: 280px; }
+    .totals-table td { padding: 6px 12px; font-size: 9pt; border: none; }
+    .totals-label { text-align: right; color: #64748b; font-weight: 500; }
+    .totals-value { text-align: right; font-weight: 600; color: #1a1a2e; min-width: 100px; }
+    .totals-sep td { height: 2px; padding: 0; }
+    .totals-sep td div { height: 2px; background: #e2e8f0; }
+    .total-row { background: #0d9488; }
+    .total-row td { padding: 12px 14px !important; font-size: 13pt !important; font-weight: 700 !important; color: #fff !important; border-radius: 4px; }
+    .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; }
+    .footer-table { width: 100%; border-collapse: collapse; }
+    .footer-table td { border: none; padding: 0; vertical-align: top; color: #cbd5e1; }
+    .footer-label { font-weight: 700; color: #0d9488; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
+    .footer-val { font-weight: 600; color: #fff; }
+  </style>
 </head>
 <body>
+  <div class="accent-bar"></div>
+  <div class="page">
+    <table class="header-table">
+      <tr>
+        <td><div class="logo">Gross · <span>ICT</span></div></td>
+        <td><div class="doc-type">Rechnung</div></td>
+      </tr>
+    </table>
 
-  <!-- Header -->
-  <table class="layout-table">
-    <tr>
-      <td><span class="logo-text">Gross · ICT</span></td>
-      <td class="doc-title">RECHNUNG</td>
-    </tr>
-  </table>
+    <div class="company-bar">
+      <strong>Gross ICT</strong> · Neuhushof 3 · 6144 Zell LU · Schweiz<br>
+      Stefan Gross · +41 79 414 06 16 · stefan.gross@hotmail.ch
+    </div>
 
-  <!-- Company Info -->
-  ${COMPANY_BLOCK}
+    <table class="addr-meta-table">
+      <tr>
+        <td style="width:55%;">
+          <div class="customer-label">Empfänger</div>
+          <div class="customer-address">${customerAddressHTML}</div>
+        </td>
+        <td style="width:45%;">
+          <div class="meta-box">
+            <table class="meta-table">
+              <tr><td>Rechnungsnr.</td><td>${invoice.invoice_number}</td></tr>
+              ${invoice.customer?.customer_number ? `<tr><td>Kundennr.</td><td>${invoice.customer.customer_number}</td></tr>` : ""}
+              <tr><td>Datum</td><td>${fmtDate(invoice.invoice_date)}</td></tr>
+              <tr><td>Zahlungsziel</td><td>${fmtDate(invoice.due_date)}</td></tr>
+              <tr><td>Zahlungsform</td><td>Überweisung</td></tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+    </table>
 
-  <!-- Customer + Meta -->
-  <table class="layout-table" style="margin-bottom:20px;">
-    <tr>
-      <td class="customer-address" style="width:50%;">
-        ${customerAddressHTML}
-      </td>
-      <td style="width:50%;">
-        <table class="meta-table">
-          <tr>
-            <td>Rechnungsnummer</td>
-            <td>${invoice.invoice_number}</td>
-          </tr>
-          ${invoice.customer?.customer_number ? `<tr><td>Kundennummer:</td><td>${invoice.customer.customer_number}</td></tr>` : ""}
-          <tr>
-            <td>Ausstellungsdatum</td>
-            <td>${fmtDate(invoice.invoice_date)}</td>
-          </tr>
-          <tr>
-            <td>Zahlungsziel</td>
-            <td>${fmtDate(invoice.due_date)}</td>
-          </tr>
-          <tr><td colspan="2" class="sep"></td></tr>
-          <tr>
-            <td>Zahlungsform</td>
-            <td>Überweisung</td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+    <div class="intro">
+      Guten Tag<br><br>
+      Wir bedanken uns für Ihren Auftrag und stellen folgende Positionen in Rechnung:
+    </div>
 
-  <!-- Intro -->
-  <div class="intro">
-    Wir bedanken uns für Ihren Auftrag und stellen folgende Positionen in Rechnung:
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Pos.</th>
+          <th>Beschreibung</th>
+          <th>Menge</th>
+          <th>Einzelpreis</th>
+          <th>Betrag (CHF)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsHTML}
+      </tbody>
+    </table>
+
+    <div class="totals-wrap">
+      <table class="totals-table">
+        <tr>
+          <td class="totals-label">Zwischensumme</td>
+          <td class="totals-value">${fmtCHF(invoice.subtotal)}</td>
+        </tr>
+        <tr>
+          <td class="totals-label">MwSt.</td>
+          <td class="totals-value">${fmtCHF(invoice.vat_amount)}</td>
+        </tr>
+        <tr class="totals-sep"><td colspan="2"><div></div></td></tr>
+        <tr class="total-row">
+          <td class="totals-label" style="color:#fff !important;">Zu bezahlen</td>
+          <td class="totals-value">${fmtCHF(invoice.total)} CHF</td>
+        </tr>
+      </table>
+    </div>
   </div>
 
-  <!-- Items -->
-  <table class="items-table">
-    <thead>
+  <div class="footer">
+    <table class="footer-table">
       <tr>
-        <th>Beschreibung</th>
-        <th>Menge</th>
-        <th>Preis (CHF)</th>
-        <th>Rabatt %</th>
-        <th>Betrag (CHF)</th>
+        <td style="width:33%;">
+          <div class="footer-label">Zahlungsempfänger</div>
+          <span class="footer-val">Stefan Gross</span><br>
+          Gross ICT
+        </td>
+        <td style="width:33%;">
+          <div class="footer-label">Bankverbindung</div>
+          <span class="footer-val">Bank Cler AG</span><br>
+          Konto: 2610.4165.2001
+        </td>
+        <td style="width:34%;">
+          <div class="footer-label">IBAN / SWIFT</div>
+          <span class="footer-val">CH39 0644 0261 0416 5200 1</span><br>
+          SWIFT: BCLRCHBB
+        </td>
       </tr>
-    </thead>
-    <tbody>
-      ${itemsHTML}
-    </tbody>
-  </table>
-
-  <!-- Totals -->
-  <table class="totals-table">
-    <tr>
-      <td class="totals-label">Gesamtbetrag</td>
-      <td class="totals-value">${fmtCHF(invoice.total)} CHF</td>
-    </tr>
-    <tr class="total-highlight">
-      <td class="totals-label" style="font-size:14pt;">ZU BEZAHLEN</td>
-      <td class="totals-value" style="font-size:14pt;">${fmtCHF(invoice.total)} CHF</td>
-    </tr>
-  </table>
-
-  ${BANK_FOOTER}
-
+    </table>
+  </div>
 </body>
 </html>`;
 }
 
 export async function downloadInvoicePDF(invoice: InvoiceForPDF): Promise<void> {
   const html = generateInvoiceHTML(invoice);
+
+  if (Platform.OS === "web") {
+    try {
+      const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842 });
+      const link = document.createElement("a");
+      link.href = uri;
+      link.download = `Rechnung-${invoice.invoice_number}.pdf`;
+      link.click();
+      return;
+    } catch {
+      await Print.printAsync({ html });
+      return;
+    }
+  }
 
   try {
     const { uri } = await Print.printToFileAsync({
