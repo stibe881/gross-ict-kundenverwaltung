@@ -65,6 +65,7 @@ export default function DashboardScreen() {
         { id: "accounting", title: "Buchhaltung", value: "Rechnungen", icon: "chart.bar.fill", color: colors.success, route: "/accounting" },
         { id: "quotes", title: "Angebote", value: "Offerten", icon: "doc.text.fill", color: "#EC4899", route: "/quotes" },
         { id: "contracts", title: "Verträge", value: "Verwaltung", icon: "doc.text.fill", color: "#6366F1", route: "/contracts" },
+        { id: "products", title: "Produkte", value: "Katalog", icon: "cube.box.fill", color: "#F97316", route: "/products" },
       ],
     },
     {
