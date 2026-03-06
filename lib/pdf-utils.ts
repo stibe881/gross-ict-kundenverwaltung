@@ -404,11 +404,11 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
         <td style="width:33%;">
           <div class="footer-label">Bankverbindung</div>
           <span class="footer-val">Bank Cler AG</span><br>
-          Konto: 2610.4165.2001
+          Konto: 2610.4169.200
         </td>
         <td style="width:34%;">
           <div class="footer-label">IBAN / SWIFT</div>
-          <span class="footer-val">CH39 0644 0261 0416 5200 1</span><br>
+          <span class="footer-val">CH39 0844 0261 0416 9200 1</span><br>
           SWIFT: BCLRCHBB
         </td>
       </tr>
@@ -686,11 +686,11 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
         <td style="width:33%;">
           <div class="footer-label">Bankverbindung</div>
           <span class="footer-val">Bank Cler AG</span><br>
-          Konto: 2610.4165.2001
+          Konto: 2610.4169.200
         </td>
         <td style="width:34%;">
           <div class="footer-label">IBAN / SWIFT</div>
-          <span class="footer-val">CH39 0644 0261 0416 5200 1</span><br>
+          <span class="footer-val">CH39 0844 0261 0416 9200 1</span><br>
           SWIFT: BCLRCHBB
         </td>
       </tr>
