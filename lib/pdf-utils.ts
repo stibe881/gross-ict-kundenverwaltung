@@ -50,6 +50,7 @@ interface QuoteForPDF {
   tax: number;
   total: number;
   notes?: string | null;
+  creator_name?: string;
   customer?: any;
   items?: Array<{
     description: string;
@@ -63,6 +64,13 @@ interface QuoteForPDF {
 
 function generateQuoteHTML(quote: QuoteForPDF): string {
   const customerAddressHTML = buildCustomerAddressHTML(quote.customer);
+
+  // Optionale Positionen berechnen
+  const optionalItems = (quote.items || []).filter(i => i.optional);
+  const optionalSubtotal = optionalItems.reduce((sum, i) => sum + (i.total || 0), 0);
+  const optionalTax = optionalSubtotal * 0.081;
+  const optionalTotal = optionalSubtotal + optionalTax;
+  const grandTotal = quote.total + optionalTotal;
 
   const itemsHTML = (quote.items || [])
     .map((item, idx) => {
@@ -100,8 +108,10 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     body {
       font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
       font-size: 9.5pt;
-      color: #1a1a2e;
+      color: #1a1a2e !important;
       line-height: 1.5;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
       padding: 0;
     }
 
@@ -214,8 +224,8 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     .totals-wrap { width: 100%; margin-top: 6px; }
     .totals-table { border-collapse: collapse; float: right; min-width: 280px; }
     .totals-table td { padding: 6px 12px; font-size: 9pt; border: none; }
-    .totals-label { text-align: right; color: #64748b; font-weight: 500; }
-    .totals-value { text-align: right; font-weight: 600; color: #1a1a2e; min-width: 100px; }
+    .totals-label { text-align: right; color: #374151 !important; font-weight: 500; }
+    .totals-value { text-align: right; font-weight: 600; color: #1a1a2e !important; min-width: 100px; }
     .totals-sep td { height: 2px; padding: 0; }
     .totals-sep td div { height: 2px; background: #e2e8f0; }
     .total-row { background: #D4A432; }
@@ -282,7 +292,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     <!-- Company Info Bar -->
     <div class="company-bar">
       <strong>Gross ICT</strong> · Neuhushof 3 · 6144 Zell LU · Schweiz<br>
-      Stefan Gross · +41 79 414 06 16 · stefan.gross@hotmail.ch
+      ${quote.creator_name || "Stefan Gross"} · +41 79 414 06 16 · info@gross-ict.ch
     </div>
 
     <!-- Customer Address + Meta -->
@@ -343,6 +353,22 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
           <td class="totals-label" style="color:#fff !important;">Total</td>
           <td class="totals-value">${fmtCHF(quote.total)} CHF</td>
         </tr>
+        ${optionalSubtotal > 0 ? `
+        <tr><td colspan="2" style="padding-top:12px;"></td></tr>
+        <tr>
+          <td class="totals-label">Zwischensumme OPTIONAL</td>
+          <td class="totals-value">${fmtCHF(optionalSubtotal)}</td>
+        </tr>
+        <tr>
+          <td class="totals-label">MwSt. 8.1% (OPTIONAL)</td>
+          <td class="totals-value">${fmtCHF(optionalTax)}</td>
+        </tr>
+        <tr class="totals-sep"><td colspan="2"><div></div></td></tr>
+        <tr class="total-row">
+          <td class="totals-label" style="color:#fff !important;">Total inkl. OPTIONAL</td>
+          <td class="totals-value">${fmtCHF(grandTotal)} CHF</td>
+        </tr>
+        ` : ""}
       </table>
     </div>
 
@@ -555,7 +581,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
 
     <div class="company-bar">
       <strong>Gross ICT</strong> · Neuhushof 3 · 6144 Zell LU · Schweiz<br>
-      Stefan Gross · +41 79 414 06 16 · stefan.gross@hotmail.ch
+      Stefan Gross · +41 79 414 06 16 · info@gross-ict.ch
     </div>
 
     <table class="addr-meta-table">

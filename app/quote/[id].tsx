@@ -84,7 +84,13 @@ export default function QuoteDetailScreen() {
     const handleDownloadPDF = async () => {
         if (!quote) return;
         try {
-            await downloadQuotePDF(quote);
+            // Aktuellen Benutzer für PDF-Header holen
+            const { data: { session } } = await (await import("@/lib/supabase")).supabase.auth.getSession();
+            const userName = session?.user?.user_metadata?.full_name ||
+                session?.user?.user_metadata?.name ||
+                `${session?.user?.user_metadata?.first_name || ""} ${session?.user?.user_metadata?.last_name || ""}`.trim() ||
+                "Stefan Gross";
+            await downloadQuotePDF({ ...quote, creator_name: userName });
         } catch (error: any) {
             showAlert("Fehler", "PDF konnte nicht erstellt werden: " + (error.message || ""));
         }
