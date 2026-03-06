@@ -65,7 +65,6 @@ export default function DashboardScreen() {
         { id: "accounting", title: "Buchhaltung", value: "Rechnungen", icon: "chart.bar.fill", color: colors.success, route: "/accounting" },
         { id: "quotes", title: "Angebote", value: "Offerten", icon: "doc.text.fill", color: "#EC4899", route: "/quotes" },
         { id: "contracts", title: "Verträge", value: "Verwaltung", icon: "doc.text.fill", color: "#6366F1", route: "/contracts" },
-        { id: "products", title: "Produkte", value: "Katalog", icon: "cube.box.fill", color: "#F97316", route: "/products" },
       ],
     },
     {
@@ -73,6 +72,12 @@ export default function DashboardScreen() {
       tiles: [
         { id: "tickets", title: "Tickets", value: "Support", icon: "ticket.fill", color: colors.warning, route: "/tickets" },
         { id: "newsletter", title: "Newsletter", value: "Kampagnen", icon: "envelope.fill", color: "#8B5CF6", route: "/newsletter" },
+      ],
+    },
+    {
+      label: "Konfiguration",
+      tiles: [
+        { id: "products", title: "Produkte", value: "Katalog", icon: "cube.box.fill", color: "#F97316", route: "/products" },
       ],
     },
   ];
