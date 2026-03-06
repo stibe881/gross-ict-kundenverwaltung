@@ -634,6 +634,18 @@ export async function updateContractTemplate(id: string, template: any) {
 }
 
 export async function deleteContractTemplate(id: string) {
+    // Prüfen ob Verträge diese Vorlage referenzieren
+    const { count } = await supabase
+        .from("contracts")
+        .select("id", { count: "exact", head: true })
+        .eq("template_id", id);
+
+    if (count && count > 0) {
+        throw new Error(
+            `Diese Vorlage kann nicht gelöscht werden, da noch ${count} Vertrag/Verträge darauf basieren. Bitte löschen Sie zuerst die zugehörigen Verträge.`
+        );
+    }
+
     const { error } = await supabase.from("contract_templates").delete().eq("id", id);
     if (error) throw new Error(error.message);
     return { success: true };
