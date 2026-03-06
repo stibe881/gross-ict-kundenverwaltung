@@ -245,8 +245,8 @@ export default function QuoteDetailScreen() {
                             {quote.status !== "sent" && quote.status !== "accepted" && (
                                 <TouchableOpacity
                                     onPress={() => statusMutation.mutate({ quoteId: id as string, status: "sent" })}
-                                    style={{ backgroundColor: "#3B82F620", borderColor: "#3B82F6" }}
-                                    className="px-4 py-2.5 rounded-lg border flex-row items-center"
+                                    style={{ backgroundColor: "rgba(59,130,246,0.12)", borderColor: "#3B82F6", borderWidth: 1 }}
+                                    className="px-4 py-2.5 rounded-lg flex-row items-center"
                                     activeOpacity={0.7}
                                 >
                                     <IconSymbol name="paperplane.fill" size={16} color="#3B82F6" />
@@ -256,8 +256,8 @@ export default function QuoteDetailScreen() {
                             {quote.status !== "accepted" && (
                                 <TouchableOpacity
                                     onPress={() => statusMutation.mutate({ quoteId: id as string, status: "accepted" })}
-                                    style={{ backgroundColor: "#10B98120", borderColor: "#10B981" }}
-                                    className="px-4 py-2.5 rounded-lg border flex-row items-center"
+                                    style={{ backgroundColor: "rgba(16,185,129,0.12)", borderColor: "#10B981", borderWidth: 1 }}
+                                    className="px-4 py-2.5 rounded-lg flex-row items-center"
                                     activeOpacity={0.7}
                                 >
                                     <IconSymbol name="checkmark.circle.fill" size={16} color="#10B981" />
@@ -267,8 +267,8 @@ export default function QuoteDetailScreen() {
                             {quote.status !== "rejected" && (
                                 <TouchableOpacity
                                     onPress={() => statusMutation.mutate({ quoteId: id as string, status: "rejected" })}
-                                    style={{ backgroundColor: "#EF444420", borderColor: "#EF4444" }}
-                                    className="px-4 py-2.5 rounded-lg border flex-row items-center"
+                                    style={{ backgroundColor: "rgba(239,68,68,0.12)", borderColor: "#EF4444", borderWidth: 1 }}
+                                    className="px-4 py-2.5 rounded-lg flex-row items-center"
                                     activeOpacity={0.7}
                                 >
                                     <IconSymbol name="xmark.circle.fill" size={16} color="#EF4444" />
