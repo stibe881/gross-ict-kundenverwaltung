@@ -100,6 +100,8 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
   const pages = Math.max(1, Math.ceil(contentH / PAGE_H));
   const spacerH = Math.max(0, pages * PAGE_H - contentH);
 
+  console.log("[PDF] Platform:", Platform.OS, "isWeb:", isWeb, "contentH:", contentH, "pages:", pages, "spacerH:", spacerH, "mm");
+
   const itemsHTML = (quote.items || [])
     .map((item, idx) => {
       const nameParts = (item.description || "").split("\n");
