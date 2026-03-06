@@ -382,20 +382,44 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
 export async function downloadQuotePDF(quote: QuoteForPDF): Promise<void> {
   const html = generateQuoteHTML(quote);
 
-  // Web: Blob-Download
+  // Web: Hidden-Iframe-Druck (nur HTML-Inhalt, keine App-Buttons)
   if (Platform.OS === "web") {
-    try {
-      const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842 });
-      const link = document.createElement("a");
-      link.href = uri;
-      link.download = `Angebot-${quote.quote_number}.pdf`;
-      link.click();
-      return;
-    } catch {
-      // Fallback: print dialog
-      await Print.printAsync({ html });
-      return;
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (iframeDoc) {
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
+
+      // Warten bis Inhalte geladen sind, dann drucken
+      iframe.onload = () => {
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => document.body.removeChild(iframe), 3000);
+        }, 500);
+      };
+
+      // Fallback: Falls onload nicht feuert
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch { }
+        setTimeout(() => {
+          try { document.body.removeChild(iframe); } catch { }
+        }, 3000);
+      }, 2000);
     }
+    return;
   }
 
   // Native: PDF erstellen und teilen
