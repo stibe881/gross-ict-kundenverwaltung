@@ -107,17 +107,13 @@ export default function InvoiceDetailScreen() {
             async () => {
                 try {
                     const apiBase = getApiBaseUrl() || "http://localhost:3000";
-                    const res = await fetch(`${apiBase}/api/trpc/invoices.sendEmail`, {
+                    const res = await fetch(`${apiBase}/api/send-invoice-email`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify({ "0": { json: { id: invoice.id } } }),
+                        body: JSON.stringify({ id: invoice.id }),
                     });
                     const data = await res.json();
-                    if (!res.ok) {
-                        const msg = data?.[0]?.error?.json?.message || data?.error?.message || "E-Mail konnte nicht gesendet werden";
-                        throw new Error(msg);
-                    }
+                    if (!res.ok) throw new Error(data?.error || "E-Mail konnte nicht gesendet werden");
                     showAlert("Erfolg", `Rechnung wurde an ${invoice.customer.email} gesendet.`);
                     refetch();
                 } catch (error: any) {
@@ -140,17 +136,13 @@ export default function InvoiceDetailScreen() {
             async () => {
                 try {
                     const apiBase = getApiBaseUrl() || "http://localhost:3000";
-                    const res = await fetch(`${apiBase}/api/trpc/invoices.sendReminder`, {
+                    const res = await fetch(`${apiBase}/api/send-reminder-email`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        credentials: "include",
-                        body: JSON.stringify({ "0": { json: { id: invoice.id } } }),
+                        body: JSON.stringify({ id: invoice.id }),
                     });
                     const data = await res.json();
-                    if (!res.ok) {
-                        const msg = data?.[0]?.error?.json?.message || data?.error?.message || "Mahnung konnte nicht gesendet werden";
-                        throw new Error(msg);
-                    }
+                    if (!res.ok) throw new Error(data?.error || "Mahnung konnte nicht gesendet werden");
                     showAlert("Erfolg", `Mahnung wurde an ${invoice.customer.email} gesendet.`);
                     refetch();
                 } catch (error: any) {

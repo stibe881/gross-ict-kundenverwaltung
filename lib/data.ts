@@ -558,15 +558,15 @@ export async function autoExpireQuotes() {
 export async function sendQuoteEmail(quoteId: string, pdfBase64: string) {
     const { getApiBaseUrl } = await import("@/constants/oauth");
     const apiBase = getApiBaseUrl() || "http://localhost:3000";
-    const res = await fetch(`${apiBase}/api/trpc/quotes.sendEmail`, {
+    const res = await fetch(`${apiBase}/api/send-quote-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ json: { quoteId, pdfBase64 } }),
+        body: JSON.stringify({ quoteId, pdfBase64 }),
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(
-            (err as any)?.error?.json?.message || "E-Mail konnte nicht gesendet werden"
+            (err as any)?.error || "E-Mail konnte nicht gesendet werden"
         );
     }
     return (await res.json()) as any;

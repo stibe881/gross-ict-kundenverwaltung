@@ -123,6 +123,150 @@ async function startServer() {
     res.send(pixel);
   });
 
+  // ── Direkte E-Mail-Endpunkte (kein tRPC, einfacher JSON POST) ──
+
+  app.post("/api/send-invoice-email", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) return res.status(400).json({ error: "id fehlt" });
+
+      const { getInvoiceById, addInvoiceActivity } = await import("../supabase-db");
+      const { generateInvoicePDF } = await import("../pdf-generator");
+      const { sendInvoiceEmail } = await import("../email");
+
+      const invoice = await getInvoiceById(id);
+      if (!invoice) return res.status(404).json({ error: "Rechnung nicht gefunden" });
+      if (!invoice.customer?.email) return res.status(400).json({ error: "Kunde hat keine E-Mail-Adresse" });
+
+      const customerName = invoice.customer?.company_name ||
+        `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "Unbekannt";
+      const addressParts = [customerName, invoice.customer?.street,
+        `${invoice.customer?.zip || ""} ${invoice.customer?.city || ""}`.trim()].filter(Boolean);
+
+      const pdfBuffer = await generateInvoicePDF({
+        invoiceNumber: invoice.invoice_number,
+        customerNumber: invoice.customer?.customer_number,
+        invoiceDate: invoice.invoice_date,
+        dueDate: invoice.due_date,
+        paymentMethod: "Überweisung",
+        customerName,
+        customerAddress: addressParts.join("\n"),
+        items: (invoice.items || []).map((item: any) => ({
+          description: item.description, quantity: item.quantity,
+          unitPrice: item.unit_price, vatRate: item.vat_rate, total: item.total,
+        })),
+        subtotal: invoice.subtotal, totalVat: invoice.vat_amount, total: invoice.total,
+      });
+
+      const fmtDate = (d: string) => { const dt = new Date(d); return `${dt.getDate().toString().padStart(2, '0')}.${(dt.getMonth() + 1).toString().padStart(2, '0')}.${dt.getFullYear()}`; };
+      const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || `http://localhost:3000`;
+
+      await sendInvoiceEmail({
+        to: invoice.customer.email,
+        invoiceNumber: invoice.invoice_number,
+        invoiceDate: fmtDate(invoice.invoice_date),
+        dueDate: fmtDate(invoice.due_date),
+        total: invoice.total.toFixed(2),
+        pdfBuffer,
+        trackingUrl: `${baseUrl}/api/track/${id}`,
+      });
+
+      await addInvoiceActivity(id, "sent", `Rechnung per E-Mail an ${invoice.customer.email} gesendet`);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[send-invoice-email] Error:", err);
+      res.status(500).json({ error: err.message || "E-Mail konnte nicht gesendet werden" });
+    }
+  });
+
+  app.post("/api/send-reminder-email", async (req, res) => {
+    try {
+      const { id } = req.body;
+      if (!id) return res.status(400).json({ error: "id fehlt" });
+
+      const { getInvoiceById, addInvoiceActivity } = await import("../supabase-db");
+      const { generateInvoicePDF } = await import("../pdf-generator");
+      const { sendReminderEmail } = await import("../email");
+
+      const invoice = await getInvoiceById(id);
+      if (!invoice) return res.status(404).json({ error: "Rechnung nicht gefunden" });
+      if (!invoice.customer?.email) return res.status(400).json({ error: "Kunde hat keine E-Mail-Adresse" });
+
+      const remainingAmount = invoice.total - (invoice.paid_amount || 0);
+      const customerName = invoice.customer?.company_name ||
+        `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "Unbekannt";
+      const addressParts = [customerName, invoice.customer?.street,
+        `${invoice.customer?.zip || ""} ${invoice.customer?.city || ""}`.trim()].filter(Boolean);
+
+      const pdfBuffer = await generateInvoicePDF({
+        invoiceNumber: invoice.invoice_number,
+        customerNumber: invoice.customer?.customer_number,
+        invoiceDate: invoice.invoice_date,
+        dueDate: invoice.due_date,
+        paymentMethod: "Überweisung",
+        customerName,
+        customerAddress: addressParts.join("\n"),
+        items: (invoice.items || []).map((item: any) => ({
+          description: item.description, quantity: item.quantity,
+          unitPrice: item.unit_price, vatRate: item.vat_rate, total: item.total,
+        })),
+        subtotal: invoice.subtotal, totalVat: invoice.vat_amount, total: invoice.total,
+      });
+
+      const fmtDate = (d: string) => { const dt = new Date(d); return `${dt.getDate().toString().padStart(2, '0')}.${(dt.getMonth() + 1).toString().padStart(2, '0')}.${dt.getFullYear()}`; };
+      const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || `http://localhost:3000`;
+
+      await sendReminderEmail({
+        to: invoice.customer.email,
+        invoiceNumber: invoice.invoice_number,
+        invoiceDate: fmtDate(invoice.invoice_date),
+        dueDate: fmtDate(invoice.due_date),
+        remainingAmount: remainingAmount.toFixed(2),
+        pdfBuffer,
+        trackingUrl: `${baseUrl}/api/track/${id}`,
+      });
+
+      await addInvoiceActivity(id, "reminder_sent", `Zahlungserinnerung per E-Mail an ${invoice.customer.email} gesendet`);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[send-reminder-email] Error:", err);
+      res.status(500).json({ error: err.message || "Mahnung konnte nicht gesendet werden" });
+    }
+  });
+
+  app.post("/api/send-quote-email", async (req, res) => {
+    try {
+      const { quoteId, pdfBase64 } = req.body;
+      if (!quoteId) return res.status(400).json({ error: "quoteId fehlt" });
+
+      const { getQuoteById, updateQuoteStatus } = await import("../supabase-db");
+      const { sendQuoteEmail } = await import("../email");
+
+      const quote = await getQuoteById(quoteId);
+      if (!quote) return res.status(404).json({ error: "Angebot nicht gefunden" });
+      if (!quote.customer?.email) return res.status(400).json({ error: "Kunde hat keine E-Mail-Adresse" });
+
+      const fmtDate = (d: string) => { const dt = new Date(d); return `${dt.getDate().toString().padStart(2, '0')}.${(dt.getMonth() + 1).toString().padStart(2, '0')}.${dt.getFullYear()}`; };
+      const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || `http://localhost:3000`;
+
+      await sendQuoteEmail({
+        to: quote.customer.email,
+        quoteNumber: quote.quote_number,
+        quoteDate: fmtDate(quote.quote_date),
+        validUntil: quote.valid_until ? fmtDate(quote.valid_until) : "Auf Anfrage",
+        total: Number(quote.total).toFixed(2),
+        pdfBuffer: Buffer.from(pdfBase64 || "", "base64"),
+        trackingUrl: `${baseUrl}/api/track-quote/${quoteId}`,
+      });
+
+      await updateQuoteStatus(quoteId, "sent");
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[send-quote-email] Error:", err);
+      res.status(500).json({ error: err.message || "E-Mail konnte nicht gesendet werden" });
+    }
+  });
+
   app.use(
     "/api/trpc",
     createExpressMiddleware({
