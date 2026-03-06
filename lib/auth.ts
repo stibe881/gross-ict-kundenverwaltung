@@ -62,55 +62,8 @@ export async function signInWithMicrosoft() {
         if (Platform.OS === "web") {
             // On web: redirect directly
             window.location.href = data.url;
-        } else if (Platform.OS === "android") {
-            // Android: Chrome Custom Tabs cannot intercept exp:// redirects in Expo Go.
-            // Use a deep link listener instead.
-            return new Promise(async (resolve) => {
-                const subscription = Linking.addEventListener("url", async (event) => {
-                    subscription.remove();
-                    try {
-                        await WebBrowser.dismissBrowser();
-                    } catch { }
-
-                    const url = event.url;
-                    console.log("[Auth] Android deep link received:", url.substring(0, 80));
-
-                    const hashIndex = url.indexOf("#");
-                    const hash = hashIndex >= 0 ? url.substring(hashIndex + 1) : "";
-                    const params = new URLSearchParams(hash);
-                    const accessToken = params.get("access_token");
-                    const refreshToken = params.get("refresh_token");
-
-                    if (accessToken) {
-                        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-                            access_token: accessToken,
-                            refresh_token: refreshToken || "",
-                        });
-
-                        if (sessionError) {
-                            console.error("[Auth] Session error:", sessionError);
-                            resolve(null);
-                            return;
-                        }
-
-                        if (sessionData.user) {
-                            await AsyncStorage.setItem("isLoggedIn", "true");
-                            await AsyncStorage.setItem("userEmail", sessionData.user.email || "");
-                            await AsyncStorage.setItem("userName", sessionData.user.user_metadata?.full_name || sessionData.user.email || "");
-                        }
-
-                        resolve(sessionData);
-                    } else {
-                        console.error("[Auth] No access_token in Android callback:", url);
-                        resolve(null);
-                    }
-                });
-
-                // Open browser (not auth session) — the listener above catches the redirect
-                await WebBrowser.openBrowserAsync(data.url);
-            });
         } else {
-            // iOS: openAuthSessionAsync works correctly
+            // Native (iOS + Android): openAuthSessionAsync handles redirect interception
             const result = await WebBrowser.openAuthSessionAsync(
                 data.url,
                 redirectTo
