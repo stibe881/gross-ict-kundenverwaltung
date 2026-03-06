@@ -1,20 +1,26 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
+
+// Expo Go kann keine Push-Notifications — nur im Dev Build
+const isExpoGo = Constants.executionEnvironment === "storeClient";
 
 // Konfiguriere wie Benachrichtigungen angezeigt werden
-try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
-} catch (e) {
-  console.log("[Push] Notification handler setup skipped (Expo Go limitation)");
+if (!isExpoGo) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch (e) {
+    console.log("[Push] Notification handler setup skipped");
+  }
 }
 
 export interface PushNotificationService {

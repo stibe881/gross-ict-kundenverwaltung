@@ -71,6 +71,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
   const optionalSubtotal = optionalItems.reduce((sum, i) => sum + (i.total || 0), 0);
   const nonOptionalSubtotal = nonOptionalItems.reduce((sum, i) => sum + (i.total || 0), 0);
   const grandTotal = nonOptionalSubtotal + optionalSubtotal;
+  const hasOptional = optionalSubtotal > 0;
 
   const itemsHTML = (quote.items || [])
     .map((item, idx) => {
@@ -346,7 +347,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
           <td class="totals-label" style="color:#fff !important;">Total</td>
           <td class="totals-value">${fmtCHF(nonOptionalSubtotal)} CHF</td>
         </tr>
-        ${optionalSubtotal > 0 ? `
+        ${hasOptional ? `
         <tr><td colspan="2" style="padding-top:12px;"></td></tr>
         <tr>
           <td class="totals-label">Zwischensumme OPTIONAL</td>
@@ -491,6 +492,10 @@ interface InvoiceForPDF {
 function generateInvoiceHTML(invoice: InvoiceForPDF): string {
   const customerAddressHTML = buildCustomerAddressHTML(invoice.customer);
 
+  // Total aus den Items berechnen (statt aus DB-Feld)
+  const itemsTotal = (invoice.items || []).reduce((sum, i) => sum + (i.total || 0), 0);
+  const calculatedTotal = itemsTotal > 0 ? itemsTotal : invoice.total;
+
   const itemsHTML = (invoice.items || [])
     .map((item, idx) => {
       const descHTML = (item.description || "").replace(/\n/g, "<br>");
@@ -629,7 +634,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       <table class="totals-table">
         <tr class="total-row">
           <td class="totals-label" style="color:#fff !important;">Zu bezahlen</td>
-          <td class="totals-value">${fmtCHF(invoice.total)} CHF</td>
+          <td class="totals-value">${fmtCHF(calculatedTotal)} CHF</td>
         </tr>
       </table>
     </div>
