@@ -12,6 +12,17 @@ export function formatCurrency(amount: number | null | undefined, decimals: numb
 }
 
 /**
+ * Berechnet den Rechnungstotal aus den Items (statt dem DB-Feld, das veraltet sein kann)
+ */
+export function getInvoiceTotal(invoice: any): number {
+  const items = invoice?.items || [];
+  if (items.length > 0) {
+    return items.reduce((sum: number, i: any) => sum + (i.total || 0), 0);
+  }
+  return invoice?.total || 0;
+}
+
+/**
  * Formatiert ein Datum im Format DD.MM.YYYY
  * @param date Datum als Date-Objekt oder ISO-String
  */

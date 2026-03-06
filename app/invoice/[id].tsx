@@ -16,7 +16,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
-import { formatDate, formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { downloadInvoicePDF } from "@/lib/pdf-utils";
 import { showAlert, showConfirm } from "@/lib/alert";
@@ -162,7 +162,8 @@ export default function InvoiceDetailScreen() {
         `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() ||
         "Unbekannt";
 
-    const remainingAmount = (invoice.total || 0) - (invoice.paid_amount || 0);
+    const invoiceTotal = getInvoiceTotal(invoice);
+    const remainingAmount = invoiceTotal - (invoice.paid_amount || 0);
 
     return (
         <ScreenContainer>
@@ -200,7 +201,7 @@ export default function InvoiceDetailScreen() {
                     </Text>
                     <Text className="text-lg text-muted mb-4">{customerName}</Text>
                     <Text className="text-4xl font-bold text-primary mb-2">
-                        {formatCurrency(invoice.total)}
+                        {formatCurrency(invoiceTotal)}
                     </Text>
                     {(invoice.paid_amount || 0) > 0 && (
                         <View className="flex-row items-center gap-2 mb-4">

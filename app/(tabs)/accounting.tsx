@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { useQuery } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
 import { router as expoRouter } from "expo-router";
 
 export default function AccountingScreen() {
@@ -57,9 +57,9 @@ export default function AccountingScreen() {
   };
 
   // Statistiken berechnen
-  const totalOpen = invoices?.filter((i: any) => i.status === "open").reduce((sum: number, i: any) => sum + (i.total || 0), 0) || 0;
-  const totalPaid = invoices?.filter((i: any) => i.status === "paid").reduce((sum: number, i: any) => sum + (i.total || 0), 0) || 0;
-  const totalAll = invoices?.reduce((sum: number, i: any) => sum + (i.total || 0), 0) || 0;
+  const totalOpen = invoices?.filter((i: any) => i.status === "open").reduce((sum: number, i: any) => sum + getInvoiceTotal(i), 0) || 0;
+  const totalPaid = invoices?.filter((i: any) => i.status === "paid").reduce((sum: number, i: any) => sum + getInvoiceTotal(i), 0) || 0;
+  const totalAll = invoices?.reduce((sum: number, i: any) => sum + getInvoiceTotal(i), 0) || 0;
 
   return (
     <ScreenContainer>
@@ -184,7 +184,7 @@ export default function AccountingScreen() {
                           {formatDate(invoice.invoice_date)} · Fällig: {formatDate(invoice.due_date)}
                         </Text>
                         <Text className="text-base font-bold text-primary">
-                          {formatCurrency(invoice.total)}
+                          {formatCurrency(getInvoiceTotal(invoice))}
                         </Text>
                       </View>
                     </TouchableOpacity>

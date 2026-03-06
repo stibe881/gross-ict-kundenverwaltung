@@ -14,7 +14,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
-import { formatDate, formatCurrency } from "@/lib/format";
+import { formatDate, formatCurrency, getInvoiceTotal } from "@/lib/format";
 import { CustomerPortalManagement } from "@/components/customer-portal-management";
 import { ContractFormModal } from "@/components/contract-form-modal";
 
@@ -384,7 +384,7 @@ export default function CustomerDetailScreen() {
                       Fällig: {formatDate(invoice.due_date)}
                     </Text>
                     <Text className="text-xl font-bold text-primary">
-                      {formatCurrency(invoice.total)}
+                      {formatCurrency(getInvoiceTotal(invoice))}
                     </Text>
                   </View>
                 </TouchableOpacity>

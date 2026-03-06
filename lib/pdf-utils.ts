@@ -73,6 +73,8 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
   const grandTotal = nonOptionalSubtotal + optionalSubtotal;
   const hasOptional = optionalSubtotal > 0;
 
+  console.log("[PDF] Quote items:", (quote.items || []).length, "optional:", optionalItems.length, "optionalSubtotal:", optionalSubtotal, "hasOptional:", hasOptional);
+
   const itemsHTML = (quote.items || [])
     .map((item, idx) => {
       const nameParts = (item.description || "").split("\n");
@@ -114,6 +116,10 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
       padding: 0;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
 
     /* ── Accent Bar ── */
@@ -123,8 +129,9 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     }
 
     .page {
-      padding: 30px 40px 90px 40px;
+      padding: 30px 40px 30px 40px;
       position: relative;
+      flex: 1;
     }
 
     /* ── Header ── */
@@ -258,15 +265,12 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
 
     /* ── Footer ── */
     .footer {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
       background: #1a1a2e;
       color: #cbd5e1;
       padding: 14px 40px;
       font-size: 7.5pt;
       line-height: 1.7;
+      margin-top: auto;
     }
 
     /* ── Page break hints ── */
@@ -528,9 +532,13 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
       padding: 0;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
     .accent-bar { height: 6px; background: linear-gradient(90deg, #D4A432, #E8B84A); }
-    .page { padding: 30px 40px 90px 40px; position: relative; }
+    .page { padding: 30px 40px 30px 40px; position: relative; flex: 1; }
     .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
     .header-table td { border: none; padding: 0; vertical-align: bottom; }
     .logo { font-size: 26pt; font-weight: 300; color: #1a1a2e; letter-spacing: 2px; }
@@ -566,7 +574,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     .total-row td { padding: 12px 14px !important; font-size: 13pt !important; font-weight: 700 !important; color: #fff !important; border-radius: 4px; }
     .notes { clear: both; margin-top: 30px; padding: 14px 16px; background: #f8fafb; border-left: 3px solid #D4A432; font-size: 9pt; color: #475569; line-height: 1.6; }
     .notes-title { font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; color: #D4A432; margin-bottom: 4px; }
-    .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; }
+    .footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; margin-top: auto; }
     .totals-wrap { page-break-inside: avoid; }
     .notes { page-break-inside: avoid; }
     .footer-table { width: 100%; border-collapse: collapse; }
