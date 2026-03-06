@@ -23,6 +23,7 @@ interface InvoiceItem {
   name: string;
   description: string;
   quantity: string;
+  unit: string;
   unitPrice: string;
   vatRate: number;
 }
@@ -67,6 +68,7 @@ export function InvoiceFormModal({
             name: item.description?.split("\n")[0] || "",
             description: item.description?.split("\n").slice(1).join("\n") || "",
             quantity: String(item.quantity || 1),
+            unit: item.unit || "Stk.",
             unitPrice: String(item.unit_price || ""),
             vatRate: item.vat_rate || VAT_RATES.normal,
           }))
@@ -78,7 +80,7 @@ export function InvoiceFormModal({
   }, [visible, editInvoice, nextNumber]);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: "1", name: "", description: "", quantity: "1", unitPrice: "", vatRate: VAT_RATES.normal },
+    { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", vatRate: VAT_RATES.normal },
   ]);
   const [showProductPicker, setShowProductPicker] = useState<string | null>(null);
   const [showNewProductForm, setShowNewProductForm] = useState(false);
@@ -113,6 +115,7 @@ export function InvoiceFormModal({
         name: "",
         description: "",
         quantity: "1",
+        unit: "Stk.",
         unitPrice: "",
         vatRate: VAT_RATES.normal,
       },
@@ -152,6 +155,7 @@ export function InvoiceFormModal({
               productId: product.id,
               name: product.name,
               description: product.description || "",
+              unit: product.unit || "Stk.",
               unitPrice: String(product.price),
               vatRate: product.vat_rate != null ? parseFloat(String(product.vat_rate)) : VAT_RATES.normal,
             }
@@ -207,6 +211,7 @@ export function InvoiceFormModal({
       }, payloadItems.map((i: any) => ({
         description: i.description,
         quantity: i.quantity,
+        unit: i.unit || "Stk.",
         unit_price: i.unitPrice,
         vat_rate: i.vatRate,
         total: i.total,
@@ -239,6 +244,7 @@ export function InvoiceFormModal({
       }, payloadItems.map((i: any) => ({
         description: i.description,
         quantity: i.quantity,
+        unit: i.unit || "Stk.",
         unit_price: i.unitPrice,
         vat_rate: i.vatRate,
         total: i.total,
@@ -259,7 +265,7 @@ export function InvoiceFormModal({
   const resetForm = () => {
     setInvoiceNumber("");
     setSelectedCustomerId(null);
-    setItems([{ id: "1", name: "", description: "", quantity: "1", unitPrice: "", vatRate: VAT_RATES.normal }]);
+    setItems([{ id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", vatRate: VAT_RATES.normal }]);
   };
 
   // Produkt erstellen
@@ -329,6 +335,7 @@ export function InvoiceFormModal({
         productId: item.productId ? String(item.productId) : undefined,
         description: item.name + (item.description ? `\n${item.description}` : ""),
         quantity: parseFloat(item.quantity) || 1,
+        unit: item.unit || "Stk.",
         unitPrice: parseFloat(item.unitPrice) || 0,
         vatRate: item.vatRate,
         total: (parseFloat(item.quantity) || 1) * (parseFloat(item.unitPrice) || 0),
