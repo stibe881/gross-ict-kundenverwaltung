@@ -530,7 +530,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       <tr${rowBg}>
         <td class="cell-center">${idx + 1}</td>
         <td class="cell-left">${descHTML}</td>
-        <td class="cell-right">${item.quantity}</td>
+        <td class="cell-right">${item.quantity} ${(item as any).unit || 'Stk.'}</td>
         <td class="cell-right">${fmtCHF(item.unit_price)}</td>
         <td class="cell-right">${fmtCHF(item.total)}</td>
       </tr>`;
