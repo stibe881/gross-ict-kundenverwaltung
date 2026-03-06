@@ -96,7 +96,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     itemsH += ITEM_ROW_H + Math.max(0, lines.length - 1) * SUB_LINE_H;
   }
 
-  const contentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + itemsH + TOTALS_H + NOTES_H + FOOTER_H + MARGINS_H;
+  const contentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + itemsH + TOTALS_H + NOTES_H + FOOTER_H + MARGINS_H + 10; // +10mm Sicherheit
   const pages = Math.max(1, Math.ceil(contentH / PAGE_H));
   const spacerH = Math.max(0, pages * PAGE_H - contentH);
 
@@ -291,6 +291,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       padding: 14px 40px;
       font-size: 7.5pt;
       line-height: 1.7;
+      page-break-inside: avoid;
     }
 
     /* ── Page break hints ── */
@@ -542,7 +543,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     invoiceItemsH += ITEM_ROW_H + Math.max(0, lines.length - 1) * SUB_LINE_H;
   }
 
-  const invContentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + invoiceItemsH + TOTALS_H + NOTES_H + FOOTER_H + MARGINS_H;
+  const invContentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + invoiceItemsH + TOTALS_H + NOTES_H + FOOTER_H + MARGINS_H + 10; // +10mm Sicherheit
   const invPages = Math.max(1, Math.ceil(invContentH / PAGE_H));
   const invSpacerH = Math.max(0, invPages * PAGE_H - invContentH);
 
@@ -617,7 +618,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     .total-row td { padding: 12px 14px !important; font-size: 13pt !important; font-weight: 700 !important; color: #fff !important; border-radius: 4px; }
     .notes { clear: both; margin-top: 30px; padding: 14px 16px; background: #f8fafb; border-left: 3px solid #D4A432; font-size: 9pt; color: #475569; line-height: 1.6; }
     .notes-title { font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; color: #D4A432; margin-bottom: 4px; }
-    .footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; }
+    .footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; page-break-inside: avoid; }
     .totals-wrap { page-break-inside: avoid; }
     .notes { page-break-inside: avoid; }
     .footer-table { width: 100%; border-collapse: collapse; }
