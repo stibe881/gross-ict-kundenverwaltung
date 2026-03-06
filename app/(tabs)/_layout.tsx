@@ -100,43 +100,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="customers"
-        options={{
-          title: "Kunden",
-          href: null,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="accounting"
-        options={{
-          title: "Buchhaltung",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="leads"
-        options={{
-          title: "Akquise",
-          href: null,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="briefcase.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="tickets"
-        options={{
-          title: "Tickets",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="ticket.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="quotes"
-        options={{
-          title: "Angebote",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="doc.text.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="products"
         options={{
           title: "Produkte",

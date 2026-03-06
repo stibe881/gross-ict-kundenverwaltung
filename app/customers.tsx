@@ -166,7 +166,12 @@ export default function CustomersScreen() {
       <View className="flex-1 p-4">
         {/* Header */}
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-3xl font-bold text-foreground">Kunden</Text>
+          <View className="flex-row items-center gap-3">
+            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+            </TouchableOpacity>
+            <Text className="text-3xl font-bold text-foreground">Kunden</Text>
+          </View>
           <TouchableOpacity
             className="bg-primary w-12 h-12 rounded-full items-center justify-center"
             activeOpacity={0.8}

@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -33,6 +34,7 @@ const mockLeads: Lead[] = [
 ];
 
 export default function LeadsScreen() {
+  const router = useRouter();
   const colors = useColors();
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -78,7 +80,12 @@ export default function LeadsScreen() {
       <ScrollView className="flex-1 p-4">
         {/* Header */}
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-3xl font-bold text-foreground">Akquise</Text>
+          <View className="flex-row items-center gap-3">
+            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+            </TouchableOpacity>
+            <Text className="text-3xl font-bold text-foreground">Akquise</Text>
+          </View>
           <TouchableOpacity
             className="bg-primary w-12 h-12 rounded-full items-center justify-center"
             activeOpacity={0.8}

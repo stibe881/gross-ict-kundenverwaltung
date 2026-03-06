@@ -106,11 +106,16 @@ export default function QuotesScreen() {
             <View className="flex-1 p-4">
                 {/* Header */}
                 <View className="flex-row justify-between items-center mb-4">
-                    <View>
-                        <Text className="text-2xl font-bold text-foreground">Angebote</Text>
-                        <Text className="text-sm text-muted mt-1">
-                            {filteredQuotes.length} Angebote · Gesamt: {formatCurrency(totalValue)}
-                        </Text>
+                    <View className="flex-row items-center gap-3">
+                        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                            <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+                        </TouchableOpacity>
+                        <View>
+                            <Text className="text-2xl font-bold text-foreground">Angebote</Text>
+                            <Text className="text-sm text-muted mt-1">
+                                {filteredQuotes.length} Angebote · Gesamt: {formatCurrency(totalValue)}
+                            </Text>
+                        </View>
                     </View>
                     <TouchableOpacity
                         onPress={() => setShowCreateModal(true)}

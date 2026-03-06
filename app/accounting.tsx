@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -17,6 +18,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { router as expoRouter } from "expo-router";
 
 export default function AccountingScreen() {
+  const router = useRouter();
   const colors = useColors();
   const [activeTab, setActiveTab] = useState<"overview" | "invoices" | "expenses">("overview");
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -74,7 +76,12 @@ export default function AccountingScreen() {
       >
         {/* Header */}
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-3xl font-bold text-foreground">Buchhaltung</Text>
+          <View className="flex-row items-center gap-3">
+            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+            </TouchableOpacity>
+            <Text className="text-3xl font-bold text-foreground">Buchhaltung</Text>
+          </View>
           <TouchableOpacity
             className="bg-primary w-12 h-12 rounded-full items-center justify-center"
             activeOpacity={0.8}
@@ -128,17 +135,7 @@ export default function AccountingScreen() {
               </View>
             </View>
 
-            <View className="mt-4">
-              <Text className="text-lg font-bold text-foreground mb-3">Schnellaktionen</Text>
-              <TouchableOpacity
-                className="bg-primary py-4 rounded-lg flex-row items-center justify-center"
-                activeOpacity={0.8}
-                onPress={() => setShowInvoiceModal(true)}
-              >
-                <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
-                <Text className="text-background font-semibold ml-2">Neue Rechnung</Text>
-              </TouchableOpacity>
-            </View>
+
           </View>
         )}
 
