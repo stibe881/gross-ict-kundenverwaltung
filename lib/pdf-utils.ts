@@ -515,9 +515,17 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
   <style>
     @page { size: A4; margin: 0; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #1a1a2e; line-height: 1.5; }
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 9.5pt;
+      color: #1a1a2e !important;
+      line-height: 1.5;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      padding: 0;
+    }
     .accent-bar { height: 6px; background: linear-gradient(90deg, #D4A432, #E8B84A); }
-    .page { padding: 30px 40px 120px 40px; min-height: 100%; }
+    .page { padding: 30px 40px 90px 40px; position: relative; }
     .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
     .header-table td { border: none; padding: 0; vertical-align: bottom; }
     .logo { font-size: 26pt; font-weight: 300; color: #1a1a2e; letter-spacing: 2px; }
@@ -527,7 +535,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     .addr-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
     .addr-meta-table td { border: none; padding: 0; vertical-align: top; }
     .customer-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-bottom: 6px; font-weight: 600; }
-    .customer-address { font-size: 10pt; line-height: 1.7; color: #1a1a2e; }
+    .customer-address { font-size: 10pt; line-height: 1.3; color: #1a1a2e; }
     .meta-box { background: #f8fafb; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; float: right; }
     .meta-table { border-collapse: collapse; font-size: 9pt; }
     .meta-table td { padding: 3px 0; border: none; }
@@ -545,13 +553,17 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     .totals-wrap { width: 100%; margin-top: 6px; }
     .totals-table { border-collapse: collapse; float: right; min-width: 280px; }
     .totals-table td { padding: 6px 12px; font-size: 9pt; border: none; }
-    .totals-label { text-align: right; color: #64748b; font-weight: 500; }
-    .totals-value { text-align: right; font-weight: 600; color: #1a1a2e; min-width: 100px; }
+    .totals-label { text-align: right; color: #374151 !important; font-weight: 500; }
+    .totals-value { text-align: right; font-weight: 600; color: #1a1a2e !important; min-width: 100px; }
     .totals-sep td { height: 2px; padding: 0; }
     .totals-sep td div { height: 2px; background: #e2e8f0; }
     .total-row { background: #D4A432; }
     .total-row td { padding: 12px 14px !important; font-size: 13pt !important; font-weight: 700 !important; color: #fff !important; border-radius: 4px; }
+    .notes { clear: both; margin-top: 30px; padding: 14px 16px; background: #f8fafb; border-left: 3px solid #D4A432; font-size: 9pt; color: #475569; line-height: 1.6; }
+    .notes-title { font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; color: #D4A432; margin-bottom: 4px; }
     .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; }
+    .totals-wrap { page-break-inside: avoid; }
+    .notes { page-break-inside: avoid; }
     .footer-table { width: 100%; border-collapse: collapse; }
     .footer-table td { border: none; padding: 0; vertical-align: top; color: #cbd5e1; }
     .footer-label { font-weight: 700; color: #D4A432; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
@@ -569,24 +581,24 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     </table>
 
     <div class="company-bar">
-      <strong>Gross ICT</strong> · Neuhushof 3 · 6144 Zell LU · Schweiz<br>
-      Stefan Gross · +41 79 414 06 16 · info@gross-ict.ch
+      <strong>Gross ICT</strong> &middot; Neuhushof 3 &middot; 6144 Zell LU &middot; Schweiz<br>
+      Stefan Gross &middot; +41 79 414 06 16 &middot; info@gross-ict.ch
     </div>
 
     <table class="addr-meta-table">
       <tr>
         <td style="width:55%;">
-          <div class="customer-label">Empfänger</div>
+          <div class="customer-label">Empf&auml;nger</div>
           <div class="customer-address">${customerAddressHTML}</div>
         </td>
         <td style="width:45%;">
           <div class="meta-box">
             <table class="meta-table">
               <tr><td>Rechnungsnr.</td><td>${invoice.invoice_number}</td></tr>
-              ${invoice.customer?.customer_number ? `<tr><td>Kundennr.</td><td>${invoice.customer.customer_number}</td></tr>` : ""}
+              ${invoice.customer?.customer_number ? \`<tr><td>Kundennr.</td><td>${invoice.customer.customer_number}</td></tr>\` : ""}
               <tr><td>Datum</td><td>${fmtDate(invoice.invoice_date)}</td></tr>
               <tr><td>Zahlungsziel</td><td>${fmtDate(invoice.due_date)}</td></tr>
-              <tr><td>Zahlungsform</td><td>Überweisung</td></tr>
+              <tr><td>Zahlungsform</td><td>&Uuml;berweisung</td></tr>
             </table>
           </div>
         </td>
@@ -595,7 +607,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
 
     <div class="intro">
       Guten Tag<br><br>
-      Wir bedanken uns für Ihren Auftrag und stellen folgende Positionen in Rechnung:
+      Wir bedanken uns f&uuml;r Ihren Auftrag und stellen folgende Positionen in Rechnung:
     </div>
 
     <table class="items-table">
@@ -613,30 +625,27 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       </tbody>
     </table>
 
-    <div class="totals-wrap">
+    <div class="totals-wrap" style="margin-bottom:60px;">
       <table class="totals-table">
-        <tr>
-          <td class="totals-label">Zwischensumme</td>
-          <td class="totals-value">${fmtCHF(invoice.subtotal)}</td>
-        </tr>
-        <tr>
-          <td class="totals-label">MwSt.</td>
-          <td class="totals-value">${fmtCHF(invoice.vat_amount)}</td>
-        </tr>
-        <tr class="totals-sep"><td colspan="2"><div></div></td></tr>
         <tr class="total-row">
           <td class="totals-label" style="color:#fff !important;">Zu bezahlen</td>
           <td class="totals-value">${fmtCHF(invoice.total)} CHF</td>
         </tr>
       </table>
     </div>
+
+    ${invoice.notes ? \`
+    <div class="notes">
+      <div class="notes-title">Anmerkungen</div>
+      ${invoice.notes.replace(/\\n/g, "<br>")}
+    </div>\` : ""}
   </div>
 
   <div class="footer">
     <table class="footer-table">
       <tr>
         <td style="width:33%;">
-          <div class="footer-label">Zahlungsempfänger</div>
+          <div class="footer-label">Zahlungsempf&auml;nger</div>
           <span class="footer-val">Stefan Gross</span>
         </td>
         <td style="width:33%;">
@@ -659,20 +668,45 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
 export async function downloadInvoicePDF(invoice: InvoiceForPDF): Promise<void> {
   const html = generateInvoiceHTML(invoice);
 
+  // Web: Hidden-Iframe-Druck (nur HTML-Inhalt, keine App-Buttons)
   if (Platform.OS === "web") {
-    try {
-      const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842 });
-      const link = document.createElement("a");
-      link.href = uri;
-      link.download = `Rechnung-${invoice.invoice_number}.pdf`;
-      link.click();
-      return;
-    } catch {
-      await Print.printAsync({ html });
-      return;
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (iframeDoc) {
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
+
+      iframe.onload = () => {
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => document.body.removeChild(iframe), 3000);
+        }, 500);
+      };
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch { }
+        setTimeout(() => {
+          try { document.body.removeChild(iframe); } catch { }
+        }, 3000);
+      }, 2000);
     }
+    return;
   }
 
+  // Native: PDF erstellen und teilen
   try {
     const { uri } = await Print.printToFileAsync({
       html,
@@ -689,6 +723,7 @@ export async function downloadInvoicePDF(invoice: InvoiceForPDF): Promise<void> 
     console.warn("[PDF] printToFileAsync fehlgeschlagen:", e1.message);
   }
 
+  // Fallback: HTML-Datei direkt teilen
   try {
     const file = new FSFile(Paths.cache, `rechnung-${invoice.invoice_number}.html`);
     file.write(html);
