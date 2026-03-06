@@ -96,20 +96,58 @@ export default function InvoiceDetailScreen() {
 
     const handleSendInvoice = async () => {
         if (!invoice) return;
-        try {
-            await downloadInvoicePDF(invoice);
-        } catch (error: any) {
-            showAlert("Fehler", "PDF konnte nicht erstellt werden: " + (error.message || ""));
+        if (!invoice.customer?.email) {
+            showAlert("Fehler", "Dieser Kunde hat keine E-Mail-Adresse hinterlegt.");
+            return;
         }
+        showConfirm(
+            "Rechnung per E-Mail senden",
+            `Rechnung ${invoice.invoice_number} an ${invoice.customer.email} senden?`,
+            async () => {
+                try {
+                    const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3000";
+                    const res = await fetch(`${apiBase}/api/trpc/invoices.sendEmail`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ json: { id: invoice.id } }),
+                    });
+                    if (!res.ok) throw new Error("E-Mail konnte nicht gesendet werden");
+                    showAlert("Erfolg", `Rechnung wurde an ${invoice.customer.email} gesendet.`);
+                    refetch();
+                } catch (error: any) {
+                    showAlert("Fehler", error.message || "E-Mail konnte nicht gesendet werden");
+                }
+            },
+            "Senden"
+        );
     };
 
     const handleSendReminder = async () => {
         if (!invoice) return;
-        try {
-            await downloadInvoicePDF(invoice);
-        } catch (error: any) {
-            showAlert("Fehler", "PDF konnte nicht erstellt werden: " + (error.message || ""));
+        if (!invoice.customer?.email) {
+            showAlert("Fehler", "Dieser Kunde hat keine E-Mail-Adresse hinterlegt.");
+            return;
         }
+        showConfirm(
+            "Mahnung senden",
+            `Zahlungserinnerung für ${invoice.invoice_number} an ${invoice.customer.email} senden?`,
+            async () => {
+                try {
+                    const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3000";
+                    const res = await fetch(`${apiBase}/api/trpc/invoices.sendReminder`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ json: { id: invoice.id } }),
+                    });
+                    if (!res.ok) throw new Error("Mahnung konnte nicht gesendet werden");
+                    showAlert("Erfolg", `Mahnung wurde an ${invoice.customer.email} gesendet.`);
+                    refetch();
+                } catch (error: any) {
+                    showAlert("Fehler", error.message || "Mahnung konnte nicht gesendet werden");
+                }
+            },
+            "Senden"
+        );
     };
 
     const getStatusLabel = (status: string) => {
