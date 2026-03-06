@@ -42,7 +42,8 @@ export default function QuotesScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            refetch();
+            // Auto-expire quotes with passed valid_until date
+            Data.autoExpireQuotes().then(() => refetch());
         }, [])
     );
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -62,6 +62,34 @@ export default function QuoteDetailScreen() {
             showAlert("Fehler", error.message);
         },
     });
+
+    const statusMutation = useMutation({
+        mutationFn: ({ quoteId, status }: { quoteId: string; status: string }) =>
+            Data.updateQuoteStatus(quoteId, status),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["quote", id] });
+            queryClient.invalidateQueries({ queryKey: ["quotes"] });
+            showAlert("Erfolg", "Status wurde aktualisiert");
+        },
+        onError: (error: any) => {
+            showAlert("Fehler", error.message);
+        },
+    });
+
+    // Auto-expire on load
+    useEffect(() => {
+        if (quote && quote.valid_until && (quote.status === "draft" || quote.status === "sent")) {
+            const validDate = new Date(quote.valid_until);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (validDate < today) {
+                Data.updateQuoteStatus(quote.id, "expired").then(() => {
+                    queryClient.invalidateQueries({ queryKey: ["quote", id] });
+                    queryClient.invalidateQueries({ queryKey: ["quotes"] });
+                });
+            }
+        }
+    }, [quote]);
 
     const handleDelete = () => {
         showConfirm(
@@ -206,6 +234,48 @@ export default function QuoteDetailScreen() {
                     <View className="bg-surface rounded-xl p-4 border border-border mt-4">
                         <Text className="text-sm font-semibold text-foreground mb-1">Notizen</Text>
                         <Text className="text-sm text-muted">{quote.notes}</Text>
+                    </View>
+                )}
+
+                {/* Status ändern */}
+                {(quote.status === "draft" || quote.status === "sent" || quote.status === "accepted" || quote.status === "rejected") && (
+                    <View className="mt-6">
+                        <Text className="text-sm font-semibold text-muted mb-2">Status ändern</Text>
+                        <View className="flex-row gap-2 flex-wrap">
+                            {quote.status !== "sent" && quote.status !== "accepted" && (
+                                <TouchableOpacity
+                                    onPress={() => statusMutation.mutate({ quoteId: id as string, status: "sent" })}
+                                    style={{ backgroundColor: "#3B82F620", borderColor: "#3B82F6" }}
+                                    className="px-4 py-2.5 rounded-lg border flex-row items-center"
+                                    activeOpacity={0.7}
+                                >
+                                    <IconSymbol name="paperplane.fill" size={16} color="#3B82F6" />
+                                    <Text style={{ color: "#3B82F6" }} className="font-semibold ml-2 text-sm">Gesendet</Text>
+                                </TouchableOpacity>
+                            )}
+                            {quote.status !== "accepted" && (
+                                <TouchableOpacity
+                                    onPress={() => statusMutation.mutate({ quoteId: id as string, status: "accepted" })}
+                                    style={{ backgroundColor: "#10B98120", borderColor: "#10B981" }}
+                                    className="px-4 py-2.5 rounded-lg border flex-row items-center"
+                                    activeOpacity={0.7}
+                                >
+                                    <IconSymbol name="checkmark.circle.fill" size={16} color="#10B981" />
+                                    <Text style={{ color: "#10B981" }} className="font-semibold ml-2 text-sm">Angenommen</Text>
+                                </TouchableOpacity>
+                            )}
+                            {quote.status !== "rejected" && (
+                                <TouchableOpacity
+                                    onPress={() => statusMutation.mutate({ quoteId: id as string, status: "rejected" })}
+                                    style={{ backgroundColor: "#EF444420", borderColor: "#EF4444" }}
+                                    className="px-4 py-2.5 rounded-lg border flex-row items-center"
+                                    activeOpacity={0.7}
+                                >
+                                    <IconSymbol name="xmark.circle.fill" size={16} color="#EF4444" />
+                                    <Text style={{ color: "#EF4444" }} className="font-semibold ml-2 text-sm">Abgelehnt</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
                     </View>
                 )}
 

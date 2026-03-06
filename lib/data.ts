@@ -536,6 +536,25 @@ export async function convertQuoteToInvoice(quoteId: string) {
     return invoice;
 }
 
+export async function updateQuoteStatus(quoteId: string, status: string) {
+    const { error } = await supabase
+        .from("quotes")
+        .update({ status })
+        .eq("id", quoteId);
+    if (error) throw new Error(error.message);
+}
+
+// Auto-expire quotes whose valid_until date has passed
+export async function autoExpireQuotes() {
+    const today = new Date().toISOString().split("T")[0];
+    await supabase
+        .from("quotes")
+        .update({ status: "expired" })
+        .in("status", ["draft", "sent"])
+        .lt("valid_until", today)
+        .not("valid_until", "is", null);
+}
+
 // ==================== VERTRÄGE ====================
 
 export async function getContracts() {
