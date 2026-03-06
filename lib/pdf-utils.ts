@@ -76,31 +76,25 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
 
   console.log("[PDF] Quote items:", (quote.items || []).length, "optional:", optionalItems.length, "optionalSubtotal:", optionalSubtotal, "hasOptional:", hasOptional);
 
-  // Spacer-Höhe vorab berechnen (in mm). Web und Mobile rendern unterschiedlich gross.
-  const PAGE_H = 297; // A4
+  // Web: position:fixed für Footer. Mobile: Spacer-Div.
   const isWeb = Platform.OS === "web";
-  const HEADER_H = isWeb ? 55 : 62;
-  const ADDR_H = isWeb ? 38 : 42;
-  const INTRO_H = isWeb ? 14 : 16;
-  const TABLE_HEAD_H = isWeb ? 10 : 12;
-  const ITEM_ROW_H = isWeb ? 9 : 11;
-  const SUB_LINE_H = isWeb ? 4 : 5;
-  const TOTALS_H = hasOptional ? (isWeb ? 35 : 42) : (isWeb ? 22 : 28);
-  const NOTES_H = quote.notes ? (isWeb ? 18 : 22) : 0;
-  const FOOTER_H = isWeb ? 20 : 22;
-  const SAFETY = isWeb ? 10 : 25;
-
-  let itemsH = 0;
-  for (const item of (quote.items || [])) {
-    const lines = (item.description || "").split("\n");
-    itemsH += ITEM_ROW_H + Math.max(0, lines.length - 1) * SUB_LINE_H;
+  let spacerH = 0;
+  if (!isWeb) {
+    const PAGE_H = 297;
+    const HEADER_H = 62; const ADDR_H = 42; const INTRO_H = 16;
+    const TABLE_HEAD_H = 12; const ITEM_ROW_H = 11; const SUB_LINE_H = 5;
+    const TOTALS_H = hasOptional ? 42 : 28;
+    const NOTES_H = quote.notes ? 22 : 0;
+    const FOOTER_H = 22; const SAFETY = 25;
+    let itemsH = 0;
+    for (const item of (quote.items || [])) {
+      const lines = (item.description || "").split("\n");
+      itemsH += ITEM_ROW_H + Math.max(0, lines.length - 1) * SUB_LINE_H;
+    }
+    const contentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + itemsH + TOTALS_H + NOTES_H + FOOTER_H + SAFETY;
+    const pages = Math.max(1, Math.ceil(contentH / PAGE_H));
+    spacerH = Math.max(0, pages * PAGE_H - contentH);
   }
-
-  const contentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + itemsH + TOTALS_H + NOTES_H + FOOTER_H + SAFETY;
-  const pages = Math.max(1, Math.ceil(contentH / PAGE_H));
-  const spacerH = Math.max(0, pages * PAGE_H - contentH);
-
-  console.log("[PDF] Platform:", Platform.OS, "isWeb:", isWeb, "contentH:", contentH, "pages:", pages, "spacerH:", spacerH, "mm");
 
   const itemsHTML = (quote.items || [])
     .map((item, idx) => {
@@ -153,7 +147,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     }
 
     .page {
-      padding: 30px 40px 30px 40px;
+      padding: 30px 40px ${isWeb ? '80px' : '30px'} 40px;
       position: relative;
     }
 
@@ -286,13 +280,13 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
       margin-bottom: 4px;
     }
 
-    /* ── Footer ── */
     .footer {
       background: #1a1a2e;
       color: #cbd5e1;
       padding: 14px 40px;
       font-size: 7.5pt;
       line-height: 1.7;
+      ${isWeb ? 'position: fixed; bottom: 0; left: 0; right: 0;' : ''}
       page-break-inside: avoid;
     }
 
@@ -526,29 +520,24 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
   const itemsTotal = (invoice.items || []).reduce((sum, i) => sum + (i.total || 0), 0);
   const calculatedTotal = itemsTotal > 0 ? itemsTotal : invoice.total;
 
-  // Spacer-Höhe vorab berechnen (in mm)
-  const PAGE_H = 297;
   const isWebInv = Platform.OS === "web";
-  const HEADER_H = isWebInv ? 55 : 62;
-  const ADDR_H = isWebInv ? 38 : 42;
-  const INTRO_H = isWebInv ? 14 : 16;
-  const TABLE_HEAD_H = isWebInv ? 10 : 12;
-  const ITEM_ROW_H = isWebInv ? 9 : 11;
-  const SUB_LINE_H = isWebInv ? 4 : 5;
-  const TOTALS_H = isWebInv ? 22 : 28;
-  const NOTES_H = invoice.notes ? (isWebInv ? 18 : 22) : 0;
-  const FOOTER_H = isWebInv ? 20 : 22;
-  const SAFETY = isWebInv ? 10 : 25;
-
-  let invoiceItemsH = 0;
-  for (const item of (invoice.items || [])) {
-    const lines = (item.description || "").split("\n");
-    invoiceItemsH += ITEM_ROW_H + Math.max(0, lines.length - 1) * SUB_LINE_H;
+  let invSpacerH = 0;
+  if (!isWebInv) {
+    const PAGE_H = 297;
+    const HEADER_H = 62; const ADDR_H = 42; const INTRO_H = 16;
+    const TABLE_HEAD_H = 12; const ITEM_ROW_H = 11; const SUB_LINE_H = 5;
+    const TOTALS_H = 28;
+    const NOTES_H = invoice.notes ? 22 : 0;
+    const FOOTER_H = 22; const SAFETY = 25;
+    let invoiceItemsH = 0;
+    for (const item of (invoice.items || [])) {
+      const lines = (item.description || "").split("\n");
+      invoiceItemsH += ITEM_ROW_H + Math.max(0, lines.length - 1) * SUB_LINE_H;
+    }
+    const invContentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + invoiceItemsH + TOTALS_H + NOTES_H + FOOTER_H + SAFETY;
+    const invPages = Math.max(1, Math.ceil(invContentH / PAGE_H));
+    invSpacerH = Math.max(0, invPages * PAGE_H - invContentH);
   }
-
-  const invContentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + invoiceItemsH + TOTALS_H + NOTES_H + FOOTER_H + SAFETY;
-  const invPages = Math.max(1, Math.ceil(invContentH / PAGE_H));
-  const invSpacerH = Math.max(0, invPages * PAGE_H - invContentH);
 
   const itemsHTML = (invoice.items || [])
     .map((item, idx) => {
@@ -585,7 +574,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       margin: 0;
     }
     .accent-bar { height: 6px; background: linear-gradient(90deg, #D4A432, #E8B84A); }
-    .page { padding: 30px 40px 30px 40px; position: relative; }
+    .page { padding: 30px 40px ${isWebInv ? '80px' : '30px'} 40px; position: relative; }
     .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
     .header-table td { border: none; padding: 0; vertical-align: bottom; }
     .logo { font-size: 26pt; font-weight: 300; color: #1a1a2e; letter-spacing: 2px; }
@@ -621,7 +610,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     .total-row td { padding: 12px 14px !important; font-size: 13pt !important; font-weight: 700 !important; color: #fff !important; border-radius: 4px; }
     .notes { clear: both; margin-top: 30px; padding: 14px 16px; background: #f8fafb; border-left: 3px solid #D4A432; font-size: 9pt; color: #475569; line-height: 1.6; }
     .notes-title { font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; color: #D4A432; margin-bottom: 4px; }
-    .footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; page-break-inside: avoid; }
+    .footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; ${isWebInv ? 'position: fixed; bottom: 0; left: 0; right: 0;' : ''} page-break-inside: avoid; }
     .totals-wrap { page-break-inside: avoid; }
     .notes { page-break-inside: avoid; }
     .footer-table { width: 100%; border-collapse: collapse; }
