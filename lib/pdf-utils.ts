@@ -395,6 +395,15 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     </table>
   </div>
 
+  <script>
+    // Footer immer am unteren Seitenrand: Body-Höhe auf volle Seitenhöhe auffüllen
+    (function() {
+      var ph = window.innerHeight || 842;
+      var bh = document.body.scrollHeight;
+      var pages = Math.ceil(bh / ph);
+      if (pages > 0) document.body.style.minHeight = (pages * ph) + 'px';
+    })();
+  </script>
 </body>
 </html>`;
 }
@@ -674,6 +683,14 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       </tr>
     </table>
   </div>
+  <script>
+    (function() {
+      var ph = window.innerHeight || 842;
+      var bh = document.body.scrollHeight;
+      var pages = Math.ceil(bh / ph);
+      if (pages > 0) document.body.style.minHeight = (pages * ph) + 'px';
+    })();
+  </script>
 </body>
 </html>`;
 }
