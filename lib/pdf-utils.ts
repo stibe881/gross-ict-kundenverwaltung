@@ -75,6 +75,31 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
 
   console.log("[PDF] Quote items:", (quote.items || []).length, "optional:", optionalItems.length, "optionalSubtotal:", optionalSubtotal, "hasOptional:", hasOptional);
 
+  // Spacer-Höhe vorab berechnen (in mm, da plattformunabhängig)
+  // A4 = 297mm
+  const PAGE_H = 297;
+  const HEADER_H = 55;     // Logo + Company-Bar + Accent-Bar
+  const ADDR_H = 38;       // Adresse + Meta-Box
+  const INTRO_H = 14;      // Guten Tag...
+  const TABLE_HEAD_H = 10; // Tabellenkopf
+  const ITEM_ROW_H = 9;    // Pro Item-Zeile (Basisgrösse)
+  const SUB_LINE_H = 4;    // Pro Unterbeschreibungs-Zeile
+  const TOTALS_H = hasOptional ? 35 : 22; // Totals-Block
+  const NOTES_H = quote.notes ? 18 : 0;
+  const FOOTER_H = 20;
+  const MARGINS_H = 16;    // Top/Bottom padding
+
+  // Items-Höhe berechnen
+  let itemsH = 0;
+  for (const item of (quote.items || [])) {
+    const lines = (item.description || "").split("\n");
+    itemsH += ITEM_ROW_H + Math.max(0, lines.length - 1) * SUB_LINE_H;
+  }
+
+  const contentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + itemsH + TOTALS_H + NOTES_H + FOOTER_H + MARGINS_H;
+  const pages = Math.max(1, Math.ceil(contentH / PAGE_H));
+  const spacerH = Math.max(0, pages * PAGE_H - contentH);
+
   const itemsHTML = (quote.items || [])
     .map((item, idx) => {
       const nameParts = (item.description || "").split("\n");
@@ -368,8 +393,8 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     </div>` : ""}
   </div>
 
-  <!-- Spacer: wird per JS auf die richtige Höhe gesetzt -->
-  <div id="footer-spacer"></div>
+  <!-- Spacer: vorberechnet in TypeScript -->
+  <div id="footer-spacer" style="height: ${spacerH}mm;"></div>
 
   <!-- Footer -->
   <div id="pdf-footer" class="footer">
@@ -393,26 +418,6 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     </table>
   </div>
 
-  <script>
-    window.onload = function() {
-      var spacer = document.getElementById('footer-spacer');
-      spacer.style.height = '0px';
-      // Seitenhöhe dynamisch messen mit 100vh
-      var m = document.createElement('div');
-      m.style.height = '100vh';
-      m.style.position = 'absolute';
-      m.style.top = '-9999px';
-      document.body.appendChild(m);
-      var pageH = m.offsetHeight;
-      document.body.removeChild(m);
-      if (pageH < 100) pageH = 842; // Fallback
-      var contentH = document.body.scrollHeight;
-      var pages = Math.max(1, Math.ceil(contentH / pageH));
-      var targetH = pages * pageH;
-      var gap = targetH - contentH;
-      if (gap > 0) spacer.style.height = gap + 'px';
-    };
-  </script>
 </body>
 </html>`;
 }
@@ -517,6 +522,29 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
   // Total aus den Items berechnen (statt aus DB-Feld)
   const itemsTotal = (invoice.items || []).reduce((sum, i) => sum + (i.total || 0), 0);
   const calculatedTotal = itemsTotal > 0 ? itemsTotal : invoice.total;
+
+  // Spacer-Höhe vorab berechnen (in mm)
+  const PAGE_H = 297;
+  const HEADER_H = 55;
+  const ADDR_H = 38;
+  const INTRO_H = 14;
+  const TABLE_HEAD_H = 10;
+  const ITEM_ROW_H = 9;
+  const SUB_LINE_H = 4;
+  const TOTALS_H = 22;
+  const NOTES_H = invoice.notes ? 18 : 0;
+  const FOOTER_H = 20;
+  const MARGINS_H = 16;
+
+  let invoiceItemsH = 0;
+  for (const item of (invoice.items || [])) {
+    const lines = (item.description || "").split("\n");
+    invoiceItemsH += ITEM_ROW_H + Math.max(0, lines.length - 1) * SUB_LINE_H;
+  }
+
+  const invContentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + invoiceItemsH + TOTALS_H + NOTES_H + FOOTER_H + MARGINS_H;
+  const invPages = Math.max(1, Math.ceil(invContentH / PAGE_H));
+  const invSpacerH = Math.max(0, invPages * PAGE_H - invContentH);
 
   const itemsHTML = (invoice.items || [])
     .map((item, idx) => {
@@ -669,7 +697,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     </div>` : ""}
   </div>
 
-  <div id="footer-spacer"></div>
+  <div id="footer-spacer" style="height: ${invSpacerH}mm;"></div>
 
   <div id="pdf-footer" class="footer">
     <table class="footer-table">
@@ -692,25 +720,6 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     </table>
   </div>
 
-  <script>
-    window.onload = function() {
-      var spacer = document.getElementById('footer-spacer');
-      spacer.style.height = '0px';
-      var m = document.createElement('div');
-      m.style.height = '100vh';
-      m.style.position = 'absolute';
-      m.style.top = '-9999px';
-      document.body.appendChild(m);
-      var pageH = m.offsetHeight;
-      document.body.removeChild(m);
-      if (pageH < 100) pageH = 842;
-      var contentH = document.body.scrollHeight;
-      var pages = Math.max(1, Math.ceil(contentH / pageH));
-      var targetH = pages * pageH;
-      var gap = targetH - contentH;
-      if (gap > 0) spacer.style.height = gap + 'px';
-    };
-  </script>
 </body>
 </html>`;
 }
