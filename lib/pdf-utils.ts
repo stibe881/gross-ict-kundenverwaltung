@@ -70,11 +70,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
   const nonOptionalItems = (quote.items || []).filter(i => !i.optional);
   const optionalSubtotal = optionalItems.reduce((sum, i) => sum + (i.total || 0), 0);
   const nonOptionalSubtotal = nonOptionalItems.reduce((sum, i) => sum + (i.total || 0), 0);
-  const optionalTax = optionalSubtotal * 0.081;
-  // quote.total beinhaltet alles — grandTotal = quote.total (bereits inkl. optional)
-  const nonOptionalTax = nonOptionalSubtotal * 0.081;
-  const nonOptionalTotal = nonOptionalSubtotal + nonOptionalTax;
-  const grandTotal = quote.total;
+  const grandTotal = nonOptionalSubtotal + optionalSubtotal;
 
   const itemsHTML = (quote.items || [])
     .map((item, idx) => {
@@ -173,7 +169,7 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     }
     .customer-address {
       font-size: 10pt;
-      line-height: 1.7;
+      line-height: 1.3;
       color: #1a1a2e;
     }
     .meta-box {
@@ -341,26 +337,17 @@ function generateQuoteHTML(quote: QuoteForPDF): string {
     </table>
 
     <!-- Totals -->
-    <div class="totals-wrap">
+    <div class="totals-wrap" style="margin-bottom:60px;">
       <table class="totals-table">
-        <tr>
-          <td class="totals-label">MwSt. 8.1%</td>
-          <td class="totals-value">${fmtCHF(nonOptionalTax)}</td>
-        </tr>
-        <tr class="totals-sep"><td colspan="2"><div></div></td></tr>
         <tr class="total-row">
           <td class="totals-label" style="color:#fff !important;">Total</td>
-          <td class="totals-value">${fmtCHF(nonOptionalTotal)} CHF</td>
+          <td class="totals-value">${fmtCHF(nonOptionalSubtotal)} CHF</td>
         </tr>
         ${optionalSubtotal > 0 ? `
         <tr><td colspan="2" style="padding-top:12px;"></td></tr>
         <tr>
           <td class="totals-label">Zwischensumme OPTIONAL</td>
           <td class="totals-value">${fmtCHF(optionalSubtotal)}</td>
-        </tr>
-        <tr>
-          <td class="totals-label">MwSt. 8.1% (OPTIONAL)</td>
-          <td class="totals-value">${fmtCHF(optionalTax)}</td>
         </tr>
         <tr class="totals-sep"><td colspan="2"><div></div></td></tr>
         <tr class="total-row">
