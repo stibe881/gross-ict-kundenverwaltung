@@ -28,6 +28,7 @@ function renderPage(quote: any, supabaseUrl: string): string {
   const customerName = customer.company_name ||
     `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Kunde";
   const items = quote.items || [];
+  const acceptUrl = `${supabaseUrl}/functions/v1/accept-quote?id=${quote.id}`;
 
   const optionalItems = items.filter((i: any) => !!i.optional);
   const nonOptionalItems = items.filter((i: any) => !i.optional);
