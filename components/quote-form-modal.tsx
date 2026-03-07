@@ -41,6 +41,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: Quote
 
     const [customerId, setCustomerId] = useState("");
     const [validUntil, setValidUntil] = useState("");
+    const [previewUrl, setPreviewUrl] = useState("");
     const [notes, setNotes] = useState("");
     const [items, setItems] = useState<LineItem[]>([
         { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", vatRate: "8.1", optional: false },
@@ -83,6 +84,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: Quote
                 setValidUntil("");
             }
             setNotes(editQuote.notes || "");
+            setPreviewUrl(editQuote.preview_url || "");
             setItems(
                 (editQuote.items || []).map((item: any, idx: number) => ({
                     id: String(idx + 1),
@@ -103,6 +105,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: Quote
     const resetForm = () => {
         setCustomerId("");
         setValidUntil("");
+        setPreviewUrl("");
         setNotes("");
         setItems([
             { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", vatRate: "8.1", optional: false },
@@ -229,6 +232,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: Quote
                 tax,
                 total,
                 notes: notes || null,
+                preview_url: previewUrl || null,
             };
 
             const quoteItems = items
@@ -334,6 +338,20 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: Quote
                                     placeholder="DD.MM.YYYY"
                                     placeholderTextColor={colors.muted}
                                     className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                />
+                            </View>
+
+                            {/* Webseiten-Vorschau Link */}
+                            <View>
+                                <Text className="text-sm font-semibold text-foreground mb-2">Webseiten-Vorschau (optional)</Text>
+                                <TextInput
+                                    value={previewUrl}
+                                    onChangeText={setPreviewUrl}
+                                    placeholder="https://vorschau.gross-ict.ch/kunde"
+                                    placeholderTextColor={colors.muted}
+                                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                    autoCapitalize="none"
+                                    keyboardType="url"
                                 />
                             </View>
 

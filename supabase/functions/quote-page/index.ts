@@ -115,7 +115,15 @@ function renderPage(quote: any, supabaseUrl: string): string {
     .header-meta { display:flex; gap:24px; align-items:center; font-size:13px; color:var(--text-muted); }
     .header-meta-item { display:flex; flex-direction:column; align-items:flex-end; }
     .header-meta-label { font-size:10px; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-muted); opacity:0.7; }
-    .header-meta-value { font-weight:600; color:var(--text); font-size:13px; }
+    .header-meta-value { font-weight:600; color:var(--text); font-size:13px; display:flex; align-items:center; gap:6px; }
+    .preview-link {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:28px; height:28px; border-radius:8px;
+      background:linear-gradient(135deg,var(--primary),var(--primary-light));
+      color:#0f0f1a; text-decoration:none; transition:all 0.2s;
+    }
+    .preview-link:hover { transform:scale(1.1); box-shadow:0 0 12px var(--primary); }
+    .preview-link svg { width:14px; height:14px; }
 
     /* Hero */
     .hero { padding:80px 0 60px; text-align:center; position:relative; }
@@ -280,7 +288,7 @@ function renderPage(quote: any, supabaseUrl: string): string {
   <header class="site-header">
     <div class="container header-inner">
       <div class="logo-area">
-        <img src="https://angebote.gross-ict.ch/logo.png" alt="Gross ICT" class="logo-img">
+        <img src="https://bvluvvyvftygnxtmboxw.supabase.co/storage/v1/object/public/quote-pages/logo.png" alt="Gross ICT" class="logo-img">
       </div>
       <div class="header-meta">
         <div class="header-meta-item">
@@ -293,7 +301,10 @@ function renderPage(quote: any, supabaseUrl: string): string {
         </div>
         <div class="header-meta-item">
           <span class="header-meta-label">Angebotsnr.</span>
-          <span class="header-meta-value">${escHtml(quote.quote_number)}</span>
+          <span class="header-meta-value">
+            ${escHtml(quote.quote_number)}
+            ${quote.preview_url ? `<a href="${escHtml(quote.preview_url)}" target="_blank" rel="noopener" class="preview-link" title="Webseiten-Vorschau öffnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
+          </span>
         </div>
       </div>
     </div>
