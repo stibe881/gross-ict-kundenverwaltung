@@ -16,8 +16,9 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { QuoteFormModal } from "@/components/quote-form-modal";
 import { downloadQuotePDF, generateQuoteHTML } from "@/lib/pdf-utils";
+import { Platform, Linking } from "react-native";
 import * as Print from "expo-print";
-import { Platform } from "react-native";
+import { supabase } from "@/lib/supabase";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
     draft: { label: "Entwurf", color: "#6B7280" },
@@ -171,6 +172,28 @@ export default function QuoteDetailScreen() {
             },
             "Senden"
         );
+    };
+
+    const handleShareLink = async () => {
+        if (!quote) return;
+        const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "https://bvluvvyvftygnxtmboxw.supabase.co";
+        const link = `${supabaseUrl}/functions/v1/quote-page?id=${quote.id}`;
+
+        if (Platform.OS === "web") {
+            try {
+                await navigator.clipboard.writeText(link);
+                showAlert("Link kopiert!", link);
+            } catch {
+                showAlert("Kunden-Link", link);
+            }
+        } else {
+            const { Share } = require("react-native");
+            try {
+                await Share.share({ message: `Ihr Angebot von Gross ICT: ${link}`, url: link });
+            } catch {
+                showAlert("Kunden-Link", link);
+            }
+        }
     };
 
     if (isLoading) {
@@ -349,6 +372,17 @@ export default function QuoteDetailScreen() {
                             )}
                         </TouchableOpacity>
                     )}
+
+                    {/* Kunden-Link teilen */}
+                    <TouchableOpacity
+                        onPress={handleShareLink}
+                        style={{ backgroundColor: "#0EA5E9" }}
+                        className="p-4 rounded-lg flex-row items-center justify-center"
+                        activeOpacity={0.8}
+                    >
+                        <IconSymbol name="link" size={20} color="#fff" />
+                        <Text className="text-background font-semibold ml-2">Kunden-Link kopieren</Text>
+                    </TouchableOpacity>
 
                     {/* PDF herunterladen */}
                     <TouchableOpacity
