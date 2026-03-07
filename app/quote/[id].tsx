@@ -176,7 +176,7 @@ export default function QuoteDetailScreen() {
 
     const handleShareLink = async () => {
         if (!quote) return;
-        const link = `https://angebot.gross-ict.ch/?id=${quote.id}`;
+        const link = `https://angebote.gross-ict.ch/?id=${quote.id}`;
 
         if (Platform.OS === "web") {
             try {
