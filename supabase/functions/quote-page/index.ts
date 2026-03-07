@@ -489,7 +489,7 @@ function renderPage(quote: any, supabaseUrl: string): string {
         <div class="label">Gesamtbetrag</div>
         <div class="value">CHF ${fmtCHF(grandTotal)}</div>
       </div>
-      <div class="modal-check" onclick="document.getElementById('agree').click()">
+      <div class="modal-check" id="modal-check-area">
         <input type="checkbox" id="agree">
         <label for="agree">Ich habe das Angebot gelesen und nehme es hiermit <strong>kostenpflichtig</strong> an. Die AGB und Datenschutzerklärung von Gross ICT habe ich zur Kenntnis genommen.</label>
       </div>
@@ -526,6 +526,12 @@ function renderPage(quote: any, supabaseUrl: string): string {
     document.addEventListener('keydown', (e) => { if(e.key==='Escape') closeModal(); });
 
     checkbox?.addEventListener('change', () => { confirmBtn.disabled = !checkbox.checked; });
+    document.getElementById('modal-check-area')?.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') {
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
+      }
+    });
 
     confirmBtn?.addEventListener('click', async () => {
       if (!checkbox.checked) return;
