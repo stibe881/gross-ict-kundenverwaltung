@@ -160,12 +160,12 @@ function renderPage(quote: any, supabaseUrl: string): string {
     .section h2 { font-size:clamp(26px,4vw,38px); font-weight:800; color:var(--text-heading); letter-spacing:-0.5px; margin-bottom:16px; }
     .section-desc { font-size:16px; color:var(--text-muted); max-width:600px; line-height:1.7; margin-bottom:48px; }
 
-    /* Pricing */
     .pricing-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
     .pricing-header { background:linear-gradient(135deg,var(--secondary),var(--secondary-light)); padding:28px 32px; border-bottom:1px solid var(--border); }
     .pricing-header h3 { font-size:18px; font-weight:700; color:var(--text-heading); }
     .pricing-header p { font-size:13px; color:var(--text-muted); margin-top:4px; }
-    .pricing-table { width:100%; border-collapse:collapse; }
+    .pricing-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .pricing-table { width:100%; border-collapse:collapse; min-width:400px; }
     .pricing-table thead th {
       padding:14px 24px; font-size:10px; font-weight:700; text-transform:uppercase;
       letter-spacing:1.5px; color:var(--text-muted); text-align:left;
@@ -278,6 +278,13 @@ function renderPage(quote: any, supabaseUrl: string): string {
       .modal { padding:28px; }
       .modal-buttons { flex-direction:column; }
       .footer-inner { flex-direction:column; gap:8px; }
+      .pricing-header { padding:20px 16px; }
+      .pricing-footer { padding:20px 16px; }
+      .pricing-table { min-width:0; }
+      .pricing-table thead th { padding:10px 10px; font-size:9px; letter-spacing:1px; }
+      .pricing-table tbody td { padding:12px 10px; font-size:13px; }
+      .container { padding:0 16px; }
+      .overview-grid { grid-template-columns:1fr 1fr; gap:12px; }
     }
   </style>
 </head>
@@ -361,6 +368,7 @@ function renderPage(quote: any, supabaseUrl: string): string {
           <h3>Angebot für ${escHtml(customerName)}</h3>
           <p>${escHtml(quote.quote_number)} · ${fmtDate(quote.quote_date)}</p>
         </div>
+        <div class="pricing-table-wrap">
         <table class="pricing-table">
           <thead>
             <tr>
@@ -374,6 +382,7 @@ function renderPage(quote: any, supabaseUrl: string): string {
             ${itemsHTML}
           </tbody>
         </table>
+        </div>
         <div class="pricing-footer">
           <div class="pricing-total-row">
             <span>Zwischensumme</span>
