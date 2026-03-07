@@ -63,7 +63,7 @@ const ACTIVITY_ICONS: Record<string, string> = {
     system: "⚙️",
 };
 
-type TabKey = "overview" | "timeline" | "tasks" | "documents";
+type TabKey = "overview" | "milestones" | "tasks" | "documents" | "verlauf";
 
 export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Props) {
     const colors = useColors();
@@ -105,9 +105,10 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
 
     useEffect(() => {
         if (visible && project) {
-            if (activeTab === "timeline") loadActivities();
+            if (activeTab === "verlauf") loadActivities();
             if (activeTab === "tasks") loadTasks();
             if (activeTab === "documents") loadDocuments();
+            if (activeTab === "milestones") loadMilestones();
         }
     }, [activeTab, visible, project]);
 
@@ -310,9 +311,10 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
 
     const tabs: { key: TabKey; label: string; icon: string }[] = [
         { key: "overview", label: "Übersicht", icon: "info.circle" },
-        { key: "timeline", label: "Timeline", icon: "clock" },
+        { key: "milestones", label: "Timeline", icon: "flag" },
         { key: "tasks", label: "Aufgaben", icon: "checklist" },
         { key: "documents", label: "Dokumente", icon: "doc.text" },
+        { key: "verlauf", label: "Verlauf", icon: "clock" },
     ];
 
     // ---- Render Sections ----
@@ -398,7 +400,11 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                     </Text>
                 </View>
             )}
+        </>
+    );
 
+    const renderMilestones = () => (
+        <>
             {/* Milestones */}
             <View>
                 <View className="flex-row justify-between items-center mb-3">
@@ -549,7 +555,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
         </>
     );
 
-    const renderTimeline = () => (
+    const renderVerlauf = () => (
         <>
             {/* Add Note */}
             <View className="bg-surface rounded-xl p-4 border border-border">
@@ -965,9 +971,10 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                     {/* Tab Content */}
                     <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, gap: 16 }}>
                         {activeTab === "overview" && renderOverview()}
-                        {activeTab === "timeline" && renderTimeline()}
+                        {activeTab === "milestones" && renderMilestones()}
                         {activeTab === "tasks" && renderTasks()}
                         {activeTab === "documents" && renderDocuments()}
+                        {activeTab === "verlauf" && renderVerlauf()}
                     </ScrollView>
                 </View>
             </Modal>
