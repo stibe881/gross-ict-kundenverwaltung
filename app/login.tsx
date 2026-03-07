@@ -14,7 +14,7 @@ import { Image } from "expo-image";
 import { PasswordResetModal } from "@/components/password-reset-modal";
 import { showAlert } from "@/lib/alert";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import Svg, { Rect as SvgRect } from "react-native-svg";
+import Svg, { Rect as SvgRect, Path as SvgPath } from "react-native-svg";
 import * as Auth from "@/lib/auth";
 import * as Biometrics from "@/lib/biometrics";
 
@@ -121,6 +121,21 @@ export default function LoginScreen() {
       showAlert("Fehler", "Automatische Anmeldung fehlgeschlagen. Bitte melden Sie sich manuell an.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Apple Sign In (iOS only)
+  const handleAppleLogin = async () => {
+    setSsoLoading(true);
+    try {
+      await Auth.signInWithApple();
+      router.replace("/(tabs)");
+    } catch (error: any) {
+      // User cancelled — don't show error
+      if (error.code === "ERR_REQUEST_CANCELED") return;
+      showAlert("Fehler", error.message || "Apple-Anmeldung fehlgeschlagen");
+    } finally {
+      setSsoLoading(false);
     }
   };
 
@@ -256,6 +271,33 @@ export default function LoginScreen() {
               </>
             )}
           </TouchableOpacity>
+
+          {/* Apple Sign In Button (iOS only) */}
+          {Platform.OS === "ios" && (
+            <TouchableOpacity
+              onPress={handleAppleLogin}
+              disabled={ssoLoading}
+              style={{
+                backgroundColor: "#000",
+                opacity: ssoLoading ? 0.7 : 1,
+              }}
+              className="p-4 rounded-lg items-center flex-row justify-center"
+              activeOpacity={0.7}
+            >
+              {ssoLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Svg width={20} height={20} viewBox="0 0 24 24" fill="#fff">
+                    <SvgPath d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+                  </Svg>
+                  <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600", marginLeft: 8 }}>
+                    Mit Apple anmelden
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Passwort vergessen */}
           <TouchableOpacity

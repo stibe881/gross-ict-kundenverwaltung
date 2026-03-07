@@ -152,6 +152,48 @@ export async function signInWithMicrosoft() {
 }
 
 /**
+ * Sign in with Apple (native iOS only).
+ * Uses expo-apple-authentication for the native Apple sign-in UI,
+ * then passes the identity token to Supabase.
+ */
+export async function signInWithApple() {
+    if (Platform.OS !== "ios") {
+        throw new Error("Sign in with Apple is only available on iOS");
+    }
+
+    const AppleAuthentication = require("expo-apple-authentication");
+
+    const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+    });
+
+    if (!credential.identityToken) {
+        throw new Error("Kein Identity-Token von Apple erhalten");
+    }
+
+    const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: "apple",
+        token: credential.identityToken,
+    });
+
+    if (error) throw error;
+
+    if (data.user) {
+        await AsyncStorage.setItem("isLoggedIn", "true");
+        await AsyncStorage.setItem("userEmail", data.user.email || "");
+        const name = credential.fullName
+            ? `${credential.fullName.givenName || ""} ${credential.fullName.familyName || ""}`.trim()
+            : data.user.user_metadata?.full_name || data.user.email || "";
+        await AsyncStorage.setItem("userName", name);
+    }
+
+    return data;
+}
+
+/**
  * Sign out the current user.
  */
 export async function signOut() {
