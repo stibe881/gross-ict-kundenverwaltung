@@ -75,6 +75,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     const [loading, setLoading] = useState(false);
     const [showMilestoneInput, setShowMilestoneInput] = useState(false);
     const [newMilestoneTitle, setNewMilestoneTitle] = useState("");
+    const [newMilestoneDueDate, setNewMilestoneDueDate] = useState("");
     const [addingMilestone, setAddingMilestone] = useState(false);
 
     // Timeline
@@ -173,8 +174,10 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                 title: newMilestoneTitle.trim(),
                 status: "pending",
                 sort_order: milestones.length,
+                due_date: newMilestoneDueDate || null,
             });
             setNewMilestoneTitle("");
+            setNewMilestoneDueDate("");
             setShowMilestoneInput(false);
             await loadMilestones();
             onUpdate();
@@ -416,36 +419,49 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                 </View>
 
                 {showMilestoneInput && (
-                    <View className="flex-row gap-2 mb-4">
+                    <View className="mb-4 gap-2">
+                        <View className="flex-row gap-2">
+                            <TextInput
+                                value={newMilestoneTitle}
+                                onChangeText={setNewMilestoneTitle}
+                                placeholder="Neuer Meilenstein..."
+                                placeholderTextColor={colors.muted}
+                                style={{
+                                    backgroundColor: colors.surface,
+                                    color: colors.foreground,
+                                    borderColor: colors.border,
+                                    flex: 1,
+                                }}
+                                className="p-3 rounded-lg border text-base"
+                            />
+                            <TouchableOpacity
+                                onPress={handleAddMilestone}
+                                disabled={addingMilestone || !newMilestoneTitle.trim()}
+                                style={{
+                                    backgroundColor: colors.primary,
+                                    opacity: addingMilestone || !newMilestoneTitle.trim() ? 0.5 : 1,
+                                }}
+                                className="w-12 rounded-lg items-center justify-center"
+                            >
+                                {addingMilestone ? (
+                                    <ActivityIndicator color="#fff" size="small" />
+                                ) : (
+                                    <IconSymbol name="checkmark" size={18} color="#fff" />
+                                )}
+                            </TouchableOpacity>
+                        </View>
                         <TextInput
-                            value={newMilestoneTitle}
-                            onChangeText={setNewMilestoneTitle}
-                            placeholder="Neuer Meilenstein..."
+                            value={newMilestoneDueDate}
+                            onChangeText={setNewMilestoneDueDate}
+                            placeholder="Fällig am (YYYY-MM-DD)"
                             placeholderTextColor={colors.muted}
                             style={{
                                 backgroundColor: colors.surface,
                                 color: colors.foreground,
                                 borderColor: colors.border,
-                                flex: 1,
                             }}
-                            className="p-3 rounded-lg border text-base"
-                            onSubmitEditing={handleAddMilestone}
+                            className="p-3 rounded-lg border text-sm"
                         />
-                        <TouchableOpacity
-                            onPress={handleAddMilestone}
-                            disabled={addingMilestone || !newMilestoneTitle.trim()}
-                            style={{
-                                backgroundColor: colors.primary,
-                                opacity: addingMilestone || !newMilestoneTitle.trim() ? 0.5 : 1,
-                            }}
-                            className="w-12 rounded-lg items-center justify-center"
-                        >
-                            {addingMilestone ? (
-                                <ActivityIndicator color="#fff" size="small" />
-                            ) : (
-                                <IconSymbol name="checkmark" size={18} color="#fff" />
-                            )}
-                        </TouchableOpacity>
                     </View>
                 )}
 
@@ -516,9 +532,9 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                                     {milestone.status === "completed" ? "Abgeschlossen" :
                                                         milestone.status === "in_progress" ? "In Arbeit" : "Ausstehend"}
                                                 </Text>
-                                                {milestone.completed_at && (
+                                                {milestone.due_date && (
                                                     <Text className="text-xs text-muted">
-                                                        {formatDate(milestone.completed_at)}
+                                                        📅 {formatDate(milestone.due_date)}
                                                     </Text>
                                                 )}
                                             </View>

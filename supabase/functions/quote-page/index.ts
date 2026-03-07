@@ -23,12 +23,13 @@ function escHtml(str: string): string {
   return (str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-function renderPage(quote: any, supabaseUrl: string): string {
+function renderPage(quote: any, supabaseUrl: string, project?: any): string {
   const customer = quote.customer || {};
   const customerName = customer.company_name ||
     `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Kunde";
   const items = quote.items || [];
   const acceptUrl = `${supabaseUrl}/functions/v1/accept-quote?id=${quote.id}`;
+  const milestones = project?.milestones || [];
 
   const optionalItems = items.filter((i: any) => !!i.optional);
   const nonOptionalItems = items.filter((i: any) => !i.optional);
@@ -79,6 +80,7 @@ function renderPage(quote: any, supabaseUrl: string): string {
   <title>Angebot ${escHtml(quote.quote_number)} – Gross ICT</title>
   <meta name="description" content="Ihr persönliches Angebot von Gross ICT">
   <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="https://bvluvvyvftygnxtmboxw.supabase.co/storage/v1/object/public/quote-pages/logo.png">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -267,6 +269,30 @@ function renderPage(quote: any, supabaseUrl: string): string {
     .modal-buttons .btn { min-width:0; flex:1; padding:14px 20px; font-size:14px; }
     .modal-close { position:absolute; top:16px; right:16px; background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:20px; }
 
+    /* Timeline */
+    .timeline-section { background:var(--bg); }
+    .timeline-list { position:relative; padding-left:32px; }
+    .timeline-list::before { content:''; position:absolute; left:11px; top:8px; bottom:8px; width:2px; background:var(--border); }
+    .timeline-item { position:relative; margin-bottom:24px; }
+    .timeline-dot {
+      position:absolute; left:-32px; top:4px; width:22px; height:22px;
+      border-radius:50%; display:flex; align-items:center; justify-content:center;
+      font-size:12px; z-index:1;
+    }
+    .timeline-dot.completed { background:#22c55e; }
+    .timeline-dot.in_progress { background:#3b82f6; }
+    .timeline-dot.pending { background:var(--secondary-light); border:2px solid var(--border); }
+    .timeline-card {
+      background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
+      padding:20px 24px; transition:border-color 0.3s;
+    }
+    .timeline-card:hover { border-color:var(--border-hover); }
+    .timeline-title { font-size:15px; font-weight:700; color:var(--text-heading); }
+    .timeline-meta { font-size:12px; color:var(--text-muted); margin-top:6px; display:flex; gap:16px; align-items:center; }
+    .timeline-badge {
+      display:inline-flex; padding:2px 10px; border-radius:100px; font-size:11px; font-weight:600;
+    }
+
     /* Responsive */
     @media(max-width:768px) {
       .header-meta { display:none; }
@@ -420,6 +446,65 @@ function renderPage(quote: any, supabaseUrl: string): string {
       </div>
     </div>
   </section>` : ""}
+
+  ${project && milestones.length > 0 ? `
+  <section class="section timeline-section">
+    <div class="container">
+      <div class="animate-in">
+        <div class="section-label">Projektplanung</div>
+        <h2>Ihre Timeline</h2>
+        <p class="section-desc">Hier sehen Sie den aktuellen Stand Ihres Projekts und die geplanten Meilensteine.</p>
+      </div>
+
+      ${project.status ? `
+      <div class="animate-in" style="display:flex;gap:16px;margin-bottom:32px;flex-wrap:wrap;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Projektstatus</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-heading);">${
+            project.status === 'planning' ? '📋 Planung' :
+            project.status === 'in_progress' ? '🔄 In Arbeit' :
+            project.status === 'completed' ? '✅ Abgeschlossen' : project.status
+          }</div>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Fortschritt</div>
+          <div style="font-size:16px;font-weight:700;color:var(--primary);">${Math.round((milestones.filter((m: any) => m.status === 'completed').length / milestones.length) * 100)}%</div>
+          <div style="height:6px;background:var(--border);border-radius:3px;margin-top:8px;">
+            <div style="height:6px;background:var(--primary);border-radius:3px;width:${Math.round((milestones.filter((m: any) => m.status === 'completed').length / milestones.length) * 100)}%;"></div>
+          </div>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Meilensteine</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-heading);">${milestones.filter((m: any) => m.status === 'completed').length} / ${milestones.length}</div>
+        </div>
+      </div>` : ''}
+
+      <div class="animate-in timeline-list">
+        ${milestones.map((m: any) => {
+          const statusClass = m.status || 'pending';
+          const statusLabel = m.status === 'completed' ? '✓ Abgeschlossen' :
+            m.status === 'in_progress' ? '⏳ In Arbeit' : '○ Ausstehend';
+          const statusBg = m.status === 'completed' ? 'rgba(34,197,94,0.15)' :
+            m.status === 'in_progress' ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)';
+          const statusColor = m.status === 'completed' ? '#22c55e' :
+            m.status === 'in_progress' ? '#3b82f6' : 'var(--text-muted)';
+          return `<div class="timeline-item">
+            <div class="timeline-dot ${statusClass}">${
+              m.status === 'completed' ? '✓' : m.status === 'in_progress' ? '◐' : ''
+            }</div>
+            <div class="timeline-card">
+              <div class="timeline-title" style="${m.status === 'completed' ? 'text-decoration:line-through;opacity:0.7;' : ''}">${escHtml(m.title)}</div>
+              <div class="timeline-meta">
+                <span class="timeline-badge" style="background:${statusBg};color:${statusColor};">${statusLabel}</span>
+                ${m.due_date ? `<span>📅 ${fmtDate(m.due_date)}</span>` : ''}
+                ${m.completed_at ? `<span>✓ ${fmtDate(m.completed_at)}</span>` : ''}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </section>` : ''}
 
   <section class="section usps-section">
     <div class="container">
@@ -608,7 +693,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    const html = renderPage(quote, supabaseUrl);
+    // Fetch linked project with milestones if quote is accepted
+    let project = null;
+    if (quote.status === "accepted") {
+      const { data: projectData } = await supabase
+        .from("projects")
+        .select("*, milestones:project_milestones(*)")
+        .eq("quote_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (projectData) {
+        // Sort milestones by sort_order
+        if (projectData.milestones) {
+          projectData.milestones.sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0));
+        }
+        project = projectData;
+      }
+    }
+
+    const html = renderPage(quote, supabaseUrl, project);
 
     return new Response(
       JSON.stringify({ html, quoteNumber: quote.quote_number }),

@@ -43,3 +43,6 @@ CREATE POLICY "Allow all for authenticated users" ON project_activities
 
 CREATE POLICY "Allow all for authenticated users" ON project_tasks
   FOR ALL USING (auth.role() = 'authenticated');
+
+-- 5. due_date Spalte für Meilensteine (Timeline-Planung)
+ALTER TABLE project_milestones ADD COLUMN IF NOT EXISTS due_date DATE;
