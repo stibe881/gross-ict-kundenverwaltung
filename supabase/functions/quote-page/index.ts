@@ -550,15 +550,13 @@ Deno.serve(async (req) => {
   const id = url.searchParams.get("id");
 
   if (!id) {
-    return new Response("<h1>Angebots-ID fehlt</h1>", {
-      status: 400,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    });
+    return new Response("Angebots-ID fehlt", { status: 400 });
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
+      supabaseUrl,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
@@ -569,25 +567,39 @@ Deno.serve(async (req) => {
       .single();
 
     if (error || !quote) {
-      return new Response("<h1>Angebot nicht gefunden</h1>", {
-        status: 404,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
+      return new Response("Angebot nicht gefunden", { status: 404 });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const html = renderPage(quote, supabaseUrl);
 
-    return new Response(html, {
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-cache",
-      },
+    // Upload HTML to storage bucket "quote-pages"
+    const filePath = `${id}.html`;
+    const { error: uploadError } = await supabase.storage
+      .from("quote-pages")
+      .upload(filePath, new Blob([html], { type: "text/html" }), {
+        contentType: "text/html; charset=utf-8",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("[quote-page] Storage upload error:", uploadError);
+      return new Response("Fehler beim Erstellen der Seite: " + uploadError.message, { status: 500 });
+    }
+
+    // Get public URL and redirect
+    const { data: publicUrlData } = supabase.storage
+      .from("quote-pages")
+      .getPublicUrl(filePath);
+
+    const publicUrl = publicUrlData.publicUrl + "?t=" + Date.now();
+
+    return new Response(null, {
+      status: 302,
+      headers: { "Location": publicUrl },
     });
   } catch (err: any) {
-    return new Response(`<h1>Fehler</h1><p>${err.message}</p>`, {
-      status: 500,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    });
+    console.error("[quote-page] Error:", err);
+    return new Response("Fehler: " + err.message, { status: 500 });
   }
 });
+
