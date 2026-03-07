@@ -545,12 +545,24 @@ function renderPage(quote: any, supabaseUrl: string): string {
 </html>`;
 }
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   const url = new URL(req.url);
   const id = url.searchParams.get("id");
 
   if (!id) {
-    return new Response("Angebots-ID fehlt", { status: 400 });
+    return new Response(
+      JSON.stringify({ error: "Angebots-ID fehlt" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   try {
@@ -567,39 +579,23 @@ Deno.serve(async (req) => {
       .single();
 
     if (error || !quote) {
-      return new Response("Angebot nicht gefunden", { status: 404 });
+      return new Response(
+        JSON.stringify({ error: "Angebot nicht gefunden" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const html = renderPage(quote, supabaseUrl);
 
-    // Upload HTML to storage bucket "quote-pages"
-    const filePath = `${id}.html`;
-    const { error: uploadError } = await supabase.storage
-      .from("quote-pages")
-      .upload(filePath, new Blob([html], { type: "text/html" }), {
-        contentType: "text/html; charset=utf-8",
-        upsert: true,
-      });
-
-    if (uploadError) {
-      console.error("[quote-page] Storage upload error:", uploadError);
-      return new Response("Fehler beim Erstellen der Seite: " + uploadError.message, { status: 500 });
-    }
-
-    // Get public URL and redirect
-    const { data: publicUrlData } = supabase.storage
-      .from("quote-pages")
-      .getPublicUrl(filePath);
-
-    const publicUrl = publicUrlData.publicUrl + "?t=" + Date.now();
-
-    return new Response(null, {
-      status: 302,
-      headers: { "Location": publicUrl },
-    });
+    return new Response(
+      JSON.stringify({ html, quoteNumber: quote.quote_number }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (err: any) {
     console.error("[quote-page] Error:", err);
-    return new Response("Fehler: " + err.message, { status: 500 });
+    return new Response(
+      JSON.stringify({ error: err.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });
-
