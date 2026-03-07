@@ -678,3 +678,143 @@ export async function deleteContractTemplate(id: string) {
     if (error) throw new Error(error.message);
     return { success: true };
 }
+
+// ==================== PROJEKTE ====================
+
+export async function getNextProjectNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `PRJ-${year}-`;
+
+    const { data } = await supabase
+        .from("projects")
+        .select("project_number")
+        .like("project_number", `${prefix}%`)
+        .order("project_number", { ascending: false })
+        .limit(1);
+
+    let nextNum = 1;
+    if (data && data.length > 0) {
+        const last = data[0].project_number;
+        const num = parseInt(last.replace(prefix, ""), 10);
+        if (!isNaN(num)) nextNum = num + 1;
+    }
+    return `${prefix}${String(nextNum).padStart(3, "0")}`;
+}
+
+export async function getAllProjects() {
+    const { data, error } = await supabase
+        .from("projects")
+        .select(`*, customer:customers(*), milestones:project_milestones(*)`)
+        .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function getProjectById(id: string) {
+    const { data, error } = await supabase
+        .from("projects")
+        .select(`*, customer:customers(*), milestones:project_milestones(*)`)
+        .eq("id", id)
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function createProject(project: any) {
+    const projectNumber = await getNextProjectNumber();
+    const { data, error } = await supabase
+        .from("projects")
+        .insert({ ...project, project_number: projectNumber })
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateProject(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from("projects")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteProject(id: string) {
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+// ==================== MEILENSTEINE ====================
+
+export async function getProjectMilestones(projectId: string) {
+    const { data, error } = await supabase
+        .from("project_milestones")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("sort_order", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createMilestone(milestone: any) {
+    const { data, error } = await supabase
+        .from("project_milestones")
+        .insert(milestone)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateMilestone(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from("project_milestones")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteMilestone(id: string) {
+    const { error } = await supabase.from("project_milestones").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+export async function convertQuoteToProject(quoteId: string) {
+    const quote = await getQuoteById(quoteId);
+    if (!quote) throw new Error("Angebot nicht gefunden");
+
+    const project = await createProject({
+        title: `Projekt aus ${quote.quote_number}`,
+        description: quote.notes || "",
+        customer_id: quote.customer_id,
+        quote_id: quoteId,
+        budget: quote.total || 0,
+        status: "planning",
+    });
+
+    // Create milestones from quote items
+    const items = quote.items || [];
+    for (let i = 0; i < items.length; i++) {
+        await createMilestone({
+            project_id: project.id,
+            title: items[i].description?.split("\n")[0] || `Position ${i + 1}`,
+            status: "pending",
+            sort_order: i,
+        });
+    }
+
+    return project;
+}

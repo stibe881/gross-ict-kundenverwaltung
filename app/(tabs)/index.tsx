@@ -10,6 +10,7 @@ import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { TicketFormModal } from "@/components/ticket-form-modal";
 import { LogoutButton } from "@/components/logout-button";
 import { QuoteFormModal } from "@/components/quote-form-modal";
+import { ProjectFormModal } from "@/components/project-form-modal";
 
 
 interface DashboardTile {
@@ -31,6 +32,7 @@ export default function DashboardScreen() {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showFabMenu, setShowFabMenu] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -72,6 +74,12 @@ export default function DashboardScreen() {
       tiles: [
         { id: "tickets", title: "Tickets", value: "Support", icon: "ticket.fill", color: colors.warning, route: "/tickets" },
         { id: "newsletter", title: "Newsletter", value: "Kampagnen", icon: "envelope.fill", color: "#8B5CF6", route: "/newsletter" },
+      ],
+    },
+    {
+      label: "Projektmanagement",
+      tiles: [
+        { id: "projects", title: "Projekte", value: "Verwalten", icon: "folder.fill", color: "#14B8A6", route: "/projects" },
       ],
     },
     {
@@ -153,6 +161,7 @@ export default function DashboardScreen() {
               { label: "Neues Ticket", icon: "ticket.fill", onPress: () => { setShowFabMenu(false); setShowTicketModal(true); } },
               { label: "Neue Rechnung", icon: "doc.text.fill", onPress: () => { setShowFabMenu(false); setShowInvoiceModal(true); } },
               { label: "Neues Angebot", icon: "doc.text.fill", onPress: () => { setShowFabMenu(false); setShowQuoteModal(true); } },
+              { label: "Neues Projekt", icon: "folder.fill", onPress: () => { setShowFabMenu(false); setShowProjectModal(true); } },
             ].map((item) => (
               <TouchableOpacity
                 key={item.label}
@@ -208,6 +217,11 @@ export default function DashboardScreen() {
       <QuoteFormModal
         visible={showQuoteModal}
         onClose={() => setShowQuoteModal(false)}
+        onSuccess={() => { }}
+      />
+      <ProjectFormModal
+        visible={showProjectModal}
+        onClose={() => setShowProjectModal(false)}
         onSuccess={() => { }}
       />
     </ScreenContainer>
