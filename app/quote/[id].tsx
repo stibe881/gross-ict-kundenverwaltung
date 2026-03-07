@@ -176,8 +176,7 @@ export default function QuoteDetailScreen() {
 
     const handleShareLink = async () => {
         if (!quote) return;
-        const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "https://bvluvvyvftygnxtmboxw.supabase.co";
-        const link = `${supabaseUrl}/functions/v1/quote-page?id=${quote.id}`;
+        const link = `https://angebot.gross-ict.ch/?id=${quote.id}`;
 
         if (Platform.OS === "web") {
             try {
