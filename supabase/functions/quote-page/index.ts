@@ -91,7 +91,7 @@ function renderPage(quote: any, supabaseUrl: string): string {
       --radius: 16px;
     }
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-    html { scroll-behavior:smooth; }
+    html { scroll-behavior:smooth; overflow-x:hidden; }
     body {
       font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
       background:var(--bg); color:var(--text); line-height:1.6;
@@ -334,7 +334,7 @@ function renderPage(quote: any, supabaseUrl: string): string {
         <div class="section-label">Projektdetails</div>
         <h2>Auf einen Blick</h2>
       </div>
-      <div class="animate-in" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-top:8px;">
+      <div class="animate-in" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-top:8px;max-width:100%;">
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
           <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:8px;">Angebotsnummer</div>
           <div style="font-size:20px;font-weight:700;color:var(--text-heading);">${escHtml(quote.quote_number)}</div>
