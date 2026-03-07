@@ -57,7 +57,6 @@ function renderPage(quote: any, supabaseUrl: string): string {
     </tr>`;
   }).join("");
 
-  const acceptUrl = `${supabaseUrl}/functions/v1/accept-quote?id=${quote.id}`;
   const isAccepted = quote.status === "accepted";
   const isExpired = quote.status === "expired" || quote.status === "rejected";
 
