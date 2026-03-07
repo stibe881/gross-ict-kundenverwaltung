@@ -181,7 +181,19 @@ export async function signInWithApple() {
 
     if (error) throw error;
 
+    // Prevent auto-registration: reject users whose account was just created
     if (data.user) {
+        const createdAt = new Date(data.user.created_at).getTime();
+        const now = Date.now();
+        const isNewUser = (now - createdAt) < 10000; // created within last 10 seconds
+
+        if (isNewUser) {
+            // New account was auto-created — delete it and sign out
+            await supabase.auth.signOut();
+            await AsyncStorage.removeItem("isLoggedIn");
+            throw new Error("Kein Konto gefunden. Bitte wenden Sie sich an den Administrator.");
+        }
+
         await AsyncStorage.setItem("isLoggedIn", "true");
         await AsyncStorage.setItem("userEmail", data.user.email || "");
         const name = credential.fullName
