@@ -308,10 +308,7 @@ function renderPage(quote: any, supabaseUrl: string): string {
         </div>
         <div class="header-meta-item">
           <span class="header-meta-label">Angebotsnr.</span>
-          <span class="header-meta-value">
-            ${escHtml(quote.quote_number)}
-            ${quote.preview_url ? `<a href="${escHtml(quote.preview_url)}" target="_blank" rel="noopener" class="preview-link" title="Webseiten-Vorschau öffnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
-          </span>
+          <span class="header-meta-value">${escHtml(quote.quote_number)}</span>
         </div>
       </div>
     </div>
@@ -352,6 +349,13 @@ function renderPage(quote: any, supabaseUrl: string): string {
           <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:8px;">Gesamtbetrag</div>
           <div style="font-size:20px;font-weight:700;color:var(--primary);">CHF ${fmtCHF(grandTotal)}</div>
         </div>
+        ${quote.preview_url ? `
+        <div style="background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:var(--radius);padding:24px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-decoration:none;">
+          <a href="${escHtml(quote.preview_url)}" target="_blank" rel="noopener" style="text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:8px;color:#0f0f1a;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">Webvorschau</div>
+          </a>
+        </div>` : ''}
       </div>
     </div>
   </section>
