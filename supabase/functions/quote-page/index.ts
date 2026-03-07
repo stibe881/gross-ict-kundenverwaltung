@@ -110,14 +110,8 @@ function renderPage(quote: any, supabaseUrl: string): string {
       border-bottom:1px solid var(--border); padding:16px 0;
     }
     .header-inner { display:flex; align-items:center; justify-content:space-between; gap:16px; }
-    .logo-area { display:flex; align-items:center; gap:14px; }
-    .logo-icon {
-      width:44px; height:44px; background:linear-gradient(135deg,var(--primary),var(--primary-light));
-      border-radius:12px; display:flex; align-items:center; justify-content:center;
-      font-weight:800; font-size:18px; color:var(--secondary);
-    }
-    .logo-text { font-size:20px; font-weight:700; color:var(--text-heading); letter-spacing:-0.3px; }
-    .logo-text span { color:var(--primary); }
+    .logo-area { display:flex; align-items:center; }
+    .logo-img { height:40px; width:auto; display:block; }
     .header-meta { display:flex; gap:24px; align-items:center; font-size:13px; color:var(--text-muted); }
     .header-meta-item { display:flex; flex-direction:column; align-items:flex-end; }
     .header-meta-label { font-size:10px; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-muted); opacity:0.7; }
@@ -286,8 +280,7 @@ function renderPage(quote: any, supabaseUrl: string): string {
   <header class="site-header">
     <div class="container header-inner">
       <div class="logo-area">
-        <div class="logo-icon">G</div>
-        <div class="logo-text">Gross <span>ICT</span></div>
+        <img src="https://angebote.gross-ict.ch/logo.png" alt="Gross ICT" class="logo-img">
       </div>
       <div class="header-meta">
         <div class="header-meta-item">
