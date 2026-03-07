@@ -205,7 +205,7 @@ export function InvoiceFormModal({
         invoice_date: invoiceData.invoiceDate,
         due_date: invoiceData.dueDate,
         subtotal: 0,
-        tax: 0,
+        vat_amount: 0,
         total: payloadItems.reduce((s: number, i: any) => s + i.total, 0),
         status: "open",
       }, payloadItems.map((i: any) => ({
@@ -239,7 +239,7 @@ export function InvoiceFormModal({
         invoice_date: invoiceData.invoiceDate,
         due_date: invoiceData.dueDate,
         subtotal: 0,
-        tax: 0,
+        vat_amount: 0,
         total: payloadItems.reduce((s: number, i: any) => s + i.total, 0),
       }, payloadItems.map((i: any) => ({
         description: i.description,

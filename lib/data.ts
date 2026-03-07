@@ -556,20 +556,12 @@ export async function autoExpireQuotes() {
 }
 
 export async function sendQuoteEmail(quoteId: string, pdfBase64: string) {
-    const { getApiBaseUrl } = await import("@/constants/oauth");
-    const apiBase = getApiBaseUrl() || "http://localhost:3000";
-    const res = await fetch(`${apiBase}/api/send-quote-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quoteId, pdfBase64 }),
+    const { data, error } = await supabase.functions.invoke('send-quote-email', {
+        body: { quoteId, pdfBase64 },
     });
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(
-            (err as any)?.error || "E-Mail konnte nicht gesendet werden"
-        );
-    }
-    return (await res.json()) as any;
+    if (error) throw new Error(error.message || "E-Mail konnte nicht gesendet werden");
+    if (data?.error) throw new Error(data.error);
+    return data;
 }
 
 // ==================== VERTRÄGE ====================

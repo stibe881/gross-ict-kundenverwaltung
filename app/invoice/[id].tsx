@@ -18,9 +18,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
-import { downloadInvoicePDF } from "@/lib/pdf-utils";
+import { downloadInvoicePDF, generateInvoicePDFBase64 } from "@/lib/pdf-utils";
 import { showAlert, showConfirm } from "@/lib/alert";
-import { getApiBaseUrl } from "@/constants/oauth";
+import { supabase } from "@/lib/supabase";
 
 export default function InvoiceDetailScreen() {
     const { id } = useLocalSearchParams();
@@ -106,14 +106,13 @@ export default function InvoiceDetailScreen() {
             `Rechnung ${invoice.invoice_number} an ${invoice.customer.email} senden?`,
             async () => {
                 try {
-                    const apiBase = getApiBaseUrl() || "http://localhost:3000";
-                    const res = await fetch(`${apiBase}/api/send-invoice-email`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id: invoice.id }),
+                    // PDF client-seitig generieren (gleich wie Download-Button)
+                    const pdfBase64 = await generateInvoicePDFBase64(invoice);
+                    const { data, error } = await supabase.functions.invoke('send-invoice-email', {
+                        body: { id: invoice.id, pdfBase64 },
                     });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data?.error || "E-Mail konnte nicht gesendet werden");
+                    if (error) throw new Error(error.message || "E-Mail konnte nicht gesendet werden");
+                    if (data?.error) throw new Error(data.error);
                     showAlert("Erfolg", `Rechnung wurde an ${invoice.customer.email} gesendet.`);
                     refetch();
                 } catch (error: any) {
@@ -135,14 +134,13 @@ export default function InvoiceDetailScreen() {
             `Zahlungserinnerung für ${invoice.invoice_number} an ${invoice.customer.email} senden?`,
             async () => {
                 try {
-                    const apiBase = getApiBaseUrl() || "http://localhost:3000";
-                    const res = await fetch(`${apiBase}/api/send-reminder-email`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id: invoice.id }),
+                    // PDF client-seitig generieren (gleich wie Download-Button)
+                    const pdfBase64 = await generateInvoicePDFBase64(invoice);
+                    const { data, error } = await supabase.functions.invoke('send-reminder-email', {
+                        body: { id: invoice.id, pdfBase64 },
                     });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data?.error || "Mahnung konnte nicht gesendet werden");
+                    if (error) throw new Error(error.message || "Mahnung konnte nicht gesendet werden");
+                    if (data?.error) throw new Error(data.error);
                     showAlert("Erfolg", `Mahnung wurde an ${invoice.customer.email} gesendet.`);
                     refetch();
                 } catch (error: any) {

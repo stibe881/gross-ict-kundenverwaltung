@@ -513,7 +513,7 @@ interface InvoiceForPDF {
   }>;
 }
 
-function generateInvoiceHTML(invoice: InvoiceForPDF): string {
+export function generateInvoiceHTML(invoice: InvoiceForPDF): string {
   const customerAddressHTML = buildCustomerAddressHTML(invoice.customer);
 
   // Total aus den Items berechnen (statt aus DB-Feld)
@@ -555,10 +555,10 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       print-color-adjust: exact;
       padding: 0;
       margin: 0;
-      ${!isWebInv ? 'display: flex; flex-direction: column; min-height: 100vh;' : ''}
+      display: flex; flex-direction: column; min-height: 100vh;
     }
     .accent-bar { height: 6px; background: linear-gradient(90deg, #D4A432, #E8B84A); }
-    .page { padding: 30px 40px ${isWebInv ? '80px' : '30px'} 40px; position: relative; ${!isWebInv ? 'flex: 1;' : ''} }
+    .page { padding: 30px 40px 30px 40px; position: relative; flex: 1; }
     .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
     .header-table td { border: none; padding: 0; vertical-align: bottom; }
     .logo { font-size: 26pt; font-weight: 300; color: #1a1a2e; letter-spacing: 2px; }
@@ -594,7 +594,7 @@ function generateInvoiceHTML(invoice: InvoiceForPDF): string {
     .total-row td { padding: 12px 14px !important; font-size: 13pt !important; font-weight: 700 !important; color: #fff !important; border-radius: 4px; }
     .notes { clear: both; margin-top: 30px; padding: 14px 16px; background: #f8fafb; border-left: 3px solid #D4A432; font-size: 9pt; color: #475569; line-height: 1.6; }
     .notes-title { font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; color: #D4A432; margin-bottom: 4px; }
-    .footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; ${isWebInv ? 'position: fixed; bottom: 0; left: 0; right: 0;' : ''} page-break-inside: avoid; }
+    .footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; margin-top: auto; page-break-inside: avoid; }
     .totals-wrap { page-break-inside: avoid; }
     .notes { page-break-inside: avoid; }
     .footer-table { width: 100%; border-collapse: collapse; }
@@ -768,5 +768,42 @@ export async function downloadInvoicePDF(invoice: InvoiceForPDF): Promise<void> 
     });
   } catch (e2: any) {
     Alert.alert("Fehler", "PDF konnte nicht erstellt werden: " + e2.message);
+  }
+}
+
+/**
+ * Generiert das Rechnungs-PDF als Base64-String (für E-Mail-Anhang).
+ * Verwendet dasselbe HTML-Template wie downloadInvoicePDF.
+ */
+export async function generateInvoicePDFBase64(invoice: InvoiceForPDF): Promise<string | null> {
+  const html = generateInvoiceHTML(invoice);
+
+  if (Platform.OS === "web") {
+    // Auf Web können wir kein Base64-PDF ohne Server erzeugen
+    return null;
+  }
+
+  try {
+    const { uri } = await Print.printToFileAsync({
+      html,
+      width: 595,
+      height: 842,
+    });
+
+    // PDF-Datei als Base64 lesen
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        const base64Data = dataUrl.split(",")[1] || "";
+        resolve(base64Data);
+      };
+      reader.readAsDataURL(blob);
+    });
+  } catch (err: any) {
+    console.error("[PDF] generateInvoicePDFBase64 error:", err.message);
+    return null;
   }
 }
