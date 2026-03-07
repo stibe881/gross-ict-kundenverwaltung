@@ -73,6 +73,66 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Auto-create project from accepted quote
+    try {
+      // Get full quote with items for project creation
+      const { data: fullQuote } = await supabase
+        .from("quotes")
+        .select("*, items:quote_items(*)")
+        .eq("id", id)
+        .single();
+
+      if (fullQuote) {
+        // Generate project number
+        const year = new Date().getFullYear();
+        const prefix = `PRJ-${year}-`;
+        const { data: lastProject } = await supabase
+          .from("projects")
+          .select("project_number")
+          .like("project_number", `${prefix}%`)
+          .order("project_number", { ascending: false })
+          .limit(1);
+
+        let nextNum = 1;
+        if (lastProject && lastProject.length > 0) {
+          const num = parseInt(lastProject[0].project_number.replace(prefix, ""), 10);
+          if (!isNaN(num)) nextNum = num + 1;
+        }
+        const projectNumber = `${prefix}${String(nextNum).padStart(3, "0")}`;
+
+        // Create project
+        const { data: project } = await supabase
+          .from("projects")
+          .insert({
+            project_number: projectNumber,
+            title: `Projekt aus ${fullQuote.quote_number}`,
+            description: fullQuote.notes || "",
+            customer_id: fullQuote.customer_id,
+            quote_id: id,
+            budget: fullQuote.total || 0,
+            status: "planning",
+          })
+          .select()
+          .single();
+
+        // Create milestones from quote items
+        if (project && fullQuote.items) {
+          const milestones = fullQuote.items.map((item: any, i: number) => ({
+            project_id: project.id,
+            title: (item.description || `Position ${i + 1}`).split("\n")[0],
+            status: "pending",
+            sort_order: i,
+          }));
+          await supabase.from("project_milestones").insert(milestones);
+        }
+
+        console.log("[accept-quote] Project created:", projectNumber);
+      }
+    } catch (projErr) {
+      console.error("[accept-quote] Project creation failed (non-critical):", projErr);
+      // Non-critical — quote acceptance still succeeded
+    }
+
     // Optional: E-Mail-Benachrichtigung an Gross ICT
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (resendApiKey) {

@@ -67,13 +67,34 @@ export default function QuoteDetailScreen() {
         },
     });
 
+    const projectMutation = useMutation({
+        mutationFn: (quoteId: string) => Data.convertQuoteToProject(quoteId),
+        onSuccess: (project) => {
+            queryClient.invalidateQueries({ queryKey: ["quotes"] });
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            showAlert("Erfolg", `Projekt ${project.project_number} wurde erstellt!`);
+        },
+        onError: (error: any) => {
+            showAlert("Fehler", error.message);
+        },
+    });
+
     const statusMutation = useMutation({
         mutationFn: ({ quoteId, status }: { quoteId: string; status: string }) =>
             Data.updateQuoteStatus(quoteId, status),
-        onSuccess: () => {
+        onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ["quote", id] });
             queryClient.invalidateQueries({ queryKey: ["quotes"] });
             showAlert("Erfolg", "Status wurde aktualisiert");
+            // When accepted, ask to create project
+            if (variables.status === "accepted") {
+                showConfirm(
+                    "Projekt erstellen?",
+                    "Möchten Sie aus diesem Angebot ein Projekt erstellen?",
+                    () => projectMutation.mutate(id as string),
+                    "Projekt erstellen"
+                );
+            }
         },
         onError: (error: any) => {
             showAlert("Fehler", error.message);
@@ -409,6 +430,33 @@ export default function QuoteDetailScreen() {
                                 <>
                                     <IconSymbol name="arrow.right.circle.fill" size={20} color="#fff" />
                                     <Text className="text-background font-semibold ml-2">In Rechnung umwandeln</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    )}
+
+                    {/* Als Projekt anlegen */}
+                    {quote.status === "accepted" && (
+                        <TouchableOpacity
+                            onPress={() =>
+                                showConfirm(
+                                    "Projekt erstellen",
+                                    `Aus Angebot ${quote.quote_number} ein neues Projekt erstellen?`,
+                                    () => projectMutation.mutate(id as string),
+                                    "Erstellen"
+                                )
+                            }
+                            disabled={projectMutation.isPending}
+                            style={{ backgroundColor: "#14B8A6" }}
+                            className="p-4 rounded-lg flex-row items-center justify-center"
+                            activeOpacity={0.8}
+                        >
+                            {projectMutation.isPending ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <>
+                                    <IconSymbol name="folder.fill.badge.plus" size={20} color="#fff" />
+                                    <Text className="text-background font-semibold ml-2">Als Projekt anlegen</Text>
                                 </>
                             )}
                         </TouchableOpacity>

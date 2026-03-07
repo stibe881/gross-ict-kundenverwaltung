@@ -104,12 +104,34 @@ export default function ProjectsScreen() {
                         </Text>
                         <Text className="text-sm text-muted mt-1">{customerName}</Text>
                     </View>
-                    <View
-                        style={{ backgroundColor: config.color + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
-                    >
-                        <Text style={{ color: config.color, fontSize: 12, fontWeight: "600" }}>
-                            {config.icon} {config.label}
-                        </Text>
+                    <View className="flex-row gap-2">
+                        {item.priority && item.priority !== "medium" && (
+                            <View
+                                style={{
+                                    backgroundColor: (item.priority === "urgent" ? "#DC2626" : item.priority === "high" ? "#EF4444" : "#6B7280") + "20",
+                                    paddingHorizontal: 6,
+                                    paddingVertical: 3,
+                                    borderRadius: 12,
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        color: item.priority === "urgent" ? "#DC2626" : item.priority === "high" ? "#EF4444" : "#6B7280",
+                                        fontSize: 11,
+                                        fontWeight: "600",
+                                    }}
+                                >
+                                    {item.priority === "urgent" ? "🔥" : item.priority === "high" ? "⬆️" : "⬇️"}
+                                </Text>
+                            </View>
+                        )}
+                        <View
+                            style={{ backgroundColor: config.color + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
+                        >
+                            <Text style={{ color: config.color, fontSize: 12, fontWeight: "600" }}>
+                                {config.icon} {config.label}
+                            </Text>
+                        </View>
                     </View>
                 </View>
 

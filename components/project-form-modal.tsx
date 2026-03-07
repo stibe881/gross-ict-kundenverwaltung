@@ -32,6 +32,8 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [status, setStatus] = useState("planning");
+    const [priority, setPriority] = useState("medium");
+    const [notes, setNotes] = useState("");
 
     const { data: customers } = useQuery({
         queryKey: ["customers"],
@@ -47,6 +49,8 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
             setStartDate(project.start_date || "");
             setEndDate(project.end_date || "");
             setStatus(project.status || "planning");
+            setPriority(project.priority || "medium");
+            setNotes(project.notes || "");
         } else {
             setTitle("");
             setDescription("");
@@ -55,6 +59,8 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
             setStartDate(new Date().toISOString().split("T")[0]);
             setEndDate("");
             setStatus("planning");
+            setPriority("medium");
+            setNotes("");
         }
     }, [project, visible]);
 
@@ -78,6 +84,8 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
                 start_date: startDate || null,
                 end_date: endDate || null,
                 status,
+                priority,
+                notes: notes.trim() || null,
             };
 
             if (project) {
@@ -100,6 +108,13 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
         { key: "in_progress", label: "In Arbeit", color: "#3B82F6" },
         { key: "completed", label: "Abgeschlossen", color: "#10B981" },
         { key: "cancelled", label: "Abgebrochen", color: "#EF4444" },
+    ];
+
+    const priorities = [
+        { key: "low", label: "Niedrig", color: "#6B7280" },
+        { key: "medium", label: "Mittel", color: "#F59E0B" },
+        { key: "high", label: "Hoch", color: "#EF4444" },
+        { key: "urgent", label: "Dringend", color: "#DC2626" },
     ];
 
     return (
@@ -280,6 +295,55 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
                                 className="p-3 rounded-lg border text-base"
                             />
                         </View>
+                    </View>
+
+                    {/* Priorität */}
+                    <View>
+                        <Text className="text-sm font-semibold text-foreground mb-2">Priorität</Text>
+                        <View className="flex-row gap-2 flex-wrap">
+                            {priorities.map((p) => (
+                                <TouchableOpacity
+                                    key={p.key}
+                                    onPress={() => setPriority(p.key)}
+                                    style={{
+                                        backgroundColor: priority === p.key ? p.color : colors.surface,
+                                        borderColor: priority === p.key ? p.color : colors.border,
+                                    }}
+                                    className="px-3 py-1.5 rounded-full border"
+                                >
+                                    <Text
+                                        style={{
+                                            color: priority === p.key ? "#fff" : colors.foreground,
+                                            fontSize: 13,
+                                            fontWeight: "600",
+                                        }}
+                                    >
+                                        {p.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+
+                    {/* Notizen */}
+                    <View>
+                        <Text className="text-sm font-semibold text-foreground mb-2">Notizen</Text>
+                        <TextInput
+                            value={notes}
+                            onChangeText={setNotes}
+                            placeholder="Interne Notizen zum Projekt..."
+                            placeholderTextColor={colors.muted}
+                            multiline
+                            numberOfLines={3}
+                            style={{
+                                backgroundColor: colors.surface,
+                                color: colors.foreground,
+                                borderColor: colors.border,
+                                textAlignVertical: "top",
+                                minHeight: 80,
+                            }}
+                            className="p-3 rounded-lg border text-base"
+                        />
                     </View>
                 </ScrollView>
             </View>

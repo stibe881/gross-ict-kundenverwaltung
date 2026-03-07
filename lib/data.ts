@@ -731,6 +731,12 @@ export async function createProject(project: any) {
         .single();
 
     if (error) throw new Error(error.message);
+
+    // Auto-add creation activity
+    try {
+        await addProjectActivity(data.id, "system", `Projekt ${projectNumber} erstellt`);
+    } catch (_) { /* non-critical */ }
+
     return data;
 }
 
@@ -792,6 +798,130 @@ export async function deleteMilestone(id: string) {
     if (error) throw new Error(error.message);
 }
 
+// ==================== PROJEKT-AKTIVITÄTEN (TIMELINE) ====================
+
+export async function getProjectActivities(projectId: string) {
+    const { data, error } = await supabase
+        .from("project_activities")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function addProjectActivity(
+    projectId: string,
+    type: string,
+    description: string,
+    userName?: string
+) {
+    const { data, error } = await supabase
+        .from("project_activities")
+        .insert({
+            project_id: projectId,
+            type,
+            description,
+            user_name: userName || "System",
+        })
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+// ==================== PROJEKT-AUFGABEN ====================
+
+export async function getProjectTasks(projectId: string) {
+    const { data, error } = await supabase
+        .from("project_tasks")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("sort_order", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createProjectTask(task: any) {
+    const { data, error } = await supabase
+        .from("project_tasks")
+        .insert(task)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateProjectTask(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from("project_tasks")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteProjectTask(id: string) {
+    const { error } = await supabase.from("project_tasks").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+// ==================== PROJEKT-VERKNÜPFUNGEN ====================
+
+export async function getProjectQuotes(projectId: string) {
+    const { data, error } = await supabase
+        .from("quotes")
+        .select("*, customer:customers(*)")
+        .or(`id.in.(select quote_id from projects where id='${projectId}')`)
+        .order("created_at", { ascending: false });
+
+    // Fallback: query by quote_id on the project
+    if (error || !data || data.length === 0) {
+        const { data: project } = await supabase
+            .from("projects")
+            .select("quote_id")
+            .eq("id", projectId)
+            .single();
+
+        if (project?.quote_id) {
+            const { data: quotes } = await supabase
+                .from("quotes")
+                .select("*, customer:customers(*)")
+                .eq("id", project.quote_id);
+            return quotes || [];
+        }
+        return [];
+    }
+    return data;
+}
+
+export async function getProjectInvoices(projectId: string) {
+    // Fetch the project to get quote_id, then find invoices from same customer
+    const { data: project } = await supabase
+        .from("projects")
+        .select("customer_id, quote_id")
+        .eq("id", projectId)
+        .single();
+
+    if (!project) return [];
+
+    const { data, error } = await supabase
+        .from("invoices")
+        .select("*, customer:customers(*)")
+        .eq("customer_id", project.customer_id)
+        .order("invoice_date", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
 export async function convertQuoteToProject(quoteId: string) {
     const quote = await getQuoteById(quoteId);
     if (!quote) throw new Error("Angebot nicht gefunden");
@@ -803,6 +933,7 @@ export async function convertQuoteToProject(quoteId: string) {
         quote_id: quoteId,
         budget: quote.total || 0,
         status: "planning",
+        priority: "medium",
     });
 
     // Create milestones from quote items
@@ -818,3 +949,4 @@ export async function convertQuoteToProject(quoteId: string) {
 
     return project;
 }
+
