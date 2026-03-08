@@ -323,7 +323,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     const renderOverview = () => (
         <>
             {/* Project Info */}
-            <View className="bg-surface rounded-xl p-4 border border-border">
+            <View className="bg-surface rounded-xl p-4 border border-border" style={{ zIndex: 100, overflow: "visible" }}>
                 <Text className="text-xl font-bold text-foreground">{project.title}</Text>
                 {project.description ? (
                     <Text className="text-sm text-muted mt-2">{project.description}</Text>
