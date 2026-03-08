@@ -57,6 +57,32 @@ export function generateQuotePDFHTML(quote: any): string {
     })
     .join("");
 
+  const quoteNumberHTML = quote.quote_number ? `<tr><td>Angebotsnr.</td><td>${quote.quote_number}</td></tr>` : "";
+  const customerNumberHTML = quote.customer?.customer_number ? `<tr><td>Kundennr.</td><td>${quote.customer.customer_number}</td></tr>` : "";
+  const validUntilHTML = quote.valid_until ? `<tr><td>Gültig bis</td><td>${new Date(quote.valid_until).toLocaleDateString("de-CH")}</td></tr>` : "";
+  const dateHTML = `<tr><td>Datum</td><td>${new Date(quote.quote_date).toLocaleDateString("de-CH")}</td></tr>`;
+
+  const optionalSubtotalsHTML = hasOptional ? `
+        <tr><td colspan="2" style="padding-top:12px;"></td></tr>
+        <tr>
+          <td class="totals-label">Zwischensumme OPTIONAL</td>
+          <td class="totals-value">${fmtCHFPdf(optionalSubtotal)}</td>
+        </tr>
+        <tr class="totals-sep"><td colspan="2"><div></div></td></tr>
+        <tr class="total-row">
+          <td class="totals-label" style="color:#fff !important;">Total inkl. OPTIONAL</td>
+          <td class="totals-value">${fmtCHFPdf(grandTotal)} CHF</td>
+        </tr>
+  ` : "";
+
+  const notesHTML = quote.notes ? `
+    <div class="notes">
+      <div class="notes-title">Anmerkungen</div>
+      ${quote.notes.replace(/\n/g, "<br>")}
+    </div>` : "";
+
+  const creatorName = quote.creator_name || "Stefan Gross";
+
   // Re-use logic exactly from lib/pdf-utils
   return `<!DOCTYPE html>
 <html lang="de-CH">
@@ -125,27 +151,27 @@ export function generateQuotePDFHTML(quote: any): string {
   <div class="page">
     <table class="header-table">
       <tr>
-        <td><img src="\${LOGO_BASE64}" style="height:45px;width:auto;" alt="Gross ICT" /></td>
+        <td><img src="${LOGO_BASE64}" style="height:45px;width:auto;" alt="Gross ICT" /></td>
         <td><div class="doc-type">Angebot</div></td>
       </tr>
     </table>
     <div class="company-bar">
       <strong>Gross ICT</strong> · Neuhushof 3 · 6144 Zell LU · Schweiz<br>
-      \${quote.creator_name || "Stefan Gross"} · +41 79 414 06 16 · info@gross-ict.ch
+      ${creatorName} · +41 79 414 06 16 · info@gross-ict.ch
     </div>
     <table class="addr-meta-table">
       <tr>
         <td style="width:55%;">
           <div class="customer-label">Empfänger</div>
-          <div class="customer-address">\${customerAddressHTML}</div>
+          <div class="customer-address">${customerAddressHTML}</div>
         </td>
         <td style="width:45%;">
           <div class="meta-box">
             <table class="meta-table">
-              <tr><td>Angebotsnr.</td><td>\${quote.quote_number || ""}</td></tr>
-              \${quote.customer?.customer_number ? \`<tr><td>Kundennr.</td><td>\${quote.customer.customer_number}</td></tr>\` : ""}
-              <tr><td>Datum</td><td>\${new Date(quote.quote_date).toLocaleDateString("de-CH")}</td></tr>
-              \${quote.valid_until ? \`<tr><td>Gültig bis</td><td>\${new Date(quote.valid_until).toLocaleDateString("de-CH")}</td></tr>\` : ""}
+              ${quoteNumberHTML}
+              ${customerNumberHTML}
+              ${dateHTML}
+              ${validUntilHTML}
             </table>
           </div>
         </td>
@@ -166,34 +192,19 @@ export function generateQuotePDFHTML(quote: any): string {
         </tr>
       </thead>
       <tbody>
-        \${itemsHTML}
+        ${itemsHTML}
       </tbody>
     </table>
     <div class="totals-wrap" style="margin-bottom:60px;">
       <table class="totals-table">
         <tr class="total-row">
           <td class="totals-label" style="color:#fff !important;">Total</td>
-          <td class="totals-value">\${fmtCHFPdf(nonOptionalSubtotal)} CHF</td>
+          <td class="totals-value">${fmtCHFPdf(nonOptionalSubtotal)} CHF</td>
         </tr>
-        \${hasOptional ? \`
-        <tr><td colspan="2" style="padding-top:12px;"></td></tr>
-        <tr>
-          <td class="totals-label">Zwischensumme OPTIONAL</td>
-          <td class="totals-value">\${fmtCHFPdf(optionalSubtotal)}</td>
-        </tr>
-        <tr class="totals-sep"><td colspan="2"><div></div></td></tr>
-        <tr class="total-row">
-          <td class="totals-label" style="color:#fff !important;">Total inkl. OPTIONAL</td>
-          <td class="totals-value">\${fmtCHFPdf(grandTotal)} CHF</td>
-        </tr>
-        \` : ""}
+        ${optionalSubtotalsHTML}
       </table>
     </div>
-    \${quote.notes ? \`
-    <div class="notes">
-      <div class="notes-title">Anmerkungen</div>
-      \${quote.notes.replace(/\\n/g, "<br>")}
-    </div>\` : ""}
+    ${notesHTML}
   </div>
   <div id="footer-spacer" style="height: 0mm;"></div>
   <div id="pdf-footer" class="footer">
