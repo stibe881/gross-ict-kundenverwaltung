@@ -86,6 +86,7 @@ export default function DashboardScreen() {
       label: "Konfiguration",
       tiles: [
         { id: "products", title: "Produkte", value: "Katalog", icon: "cube.box.fill", color: "#F97316", route: "/products" },
+        { id: "business-card", title: "Visitenkarte", value: "Apple Wallet", icon: "person.crop.rectangle.fill", color: "#0EA5E9", route: "/business-card" },
       ],
     },
   ];
