@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { generateQuotePDFHTML } from "./pdfTemplate.ts";
 
 function fmtCHF(amount: number): string {
   if (amount == null) return "0.00";
@@ -562,7 +563,7 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             Angebot kostenpflichtig annehmen
           </button>
-          <button class="btn btn-secondary" onclick="window.print()">
+          <button class="btn btn-secondary" onclick="downloadPdf()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Angebot als PDF herunterladen
           </button>
@@ -601,7 +602,45 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
     </div>
   </div>
 
+  <script type="text/template" id="pdf-template">
+    ${generateQuotePDFHTML(quote)}
+  </script>
+
   <script>
+    function downloadPdf() {
+      const html = document.getElementById('pdf-template').innerHTML;
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+      
+      const iframeDoc = iframe.contentWindow.document;
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
+      
+      iframe.onload = function() {
+        setTimeout(function() {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          setTimeout(function() { document.body.removeChild(iframe); }, 3000);
+        }, 500);
+      };
+      
+      // Fallback
+      setTimeout(function() {
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        } catch(e){}
+        setTimeout(function(){ try{document.body.removeChild(iframe);}catch(e){} }, 3000);
+      }, 2000);
+    }
+
     // Scroll animations
     const obs = new IntersectionObserver((entries) => {
       entries.forEach((e,i) => { if(e.isIntersecting){setTimeout(()=>e.target.classList.add('visible'),i*100);obs.unobserve(e.target);} });
