@@ -6,6 +6,26 @@ import { supabase } from "./supabase";
 import { apiCall } from "@/lib/_core/api";
 export { supabase };
 
+async function triggerPushNotification(
+    recipients: string[] | "all_admins",
+    recipientType: "admin" | "customer",
+    title: string,
+    body: string,
+    data?: any
+) {
+    try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        await apiCall<any>("/api/send-notification", {
+            method: "POST",
+            headers: token ? { "Authorization": `Bearer ${token}` } : undefined,
+            body: JSON.stringify({ recipients, recipientType, title, body, data })
+        });
+    } catch (e) {
+        console.warn("Push notification failed to send:", e);
+    }
+}
+
 // ==================== KUNDEN ====================
 
 export async function getCustomersWithCounts() {
@@ -551,6 +571,10 @@ export async function convertQuoteToInvoice(quoteId: string) {
     // 4. Mark quote as accepted
     await supabase.from("quotes").update({ status: "accepted" }).eq("id", quoteId);
 
+    if (quote.quote_number) {
+        triggerPushNotification("all_admins", "admin", "Angebot angenommen", `Das Angebot ${quote.quote_number} wurde vom Kunden angenommen!`, { url: '/quotes' }).catch(console.error);
+    }
+
     return invoice;
 }
 
@@ -1052,6 +1076,11 @@ export async function addPortalTicketComment(ticketId: number, comment: string, 
         .single();
         
     if (error) throw new Error(error.message);
+    
+    // Add Trigger Push here
+    const { data: ticket } = await supabase.from("tickets").select("title").eq("id", ticketId).single();
+    triggerPushNotification("all_admins", "admin", "Neue Kunden-Antwort", `Der Kunde hat auf das Ticket "${ticket?.title || ticketId}" geantwortet.`, { url: '/tickets' }).catch(console.error);
+
     return data;
 }
 

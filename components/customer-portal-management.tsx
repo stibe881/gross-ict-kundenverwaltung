@@ -8,9 +8,13 @@ import {
   Modal,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "./ui/icon-symbol";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
+import { showAlert, showConfirm } from "@/lib/alert";
 
 interface CustomerPortalUser {
   id: string;
@@ -35,7 +39,7 @@ export function CustomerPortalManagement({
   onPortalToggle,
 }: CustomerPortalManagementProps) {
   const colors = useColors();
-  const [users, setUsers] = useState<CustomerPortalUser[]>([]);
+  const queryClient = useQueryClient();
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUser, setNewUser] = useState({
     email: "",
@@ -45,52 +49,67 @@ export function CustomerPortalManagement({
     role: "user" as "user" | "admin",
   });
 
-  // TODO: Benutzer aus Supabase laden
-  // useEffect(() => {
-  //   if (portalEnabled) {
-  //     loadUsers();
-  //   }
-  // }, [portalEnabled, customerId]);
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ["customerPortalUsers", customerId],
+    queryFn: () => Data.getCustomerPortalUsers(customerId),
+    enabled: portalEnabled,
+  });
+
+  const createUser = useMutation({
+    mutationFn: (user: any) => Data.createCustomerPortalUser({ ...user, customer_id: customerId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customerPortalUsers", customerId] });
+      setNewUser({ email: "", firstName: "", lastName: "", password: "", role: "user" });
+      setShowAddUserModal(false);
+      showAlert("Erfolg", "Benutzer wurde erstellt");
+    },
+    onError: (error: any) => {
+      showAlert("Fehler", error.message);
+    }
+  });
+
+  const toggleUserActive = useMutation({
+    mutationFn: ({ id, is_active }: { id: string, is_active: boolean }) => Data.updateCustomerPortalUser(id, { is_active }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customerPortalUsers", customerId] });
+    },
+    onError: (error: any) => {
+      showAlert("Fehler", error.message);
+    }
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: (id: string) => Data.deleteCustomerPortalUser(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customerPortalUsers", customerId] });
+      showAlert("Erfolg", "Benutzer wurde gelöscht");
+    },
+    onError: (error: any) => {
+      showAlert("Fehler", error.message);
+    }
+  });
 
   const handleAddUser = () => {
-    // TODO: API-Call zum Erstellen des Benutzers
-    console.log("Creating user:", newUser);
-
-    // Reset form
-    setNewUser({
-      email: "",
-      firstName: "",
-      lastName: "",
-      password: "",
-      role: "user",
+    createUser.mutate({
+      email: newUser.email,
+      first_name: newUser.firstName,
+      last_name: newUser.lastName,
+      password_hash: newUser.password,
+      role: newUser.role,
+      is_active: true
     });
-    setShowAddUserModal(false);
-
-    Alert.alert("Erfolg", "Benutzer wurde erstellt");
   };
 
   const handleToggleUserActive = (userId: string, isActive: boolean) => {
-    // TODO: API-Call zum Aktivieren/Deaktivieren
-    console.log("Toggle user:", userId, isActive);
-    Alert.alert("Erfolg", `Benutzer wurde ${isActive ? "aktiviert" : "deaktiviert"}`);
+    toggleUserActive.mutate({ id: userId, is_active: isActive });
   };
 
   const handleDeleteUser = (userId: string) => {
-    Alert.alert(
+    showConfirm(
       "Benutzer löschen",
       "Möchten Sie diesen Benutzer wirklich löschen?",
-      [
-        { text: "Abbrechen", style: "cancel" },
-        {
-          text: "Löschen",
-          style: "destructive",
-          onPress: () => {
-            // TODO: API-Call zum Löschen
-            console.log("Delete user:", userId);
-            Alert.alert("Erfolg", "Benutzer wurde gelöscht");
-          },
-        },
-      ]
+      () => deleteUser.mutate(userId),
+      "Löschen"
     );
   };
 
@@ -133,7 +152,11 @@ export function CustomerPortalManagement({
               </TouchableOpacity>
             </View>
 
-            {users.length === 0 ? (
+            {isLoading ? (
+              <View className="py-8 items-center justify-center">
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            ) : users.length === 0 ? (
               <Text className="text-sm text-muted text-center py-4">
                 Noch keine Benutzer erstellt
               </Text>
@@ -422,12 +445,17 @@ export function CustomerPortalManagement({
                   !newUser.firstName ||
                   !newUser.lastName ||
                   !newUser.password ||
-                  newUser.password.length < 8
+                  newUser.password.length < 8 ||
+                  createUser.isPending
                 }
               >
-                <Text className="text-background font-semibold text-center">
-                  Benutzer erstellen
-                </Text>
+                {createUser.isPending ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text className="text-background font-semibold text-center">
+                    Benutzer erstellen
+                  </Text>
+                )}
               </TouchableOpacity>
             </ScrollView>
           </View>

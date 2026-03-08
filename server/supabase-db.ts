@@ -1,5 +1,24 @@
 import { supabase } from "./supabase-client";
 
+async function triggerPushNotification(
+  recipients: string[] | "all_admins",
+  recipientType: "admin" | "customer",
+  title: string,
+  body: string,
+  data?: any
+) {
+  try {
+    const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3000";
+    await fetch(`${baseUrl}/api/send-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recipients, recipientType, title, body, data })
+    });
+  } catch (e) {
+    console.warn("Push notification failed to send:", e);
+  }
+}
+
 // ==================== KUNDEN ====================
 
 export async function getAllCustomers() {
@@ -125,6 +144,11 @@ export async function createCommunication(communication: any) {
     .single();
 
   if (error) throw new Error(error.message);
+  
+  if (data.customer_id) {
+    triggerPushNotification([data.customer_id], "customer", "Neuer Timeline-Eintrag", `Es gibt eine neue Information in Ihrer Timeline.`, { url: '/portal' }).catch(console.error);
+  }
+
   return data;
 }
 
@@ -246,10 +270,18 @@ export async function createTicket(ticket: any) {
     .single();
 
   if (error) throw new Error(error.message);
+  
+  if (data.customer_id) {
+    triggerPushNotification([data.customer_id], "customer", "Neues Ticket", `Es wurde ein neues Ticket für Sie eröffnet: ${data.title}`, { url: '/portal-tickets-customer' }).catch(console.error);
+    triggerPushNotification("all_admins", "admin", "Neues Ticket", `Ein neues Ticket wurde erstellt: ${data.title}`, { url: '/tickets' }).catch(console.error);
+  }
+
   return data;
 }
 
 export async function updateTicket(id: string, ticket: any) {
+  const { data: oldTicket } = await supabase.from("tickets").select("status").eq("id", id).single();
+  
   const { data, error } = await supabase
     .from("tickets")
     .update(ticket)
@@ -258,6 +290,12 @@ export async function updateTicket(id: string, ticket: any) {
     .single();
 
   if (error) throw new Error(error.message);
+
+  if (oldTicket && data.status && oldTicket.status !== data.status && data.customer_id) {
+    triggerPushNotification([data.customer_id], "customer", "Ticket Status", `Der Status von Ticket "${data.title}" hat sich geändert.`, { url: '/portal-tickets-customer' }).catch(console.error);
+    triggerPushNotification("all_admins", "admin", "Ticket Status", `Der Status von Ticket "${data.title}" hat sich geändert.`, { url: '/tickets' }).catch(console.error);
+  }
+
   return data;
 }
 
@@ -753,6 +791,14 @@ export async function createTicketComment(comment: any) {
     .single();
 
   if (error) throw new Error(error.message);
+
+  if (!comment.is_internal) {
+    const { data: ticket } = await supabase.from("tickets").select("title, customer_id").eq("id", comment.ticket_id).single();
+    if (ticket?.customer_id) {
+      triggerPushNotification([ticket.customer_id], "customer", "Neue Ticket-Antwort", `Gross-ICT hat auf das Ticket "${ticket.title}" geantwortet.`, { url: '/portal-tickets-customer' }).catch(console.error);
+    }
+  }
+
   return data;
 }
 

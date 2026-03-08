@@ -24,7 +24,6 @@ export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams();
   const colors = useColors();
   const [activeTab, setActiveTab] = useState<Tab>("stammdaten");
-  const [portalEnabled, setPortalEnabled] = useState(false);
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [editingContract, setEditingContract] = useState<any>(null);
 
@@ -62,6 +61,17 @@ export default function CustomerDetailScreen() {
     },
   });
 
+  // Kundenportal umschalten
+  const togglePortal = useMutation({
+    mutationFn: (enabled: boolean) => Data.toggleCustomerPortal(id as string, enabled),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer", id] });
+    },
+    onError: (error: any) => {
+      showAlert("Fehler", `Kundenportal konnte nicht geändert werden: ${error.message}`);
+    }
+  });
+
   const handleToggleStatus = () => {
     const newStatus = customer?.status === "active" ? "inactive" : "active";
     const label = newStatus === "active" ? "aktivieren" : "deaktivieren";
@@ -82,6 +92,26 @@ export default function CustomerDetailScreen() {
       "Kunde löschen",
       `Möchten Sie "${displayName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
       () => deleteCustomer.mutate(id as string),
+      "Löschen"
+    );
+  };
+
+  const deleteTicketMutation = useMutation({
+    mutationFn: (ticketId: string) => Data.deleteTicket(ticketId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets", "customer", id] });
+      showAlert("Erfolg", "Ticket erfolgreich gelöscht");
+    },
+    onError: (error: any) => {
+      showAlert("Fehler", `Ticket konnte nicht gelöscht werden: ${error.message}`);
+    },
+  });
+
+  const handleDeleteTicket = (ticketId: string) => {
+    showConfirm(
+      "Ticket löschen",
+      "Möchten Sie dieses Ticket wirklich unwiderruflich löschen?",
+      () => deleteTicketMutation.mutate(ticketId),
       "Löschen"
     );
   };
@@ -463,6 +493,14 @@ export default function CustomerDetailScreen() {
                           : "Geschlossen"}
                     </Text>
                   </View>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteTicket(ticket.id)}
+                    activeOpacity={0.6}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    className="ml-2"
+                  >
+                    <IconSymbol name="trash.fill" size={20} color={colors.error || "#EF4444"} />
+                  </TouchableOpacity>
                 </View>
                 {ticket.description ? (
                   <Text className="text-sm text-muted mb-2" numberOfLines={2}>
@@ -487,8 +525,8 @@ export default function CustomerDetailScreen() {
         return (
           <CustomerPortalManagement
             customerId={id as string}
-            portalEnabled={portalEnabled}
-            onPortalToggle={setPortalEnabled}
+            portalEnabled={customer?.has_portal || false}
+            onPortalToggle={(enabled) => togglePortal.mutate(enabled)}
           />
         );
 

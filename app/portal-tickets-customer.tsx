@@ -44,24 +44,16 @@ export default function PortalTicketsScreen() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [filter, setFilter] = useState<"all" | TicketStatus>("all");
   const [customerId, setCustomerId] = useState<string | null>(null);
+  const [portalUserId, setPortalUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem('customer_portal_user').then((userStr) => {
-      if (userStr) {
-        try {
-          const user = JSON.parse(userStr);
-          // Assuming the backend saved customer_id properly in the storage payload
-          // We can also retrieve it with a Supabase auth check if needed, but this is faster
-          // The backend currently saves { id, email }. Let's look up the customer_id by fetching the portal_users record
-        } catch (e) { }
+    Data.supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
+      if (session?.user?.id) {
+        setPortalUserId(session.user.id);
       }
-
-      // We need to reliably get the customer_id associated with this logged in Auth session.
-      Data.supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
-        if (session?.user?.user_metadata?.customer_id) {
-          setCustomerId(session.user.user_metadata.customer_id);
-        }
-      });
+      if (session?.user?.user_metadata?.customer_id) {
+        setCustomerId(session.user.user_metadata.customer_id);
+      }
     });
   }, []);
 
@@ -69,6 +61,21 @@ export default function PortalTicketsScreen() {
     queryKey: ["portalTickets", customerId],
     queryFn: () => Data.getPortalTickets(customerId!),
     enabled: !!customerId,
+  });
+
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["unreadPortalNotifications", portalUserId],
+    queryFn: async () => {
+      const { count, error } = await Data.supabase
+        .from("notifications")
+        .select('*', { count: 'exact', head: true })
+        .eq("customer_portal_user_id", portalUserId)
+        .eq("is_read", false);
+      if (error) throw new Error(error.message);
+      return count || 0;
+    },
+    enabled: !!portalUserId,
+    refetchInterval: 30000, // Poll every 30s
   });
 
   const getStatusLabel = (status: TicketStatus) => {
@@ -179,14 +186,31 @@ export default function PortalTicketsScreen() {
             <Text className="text-2xl font-bold text-foreground">
               Meine Tickets
             </Text>
-            <TouchableOpacity
-              onPress={handleLogout}
-              className="flex-row items-center gap-2"
-              activeOpacity={0.7}
-            >
-              <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
-              <Text className="text-sm text-muted">Abmelden</Text>
-            </TouchableOpacity>
+            <View className="flex-row items-center gap-4">
+              <TouchableOpacity
+                onPress={() => router.push("/portal-notifications")}
+                className="relative"
+                activeOpacity={0.7}
+              >
+                <IconSymbol name="bell.fill" size={24} color={colors.foreground} />
+                {unreadCount > 0 && (
+                  <View className="absolute -top-1 -right-1 bg-primary rounded-full min-w-[16px] h-4 items-center justify-center px-1">
+                    <Text className="text-[10px] font-bold text-background leading-none">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleLogout}
+                className="flex-row items-center gap-2"
+                activeOpacity={0.7}
+              >
+                <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
+                <Text className="text-sm text-muted">Abmelden</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Filter */}

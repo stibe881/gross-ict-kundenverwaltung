@@ -40,6 +40,11 @@ export default function TabLayout() {
         await new Promise(resolve => setTimeout(resolve, 1000));
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
+          if (session.user.user_metadata?.customer_id) {
+            router.replace("/portal-tickets-customer");
+            return;
+          }
+
           await AsyncStorage.setItem("isLoggedIn", "true");
           await AsyncStorage.setItem("userEmail", session.user.email || "");
           await AsyncStorage.setItem("userName",

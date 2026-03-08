@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
-import { ScrollView, Text, View, TouchableOpacity, TextInput, ActivityIndicator, Alert, Linking, Image, Platform } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity, TextInput, ActivityIndicator, Alert, Linking, Image, Platform, Modal } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { supabase } from "@/lib/supabase";
-import * as FileSystem from 'expo-file-system';
+import * as Data from "@/lib/data";
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function BusinessCardScreen() {
     const colors = useColors();
@@ -23,6 +25,11 @@ export default function BusinessCardScreen() {
     const [email, setEmail] = useState("");
     const [website, setWebsite] = useState("https://gross-ict.ch");
 
+    // Employee Selection State
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [allUsers, setAllUsers] = useState<any[]>([]);
+    const [showUserModal, setShowUserModal] = useState(false);
+
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUser(session?.user ?? null);
@@ -33,6 +40,19 @@ export default function BusinessCardScreen() {
                 // Try to load position from DB if user metadata doesn't have it
                 const loadProfile = async () => {
                     try {
+                        const profile = await Data.getUserProfile(session.user.id).catch(() => null);
+                        const isAppAdmin = (session.user as any)?.role === 'admin'
+                            || session.user.user_metadata?.role === 'admin'
+                            || profile?.role === 'admin'
+                            || profile?.role === 'manager'
+                            || session.user.email?.includes('stefan.gross');
+
+                        if (isAppAdmin) {
+                            setIsAdmin(true);
+                            const usersList = await Data.getAllUsers().catch(() => []);
+                            setAllUsers(usersList.filter((u: any) => u.is_active !== false));
+                        }
+
                         // Basic default values for Gross ICT
                         if (!session.user.user_metadata?.full_name) {
                             if (session.user.email?.includes('stefan.gross')) {
@@ -54,6 +74,40 @@ export default function BusinessCardScreen() {
         });
     }, []);
 
+    // Load saved data when the selected email changes
+    useEffect(() => {
+        if (!email) return;
+
+        const loadSavedData = async () => {
+            try {
+                const saved = await AsyncStorage.getItem(`business_card_${email}`);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    if (data.name) setName(data.name);
+                    if (data.position) setPosition(data.position);
+                    if (data.phone) setPhone(data.phone);
+                    if (data.website) setWebsite(data.website);
+                }
+            } catch (e) {
+                console.error("Error loading saved card data:", e);
+            }
+        };
+
+        loadSavedData();
+    }, [email]);
+
+    const handleSave = async () => {
+        if (!email) return;
+        try {
+            const dataToSave = { name, position, phone, website };
+            await AsyncStorage.setItem(`business_card_${email}`, JSON.stringify(dataToSave));
+            Alert.alert("Gespeichert", "Die Kartendaten wurden lokal auf diesem Gerät gespeichert.");
+        } catch (e) {
+            console.error("Error saving card data:", e);
+            Alert.alert("Fehler", "Die Daten konnten nicht gespeichert werden.");
+        }
+    };
+
     const handleDownload = async () => {
         if (!name || !email) {
             Alert.alert("Fehler", "Bitte fülle die Pflichtfelder (Name, E-Mail) aus.");
@@ -74,6 +128,7 @@ export default function BusinessCardScreen() {
             });
 
             if (error) throw error;
+            if (data && data.success === false) throw new Error(data.error + (data.stack ? '\n' + data.stack : ''));
 
             // 2. Handle the base64 encoded pkpass data
             if (data && data.file) {
@@ -165,10 +220,11 @@ export default function BusinessCardScreen() {
                         {/* Pass Header */}
                         <View className="flex-row items-center justify-between px-5 pt-4">
                             <View className="flex-row items-center">
-                                <View className="w-8 h-8 rounded-md items-center justify-center mr-2" style={{ backgroundColor: '#222' }}>
-                                    <Text style={{ color: '#D4A432', fontWeight: 'bold' }}>G</Text>
-                                </View>
-                                <Text style={{ color: 'white', fontWeight: '600', fontSize: 14 }}>Gross ICT</Text>
+                                <Image
+                                    source={require("@/assets/images/favicon.png")}
+                                    style={{ width: 120, height: 30 }}
+                                    resizeMode="contain"
+                                />
                             </View>
                         </View>
 
@@ -177,11 +233,10 @@ export default function BusinessCardScreen() {
 
                         {/* Pass Content */}
                         <View className="px-5 pt-6 pb-2">
-                            <Text style={{ color: '#888', fontSize: 11, marginBottom: 2, textTransform: 'uppercase' }}>MITARBEITER</Text>
-                            <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold', marginBottom: 4 }} numberOfLines={1}>{name || 'Max Mustermann'}</Text>
-                            <Text style={{ color: '#D4A432', fontSize: 13, fontWeight: '500', marginBottom: 16 }} numberOfLines={1}>{position || 'Position'}</Text>
+                            <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold', marginBottom: 2 }} numberOfLines={1}>{name || 'Max Mustermann'}</Text>
+                            <Text style={{ color: '#D4A432', fontSize: 13, fontWeight: '500', marginBottom: 8 }} numberOfLines={1}>{position || 'Position'}</Text>
 
-                            <View className="flex-row justify-between mt-2">
+                            <View className="flex-row justify-between">
                                 <View className="flex-1">
                                     <Text style={{ color: '#888', fontSize: 10, textTransform: 'uppercase' }}>TELEFON</Text>
                                     <Text style={{ color: 'white', fontSize: 12, marginTop: 2 }}>{phone || '-'}</Text>
@@ -194,11 +249,29 @@ export default function BusinessCardScreen() {
                         </View>
 
                         {/* Fake QR Area block for preview */}
-                        <View className="bg-[#111] mt-auto w-full items-center py-4 border-t border-[#222]">
+                        <View className="mt-auto w-full items-center py-4">
                             <IconSymbol name="qrcode" size={48} color="white" />
                         </View>
                     </View>
                 </View>
+
+                {/* Employee Selection for Admins */}
+                {isAdmin && (
+                    <View className="bg-surface p-5 rounded-2xl border border-border shadow-sm mb-6 flex-row justify-between items-center">
+                        <View className="flex-1 mr-4">
+                            <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">Mitarbeiter auswählen</Text>
+                            <Text className="text-foreground text-base font-semibold" numberOfLines={1}>
+                                {name || "Eigene Karte konfigurieren"}
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => setShowUserModal(true)}
+                            className="bg-primary/10 px-4 py-3 rounded-xl border border-primary/20"
+                        >
+                            <Text className="text-primary font-bold">Ändern</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 {/* Input Form */}
                 <View className="bg-surface p-5 rounded-2xl border border-border shadow-sm mb-6">
@@ -265,6 +338,16 @@ export default function BusinessCardScreen() {
                             />
                         </View>
                     </View>
+
+                    {/* Added Save button */}
+                    <TouchableOpacity
+                        onPress={handleSave}
+                        activeOpacity={0.8}
+                        className="bg-surface border-border border p-4 rounded-xl items-center mt-6 flex-row justify-center gap-2 shadow-sm"
+                    >
+                        <IconSymbol name="tray.and.arrow.down.fill" size={20} color={colors.foreground} />
+                        <Text className="text-foreground font-bold text-lg">Angaben speichern</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Action Buttons */}
@@ -299,6 +382,66 @@ export default function BusinessCardScreen() {
                 </View>
 
             </ScrollView>
+
+            <Modal
+                visible={showUserModal}
+                transparent={true}
+                animationType="slide"
+            >
+                <View className="flex-1 justify-end bg-black/50">
+                    <View className="bg-background rounded-t-3xl pt-6 pb-12 px-5 h-[70%]">
+                        <View className="flex-row items-center justify-between mb-4">
+                            <Text className="text-2xl font-bold text-foreground">Mitarbeiter</Text>
+                            <TouchableOpacity onPress={() => setShowUserModal(false)} className="p-2 bg-surface rounded-full">
+                                <IconSymbol name="xmark" size={20} color={colors.foreground} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {/* Option for current user */}
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setName(user?.user_metadata?.full_name || user?.email?.split('@')[0] || "");
+                                    setEmail(user?.email || "");
+                                    setPosition("");
+                                    setPhone(user?.phone || "");
+                                    setShowUserModal(false);
+                                }}
+                                className="p-4 bg-surface border border-border rounded-xl mb-3 flex-row items-center justify-between"
+                            >
+                                <View>
+                                    <Text className="text-lg font-semibold text-foreground">Meine Visitenkarte</Text>
+                                    <Text className="text-sm text-muted">{user?.email}</Text>
+                                </View>
+                                <IconSymbol name="person.fill" size={20} color={colors.primary} />
+                            </TouchableOpacity>
+
+                            <View className="h-[1px] bg-border my-2" />
+
+                            {/* All Employees */}
+                            {allUsers.map((u) => (
+                                <TouchableOpacity
+                                    key={u.id}
+                                    onPress={() => {
+                                        setName(u.name);
+                                        setEmail(u.email);
+                                        setPosition(u.role === 'manager' ? 'Management' : u.role === 'sales' ? 'Vertrieb' : '');
+                                        setPhone(""); // Reset phone as it's not in the users table
+                                        setShowUserModal(false);
+                                    }}
+                                    className="p-4 bg-surface rounded-xl mb-2 flex-row items-center justify-between"
+                                >
+                                    <View>
+                                        <Text className="text-lg font-semibold text-foreground">{u.name}</Text>
+                                        <Text className="text-sm text-muted">{u.email}</Text>
+                                    </View>
+                                    <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </ScreenContainer>
     );
 }

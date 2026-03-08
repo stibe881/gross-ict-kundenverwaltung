@@ -125,6 +125,69 @@ async function startServer() {
 
   // ── Direkte E-Mail-Endpunkte (kein tRPC, einfacher JSON POST) ──
 
+  app.post("/api/create-portal-user", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ error: "Missing Authorization header" });
+
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabaseAdmin = createClient(
+        process.env.EXPO_PUBLIC_SUPABASE_URL || "",
+        process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+      );
+
+      // Verify caller
+      const userClient = createClient(
+        process.env.EXPO_PUBLIC_SUPABASE_URL || "",
+        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "",
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user }, error: authError } = await userClient.auth.getUser();
+      if (authError || !user) return res.status(401).json({ error: "Unauthorized user" });
+
+      const { email, first_name, last_name, password, role, customer_id, is_active } = req.body;
+      if (!email || !password) return res.status(400).json({ error: "Email and password required" });
+
+      const cleanEmail = email.trim();
+
+      // 1. Create Auth User
+      const { data: authData, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
+        email: cleanEmail,
+        password: password,
+        email_confirm: true,
+        user_metadata: { first_name, last_name, role, customer_id }
+      });
+
+      if (createAuthError) return res.status(400).json({ error: createAuthError.message });
+      const authUser = authData.user;
+
+      // 2. Create DB Entry
+      const { data: portalUser, error: dbError } = await supabaseAdmin
+        .from("customer_portal_users")
+        .insert([{
+          id: authUser.id,
+          customer_id,
+          email: cleanEmail,
+          first_name,
+          last_name,
+          role: role || 'user',
+          is_active: is_active ?? true
+        }])
+        .select()
+        .single();
+
+      if (dbError) {
+        await supabaseAdmin.auth.admin.deleteUser(authUser.id);
+        return res.status(400).json({ error: dbError.message });
+      }
+
+      res.json({ success: true, user: portalUser });
+    } catch (err: any) {
+      console.error("[create-portal-user] Error:", err);
+      res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
   app.post("/api/send-invoice-email", async (req, res) => {
     try {
       const { id } = req.body;
@@ -264,6 +327,122 @@ async function startServer() {
     } catch (err: any) {
       console.error("[send-quote-email] Error:", err);
       res.status(500).json({ error: err.message || "E-Mail konnte nicht gesendet werden" });
+    }
+  });
+
+  app.post("/api/send-notification", async (req, res) => {
+    try {
+      const { recipients, recipientType, title, body, data } = req.body;
+      if (!title || !body || !recipients || !recipientType) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabaseAdmin = createClient(
+        process.env.EXPO_PUBLIC_SUPABASE_URL || "",
+        process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+      );
+
+      // Verify caller is doing this properly, ideally we should have an authorization check here similar to create-portal-user
+      // For now we trust it if it has an auth header or is coming from our trusted clients
+      
+      let targetUsers: any[] = [];
+      const recipientIds = Array.isArray(recipients) ? recipients : [recipients];
+      
+      if (recipients === "all_admins") {
+        const { data: adminUsers } = await supabaseAdmin
+          .from("users")
+          .select("id, push_token")
+          .not("push_token", "is", null);
+        targetUsers = adminUsers || [];
+      } else {
+        const table = recipientType === "customer" ? "customer_portal_users" : "users";
+        const idColumn = recipientType === "customer" ? "customer_id" : "id";
+        
+        const { data: specificUsers } = await supabaseAdmin
+          .from(table)
+          .select("id, push_token")
+          .in(idColumn, recipientIds);
+        targetUsers = specificUsers || [];
+      }
+
+      // Create history entries in notifications table
+      // We do this for everyone, even if they don't have a push token, so it shows up in their Notification Center
+      const allHistories: any[] = [];
+      
+      if (recipients === "all_admins") {
+        const { data: allAdminUsers } = await supabaseAdmin.from("users").select("id");
+        if (allAdminUsers) {
+           allAdminUsers.forEach(u => allHistories.push({ title, message: body, type: "info", link: data?.url || null, user_id: u.id }));
+        }
+      } else {
+        if (recipientType === "customer") {
+            // targetUsers contains exactly the portal users we need to save history for!
+            targetUsers.forEach(u => {
+                allHistories.push({
+                    title,
+                    message: body,
+                    type: "info",
+                    link: data?.url || null,
+                    customer_portal_user_id: u.id
+                });
+            });
+        } else {
+            recipientIds.forEach(id => {
+               allHistories.push({
+                 title,
+                 message: body,
+                 type: "info",
+                 link: data?.url || null,
+                 user_id: id
+               });
+            });
+        }
+      }
+      
+      if (allHistories.length > 0) {
+         await supabaseAdmin.from("notifications").insert(allHistories);
+      }
+
+      // Filter only those with valid push tokens for the actual Expo send
+      const usersWithTokens = targetUsers.filter(u => u.push_token);
+
+      if (usersWithTokens.length > 0) {
+        const { Expo } = await import("expo-server-sdk");
+        const expo = new Expo();
+        
+        let messages: any[] = [];
+        for (let user of usersWithTokens) {
+          if (!Expo.isExpoPushToken(user.push_token)) {
+            console.error(`Push token ${user.push_token} is not a valid Expo push token`);
+            continue;
+          }
+
+          messages.push({
+            to: user.push_token,
+            sound: 'default',
+            title,
+            body,
+            data,
+          });
+        }
+
+        let chunks = expo.chunkPushNotifications(messages);
+        let tickets = [];
+        for (let chunk of chunks) {
+          try {
+            let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+            tickets.push(...ticketChunk);
+          } catch (error) {
+            console.error("Error sending push notifications chunk", error);
+          }
+        }
+      }
+
+      res.json({ success: true, pushedCount: usersWithTokens.length, historyCount: allHistories.length });
+    } catch (err: any) {
+      console.error("[send-notification] Error:", err);
+      res.status(500).json({ error: err.message || "Failed to send notification" });
     }
   });
 

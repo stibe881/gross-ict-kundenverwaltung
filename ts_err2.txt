@@ -1,0 +1,49 @@
+app/business-card.tsx(95,52): error TS2339: Property 'documentDirectory' does not exist on type 'typeof import("C:/Users/stefa/Temp/gross-ict-kundenverwaltung/node_modules/expo-file-system/build/index")'.
+app/business-card.tsx(97,46): error TS2339: Property 'EncodingType' does not exist on type 'typeof import("C:/Users/stefa/Temp/gross-ict-kundenverwaltung/node_modules/expo-file-system/build/index")'.
+supabase/functions/accept-quote/index.ts(1,30): error TS2307: Cannot find module 'https://esm.sh/@supabase/supabase-js@2' or its corresponding type declarations.
+supabase/functions/accept-quote/index.ts(8,1): error TS2304: Cannot find name 'Deno'.
+supabase/functions/accept-quote/index.ts(8,19): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/accept-quote/index.ts(25,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/accept-quote/index.ts(26,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/accept-quote/index.ts(137,26): error TS2304: Cannot find name 'Deno'.
+supabase/functions/generate-wallet-pass/index.ts(1,23): error TS2307: Cannot find module 'https://deno.land/std@0.168.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/generate-wallet-pass/index.ts(2,24): error TS2307: Cannot find module 'https://esm.sh/passkit-generator@3.x' or its corresponding type declarations.
+supabase/functions/generate-wallet-pass/index.ts(9,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/generate-wallet-pass/index.ts(90,10): error TS2304: Cannot find name 'Deno'.
+supabase/functions/generate-wallet-pass/index.ts(106,49): error TS18046: 'error' is of type 'unknown'.
+supabase/functions/quote-page/index.ts(1,30): error TS2307: Cannot find module 'https://esm.sh/@supabase/supabase-js@2' or its corresponding type declarations.
+supabase/functions/quote-page/index.ts(2,38): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+supabase/functions/quote-page/index.ts(713,1): error TS2304: Cannot find name 'Deno'.
+supabase/functions/quote-page/index.ts(713,19): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/quote-page/index.ts(729,25): error TS2304: Cannot find name 'Deno'.
+supabase/functions/quote-page/index.ts(732,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-invoice-email/index.ts(1,30): error TS2307: Cannot find module 'https://esm.sh/@supabase/supabase-js@2' or its corresponding type declarations.
+supabase/functions/send-invoice-email/index.ts(60,1): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-invoice-email/index.ts(60,19): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/send-invoice-email/index.ts(70,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-invoice-email/index.ts(71,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-invoice-email/index.ts(95,25): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-invoice-email/index.ts(99,26): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-quote-email/index.ts(1,30): error TS2307: Cannot find module 'https://esm.sh/@supabase/supabase-js@2' or its corresponding type declarations.
+supabase/functions/send-quote-email/index.ts(17,1): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-quote-email/index.ts(17,19): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/send-quote-email/index.ts(27,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-quote-email/index.ts(28,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-quote-email/index.ts(48,38): error TS2307: Cannot find module 'https://esm.sh/jspdf@2.5.2' or its corresponding type declarations.
+supabase/functions/send-quote-email/index.ts(87,25): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-quote-email/index.ts(112,26): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-reminder-email/index.ts(1,30): error TS2307: Cannot find module 'https://esm.sh/@supabase/supabase-js@2' or its corresponding type declarations.
+supabase/functions/send-reminder-email/index.ts(17,1): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-reminder-email/index.ts(17,19): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/send-reminder-email/index.ts(27,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-reminder-email/index.ts(28,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-reminder-email/index.ts(51,25): error TS2304: Cannot find name 'Deno'.
+supabase/functions/send-reminder-email/index.ts(84,26): error TS2304: Cannot find name 'Deno'.
+supabase/functions/track-email/index.ts(1,30): error TS2307: Cannot find module 'https://esm.sh/@supabase/supabase-js@2' or its corresponding type declarations.
+supabase/functions/track-email/index.ts(11,1): error TS2304: Cannot find name 'Deno'.
+supabase/functions/track-email/index.ts(11,19): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/track-email/index.ts(28,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/track-email/index.ts(29,7): error TS2304: Cannot find name 'Deno'.
+supabase/functions/vcard/index.ts(1,23): error TS2307: Cannot find module 'https://deno.land/std@0.168.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/vcard/index.ts(8,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/vcard/index.ts(53,49): error TS18046: 'error' is of type 'unknown'.

@@ -8,6 +8,7 @@ import {
   Modal,
   TextInput,
   Switch,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -15,53 +16,47 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { TicketFormModal } from "@/components/ticket-form-modal";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
+import { showAlert, showConfirm } from "@/lib/alert";
 
 type TicketStatus = "open" | "in_progress" | "waiting" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
 
-interface Ticket {
-  id: number;
-  title: string;
-  customer: string;
-  status: TicketStatus;
-  priority: TicketPriority;
-  createdAt: string;
-}
-
-const mockTickets: Ticket[] = [
-  {
-    id: 1,
-    title: "Problem mit Rechnung #1234",
-    customer: "Max Mustermann",
-    status: "open",
-    priority: "high",
-    createdAt: "2026-02-04",
-  },
-  {
-    id: 2,
-    title: "Frage zu Vertragslaufzeit",
-    customer: "Anna Schmidt",
-    status: "in_progress",
-    priority: "medium",
-    createdAt: "2026-02-03",
-  },
-  {
-    id: 3,
-    title: "Technisches Problem",
-    customer: "Peter Müller",
-    status: "waiting",
-    priority: "low",
-    createdAt: "2026-02-02",
-  },
-];
-
 export default function TicketsScreen() {
   const router = useRouter();
   const colors = useColors();
-  const [tickets] = useState<Ticket[]>(mockTickets);
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"all" | TicketStatus>("all");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+
+  const { data: tickets = [], isLoading } = useQuery({
+    queryKey: ["tickets"],
+    queryFn: Data.getAllTickets,
+  });
+
+  const deleteTicketMutation = useMutation({
+    mutationFn: (ticketId: string) => Data.deleteTicket(ticketId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["customer"] });
+      showAlert("Erfolg", "Ticket erfolgreich gelöscht");
+    },
+    onError: (error: any) => {
+      showAlert("Fehler", `Ticket konnte nicht gelöscht werden: ${error.message}`);
+    },
+  });
+
+  const handleDeleteTicket = (ticketId: string, event: any) => {
+    event.stopPropagation();
+    showConfirm(
+      "Ticket löschen",
+      "Möchten Sie dieses Ticket wirklich unwiderruflich löschen?",
+      () => deleteTicketMutation.mutate(ticketId),
+      "Löschen"
+    );
+  };
 
   const getStatusLabel = (status: TicketStatus) => {
     const labels: Record<TicketStatus, string> = {
@@ -106,7 +101,7 @@ export default function TicketsScreen() {
   const filteredTickets =
     filter === "all" ? tickets : tickets.filter((t) => t.status === filter);
 
-  const renderTicketItem = ({ item }: { item: Ticket }) => (
+  const renderTicketItem = ({ item }: { item: any }) => (
     <TouchableOpacity
       className="bg-surface rounded-xl p-4 mb-3 border border-border"
       activeOpacity={0.7}
@@ -213,7 +208,11 @@ export default function TicketsScreen() {
         </ScrollView>
 
         {/* Ticket-Liste */}
-        {filteredTickets.length > 0 ? (
+        {isLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : filteredTickets.length > 0 ? (
           <FlatList
             data={filteredTickets}
             renderItem={renderTicketItem}
@@ -256,7 +255,7 @@ function TicketDetailsModal({
   ticket,
   onClose,
 }: {
-  ticket: Ticket;
+  ticket: any;
   onClose: () => void;
 }) {
   const colors = useColors();
@@ -267,7 +266,7 @@ function TicketDetailsModal({
       id: 1,
       type: "system" as const,
       text: "Ticket erstellt",
-      createdAt: ticket.createdAt,
+      createdAt: ticket.created_at || new Date().toISOString(),
       user: "System",
       isInternal: true,
     },
@@ -368,7 +367,9 @@ function TicketDetailsModal({
 
               <View>
                 <Text className="text-sm text-muted mb-1">Kunde</Text>
-                <Text className="text-base text-foreground">{ticket.customer}</Text>
+                <Text className="text-base text-foreground">
+                  {ticket.customer?.company_name || `${ticket.customer?.first_name || ""} ${ticket.customer?.last_name || ""}`.trim() || 'Unbenannt'}
+                </Text>
               </View>
 
               <View className="flex-row gap-3">
@@ -404,7 +405,7 @@ function TicketDetailsModal({
 
               <View>
                 <Text className="text-sm text-muted mb-1">Erstellt am</Text>
-                <Text className="text-base text-foreground">{formatDate(ticket.createdAt)}</Text>
+                <Text className="text-base text-foreground">{formatDate(ticket.created_at)}</Text>
               </View>
             </View>
 

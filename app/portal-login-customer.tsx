@@ -30,7 +30,7 @@ export default function PortalLoginScreen() {
     try {
       // Direct Supabase auth for customer portal
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       });
 

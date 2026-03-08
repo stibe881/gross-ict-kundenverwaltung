@@ -21,6 +21,8 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 import { initializePushNotifications } from "@/lib/push-notifications";
+import { registerForPushNotificationsAsync } from "@/lib/notifications";
+import * as Notifications from 'expo-notifications';
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -53,44 +55,92 @@ export default function RootLayout() {
   const segmentsRef = useRef(segments);
   useEffect(() => { segmentsRef.current = segments; }, [segments]);
 
+  // Deep linking for notification taps
+  const responseListener = useRef<Notifications.EventSubscription>();
+
+  useEffect(() => {
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      const { url } = response.notification.request.content.data;
+      if (url) {
+        router.push(url as any);
+      }
+    });
+
+    return () => {
+      if (responseListener.current) {
+        responseListener.current.remove();
+      }
+    };
+  }, []);
+
   // Global Supabase auth state listener — handles SSO callback
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         // Only navigate on actual sign-in, NOT on token refresh or initial session
         if (event === "SIGNED_IN" && session && !authHandled.current) {
+          const isCustomerPortalUser = !!session.user.user_metadata?.customer_id;
+
           // Only navigate if we're actually on the login/oauth screen
           const currentSegment = segmentsRef.current[0];
-          if (currentSegment === "(tabs)") {
-            // Already on main app — just store session, don't navigate
+          if (currentSegment === "(tabs)" && !isCustomerPortalUser) {
+            // Already on main app (and allowed) — just store session, don't navigate
             await AsyncStorage.setItem("isLoggedIn", "true");
             await AsyncStorage.setItem("userEmail", session.user.email || "");
             return;
           }
+
           authHandled.current = true;
-          await AsyncStorage.setItem("isLoggedIn", "true");
-          await AsyncStorage.setItem("userEmail", session.user.email || "");
-          await AsyncStorage.setItem(
-            "userName",
-            session.user.user_metadata?.full_name ||
-            session.user.user_metadata?.name ||
-            session.user.email || ""
-          );
-          console.log("[Auth] Session stored for:", session.user.email);
-          router.replace("/(tabs)");
+
+          if (isCustomerPortalUser) {
+            console.log("[Auth] Customer portal login detected");
+            await AsyncStorage.setItem("isCustomerLoggedIn", "true");
+            await AsyncStorage.setItem("customerEmail", session.user.email || "");
+            await AsyncStorage.setItem('customer_portal_user', JSON.stringify({
+              id: session.user.id,
+              email: session.user.email,
+            }));
+
+            registerForPushNotificationsAsync("customer", session.user.id).catch(console.error);
+            router.replace("/portal-tickets-customer");
+          } else {
+            console.log("[Auth] Session stored for:", session.user.email);
+            await AsyncStorage.setItem("isLoggedIn", "true");
+            await AsyncStorage.setItem("userEmail", session.user.email || "");
+            await AsyncStorage.setItem(
+              "userName",
+              session.user.user_metadata?.full_name ||
+              session.user.user_metadata?.name ||
+              session.user.email || ""
+            );
+
+            registerForPushNotificationsAsync("admin", session.user.id).catch(console.error);
+            router.replace("/(tabs)");
+          }
+
           // Reset flag after a delay so future sign-ins are handled
           setTimeout(() => { authHandled.current = false; }, 5000);
         }
         if (event === "INITIAL_SESSION" && session) {
-          // Just store the session, don't navigate
-          await AsyncStorage.setItem("isLoggedIn", "true");
-          await AsyncStorage.setItem("userEmail", session.user.email || "");
+          const isCustomerPortalUser = !!session.user.user_metadata?.customer_id;
+          if (isCustomerPortalUser) {
+            await AsyncStorage.setItem("isCustomerLoggedIn", "true");
+            await AsyncStorage.setItem("customerEmail", session.user.email || "");
+            registerForPushNotificationsAsync("customer", session.user.id).catch(console.error);
+          } else {
+            await AsyncStorage.setItem("isLoggedIn", "true");
+            await AsyncStorage.setItem("userEmail", session.user.email || "");
+            registerForPushNotificationsAsync("admin", session.user.id).catch(console.error);
+          }
         }
         if (event === "SIGNED_OUT") {
           authHandled.current = false;
           await AsyncStorage.removeItem("isLoggedIn");
           await AsyncStorage.removeItem("userEmail");
           await AsyncStorage.removeItem("userName");
+          await AsyncStorage.removeItem("isCustomerLoggedIn");
+          await AsyncStorage.removeItem("customerEmail");
+          await AsyncStorage.removeItem("customer_portal_user");
         }
       }
     );

@@ -11,6 +11,7 @@ import { TicketFormModal } from "@/components/ticket-form-modal";
 import { LogoutButton } from "@/components/logout-button";
 import { QuoteFormModal } from "@/components/quote-form-modal";
 import { ProjectFormModal } from "@/components/project-form-modal";
+import { useQuery } from "@tanstack/react-query";
 
 
 interface DashboardTile {
@@ -44,6 +45,22 @@ export default function DashboardScreen() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["unreadAdminNotifications", (user as any)?.id],
+    queryFn: async () => {
+      if (!user) return 0;
+      const { count, error } = await supabase
+        .from("notifications")
+        .select('*', { count: 'exact', head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+      if (error) throw new Error(error.message);
+      return count || 0;
+    },
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
 
   if (loading) {
     return (
@@ -108,7 +125,23 @@ export default function DashboardScreen() {
         <View className="mb-6">
           <View className="flex-row justify-between items-center mb-2">
             <Text className="text-3xl font-bold text-foreground">Dashboard</Text>
-            <LogoutButton />
+            <View className="flex-row items-center gap-4">
+              <TouchableOpacity
+                onPress={() => router.push("/admin-notifications")}
+                className="relative"
+                activeOpacity={0.7}
+              >
+                <IconSymbol name="bell.fill" size={24} color={colors.foreground} />
+                {unreadCount > 0 && (
+                  <View className="absolute -top-1 -right-1 bg-primary rounded-full min-w-[16px] h-4 items-center justify-center px-1">
+                    <Text className="text-[10px] font-bold text-background leading-none">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <LogoutButton />
+            </View>
           </View>
           <Text className="text-base text-muted mt-1">
             Willkommen zurück
