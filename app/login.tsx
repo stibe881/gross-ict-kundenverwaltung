@@ -60,7 +60,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await Auth.signInWithPassword(email, password);
+      const { user } = await Auth.signInWithPassword(email, password);
 
       // Offer to enable biometrics after successful login
       const available = await Biometrics.isBiometricsAvailable();
@@ -75,7 +75,11 @@ export default function LoginScreen() {
         await Biometrics.saveCredentials(email, password);
       }
 
-      router.replace("/(tabs)");
+      if (user?.user_metadata?.customer_id) {
+        router.replace("/portal-tickets-customer");
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (error: any) {
       showAlert("Fehler", error.message || "Ungültige E-Mail oder Passwort");
     } finally {
@@ -115,8 +119,13 @@ export default function LoginScreen() {
       }
 
       setLoading(true);
-      await Auth.signInWithPassword(credentials.email, credentials.password);
-      router.replace("/(tabs)");
+      const { user } = await Auth.signInWithPassword(credentials.email, credentials.password);
+
+      if (user?.user_metadata?.customer_id) {
+        router.replace("/portal-tickets-customer");
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (error: any) {
       showAlert("Fehler", "Automatische Anmeldung fehlgeschlagen. Bitte melden Sie sich manuell an.");
     } finally {

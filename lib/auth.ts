@@ -24,9 +24,19 @@ export async function signInWithPassword(email: string, password: string) {
 
     // Persist login state for the app
     if (data.user) {
-        await AsyncStorage.setItem("isLoggedIn", "true");
-        await AsyncStorage.setItem("userEmail", data.user.email || "");
-        await AsyncStorage.setItem("userName", data.user.user_metadata?.full_name || data.user.email || "");
+        const isCustomer = !!data.user.user_metadata?.customer_id;
+        if (isCustomer) {
+            await AsyncStorage.setItem("isCustomerLoggedIn", "true");
+            await AsyncStorage.setItem("customerEmail", data.user.email || "");
+            await AsyncStorage.setItem('customer_portal_user', JSON.stringify({
+              id: data.user.id,
+              email: data.user.email,
+            }));
+        } else {
+            await AsyncStorage.setItem("isLoggedIn", "true");
+            await AsyncStorage.setItem("userEmail", data.user.email || "");
+            await AsyncStorage.setItem("userName", data.user.user_metadata?.full_name || data.user.email || "");
+        }
     }
 
     return data;
@@ -92,9 +102,19 @@ export async function signInWithMicrosoft() {
                         }
 
                         if (sessionData.user) {
-                            await AsyncStorage.setItem("isLoggedIn", "true");
-                            await AsyncStorage.setItem("userEmail", sessionData.user.email || "");
-                            await AsyncStorage.setItem("userName", sessionData.user.user_metadata?.full_name || sessionData.user.email || "");
+                            const isCustomer = !!sessionData.user.user_metadata?.customer_id;
+                            if (isCustomer) {
+                                await AsyncStorage.setItem("isCustomerLoggedIn", "true");
+                                await AsyncStorage.setItem("customerEmail", sessionData.user.email || "");
+                                await AsyncStorage.setItem('customer_portal_user', JSON.stringify({
+                                    id: sessionData.user.id,
+                                    email: sessionData.user.email,
+                                }));
+                            } else {
+                                await AsyncStorage.setItem("isLoggedIn", "true");
+                                await AsyncStorage.setItem("userEmail", sessionData.user.email || "");
+                                await AsyncStorage.setItem("userName", sessionData.user.user_metadata?.full_name || sessionData.user.email || "");
+                            }
                         }
 
                         resolve(sessionData);
@@ -133,9 +153,19 @@ export async function signInWithMicrosoft() {
                     if (sessionError) throw sessionError;
 
                     if (sessionData.user) {
-                        await AsyncStorage.setItem("isLoggedIn", "true");
-                        await AsyncStorage.setItem("userEmail", sessionData.user.email || "");
-                        await AsyncStorage.setItem("userName", sessionData.user.user_metadata?.full_name || sessionData.user.email || "");
+                        const isCustomer = !!sessionData.user.user_metadata?.customer_id;
+                        if (isCustomer) {
+                            await AsyncStorage.setItem("isCustomerLoggedIn", "true");
+                            await AsyncStorage.setItem("customerEmail", sessionData.user.email || "");
+                            await AsyncStorage.setItem('customer_portal_user', JSON.stringify({
+                                id: sessionData.user.id,
+                                email: sessionData.user.email,
+                            }));
+                        } else {
+                            await AsyncStorage.setItem("isLoggedIn", "true");
+                            await AsyncStorage.setItem("userEmail", sessionData.user.email || "");
+                            await AsyncStorage.setItem("userName", sessionData.user.user_metadata?.full_name || sessionData.user.email || "");
+                        }
                     }
 
                     return sessionData;
@@ -194,12 +224,22 @@ export async function signInWithApple() {
             throw new Error("Kein Konto gefunden. Bitte wenden Sie sich an den Administrator.");
         }
 
-        await AsyncStorage.setItem("isLoggedIn", "true");
-        await AsyncStorage.setItem("userEmail", data.user.email || "");
-        const name = credential.fullName
-            ? `${credential.fullName.givenName || ""} ${credential.fullName.familyName || ""}`.trim()
-            : data.user.user_metadata?.full_name || data.user.email || "";
-        await AsyncStorage.setItem("userName", name);
+        const isCustomer = !!data.user.user_metadata?.customer_id;
+        if (isCustomer) {
+            await AsyncStorage.setItem("isCustomerLoggedIn", "true");
+            await AsyncStorage.setItem("customerEmail", data.user.email || "");
+            await AsyncStorage.setItem('customer_portal_user', JSON.stringify({
+                id: data.user.id,
+                email: data.user.email,
+            }));
+        } else {
+            await AsyncStorage.setItem("isLoggedIn", "true");
+            await AsyncStorage.setItem("userEmail", data.user.email || "");
+            const name = credential.fullName
+                ? `${credential.fullName.givenName || ""} ${credential.fullName.familyName || ""}`.trim()
+                : data.user.user_metadata?.full_name || data.user.email || "";
+            await AsyncStorage.setItem("userName", name);
+        }
     }
 
     return data;

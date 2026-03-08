@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,12 +7,16 @@ import {
   Modal,
   ScrollView,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { router } from "expo-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Data from "@/lib/data";
 
 type TicketStatus = "open" | "in_progress" | "waiting" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
@@ -22,44 +26,50 @@ interface Ticket {
   title: string;
   status: TicketStatus;
   priority: TicketPriority;
-  createdAt: string;
+  created_at: string;
   description: string;
 }
 
-interface Comment {
+interface TicketComment {
   id: number;
-  type: "system" | "comment";
-  text: string;
-  createdAt: string;
-  user: string;
-  isInternal: boolean;
+  user_name: string;
+  comment: string;
+  created_at: string;
+  is_internal: boolean;
+  is_system: boolean;
 }
-
-// Mock-Daten für Kunden-Tickets (nur externe Kommentare sichtbar)
-const mockTickets: Ticket[] = [
-  {
-    id: 1,
-    title: "Problem mit Rechnung #1234",
-    status: "in_progress",
-    priority: "high",
-    createdAt: "2026-02-04",
-    description: "Rechnung stimmt nicht mit Vertrag überein",
-  },
-  {
-    id: 2,
-    title: "Frage zu Vertragslaufzeit",
-    status: "waiting",
-    priority: "medium",
-    createdAt: "2026-02-03",
-    description: "Wann läuft mein aktueller Vertrag aus?",
-  },
-];
 
 export default function PortalTicketsScreen() {
   const colors = useColors();
-  const [tickets] = useState<Ticket[]>(mockTickets);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [filter, setFilter] = useState<"all" | TicketStatus>("all");
+  const [customerId, setCustomerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('customer_portal_user').then((userStr) => {
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          // Assuming the backend saved customer_id properly in the storage payload
+          // We can also retrieve it with a Supabase auth check if needed, but this is faster
+          // The backend currently saves { id, email }. Let's look up the customer_id by fetching the portal_users record
+        } catch (e) { }
+      }
+
+      // We need to reliably get the customer_id associated with this logged in Auth session.
+      Data.supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
+        if (session?.user?.user_metadata?.customer_id) {
+          setCustomerId(session.user.user_metadata.customer_id);
+        }
+      });
+    });
+  }, []);
+
+  const { data: tickets = [], isLoading } = useQuery({
+    queryKey: ["portalTickets", customerId],
+    queryFn: () => Data.getPortalTickets(customerId!),
+    enabled: !!customerId,
+  });
 
   const getStatusLabel = (status: TicketStatus) => {
     const labels: Record<TicketStatus, string> = {
@@ -102,7 +112,7 @@ export default function PortalTicketsScreen() {
   };
 
   const filteredTickets =
-    filter === "all" ? tickets : tickets.filter((t) => t.status === filter);
+    filter === "all" ? tickets : tickets.filter((t: Ticket) => t.status === filter);
 
   const renderTicketItem = ({ item }: { item: Ticket }) => (
     <TouchableOpacity
@@ -139,15 +149,26 @@ export default function PortalTicketsScreen() {
             {getStatusLabel(item.status)}
           </Text>
         </View>
-        <Text className="text-sm text-muted">{formatDate(item.createdAt)}</Text>
+        <Text className="text-sm text-muted">{formatDate(item.created_at)}</Text>
       </View>
     </TouchableOpacity>
   );
 
-  const handleLogout = () => {
-    // TODO: Logout-Logik
-    router.push("/portal-login-customer");
+  const handleLogout = async () => {
+    await Data.supabase.auth.signOut();
+    await AsyncStorage.removeItem("isCustomerLoggedIn");
+    await AsyncStorage.removeItem("customerEmail");
+    await AsyncStorage.removeItem("customer_portal_user");
+    router.replace("/portal-login-customer");
   };
+
+  if (isLoading) {
+    return (
+      <ScreenContainer className="items-center justify-center">
+        <ActivityIndicator size="large" color={colors.primary} />
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer>
@@ -245,41 +266,36 @@ function TicketDetailsModal({
 }) {
   const colors = useColors();
   const [newComment, setNewComment] = useState("");
-  
-  // Nur externe Kommentare anzeigen (isInternal: false)
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: 1,
-      type: "system",
-      text: "Ticket erstellt",
-      createdAt: ticket.createdAt,
-      user: "System",
-      isInternal: false,
-    },
-    {
-      id: 2,
-      type: "comment",
-      text: "Vielen Dank für Ihre Anfrage. Wir prüfen das und melden uns in Kürze.",
-      createdAt: "2026-02-04T10:30:00",
-      user: "Support-Team",
-      isInternal: false,
-    },
-  ]);
+  const queryClient = useQueryClient();
+
+  const { data: comments = [], isLoading: isLoadingComments } = useQuery({
+    queryKey: ["portalTicketComments", ticket.id],
+    queryFn: () => Data.getPortalTicketComments(ticket.id),
+  });
+
+  const [customerName, setCustomerName] = useState("Kunde");
+  useEffect(() => {
+    Data.supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
+      if (session?.user?.user_metadata) {
+        const { first_name, last_name } = session.user.user_metadata;
+        if (first_name || last_name) {
+          setCustomerName(`${first_name || ""} ${last_name || ""}`.trim());
+        }
+      }
+    });
+  }, []);
+
+  const addCommentMutation = useMutation({
+    mutationFn: () => Data.addPortalTicketComment(ticket.id, newComment, customerName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["portalTicketComments", ticket.id] });
+      setNewComment("");
+    }
+  });
 
   const handleAddComment = () => {
     if (!newComment.trim()) return;
-
-    const comment: Comment = {
-      id: comments.length + 1,
-      type: "comment",
-      text: newComment,
-      createdAt: new Date().toISOString(),
-      user: "Sie",
-      isInternal: false,
-    };
-
-    setComments([...comments, comment]);
-    setNewComment("");
+    addCommentMutation.mutate();
   };
 
   const getStatusLabel = (status: TicketStatus) => {
@@ -380,37 +396,40 @@ function TicketDetailsModal({
 
               <View>
                 <Text className="text-sm text-muted mb-1">Erstellt am</Text>
-                <Text className="text-base text-foreground">{formatDate(ticket.createdAt)}</Text>
+                <Text className="text-base text-foreground">{formatDate(ticket.created_at)}</Text>
               </View>
             </View>
 
             {/* Kommunikation */}
             <View className="mt-6">
               <Text className="text-lg font-bold text-foreground mb-3">Kommunikation</Text>
-              <ScrollView className="max-h-64 mb-4" showsVerticalScrollIndicator={false}>
-                {comments.map((comment) => (
-                  <View
-                    key={comment.id}
-                    className={`mb-3 p-3 rounded-lg ${
-                      comment.type === "system" ? "bg-surface" : "bg-primary/10"
-                    }`}
-                  >
-                    <View className="flex-row items-center justify-between mb-1">
-                      <Text
-                        className={`text-xs font-semibold ${
-                          comment.type === "system" ? "text-muted" : "text-primary"
+
+              {isLoadingComments ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <ScrollView className="max-h-64 mb-4" showsVerticalScrollIndicator={false}>
+                  {comments.map((comment: TicketComment) => (
+                    <View
+                      key={comment.id}
+                      className={`mb-3 p-3 rounded-lg ${comment.is_system ? "bg-surface" : "bg-primary/10"
                         }`}
-                      >
-                        {comment.user}
-                      </Text>
-                      <Text className="text-xs text-muted">
-                        {formatDateTime(comment.createdAt)}
-                      </Text>
+                    >
+                      <View className="flex-row items-center justify-between mb-1">
+                        <Text
+                          className={`text-xs font-semibold ${comment.is_system ? "text-muted" : "text-primary"
+                            }`}
+                        >
+                          {comment.user_name || "System"}
+                        </Text>
+                        <Text className="text-xs text-muted">
+                          {formatDateTime(comment.created_at)}
+                        </Text>
+                      </View>
+                      <Text className="text-sm text-foreground">{comment.comment}</Text>
                     </View>
-                    <Text className="text-sm text-foreground">{comment.text}</Text>
-                  </View>
-                ))}
-              </ScrollView>
+                  ))}
+                </ScrollView>
+              )}
 
               {/* Kommentar hinzufügen */}
               <View className="gap-2">
@@ -423,14 +442,17 @@ function TicketDetailsModal({
                   textAlignVertical="top"
                   value={newComment}
                   onChangeText={setNewComment}
+                  editable={!addCommentMutation.isPending}
                 />
                 <TouchableOpacity
                   className="bg-primary py-2 rounded-lg"
                   onPress={handleAddComment}
+                  disabled={addCommentMutation.isPending || !newComment.trim()}
+                  style={{ opacity: addCommentMutation.isPending || !newComment.trim() ? 0.7 : 1 }}
                   activeOpacity={0.8}
                 >
                   <Text className="text-background font-semibold text-center">
-                    Antwort senden
+                    {addCommentMutation.isPending ? "Wird gesendet..." : "Antwort senden"}
                   </Text>
                 </TouchableOpacity>
               </View>

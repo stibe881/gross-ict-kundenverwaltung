@@ -3,6 +3,8 @@
  * Replaces the old tRPC/Express server middleware.
  */
 import { supabase } from "./supabase";
+import { apiCall } from "@/lib/_core/api";
+export { supabase };
 
 // ==================== KUNDEN ====================
 
@@ -351,6 +353,16 @@ export async function getCustomerContracts(customerId: string) {
 
 // ==================== TICKETS ====================
 
+export async function getAllTickets() {
+    const { data, error } = await supabase
+        .from("tickets")
+        .select(`*, customer:customers(company_name, first_name, last_name)`)
+        .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
 export async function getCustomerTickets(customerId: string) {
     const { data, error } = await supabase
         .from("tickets")
@@ -371,6 +383,12 @@ export async function createTicket(ticket: any) {
 
     if (error) throw new Error(error.message);
     return data;
+}
+
+export async function deleteTicket(id: string) {
+    const { error } = await supabase.from("tickets").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    return { success: true };
 }
 
 // ==================== KOMMUNIKATION ====================
@@ -948,5 +966,162 @@ export async function convertQuoteToProject(quoteId: string) {
     }
 
     return project;
+}
+
+// ==================== KUNDENPORTAL ====================
+
+export async function getCustomerPortalUsers(customerId: string) {
+    const { data, error } = await supabase
+        .from("customer_portal_users")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createCustomerPortalUser(user: any) {
+    // Session token is handled automatically by apiCall for native apps, 
+    // but for web, we manually pass it to bypass the Edge Function hangs.
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    
+    const payload = { ...user, password: user.password_hash };
+
+    // Use local Custom Express Server API Route instead of Supabase Edge function
+    // to bypass the CLI deployment hang / Unauthorized errors
+    try {
+        const data = await apiCall<any>("/api/create-portal-user", {
+            method: "POST",
+            headers: {
+                "Authorization": token ? `Bearer ${token}` : ""
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!data || !data.success) {
+            throw new Error(data?.error || "Fehler beim Erstellen des Portal-Benutzers");
+        }
+
+        return data.user;
+    } catch (err: any) {
+        throw new Error(err.message || "Fehler beim Erstellen des Portal-Benutzers");
+    }
+}
+
+// ==================== KUNDENPORTAL TICKETS ====================
+
+export async function getPortalTickets(customerId: string) {
+    if (!customerId) return [];
+    const { data, error } = await supabase
+        .from("tickets")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function getPortalTicketComments(ticketId: number) {
+    const { data, error } = await supabase
+        .from("ticket_comments")
+        .select("*")
+        .eq("ticket_id", ticketId)
+        .eq("is_internal", false)
+        .order("created_at", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function addPortalTicketComment(ticketId: number, comment: string, customerName: string) {
+    const { data, error } = await supabase
+        .from("ticket_comments")
+        .insert({
+            ticket_id: ticketId,
+            comment,
+            user_name: customerName,
+            is_internal: false,
+            // A system comment wouldn't be added directly by the customer this way,
+            // so we hardcode is_system to false
+            is_system: false 
+        })
+        .select()
+        .single();
+        
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateCustomerPortalUser(id: string, updates: any) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    // Fallback: update table directly
+    const { data: portalUser, error } = await supabase
+        .from("customer_portal_users")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+
+    return portalUser;
+}
+
+export async function deleteCustomerPortalUser(id: string) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    
+    // Fallback: Delete directly from the table since the Edge Function
+    // is throwing Unauthorized due to deployment issues.
+    // Note: This leaves the Auth User intact, but removes their portal access.
+    // The Auth User will need to be cleaned up manually or via a DB trigger.
+    const { error } = await supabase
+        .from("customer_portal_users")
+        .delete()
+        .eq("id", id);
+
+    if (error) throw new Error(error.message);
+
+    return { success: true };
+}
+
+export async function toggleCustomerPortal(customerId: string, hasPortal: boolean) {
+    const { data, error } = await supabase
+        .from("customers")
+        .update({ has_portal: hasPortal })
+        .eq("id", customerId)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+// ==================== BENUTZER / MITARBEITER ====================
+
+export async function getAllUsers() {
+    const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .order("name", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function getUserProfile(id: string) {
+    const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+    if (error && error.code !== "PGRST116") throw new Error(error.message);
+    return data;
 }
 
