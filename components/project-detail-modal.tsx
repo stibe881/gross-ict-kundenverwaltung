@@ -69,6 +69,8 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     const colors = useColors();
     const [activeTab, setActiveTab] = useState<TabKey>("overview");
     const [showEditModal, setShowEditModal] = useState(false);
+    const [showStatusPicker, setShowStatusPicker] = useState(false);
+    const [showPriorityPicker, setShowPriorityPicker] = useState(false);
 
     // Milestones
     const [milestones, setMilestones] = useState<any[]>([]);
@@ -327,18 +329,89 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                     <Text className="text-sm text-muted mt-2">{project.description}</Text>
                 ) : null}
 
-                <View className="flex-row flex-wrap gap-4 mt-4">
-                    <View>
-                        <Text className="text-xs text-muted">Status</Text>
-                        <Text className="text-sm font-semibold text-foreground">
-                            {STATUS_LABELS[project.status] || project.status}
-                        </Text>
+                <View className="flex-row flex-wrap gap-4 mt-4" style={{ zIndex: 50 }}>
+                    <View style={{ position: "relative", zIndex: 60 }}>
+                        <TouchableOpacity onPress={() => setShowStatusPicker(!showStatusPicker)}>
+                            <Text className="text-xs text-muted">Status</Text>
+                            <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+                                {STATUS_LABELS[project.status] || project.status} ▾
+                            </Text>
+                        </TouchableOpacity>
+                        {showStatusPicker && (
+                            <View style={{
+                                position: "absolute", top: 40, left: 0, zIndex: 100,
+                                backgroundColor: colors.surface, borderRadius: 12,
+                                borderWidth: 1, borderColor: colors.border,
+                                minWidth: 180, overflow: "hidden",
+                                shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
+                            }}>
+                                {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                                    <TouchableOpacity
+                                        key={key}
+                                        onPress={async () => {
+                                            setShowStatusPicker(false);
+                                            try {
+                                                await Data.updateProject(project.id, { status: key });
+                                                await Data.addProjectActivity(project.id, "status_change", `Status geändert: ${STATUS_LABELS[key]}`);
+                                                onUpdate();
+                                            } catch (e: any) { showAlert("Fehler", e.message); }
+                                        }}
+                                        style={{
+                                            padding: 12, paddingHorizontal: 16,
+                                            backgroundColor: project.status === key ? colors.primary + "15" : "transparent",
+                                        }}
+                                    >
+                                        <Text style={{
+                                            color: project.status === key ? colors.primary : colors.foreground,
+                                            fontWeight: project.status === key ? "700" : "400",
+                                            fontSize: 14,
+                                        }}>{label}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
                     </View>
-                    <View>
-                        <Text className="text-xs text-muted">Priorität</Text>
-                        <Text className="text-sm font-semibold" style={{ color: priorityConfig.color }}>
-                            {priorityConfig.icon} {priorityConfig.label}
-                        </Text>
+                    <View style={{ position: "relative", zIndex: 55 }}>
+                        <TouchableOpacity onPress={() => setShowPriorityPicker(!showPriorityPicker)}>
+                            <Text className="text-xs text-muted">Priorität</Text>
+                            <Text className="text-sm font-semibold" style={{ color: priorityConfig.color }}>
+                                {priorityConfig.label} ▾
+                            </Text>
+                        </TouchableOpacity>
+                        {showPriorityPicker && (
+                            <View style={{
+                                position: "absolute", top: 40, left: 0, zIndex: 100,
+                                backgroundColor: colors.surface, borderRadius: 12,
+                                borderWidth: 1, borderColor: colors.border,
+                                minWidth: 160, overflow: "hidden",
+                                shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
+                            }}>
+                                {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
+                                    <TouchableOpacity
+                                        key={key}
+                                        onPress={async () => {
+                                            setShowPriorityPicker(false);
+                                            try {
+                                                await Data.updateProject(project.id, { priority: key });
+                                                onUpdate();
+                                            } catch (e: any) { showAlert("Fehler", e.message); }
+                                        }}
+                                        style={{
+                                            padding: 12, paddingHorizontal: 16,
+                                            backgroundColor: project.priority === key ? cfg.color + "15" : "transparent",
+                                        }}
+                                    >
+                                        <Text style={{
+                                            color: project.priority === key ? cfg.color : colors.foreground,
+                                            fontWeight: project.priority === key ? "700" : "400",
+                                            fontSize: 14,
+                                        }}>{cfg.label}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
                     </View>
                     <View>
                         <Text className="text-xs text-muted">Kunde</Text>

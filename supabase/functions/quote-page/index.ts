@@ -399,11 +399,20 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
       <div class="animate-in" style="display:flex;gap:16px;margin-bottom:32px;flex-wrap:wrap;">
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">
           <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Projektstatus</div>
-          <div style="font-size:16px;font-weight:700;color:var(--text-heading);">${
-            project.status === 'planning' ? '\ud83d\udccb Planung' :
-            project.status === 'in_progress' ? '\ud83d\udd04 In Arbeit' :
-            project.status === 'completed' ? '\u2705 Abgeschlossen' : project.status
-          }</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-heading);display:flex;align-items:center;gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${
+              project.status === 'completed' ? '#22c55e' : project.status === 'in_progress' ? '#3b82f6' : 'var(--primary)'
+            }" stroke-width="2" stroke-linecap="round"><${
+              project.status === 'planning' ? 'rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/' :
+              project.status === 'in_progress' ? 'path d="M12 2v20M2 12h20"/' :
+              project.status === 'completed' ? 'path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/' : 'circle cx="12" cy="12" r="10"/'
+            }></svg>
+            ${
+              project.status === 'planning' ? 'Planung' :
+              project.status === 'in_progress' ? 'In Arbeit' :
+              project.status === 'completed' ? 'Abgeschlossen' : project.status
+            }
+          </div>
         </div>
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">
           <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Fortschritt</div>
@@ -421,25 +430,29 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
       <div class="animate-in timeline-list">
         ${milestones.map((m: any) => {
           const statusClass = m.status || 'pending';
-          const statusLabel = m.status === 'completed' ? '\u2713 Abgeschlossen' :
-            m.status === 'in_progress' ? '\u23f3 In Arbeit' : '\u25cb Ausstehend';
+          const statusIcon = m.status === 'completed' ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' :
+            m.status === 'in_progress' ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' : '';
+          const statusLabel = m.status === 'completed' ? 'Abgeschlossen' :
+            m.status === 'in_progress' ? 'In Arbeit' : 'Ausstehend';
           const statusBg = m.status === 'completed' ? 'rgba(34,197,94,0.15)' :
             m.status === 'in_progress' ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)';
           const statusColor = m.status === 'completed' ? '#22c55e' :
             m.status === 'in_progress' ? '#3b82f6' : 'var(--text-muted)';
-          return `<div class="timeline-item">
-            <div class="timeline-dot ${statusClass}">${
-              m.status === 'completed' ? '\u2713' : m.status === 'in_progress' ? '\u25d0' : ''
-            }</div>
-            <div class="timeline-card">
-              <div class="timeline-title" style="${m.status === 'completed' ? 'text-decoration:line-through;opacity:0.7;' : ''}">${escHtml(m.title)}</div>
-              <div class="timeline-meta">
-                <span class="timeline-badge" style="background:${statusBg};color:${statusColor};">${statusLabel}</span>
-                ${m.due_date ? `<span>\ud83d\udcc5 ${fmtDate(m.due_date)}</span>` : ''}
-                ${m.completed_at ? `<span>\u2713 ${fmtDate(m.completed_at)}</span>` : ''}
-              </div>
-            </div>
-          </div>`;
+          const calendarIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+          const checkIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>';
+          const dueDateHtml = m.due_date ? '<span style="display:flex;align-items:center;gap:4px;">' + calendarIcon + ' ' + fmtDate(m.due_date) + '</span>' : '';
+          const completedHtml = m.completed_at ? '<span style="display:flex;align-items:center;gap:4px;">' + checkIcon + ' ' + fmtDate(m.completed_at) + '</span>' : '';
+          return '<div class="timeline-item">'
+            + '<div class="timeline-dot ' + statusClass + '">' + statusIcon + '</div>'
+            + '<div class="timeline-card">'
+            + '<div class="timeline-title" style="' + (m.status === 'completed' ? 'text-decoration:line-through;opacity:0.7;' : '') + '">' + escHtml(m.title) + '</div>'
+            + '<div class="timeline-meta">'
+            + '<span class="timeline-badge" style="background:' + statusBg + ';color:' + statusColor + ';display:flex;align-items:center;gap:4px;">' + statusLabel + '</span>'
+            + dueDateHtml
+            + completedHtml
+            + '</div>'
+            + '</div>'
+            + '</div>';
         }).join('')}
       </div>
     </div>

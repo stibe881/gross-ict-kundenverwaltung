@@ -59,6 +59,14 @@ export default function RootLayout() {
       async (event, session) => {
         // Only navigate on actual sign-in, NOT on token refresh or initial session
         if (event === "SIGNED_IN" && session && !authHandled.current) {
+          // Only navigate if we're actually on the login/oauth screen
+          const currentSegment = segmentsRef.current[0];
+          if (currentSegment === "(tabs)") {
+            // Already on main app — just store session, don't navigate
+            await AsyncStorage.setItem("isLoggedIn", "true");
+            await AsyncStorage.setItem("userEmail", session.user.email || "");
+            return;
+          }
           authHandled.current = true;
           await AsyncStorage.setItem("isLoggedIn", "true");
           await AsyncStorage.setItem("userEmail", session.user.email || "");
@@ -69,13 +77,9 @@ export default function RootLayout() {
             session.user.email || ""
           );
           console.log("[Auth] Session stored for:", session.user.email);
-          // Only navigate if we're on the login/oauth screen
-          const currentSegment = segmentsRef.current[0];
-          if (currentSegment !== "(tabs)") {
-            router.replace("/(tabs)");
-          }
+          router.replace("/(tabs)");
           // Reset flag after a delay so future sign-ins are handled
-          setTimeout(() => { authHandled.current = false; }, 2000);
+          setTimeout(() => { authHandled.current = false; }, 5000);
         }
         if (event === "INITIAL_SESSION" && session) {
           // Just store the session, don't navigate
