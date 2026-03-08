@@ -386,6 +386,65 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
     </div>
   </section>
 
+  ${project && milestones.length > 0 ? `
+  <section class="section timeline-section">
+    <div class="container">
+      <div class="animate-in">
+        <div class="section-label">Projektplanung</div>
+        <h2>Ihre Timeline</h2>
+        <p class="section-desc">Hier sehen Sie den aktuellen Stand Ihres Projekts und die geplanten Meilensteine.</p>
+      </div>
+
+      ${project.status ? `
+      <div class="animate-in" style="display:flex;gap:16px;margin-bottom:32px;flex-wrap:wrap;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Projektstatus</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-heading);">${
+            project.status === 'planning' ? '\ud83d\udccb Planung' :
+            project.status === 'in_progress' ? '\ud83d\udd04 In Arbeit' :
+            project.status === 'completed' ? '\u2705 Abgeschlossen' : project.status
+          }</div>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Fortschritt</div>
+          <div style="font-size:16px;font-weight:700;color:var(--primary);">${Math.round((milestones.filter((m: any) => m.status === 'completed').length / milestones.length) * 100)}%</div>
+          <div style="height:6px;background:var(--border);border-radius:3px;margin-top:8px;">
+            <div style="height:6px;background:var(--primary);border-radius:3px;width:${Math.round((milestones.filter((m: any) => m.status === 'completed').length / milestones.length) * 100)}%;"></div>
+          </div>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Meilensteine</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text-heading);">${milestones.filter((m: any) => m.status === 'completed').length} / ${milestones.length}</div>
+        </div>
+      </div>` : ''}
+
+      <div class="animate-in timeline-list">
+        ${milestones.map((m: any) => {
+          const statusClass = m.status || 'pending';
+          const statusLabel = m.status === 'completed' ? '\u2713 Abgeschlossen' :
+            m.status === 'in_progress' ? '\u23f3 In Arbeit' : '\u25cb Ausstehend';
+          const statusBg = m.status === 'completed' ? 'rgba(34,197,94,0.15)' :
+            m.status === 'in_progress' ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)';
+          const statusColor = m.status === 'completed' ? '#22c55e' :
+            m.status === 'in_progress' ? '#3b82f6' : 'var(--text-muted)';
+          return `<div class="timeline-item">
+            <div class="timeline-dot ${statusClass}">${
+              m.status === 'completed' ? '\u2713' : m.status === 'in_progress' ? '\u25d0' : ''
+            }</div>
+            <div class="timeline-card">
+              <div class="timeline-title" style="${m.status === 'completed' ? 'text-decoration:line-through;opacity:0.7;' : ''}">${escHtml(m.title)}</div>
+              <div class="timeline-meta">
+                <span class="timeline-badge" style="background:${statusBg};color:${statusColor};">${statusLabel}</span>
+                ${m.due_date ? `<span>\ud83d\udcc5 ${fmtDate(m.due_date)}</span>` : ''}
+                ${m.completed_at ? `<span>\u2713 ${fmtDate(m.completed_at)}</span>` : ''}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </section>` : ''}
+
   <section class="section">
     <div class="container">
       <div class="animate-in">
@@ -446,65 +505,6 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
       </div>
     </div>
   </section>` : ""}
-
-  ${project && milestones.length > 0 ? `
-  <section class="section timeline-section">
-    <div class="container">
-      <div class="animate-in">
-        <div class="section-label">Projektplanung</div>
-        <h2>Ihre Timeline</h2>
-        <p class="section-desc">Hier sehen Sie den aktuellen Stand Ihres Projekts und die geplanten Meilensteine.</p>
-      </div>
-
-      ${project.status ? `
-      <div class="animate-in" style="display:flex;gap:16px;margin-bottom:32px;flex-wrap:wrap;">
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Projektstatus</div>
-          <div style="font-size:16px;font-weight:700;color:var(--text-heading);">${
-            project.status === 'planning' ? '📋 Planung' :
-            project.status === 'in_progress' ? '🔄 In Arbeit' :
-            project.status === 'completed' ? '✅ Abgeschlossen' : project.status
-          }</div>
-        </div>
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Fortschritt</div>
-          <div style="font-size:16px;font-weight:700;color:var(--primary);">${Math.round((milestones.filter((m: any) => m.status === 'completed').length / milestones.length) * 100)}%</div>
-          <div style="height:6px;background:var(--border);border-radius:3px;margin-top:8px;">
-            <div style="height:6px;background:var(--primary);border-radius:3px;width:${Math.round((milestones.filter((m: any) => m.status === 'completed').length / milestones.length) * 100)}%;"></div>
-          </div>
-        </div>
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Meilensteine</div>
-          <div style="font-size:16px;font-weight:700;color:var(--text-heading);">${milestones.filter((m: any) => m.status === 'completed').length} / ${milestones.length}</div>
-        </div>
-      </div>` : ''}
-
-      <div class="animate-in timeline-list">
-        ${milestones.map((m: any) => {
-          const statusClass = m.status || 'pending';
-          const statusLabel = m.status === 'completed' ? '✓ Abgeschlossen' :
-            m.status === 'in_progress' ? '⏳ In Arbeit' : '○ Ausstehend';
-          const statusBg = m.status === 'completed' ? 'rgba(34,197,94,0.15)' :
-            m.status === 'in_progress' ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)';
-          const statusColor = m.status === 'completed' ? '#22c55e' :
-            m.status === 'in_progress' ? '#3b82f6' : 'var(--text-muted)';
-          return `<div class="timeline-item">
-            <div class="timeline-dot ${statusClass}">${
-              m.status === 'completed' ? '✓' : m.status === 'in_progress' ? '◐' : ''
-            }</div>
-            <div class="timeline-card">
-              <div class="timeline-title" style="${m.status === 'completed' ? 'text-decoration:line-through;opacity:0.7;' : ''}">${escHtml(m.title)}</div>
-              <div class="timeline-meta">
-                <span class="timeline-badge" style="background:${statusBg};color:${statusColor};">${statusLabel}</span>
-                ${m.due_date ? `<span>📅 ${fmtDate(m.due_date)}</span>` : ''}
-                ${m.completed_at ? `<span>✓ ${fmtDate(m.completed_at)}</span>` : ''}
-              </div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-  </section>` : ''}
 
   <section class="section usps-section">
     <div class="container">
