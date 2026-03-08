@@ -71,6 +71,12 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     const [showEditModal, setShowEditModal] = useState(false);
     const [showStatusPicker, setShowStatusPicker] = useState(false);
     const [showPriorityPicker, setShowPriorityPicker] = useState(false);
+    const [projectData, setProjectData] = useState<any>(project);
+
+    // Keep projectData in sync with prop
+    useEffect(() => {
+        if (project) setProjectData(project);
+    }, [project]);
 
     // Milestones
     const [milestones, setMilestones] = useState<any[]>([]);
@@ -309,7 +315,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
         ? Math.round((completedCount / milestones.length) * 100)
         : 0;
 
-    const priorityConfig = PRIORITY_CONFIG[project?.priority] || PRIORITY_CONFIG.medium;
+    const priorityConfig = PRIORITY_CONFIG[projectData?.priority] || PRIORITY_CONFIG.medium;
 
     const tabs: { key: TabKey; label: string; icon: string }[] = [
         { key: "overview", label: "Übersicht", icon: "info.circle" },
@@ -324,9 +330,9 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
         <>
             {/* Project Info */}
             <View className="bg-surface rounded-xl p-4 border border-border" style={{ zIndex: 100, overflow: "visible" }}>
-                <Text className="text-xl font-bold text-foreground">{project.title}</Text>
-                {project.description ? (
-                    <Text className="text-sm text-muted mt-2">{project.description}</Text>
+                <Text className="text-xl font-bold text-foreground">{projectData.title}</Text>
+                {projectData.description ? (
+                    <Text className="text-sm text-muted mt-2">{projectData.description}</Text>
                 ) : null}
 
                 <View className="flex-row flex-wrap gap-4 mt-4" style={{ zIndex: 50 }}>
@@ -334,7 +340,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                         <TouchableOpacity onPress={() => setShowStatusPicker(!showStatusPicker)}>
                             <Text className="text-xs text-muted">Status</Text>
                             <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
-                                {STATUS_LABELS[project.status] || project.status} ▾
+                                {STATUS_LABELS[projectData.status] || projectData.status} ▾
                             </Text>
                         </TouchableOpacity>
                         {showStatusPicker && (
@@ -352,19 +358,20 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                         onPress={async () => {
                                             setShowStatusPicker(false);
                                             try {
-                                                await Data.updateProject(project.id, { status: key });
-                                                await Data.addProjectActivity(project.id, "status_change", `Status geändert: ${STATUS_LABELS[key]}`);
+                                                await Data.updateProject(projectData.id, { status: key });
+                                                await Data.addProjectActivity(projectData.id, "status_change", `Status geändert: ${STATUS_LABELS[key]}`);
+                                                setProjectData({ ...projectData, status: key });
                                                 onUpdate();
                                             } catch (e: any) { showAlert("Fehler", e.message); }
                                         }}
                                         style={{
                                             padding: 12, paddingHorizontal: 16,
-                                            backgroundColor: project.status === key ? colors.primary + "15" : "transparent",
+                                            backgroundColor: projectData.status === key ? colors.primary + "15" : "transparent",
                                         }}
                                     >
                                         <Text style={{
-                                            color: project.status === key ? colors.primary : colors.foreground,
-                                            fontWeight: project.status === key ? "700" : "400",
+                                            color: projectData.status === key ? colors.primary : colors.foreground,
+                                            fontWeight: projectData.status === key ? "700" : "400",
                                             fontSize: 14,
                                         }}>{label}</Text>
                                     </TouchableOpacity>
@@ -394,18 +401,19 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                         onPress={async () => {
                                             setShowPriorityPicker(false);
                                             try {
-                                                await Data.updateProject(project.id, { priority: key });
+                                                await Data.updateProject(projectData.id, { priority: key });
+                                                setProjectData({ ...projectData, priority: key });
                                                 onUpdate();
                                             } catch (e: any) { showAlert("Fehler", e.message); }
                                         }}
                                         style={{
                                             padding: 12, paddingHorizontal: 16,
-                                            backgroundColor: project.priority === key ? cfg.color + "15" : "transparent",
+                                            backgroundColor: projectData.priority === key ? cfg.color + "15" : "transparent",
                                         }}
                                     >
                                         <Text style={{
-                                            color: project.priority === key ? cfg.color : colors.foreground,
-                                            fontWeight: project.priority === key ? "700" : "400",
+                                            color: projectData.priority === key ? cfg.color : colors.foreground,
+                                            fontWeight: projectData.priority === key ? "700" : "400",
                                             fontSize: 14,
                                         }}>{cfg.label}</Text>
                                     </TouchableOpacity>
