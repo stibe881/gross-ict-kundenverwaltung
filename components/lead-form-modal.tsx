@@ -33,6 +33,7 @@ export function LeadFormModal({
     company: "",
     email: "",
     phone: "",
+    website: "",
     value: "",
     status: "new",
     source: "",
@@ -47,6 +48,7 @@ export function LeadFormModal({
         company: lead.company || "",
         email: lead.email || "",
         phone: lead.phone || "",
+        website: lead.website || "",
         value: lead.value?.toString() || "",
         status: lead.status || "new",
         source: lead.source || "",
@@ -58,6 +60,7 @@ export function LeadFormModal({
         company: "",
         email: "",
         phone: "",
+        website: "",
         value: "",
         status: "new",
         source: "",
@@ -79,6 +82,7 @@ export function LeadFormModal({
         company: formData.company || undefined,
         email: formData.email || undefined,
         phone: formData.phone || undefined,
+        website: formData.website || undefined,
         value: formData.value ? parseFloat(formData.value) : 0,
         status: formData.status,
         source: formData.source || undefined,
@@ -195,6 +199,24 @@ export function LeadFormModal({
                   value={formData.phone}
                   onChangeText={(text) =>
                     setFormData({ ...formData, phone: text })
+                  }
+                />
+              </View>
+
+              {/* Website */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Website
+                </Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="www.firma.ch"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="url"
+                  autoCapitalize="none"
+                  value={formData.website}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, website: text })
                   }
                 />
               </View>
