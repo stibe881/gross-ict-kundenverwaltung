@@ -486,7 +486,7 @@ function LeadDetailsModal({
           <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
             <View className="gap-4">
               <View>
-                <Text className="text-sm text-muted mb-1">Name</Text>
+                <Text className="text-sm text-muted mb-1">Kontaktperson</Text>
                 <Text className="text-lg font-semibold text-foreground">{lead.name}</Text>
               </View>
 
