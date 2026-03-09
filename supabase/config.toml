@@ -400,7 +400,7 @@ entrypoint = "./functions/vcard/index.ts"
 
 [functions.generate-wallet-pass]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/generate-wallet-pass/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx

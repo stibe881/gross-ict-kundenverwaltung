@@ -152,7 +152,10 @@ export default function BusinessCardScreen() {
                         encoding: FileSystem.EncodingType.Base64,
                     });
 
-                    if (await Sharing.isAvailableAsync()) {
+                    // On iOS, open the file directly — iOS recognizes .pkpass and shows "Add to Wallet"
+                    if (Platform.OS === 'ios') {
+                        await Linking.openURL(filepath);
+                    } else if (await Sharing.isAvailableAsync()) {
                         await Sharing.shareAsync(filepath, {
                             mimeType: 'application/vnd.apple.pkpass',
                             dialogTitle: 'Visitenkarte zum Wallet hinzufügen',

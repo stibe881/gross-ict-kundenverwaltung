@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { sendTicketNotification } from "@/lib/push-notifications";
 
@@ -28,11 +28,12 @@ export function TicketFormModal({
   onSuccess,
 }: TicketFormModalProps) {
   const colors = useColors();
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     title: ticket?.title || "",
     description: ticket?.description || "",
     priority: ticket?.priority || "medium",
-    customerId: ticket?.customerId || null,
+    customerId: ticket?.customer_id || ticket?.customerId || null,
   });
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
 
@@ -42,7 +43,9 @@ export function TicketFormModal({
     queryFn: Data.getCustomersWithCounts,
   });
 
-  const selectedCustomer = customers?.find((c) => c.id === formData.customerId);
+  const selectedCustomer = customers?.find((c: any) => c.id === formData.customerId);
+
+  const getCustomerName = (c: any) => c.company_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || 'Unbekannt';
 
   const handleSubmit = async () => {
     if (!formData.title || !formData.description) {
@@ -50,17 +53,37 @@ export function TicketFormModal({
       return;
     }
 
-    console.log("Ticket submitted:", formData);
+    try {
+      const ticketData = {
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        customer_id: formData.customerId || undefined,
+        status: "open",
+      };
 
-    // Sende Push-Benachrichtigung für neues Ticket
-    if (!ticket && selectedCustomer) {
-      await sendTicketNotification(
-        formData.title,
-        selectedCustomer.name
-      );
+      if (ticket?.id) {
+        await Data.updateTicket(ticket.id, ticketData);
+      } else {
+        await Data.createTicket(ticketData);
+      }
+
+      // Invalidate queries to refresh
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+
+      // Sende Push-Benachrichtigung für neues Ticket
+      if (!ticket && selectedCustomer) {
+        sendTicketNotification(
+          formData.title,
+          getCustomerName(selectedCustomer)
+        ).catch(console.error);
+      }
+
+      onSuccess?.();
+      onClose();
+    } catch (error: any) {
+      alert("Fehler: " + error.message);
     }
-
-    onClose();
   };
 
   return (
@@ -137,8 +160,8 @@ export function TicketFormModal({
                     <TouchableOpacity
                       key={priority.value}
                       className={`flex-1 py-3 rounded-lg ${formData.priority === priority.value
-                          ? "bg-primary"
-                          : "bg-surface border border-border"
+                        ? "bg-primary"
+                        : "bg-surface border border-border"
                         }`}
                       onPress={() =>
                         setFormData({ ...formData, priority: priority.value })
@@ -147,8 +170,8 @@ export function TicketFormModal({
                     >
                       <Text
                         className={`text-center font-semibold ${formData.priority === priority.value
-                            ? "text-background"
-                            : "text-foreground"
+                          ? "text-background"
+                          : "text-foreground"
                           }`}
                       >
                         {priority.label}
@@ -170,8 +193,7 @@ export function TicketFormModal({
                 >
                   <Text className={selectedCustomer ? "text-foreground" : "text-muted"}>
                     {selectedCustomer
-                      ? selectedCustomer.companyName ||
-                      `${selectedCustomer.firstName} ${selectedCustomer.lastName}`
+                      ? getCustomerName(selectedCustomer)
                       : "Kunde auswählen..."}
                   </Text>
                 </TouchableOpacity>
@@ -246,8 +268,7 @@ export function TicketFormModal({
                     activeOpacity={0.7}
                   >
                     <Text className="text-base font-semibold text-foreground">
-                      {customer.companyName ||
-                        `${customer.firstName} ${customer.lastName}`}
+                      {getCustomerName(customer)}
                     </Text>
                     {customer.email && (
                       <Text className="text-sm text-muted">{customer.email}</Text>

@@ -3,10 +3,10 @@
  * Replaces the old tRPC/Express server middleware.
  */
 import { supabase } from "./supabase";
-import { apiCall } from "@/lib/_core/api";
+import { apiCall } from "./_core/api";
 export { supabase };
 
-async function triggerPushNotification(
+export async function triggerPushNotification(
     recipients: string[] | "all_admins",
     recipientType: "admin" | "customer",
     title: string,
@@ -405,10 +405,50 @@ export async function createTicket(ticket: any) {
     return data;
 }
 
+export async function updateTicket(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from("tickets")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
 export async function deleteTicket(id: string) {
     const { error } = await supabase.from("tickets").delete().eq("id", id);
     if (error) throw new Error(error.message);
     return { success: true };
+}
+
+export async function getTicketComments(ticketId: string) {
+    const { data, error } = await supabase
+        .from("ticket_comments")
+        .select("*")
+        .eq("ticket_id", ticketId)
+        .order("created_at", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function addTicketComment(ticketId: string, comment: string, userName: string = "Admin", isInternal: boolean = true) {
+    const { data, error } = await supabase
+        .from("ticket_comments")
+        .insert({
+            ticket_id: ticketId,
+            comment,
+            user_name: userName,
+            is_internal: isInternal,
+            is_system: false,
+        })
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
 }
 
 // ==================== KOMMUNIKATION ====================
@@ -572,7 +612,13 @@ export async function convertQuoteToInvoice(quoteId: string) {
     await supabase.from("quotes").update({ status: "accepted" }).eq("id", quoteId);
 
     if (quote.quote_number) {
-        triggerPushNotification("all_admins", "admin", "Angebot angenommen", `Das Angebot ${quote.quote_number} wurde vom Kunden angenommen!`, { url: '/quotes' }).catch(console.error);
+        triggerPushNotification(
+            "all_admins",
+            "admin",
+            "Angebot angenommen",
+            `Das Angebot ${quote.quote_number} wurde angenommen und in eine Rechnung umgewandelt!`,
+            { url: "/quotes" }
+        );
     }
 
     return invoice;
@@ -584,6 +630,20 @@ export async function updateQuoteStatus(quoteId: string, status: string) {
         .update({ status })
         .eq("id", quoteId);
     if (error) throw new Error(error.message);
+
+    // Push wenn Angebot angenommen
+    if (status === "accepted") {
+        const quote = await getQuoteById(quoteId).catch(() => null);
+        if (quote) {
+            triggerPushNotification(
+                "all_admins",
+                "admin",
+                "Angebot angenommen",
+                `Das Angebot ${quote.quote_number || quoteId} wurde angenommen!`,
+                { url: "/quotes" }
+            );
+        }
+    }
 }
 
 // Auto-expire quotes whose valid_until date has passed

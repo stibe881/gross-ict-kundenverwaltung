@@ -50,7 +50,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
-    buildNumber: "12",
+    buildNumber: "15",
     "infoPlist": {
       "ITSAppUsesNonExemptEncryption": false,
       "NSFaceIDUsageDescription": "Wir nutzen Face ID für den schnellen Login."
@@ -88,12 +88,12 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    "expo-notifications",
     [
       "expo-splash-screen",
       {
         image: "./assets/images/splash-icon.png",
         imageWidth: 200,
-        resizeMode: "contain",
         backgroundColor: "#ffffff",
         dark: {
           backgroundColor: "#000000",

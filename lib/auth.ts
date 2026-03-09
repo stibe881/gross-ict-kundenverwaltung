@@ -6,6 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 
 // Ensure browser auth sessions are completed on native
 if (Platform.OS !== "web") {
@@ -49,17 +50,24 @@ export async function signInWithPassword(email: string, password: string) {
 export async function signInWithMicrosoft() {
     // Redirect back to the app root — the global auth listener in _layout.tsx
     // will detect the SIGNED_IN event and navigate to the dashboard.
-    const redirectTo = Platform.OS === "web"
-        ? window.location.origin
-        : Linking.createURL("oauth/callback");
+    let redirectTo: string;
+    if (Platform.OS === "web") {
+        redirectTo = window.location.origin;
+    } else {
+        // In Expo Go, Linking.createURL uses exp:// scheme which works correctly.
+        // In standalone builds, it uses the custom scheme from app.config.ts.
+        redirectTo = Linking.createURL("oauth/callback");
+    }
 
     console.log("[Auth] OAuth redirectTo:", redirectTo);
+    console.log("[Auth] Execution env:", Constants.executionEnvironment);
 
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "azure",
         options: {
             redirectTo,
             scopes: "openid profile email",
+            skipBrowserRedirect: true,  // We handle the browser ourselves
             queryParams: {
                 prompt: "select_account",
             },
@@ -70,115 +78,85 @@ export async function signInWithMicrosoft() {
 
     if (data.url) {
         if (Platform.OS === "web") {
-            // On web: redirect directly
             window.location.href = data.url;
-        } else if (Platform.OS === "android") {
-            // Android Expo Go: openAuthSessionAsync/openBrowserAsync (Chrome Custom Tabs)
-            // können exp:// Redirects nicht abfangen.
-            // Stattdessen: System-Browser öffnen, der kann exp:// Deep Links verarbeiten.
-            return new Promise(async (resolve) => {
-                const subscription = Linking.addEventListener("url", async (event) => {
-                    subscription.remove();
-
-                    const url = event.url;
-                    console.log("[Auth] Android deep link received:", url.substring(0, 80));
-
-                    const hashIndex = url.indexOf("#");
-                    const hash = hashIndex >= 0 ? url.substring(hashIndex + 1) : "";
-                    const params = new URLSearchParams(hash);
-                    const accessToken = params.get("access_token");
-                    const refreshToken = params.get("refresh_token");
-
-                    if (accessToken) {
-                        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-                            access_token: accessToken,
-                            refresh_token: refreshToken || "",
-                        });
-
-                        if (sessionError) {
-                            console.error("[Auth] Session error:", sessionError);
-                            resolve(null);
-                            return;
-                        }
-
-                        if (sessionData.user) {
-                            const isCustomer = !!sessionData.user.user_metadata?.customer_id;
-                            if (isCustomer) {
-                                await AsyncStorage.setItem("isCustomerLoggedIn", "true");
-                                await AsyncStorage.setItem("customerEmail", sessionData.user.email || "");
-                                await AsyncStorage.setItem('customer_portal_user', JSON.stringify({
-                                    id: sessionData.user.id,
-                                    email: sessionData.user.email,
-                                }));
-                            } else {
-                                await AsyncStorage.setItem("isLoggedIn", "true");
-                                await AsyncStorage.setItem("userEmail", sessionData.user.email || "");
-                                await AsyncStorage.setItem("userName", sessionData.user.user_metadata?.full_name || sessionData.user.email || "");
-                            }
-                        }
-
-                        resolve(sessionData);
-                    } else {
-                        console.error("[Auth] No access_token in Android callback:", url);
-                        resolve(null);
-                    }
-                });
-
-                // System-Browser öffnen statt Custom Tabs
-                await Linking.openURL(data.url);
-            });
         } else {
-            // iOS: openAuthSessionAsync works correctly
+            // Native (iOS + Android): Use openAuthSessionAsync with PKCE
+            // ASWebAuthenticationSession intercepts the HTTP 302 redirect to exp://
+            console.log("[Auth] Native: openAuthSessionAsync with redirectTo:", redirectTo);
             const result = await WebBrowser.openAuthSessionAsync(
                 data.url,
-                redirectTo
+                redirectTo,
+                { preferEphemeralSession: true }
             );
 
+            console.log("[Auth] Native result type:", result.type);
+
             if (result.type === "success" && result.url) {
-                // Extract tokens from the callback URL hash
+                console.log("[Auth] Callback URL:", result.url.substring(0, 120));
+
+                // Try PKCE flow first: extract ?code= query parameter
+                const urlObj = new URL(result.url);
+                const code = urlObj.searchParams.get("code");
+
+                if (code) {
+                    console.log("[Auth] PKCE code received, exchanging for session...");
+                    const { data: sessionData, error: sessionError } = 
+                        await supabase.auth.exchangeCodeForSession(code);
+
+                    if (sessionError) {
+                        console.error("[Auth] Code exchange error:", sessionError);
+                        throw sessionError;
+                    }
+
+                    await saveSessionToStorage(sessionData);
+                    return sessionData;
+                }
+
+                // Fallback: implicit flow with hash fragment (#access_token=...)
                 const hashIndex = result.url.indexOf("#");
                 const hash = hashIndex >= 0 ? result.url.substring(hashIndex + 1) : "";
                 const params = new URLSearchParams(hash);
                 const accessToken = params.get("access_token");
                 const refreshToken = params.get("refresh_token");
 
-                console.log("[Auth] OAuth callback result:", { hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken, url: result.url.substring(0, 80) });
-
                 if (accessToken) {
+                    console.log("[Auth] Implicit flow tokens received");
                     const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
                         access_token: accessToken,
                         refresh_token: refreshToken || "",
                     });
 
                     if (sessionError) throw sessionError;
-
-                    if (sessionData.user) {
-                        const isCustomer = !!sessionData.user.user_metadata?.customer_id;
-                        if (isCustomer) {
-                            await AsyncStorage.setItem("isCustomerLoggedIn", "true");
-                            await AsyncStorage.setItem("customerEmail", sessionData.user.email || "");
-                            await AsyncStorage.setItem('customer_portal_user', JSON.stringify({
-                                id: sessionData.user.id,
-                                email: sessionData.user.email,
-                            }));
-                        } else {
-                            await AsyncStorage.setItem("isLoggedIn", "true");
-                            await AsyncStorage.setItem("userEmail", sessionData.user.email || "");
-                            await AsyncStorage.setItem("userName", sessionData.user.user_metadata?.full_name || sessionData.user.email || "");
-                        }
-                    }
-
+                    await saveSessionToStorage(sessionData);
                     return sessionData;
-                } else {
-                    console.error("[Auth] No access_token found in callback URL:", result.url);
                 }
+
+                console.error("[Auth] No code or access_token in callback URL");
             } else {
-                console.log("[Auth] OAuth browser result:", result.type);
+                console.log("[Auth] Auth session returned:", result.type);
             }
         }
     }
 
     return null;
+}
+
+/** Helper: persist user session info to AsyncStorage */
+async function saveSessionToStorage(sessionData: any) {
+    if (!sessionData?.user) return;
+    const isCustomer = !!sessionData.user.user_metadata?.customer_id;
+    if (isCustomer) {
+        await AsyncStorage.setItem("isCustomerLoggedIn", "true");
+        await AsyncStorage.setItem("customerEmail", sessionData.user.email || "");
+        await AsyncStorage.setItem('customer_portal_user', JSON.stringify({
+            id: sessionData.user.id,
+            email: sessionData.user.email,
+        }));
+    } else {
+        await AsyncStorage.setItem("isLoggedIn", "true");
+        await AsyncStorage.setItem("userEmail", sessionData.user.email || "");
+        await AsyncStorage.setItem("userName", sessionData.user.user_metadata?.full_name || sessionData.user.email || "");
+    }
 }
 
 /**

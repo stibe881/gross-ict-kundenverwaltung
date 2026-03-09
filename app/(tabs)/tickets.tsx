@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ScrollView,
   Text,
@@ -21,15 +21,37 @@ import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
 
 type TicketStatus = "open" | "in_progress" | "waiting" | "closed";
-type TicketPriority = "low" | "medium" | "high" | "urgent";
+type TicketPriority = "low" | "medium" | "high";
 
 export default function TicketsScreen() {
   const router = useRouter();
   const colors = useColors();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"all" | TicketStatus>("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+  const [currentUserName, setCurrentUserName] = useState("Admin");
+
+  // Mitarbeitende laden für Filter
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ["users"],
+    queryFn: Data.getAllUsers,
+  });
+
+  // Aktuellen Benutzer-Namen laden
+  useEffect(() => {
+    Data.supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const name = session.user.user_metadata?.full_name
+          || session.user.user_metadata?.name
+          || `${session.user.user_metadata?.first_name || ''} ${session.user.user_metadata?.last_name || ''}`.trim()
+          || session.user.email?.split('@')[0]
+          || 'Admin';
+        setCurrentUserName(name);
+      }
+    });
+  }, []);
 
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ["tickets"],
@@ -83,7 +105,6 @@ export default function TicketsScreen() {
       low: "Niedrig",
       medium: "Mittel",
       high: "Hoch",
-      urgent: "Dringend",
     };
     return labels[priority];
   };
@@ -92,14 +113,14 @@ export default function TicketsScreen() {
     const colorMap: Record<TicketPriority, string> = {
       low: "#6C757D",
       medium: colors.primary,
-      high: colors.warning,
-      urgent: colors.error,
+      high: colors.error,
     };
     return colorMap[priority];
   };
 
-  const filteredTickets =
-    filter === "all" ? tickets : tickets.filter((t) => t.status === filter);
+  const filteredTickets = tickets
+    .filter((t) => filter === "all" || t.status === filter)
+    .filter((t) => assigneeFilter === "all" || t.assigned_to === assigneeFilter);
 
   const renderTicketItem = ({ item }: { item: any }) => (
     <TouchableOpacity
@@ -110,7 +131,7 @@ export default function TicketsScreen() {
       <View className="flex-row items-start justify-between mb-2">
         <View className="flex-1">
           <Text className="text-lg font-semibold text-foreground mb-1">{item.title}</Text>
-          <Text className="text-sm text-muted">{item.customer}</Text>
+          <Text className="text-sm text-muted">{item.customer?.company_name || `${item.customer?.first_name || ''} ${item.customer?.last_name || ''}`.trim() || 'Unbekannt'}</Text>
         </View>
         <View
           className="px-3 py-1 rounded-full ml-2"
@@ -207,6 +228,31 @@ export default function TicketsScreen() {
           </View>
         </ScrollView>
 
+        {/* Zuweisungs-Filter */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              className={`px-3 py-1.5 rounded-md ${assigneeFilter === "all" ? "bg-primary" : "bg-surface border border-border"}`}
+              onPress={() => setAssigneeFilter("all")}
+            >
+              <Text className={`text-sm font-semibold ${assigneeFilter === "all" ? "text-background" : "text-foreground"}`}>
+                Alle Zuweisungen
+              </Text>
+            </TouchableOpacity>
+            {allUsers.map((user: any) => (
+              <TouchableOpacity
+                key={user.id}
+                className={`px-3 py-1.5 rounded-md ${assigneeFilter === user.id ? "bg-primary" : "bg-surface border border-border"}`}
+                onPress={() => setAssigneeFilter(user.id)}
+              >
+                <Text className={`text-sm font-semibold ${assigneeFilter === user.id ? "text-background" : "text-foreground"}`}>
+                  {user.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+
         {/* Ticket-Liste */}
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
@@ -244,6 +290,7 @@ export default function TicketsScreen() {
         <TicketDetailsModal
           ticket={selectedTicket}
           onClose={() => setSelectedTicket(null)}
+          currentUserName={currentUserName}
         />
       )}
     </ScreenContainer>
@@ -254,96 +301,124 @@ export default function TicketsScreen() {
 function TicketDetailsModal({
   ticket,
   onClose,
+  currentUserName,
 }: {
   ticket: any;
   onClose: () => void;
+  currentUserName: string;
 }) {
   const colors = useColors();
+  const queryClient = useQueryClient();
+  const [currentStatus, setCurrentStatus] = useState<TicketStatus>(ticket.status || "open");
+  const [currentPriority, setCurrentPriority] = useState<TicketPriority>(ticket.priority || "medium");
+  const [assignedTo, setAssignedTo] = useState<string | null>(ticket.assigned_to || null);
   const [newComment, setNewComment] = useState("");
-  const [isInternal, setIsInternal] = useState(true); // Default: Internal
-  const [comments, setComments] = useState([
-    {
-      id: 1,
-      type: "system" as const,
-      text: "Ticket erstellt",
-      createdAt: ticket.created_at || new Date().toISOString(),
-      user: "System",
-      isInternal: true,
-    },
-    {
-      id: 2,
-      type: "comment" as const,
-      text: "Kunde kontaktiert, Problem analysiert",
-      createdAt: "2026-02-04T10:30:00",
-      user: "Max Muster",
-      isInternal: true,
-    },
-    {
-      id: 3,
-      type: "comment" as const,
-      text: "Frage an Kunden gesendet",
-      createdAt: "2026-02-04T11:00:00",
-      user: "Max Muster",
-      isInternal: false,
-    },
-  ]);
+  const [addingComment, setAddingComment] = useState(false);
+  const [isInternalComment, setIsInternalComment] = useState(true);
+  const [showAssignPicker, setShowAssignPicker] = useState(false);
 
-  const handleAddComment = () => {
+  // Kommentare laden
+  const { data: comments, refetch: refetchComments } = useQuery({
+    queryKey: ["ticket-comments", ticket.id],
+    queryFn: () => Data.getTicketComments(ticket.id),
+  });
+
+  // Mitarbeitende laden
+  const { data: users = [] } = useQuery({
+    queryKey: ["users"],
+    queryFn: Data.getAllUsers,
+  });
+
+  const statusOptions: { key: TicketStatus; label: string; color: string }[] = [
+    { key: "open", label: "Offen", color: colors.error },
+    { key: "in_progress", label: "In Bearbeitung", color: colors.primary },
+    { key: "waiting", label: "Wartend", color: colors.warning },
+    { key: "closed", label: "Geschlossen", color: colors.success },
+  ];
+
+  const priorityOptions: { key: TicketPriority; label: string; color: string }[] = [
+    { key: "low", label: "Niedrig", color: colors.success },
+    { key: "medium", label: "Mittel", color: colors.warning },
+    { key: "high", label: "Hoch", color: colors.error },
+  ];
+
+  const handleStatusChange = async (newStatus: TicketStatus) => {
+    setCurrentStatus(newStatus);
+    try {
+      await Data.updateTicket(ticket.id, { status: newStatus });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    } catch (err: any) {
+      setCurrentStatus(ticket.status);
+      showAlert("Fehler", err.message);
+    }
+  };
+
+  const handlePriorityChange = async (newPriority: TicketPriority) => {
+    setCurrentPriority(newPriority);
+    try {
+      await Data.updateTicket(ticket.id, { priority: newPriority });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    } catch (err: any) {
+      setCurrentPriority(ticket.priority);
+      showAlert("Fehler", err.message);
+    }
+  };
+
+  const handleAssign = async (userId: string | null) => {
+    setAssignedTo(userId);
+    setShowAssignPicker(false);
+    try {
+      await Data.updateTicket(ticket.id, { assigned_to: userId });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      // Push-Benachrichtigung an zugewiesenen Mitarbeiter
+      if (userId) {
+        const assignedUserName = users.find((u: any) => u.id === userId)?.name || "Jemand";
+        Data.triggerPushNotification(
+          [userId],
+          "admin",
+          "Ticket zugewiesen",
+          `Dir wurde das Ticket "${ticket.title}" zugewiesen.`,
+          { type: "ticket_assigned", ticketId: ticket.id }
+        );
+      }
+    } catch (err: any) {
+      setAssignedTo(ticket.assigned_to);
+      showAlert("Fehler", err.message);
+    }
+  };
+
+  const handleAddComment = async () => {
     if (!newComment.trim()) return;
-
-    const comment = {
-      id: comments.length + 1,
-      type: "comment" as const,
-      text: newComment,
-      createdAt: new Date().toISOString(),
-      user: "Aktueller Benutzer",
-      isInternal: isInternal,
-    };
-
-    setComments([...comments, comment]);
-    setNewComment("");
-    setIsInternal(true); // Reset to default (Internal)
+    setAddingComment(true);
+    try {
+      await Data.addTicketComment(ticket.id, newComment.trim(), currentUserName, isInternalComment);
+      setNewComment("");
+      refetchComments();
+    } catch (err: any) {
+      showAlert("Fehler", err.message);
+    } finally {
+      setAddingComment(false);
+    }
   };
 
-  const getStatusLabel = (status: TicketStatus) => {
-    const labels: Record<TicketStatus, string> = {
-      open: "Offen",
-      in_progress: "In Bearbeitung",
-      waiting: "Wartet",
-      closed: "Geschlossen",
-    };
-    return labels[status];
+  const handleDelete = () => {
+    showConfirm(
+      "Ticket löschen",
+      "Möchten Sie dieses Ticket wirklich unwiderruflich löschen?",
+      async () => {
+        try {
+          await Data.deleteTicket(ticket.id);
+          queryClient.invalidateQueries({ queryKey: ["tickets"] });
+          onClose();
+        } catch (err: any) {
+          showAlert("Fehler", err.message);
+        }
+      },
+      "Löschen"
+    );
   };
 
-  const getStatusColor = (status: TicketStatus) => {
-    const colorMap: Record<TicketStatus, string> = {
-      open: colors.error,
-      in_progress: colors.primary,
-      waiting: colors.warning,
-      closed: colors.success,
-    };
-    return colorMap[status];
-  };
-
-  const getPriorityLabel = (priority: TicketPriority) => {
-    const labels: Record<TicketPriority, string> = {
-      low: "Niedrig",
-      medium: "Mittel",
-      high: "Hoch",
-      urgent: "Dringend",
-    };
-    return labels[priority];
-  };
-
-  const getPriorityColor = (priority: TicketPriority) => {
-    const colorMap: Record<TicketPriority, string> = {
-      low: colors.success,
-      medium: colors.warning,
-      high: colors.error,
-      urgent: "#DC143C",
-    };
-    return colorMap[priority];
-  };
+  const assignedUser = users.find((u: any) => u.id === assignedTo);
 
   return (
     <Modal visible={true} animationType="slide" transparent onRequestClose={onClose}>
@@ -365,158 +440,214 @@ function TicketDetailsModal({
                 <Text className="text-lg font-semibold text-foreground">{ticket.title}</Text>
               </View>
 
-              <View>
-                <Text className="text-sm text-muted mb-1">Kunde</Text>
-                <Text className="text-base text-foreground">
-                  {ticket.customer?.company_name || `${ticket.customer?.first_name || ""} ${ticket.customer?.last_name || ""}`.trim() || 'Unbenannt'}
-                </Text>
-              </View>
+              {ticket.description ? (
+                <View>
+                  <Text className="text-sm text-muted mb-1">Beschreibung</Text>
+                  <Text className="text-base text-foreground">{ticket.description}</Text>
+                </View>
+              ) : null}
 
-              <View className="flex-row gap-3">
+              <View className="flex-row gap-4">
                 <View className="flex-1">
-                  <Text className="text-sm text-muted mb-1">Status</Text>
-                  <View
-                    className="px-3 py-2 rounded-lg"
-                    style={{ backgroundColor: getStatusColor(ticket.status) + "20" }}
-                  >
-                    <Text
-                      className="text-sm font-semibold text-center"
-                      style={{ color: getStatusColor(ticket.status) }}
-                    >
-                      {getStatusLabel(ticket.status)}
-                    </Text>
-                  </View>
+                  <Text className="text-sm text-muted mb-1">Kunde</Text>
+                  <Text className="text-base text-foreground">
+                    {ticket.customer?.company_name || `${ticket.customer?.first_name || ""} ${ticket.customer?.last_name || ""}`.trim() || 'Kein Kunde'}
+                  </Text>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm text-muted mb-1">Priorität</Text>
-                  <View
-                    className="px-3 py-2 rounded-lg"
-                    style={{ backgroundColor: getPriorityColor(ticket.priority) + "20" }}
-                  >
-                    <Text
-                      className="text-sm font-semibold text-center"
-                      style={{ color: getPriorityColor(ticket.priority) }}
-                    >
-                      {getPriorityLabel(ticket.priority)}
-                    </Text>
-                  </View>
+                  <Text className="text-sm text-muted mb-1">Erstellt am</Text>
+                  <Text className="text-base text-foreground">{formatDate(ticket.created_at)}</Text>
                 </View>
               </View>
 
+              {/* Zugewiesen an */}
               <View>
-                <Text className="text-sm text-muted mb-1">Erstellt am</Text>
-                <Text className="text-base text-foreground">{formatDate(ticket.created_at)}</Text>
-              </View>
-            </View>
+                <Text className="text-sm font-semibold text-foreground mb-2">Zugewiesen an</Text>
+                <TouchableOpacity
+                  className="bg-surface border border-border rounded-lg px-3 py-3 flex-row items-center justify-between"
+                  onPress={() => setShowAssignPicker(!showAssignPicker)}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-foreground text-sm">
+                    {assignedUser ? assignedUser.name : "Nicht zugewiesen"}
+                  </Text>
+                  <IconSymbol name="chevron.down" size={14} color={colors.muted} />
+                </TouchableOpacity>
 
-            {/* Historie */}
-            <View className="mt-6">
-              <Text className="text-lg font-bold text-foreground mb-3">Historie</Text>
-              <ScrollView className="max-h-64 mb-4" showsVerticalScrollIndicator={false}>
-                {comments.map((comment) => (
-                  <View
-                    key={comment.id}
-                    className={`mb-3 p-3 rounded-lg ${comment.type === "system" ? "bg-surface" : "bg-primary/10"
-                      }`}
-                  >
-                    <View className="flex-row items-center justify-between mb-1">
-                      <View className="flex-row items-center gap-2">
-                        <Text
-                          className={`text-xs font-semibold ${comment.type === "system" ? "text-muted" : "text-primary"
-                            }`}
-                        >
-                          {comment.user}
-                        </Text>
-                        {comment.type === "comment" && (
-                          <View
-                            style={{
-                              backgroundColor: comment.isInternal
-                                ? colors.warning + "20"
-                                : colors.success + "20",
-                            }}
-                            className="px-2 py-0.5 rounded"
-                          >
-                            <Text
-                              style={{
-                                color: comment.isInternal ? colors.warning : colors.success,
-                              }}
-                              className="text-xs font-semibold"
-                            >
-                              {comment.isInternal ? "Intern" : "Extern"}
-                            </Text>
-                          </View>
+                {showAssignPicker && (
+                  <View className="bg-surface border border-border rounded-lg mt-1 overflow-hidden">
+                    <TouchableOpacity
+                      className="px-3 py-3 border-b border-border"
+                      onPress={() => handleAssign(null)}
+                      activeOpacity={0.7}
+                    >
+                      <Text className="text-sm text-muted italic">Nicht zugewiesen</Text>
+                    </TouchableOpacity>
+                    {users.map((user: any) => (
+                      <TouchableOpacity
+                        key={user.id}
+                        className="px-3 py-3 border-b border-border flex-row items-center justify-between"
+                        onPress={() => handleAssign(user.id)}
+                        activeOpacity={0.7}
+                        style={{ backgroundColor: assignedTo === user.id ? colors.primary + "15" : "transparent" }}
+                      >
+                        <Text className="text-sm text-foreground">{user.name}</Text>
+                        {assignedTo === user.id && (
+                          <IconSymbol name="checkmark" size={14} color={colors.primary} />
                         )}
-                      </View>
-                      <Text className="text-xs text-muted">
-                        {formatDateTime(comment.createdAt)}
-                      </Text>
-                    </View>
-                    <Text className="text-sm text-foreground">{comment.text}</Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
-                ))}
-              </ScrollView>
+                )}
+              </View>
 
-              {/* Kommentar hinzufügen */}
-              <View className="gap-2">
-                {/* Internal/External Toggle */}
-                <View className="flex-row items-center justify-between bg-surface p-3 rounded-lg border border-border">
-                  <View className="flex-row items-center gap-2">
-                    <Text className="text-sm font-semibold text-foreground">
-                      {isInternal ? "Interner Kommentar" : "Externer Kommentar"}
-                    </Text>
-                    <View
+              {/* Status ändern */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">Status</Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {statusOptions.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.key}
+                      className="px-3 py-2 rounded-lg"
                       style={{
-                        backgroundColor: isInternal
-                          ? colors.warning + "20"
-                          : colors.success + "20",
+                        backgroundColor: currentStatus === opt.key ? opt.color : opt.color + "15",
+                        borderWidth: currentStatus === opt.key ? 0 : 1,
+                        borderColor: currentStatus === opt.key ? "transparent" : opt.color + "40",
                       }}
-                      className="px-2 py-1 rounded"
+                      onPress={() => handleStatusChange(opt.key)}
+                      activeOpacity={0.7}
                     >
                       <Text
-                        style={{
-                          color: isInternal ? colors.warning : colors.success,
-                        }}
                         className="text-xs font-semibold"
+                        style={{ color: currentStatus === opt.key ? "#FFFFFF" : opt.color }}
                       >
-                        {isInternal ? "Nur für Mitarbeiter" : "Für Kunden sichtbar"}
+                        {opt.label}
                       </Text>
-                    </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Priorität ändern */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">Priorität</Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {priorityOptions.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.key}
+                      className="px-3 py-2 rounded-lg"
+                      style={{
+                        backgroundColor: currentPriority === opt.key ? opt.color : opt.color + "15",
+                        borderWidth: currentPriority === opt.key ? 0 : 1,
+                        borderColor: currentPriority === opt.key ? "transparent" : opt.color + "40",
+                      }}
+                      onPress={() => handlePriorityChange(opt.key)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        className="text-xs font-semibold"
+                        style={{ color: currentPriority === opt.key ? "#FFFFFF" : opt.color }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Kommentare / Historie */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">Kommentare & Historie</Text>
+
+                {comments && comments.length > 0 ? (
+                  <View className="gap-2 mb-3">
+                    {comments.map((c: any) => (
+                      <View key={c.id} className="bg-surface p-3 rounded-lg border border-border">
+                        <View className="flex-row items-center justify-between mb-1">
+                          <View className="flex-row items-center gap-2">
+                            <Text className="text-xs font-semibold text-primary">
+                              {c.user_name || "System"}
+                            </Text>
+                            <View className="px-1.5 py-0.5 rounded" style={{ backgroundColor: c.is_internal ? colors.warning + "20" : colors.success + "20" }}>
+                              <Text className="text-[10px] font-semibold" style={{ color: c.is_internal ? colors.warning : colors.success }}>
+                                {c.is_internal ? "Intern" : "Kunde sichtbar"}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text className="text-xs text-muted">
+                            {formatDateTime(c.created_at)}
+                          </Text>
+                        </View>
+                        <Text className="text-sm text-foreground">{c.comment}</Text>
+                      </View>
+                    ))}
                   </View>
-                  <Switch
-                    value={!isInternal}
-                    onValueChange={(value) => setIsInternal(!value)}
-                    trackColor={{ false: colors.warning, true: colors.success }}
-                    thumbColor={colors.background}
-                  />
+                ) : (
+                  <Text className="text-sm text-muted mb-3">Noch keine Kommentare vorhanden.</Text>
+                )}
+
+                {/* Sichtbarkeit Toggle */}
+                <View className="flex-row items-center gap-2 mb-2">
+                  <TouchableOpacity
+                    className="flex-row items-center px-3 py-1.5 rounded-full"
+                    style={{
+                      backgroundColor: isInternalComment ? colors.warning + "20" : colors.success + "20",
+                      borderWidth: 1,
+                      borderColor: isInternalComment ? colors.warning + "40" : colors.success + "40",
+                    }}
+                    onPress={() => setIsInternalComment(!isInternalComment)}
+                    activeOpacity={0.7}
+                  >
+                    <IconSymbol
+                      name={isInternalComment ? "lock.fill" : "globe"}
+                      size={12}
+                      color={isInternalComment ? colors.warning : colors.success}
+                    />
+                    <Text
+                      className="text-xs font-semibold ml-1.5"
+                      style={{ color: isInternalComment ? colors.warning : colors.success }}
+                    >
+                      {isInternalComment ? "Nur intern" : "Kunde sichtbar"}
+                    </Text>
+                  </TouchableOpacity>
+                  <Text className="text-xs text-muted">Tippen um zu wechseln</Text>
                 </View>
 
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="Kommentar hinzufügen..."
-                  placeholderTextColor={colors.muted}
-                  multiline
-                  numberOfLines={2}
-                  textAlignVertical="top"
-                  value={newComment}
-                  onChangeText={setNewComment}
-                />
-                <TouchableOpacity
-                  className="bg-primary py-2 rounded-lg"
-                  onPress={handleAddComment}
-                  activeOpacity={0.8}
-                >
-                  <Text className="text-background font-semibold text-center">
-                    Kommentar hinzufügen
-                  </Text>
-                </TouchableOpacity>
+                {/* Neuer Kommentar */}
+                <View className="flex-row gap-2">
+                  <TextInput
+                    className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                    placeholder="Kommentar schreiben..."
+                    placeholderTextColor={colors.muted}
+                    value={newComment}
+                    onChangeText={setNewComment}
+                    multiline
+                  />
+                  <TouchableOpacity
+                    className="bg-primary px-4 rounded-lg justify-center"
+                    onPress={handleAddComment}
+                    activeOpacity={0.7}
+                    disabled={addingComment || !newComment.trim()}
+                    style={{ opacity: addingComment || !newComment.trim() ? 0.5 : 1 }}
+                  >
+                    <IconSymbol name="paperplane.fill" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </ScrollView>
 
           {/* Footer */}
-          <View className="p-4 border-t border-border">
+          <View className="p-4 border-t border-border flex-row gap-3">
             <TouchableOpacity
-              className="bg-surface border border-border py-3 rounded-lg"
+              className="flex-1 bg-error/10 border border-error/30 py-3 rounded-lg"
+              onPress={handleDelete}
+              activeOpacity={0.8}
+            >
+              <Text className="text-error font-semibold text-center">Löschen</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 bg-surface border border-border py-3 rounded-lg"
               onPress={onClose}
               activeOpacity={0.8}
             >

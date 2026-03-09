@@ -39,8 +39,10 @@ serve(async (req) => {
 
     const pass = new PKPass({
       "pass.json": Buffer.from(JSON.stringify({
+        formatVersion: 1,
         passTypeIdentifier: "pass.ch.gross-ict.visitenkarte",
-        teamIdentifier: "YOUR_TEAM_ID", // We will let the library parse it from the cert or we might need to set it
+        teamIdentifier: "QF59FHQ44R",
+        serialNumber: `pass-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         organizationName: "Gross ICT",
         description: "Gross ICT Visitenkarte",
         logoText: "Gross ICT",

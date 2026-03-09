@@ -38,6 +38,8 @@ const MAPPING = {
   "arrow.down.doc.fill": "download",
   "xmark": "close",
   "checkmark": "check",
+  "bell.fill": "notifications",
+  "bell.slash.fill": "notifications-off",
 } as IconMapping;
 
 /**

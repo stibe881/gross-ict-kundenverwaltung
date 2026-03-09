@@ -26,6 +26,7 @@ export default function CustomerDetailScreen() {
   const [activeTab, setActiveTab] = useState<Tab>("stammdaten");
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [editingContract, setEditingContract] = useState<any>(null);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
 
   // Kundendaten aus Supabase laden
   const { data: customer, isLoading: loading } = useQuery({
@@ -462,9 +463,11 @@ export default function CustomerDetailScreen() {
         return (
           <View className="gap-3">
             {tickets.map((ticket: any) => (
-              <View
+              <TouchableOpacity
                 key={ticket.id}
                 className="bg-surface p-4 rounded-xl border border-border"
+                activeOpacity={0.7}
+                onPress={() => setSelectedTicket(ticket)}
               >
                 <View className="flex-row items-start justify-between mb-2">
                   <Text className="text-lg font-semibold text-foreground flex-1">
@@ -515,7 +518,7 @@ export default function CustomerDetailScreen() {
                     Priorität: {priorityLabels[ticket.priority] || ticket.priority}
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         );
@@ -701,6 +704,77 @@ export default function CustomerDetailScreen() {
             setEditingContract(null);
           }}
         />
+      )}
+
+      {/* Ticket-Detail-Modal */}
+      {selectedTicket && (
+        <Modal visible={true} animationType="slide" transparent onRequestClose={() => setSelectedTicket(null)}>
+          <View className="flex-1 bg-black/50 justify-end">
+            <View className="bg-background rounded-t-3xl" style={{ maxHeight: "90%" }}>
+              <View className="flex-row items-center justify-between p-4 border-b border-border">
+                <Text className="text-2xl font-bold text-foreground">Ticket-Details</Text>
+                <TouchableOpacity onPress={() => setSelectedTicket(null)} activeOpacity={0.7}>
+                  <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
+                <View className="gap-4">
+                  <View>
+                    <Text className="text-sm text-muted mb-1">Titel</Text>
+                    <Text className="text-lg font-semibold text-foreground">{selectedTicket.title}</Text>
+                  </View>
+                  {selectedTicket.description ? (
+                    <View>
+                      <Text className="text-sm text-muted mb-1">Beschreibung</Text>
+                      <Text className="text-base text-foreground">{selectedTicket.description}</Text>
+                    </View>
+                  ) : null}
+                  <View className="flex-row gap-3">
+                    <View className="flex-1">
+                      <Text className="text-sm text-muted mb-1">Status</Text>
+                      <View className="px-3 py-2 rounded-lg" style={{ backgroundColor: (selectedTicket.status === "open" ? colors.error : selectedTicket.status === "in_progress" ? colors.primary : selectedTicket.status === "waiting" ? colors.warning : colors.success) + "20" }}>
+                        <Text className="text-sm font-semibold text-center" style={{ color: selectedTicket.status === "open" ? colors.error : selectedTicket.status === "in_progress" ? colors.primary : selectedTicket.status === "waiting" ? colors.warning : colors.success }}>
+                          {selectedTicket.status === "open" ? "Offen" : selectedTicket.status === "in_progress" ? "In Bearbeitung" : selectedTicket.status === "waiting" ? "Wartend" : "Geschlossen"}
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-sm text-muted mb-1">Priorität</Text>
+                      <View className="px-3 py-2 rounded-lg" style={{ backgroundColor: (selectedTicket.priority === "low" ? colors.success : selectedTicket.priority === "medium" ? colors.warning : colors.error) + "20" }}>
+                        <Text className="text-sm font-semibold text-center" style={{ color: selectedTicket.priority === "low" ? colors.success : selectedTicket.priority === "medium" ? colors.warning : colors.error }}>
+                          {selectedTicket.priority === "low" ? "Niedrig" : selectedTicket.priority === "medium" ? "Mittel" : selectedTicket.priority === "high" ? "Hoch" : "Dringend"}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View>
+                    <Text className="text-sm text-muted mb-1">Erstellt am</Text>
+                    <Text className="text-base text-foreground">{formatDate(selectedTicket.created_at)}</Text>
+                  </View>
+                </View>
+              </ScrollView>
+              <View className="p-4 border-t border-border flex-row gap-3">
+                <TouchableOpacity
+                  className="flex-1 bg-error/10 border border-error/30 py-3 rounded-lg"
+                  onPress={() => {
+                    handleDeleteTicket(selectedTicket.id);
+                    setSelectedTicket(null);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-error font-semibold text-center">Löschen</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-1 bg-surface border border-border py-3 rounded-lg"
+                  onPress={() => setSelectedTicket(null)}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-foreground font-semibold text-center">Schließen</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       )}
     </>
   );

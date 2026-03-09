@@ -26,12 +26,24 @@ export function ContractFormModal({
   onSuccess,
 }: ContractFormModalProps) {
   const colors = useColors();
+  // DB speichert YYYY-MM-DD, Anzeige als DD.MM.YYYY
+  const toDisplay = (d: string) => {
+    if (!d) return "";
+    const parts = d.split("-");
+    return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : d;
+  };
+  const toDb = (d: string) => {
+    if (!d) return "";
+    const parts = d.split(".");
+    return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : d;
+  };
+
   const [formData, setFormData] = useState({
     title: contract?.title || "",
     description: contract?.description || "",
     customerId: contract?.customer_id || contract?.customerId || null,
-    amount: contract?.amount?.toString() || "",
-    startDate: contract?.start_date || contract?.startDate || "",
+    amount: (contract?.annual_amount || contract?.amount)?.toString() || "",
+    startDate: toDisplay(contract?.start_date || contract?.startDate || ""),
     durationMonths: (contract?.duration_months || contract?.durationMonths)?.toString() || "12",
     noticePeriodMonths: (contract?.notice_period_months || contract?.noticePeriodMonths)?.toString() || "3",
   });
@@ -80,11 +92,12 @@ export function ContractFormModal({
     setShowTemplatePicker(false);
   };
 
-  // Enddatum automatisch berechnen
+  // Enddatum automatisch berechnen (Input ist DD.MM.YYYY)
   const calculateEndDate = () => {
     try {
       if (!formData.startDate || !formData.durationMonths) return "";
-      const start = new Date(formData.startDate);
+      const dbDate = toDb(formData.startDate);
+      const start = new Date(dbDate);
       if (isNaN(start.getTime())) return "";
       const end = new Date(start);
       end.setMonth(end.getMonth() + parseInt(formData.durationMonths));
@@ -108,7 +121,7 @@ export function ContractFormModal({
         title: formData.title,
         description: formData.description || undefined,
         amount: parseFloat(formData.amount),
-        start_date: formData.startDate,
+        start_date: toDb(formData.startDate),
         end_date: endDate || undefined,
         duration_months: parseInt(formData.durationMonths) || 12,
         notice_period_months: parseInt(formData.noticePeriodMonths) || 3,
@@ -274,7 +287,7 @@ export function ContractFormModal({
                   }
                 />
                 <Text className="text-xs text-muted mt-1">
-                  Format: JJJJ-MM-TT (z.B. 2026-01-15)
+                  Format: TT.MM.JJJJ (z.B. 15.01.2026)
                 </Text>
               </View>
 

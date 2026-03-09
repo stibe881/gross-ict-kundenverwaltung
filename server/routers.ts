@@ -328,7 +328,7 @@ export const appRouter = router({
           id: z.string(),
           title: z.string().optional(),
           description: z.string().optional(),
-          status: z.enum(["open", "in_progress", "closed"]).optional(),
+          status: z.enum(["open", "in_progress", "waiting", "closed"]).optional(),
           priority: z.enum(["low", "medium", "high"]).optional(),
         })
       )

@@ -101,14 +101,22 @@ export default function QuoteDetailScreen() {
         },
     });
 
-    // Auto-expire on load
+    // Auto-expire on load / Auto-reactivate if validity was extended
     useEffect(() => {
-        if (quote && quote.valid_until && (quote.status === "draft" || quote.status === "sent")) {
+        if (quote && quote.valid_until) {
             const validDate = new Date(quote.valid_until);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            if (validDate < today) {
+
+            if (validDate < today && (quote.status === "draft" || quote.status === "sent")) {
+                // Abgelaufen: setze auf expired
                 Data.updateQuoteStatus(quote.id, "expired").then(() => {
+                    queryClient.invalidateQueries({ queryKey: ["quote", id] });
+                    queryClient.invalidateQueries({ queryKey: ["quotes"] });
+                });
+            } else if (validDate >= today && quote.status === "expired") {
+                // Gültigkeit wurde verlängert: reaktiviere als 'sent'
+                Data.updateQuoteStatus(quote.id, "sent").then(() => {
                     queryClient.invalidateQueries({ queryKey: ["quote", id] });
                     queryClient.invalidateQueries({ queryKey: ["quotes"] });
                 });

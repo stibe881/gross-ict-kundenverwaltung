@@ -123,6 +123,106 @@ async function startServer() {
     res.send(pixel);
   });
 
+  // ── Public Vertrags-Ansicht & Signatur ──
+
+  app.get("/api/public/contracts/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { getContractByToken } = await import("../supabase-db");
+      const contract = await getContractByToken(token);
+      if (!contract) return res.status(404).json({ error: "Vertrag nicht gefunden" });
+      // Return contract data (without sensitive internal fields)
+      res.json({
+        title: contract.title,
+        description: contract.description,
+        start_date: contract.start_date,
+        end_date: contract.end_date,
+        annual_amount: contract.annual_amount,
+        notice_period_months: contract.notice_period_months,
+        status: contract.status,
+        signature_date: contract.signature_date,
+        signature_name: contract.signature_name,
+        customer: contract.customer ? {
+          company_name: contract.customer.company_name,
+          first_name: contract.customer.first_name,
+          last_name: contract.customer.last_name,
+        } : null,
+      });
+    } catch (err: any) {
+      console.error("[public-contract] Error:", err);
+      res.status(500).json({ error: "Vertrag konnte nicht geladen werden" });
+    }
+  });
+
+  app.post("/api/public/contracts/:token/sign", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { name } = req.body;
+      if (!name || !name.trim()) return res.status(400).json({ error: "Name ist erforderlich" });
+
+      const clientIp = req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "unknown";
+      const { signContract } = await import("../supabase-db");
+      const contract = await signContract(token, name.trim(), clientIp);
+
+      // Notify admin
+      try {
+        const { notifyOwner } = await import("./notification");
+        await notifyOwner({
+          title: "✍️ Vertrag unterzeichnet",
+          content: `${name.trim()} hat den Vertrag "${contract.title}" digital unterzeichnet.`,
+        });
+      } catch (e) { /* ignore notification errors */ }
+
+      res.json({ success: true, signature_date: contract.signature_date });
+    } catch (err: any) {
+      console.error("[sign-contract] Error:", err);
+      res.status(500).json({ error: "Vertrag konnte nicht unterzeichnet werden" });
+    }
+  });
+
+  app.post("/api/send-contract-email", async (req, res) => {
+    try {
+      const { contractId } = req.body;
+      if (!contractId) return res.status(400).json({ error: "contractId fehlt" });
+
+      const supabaseDb = await import("../supabase-db");
+      const { sendContractEmail } = await import("../email");
+
+      // Get the contract with customer data
+      const { data: contract, error } = await (await import("../supabase-client")).supabase
+        .from("contracts")
+        .select("*, customer:customers(*)")
+        .eq("id", contractId)
+        .single();
+
+      if (error || !contract) return res.status(404).json({ error: "Vertrag nicht gefunden" });
+      if (!contract.customer?.email) return res.status(400).json({ error: "Kunde hat keine E-Mail-Adresse" });
+
+      const fmtDate = (d: string) => {
+        if (!d) return "-";
+        const parts = d.split("-");
+        return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : d;
+      };
+
+      const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || `http://localhost:3000`;
+      const signUrl = `${baseUrl}/contract-view?token=${contract.token}`;
+
+      await sendContractEmail({
+        to: contract.customer.email,
+        contractTitle: contract.title,
+        startDate: fmtDate(contract.start_date),
+        endDate: fmtDate(contract.end_date),
+        annualAmount: Number(contract.annual_amount).toFixed(2),
+        signUrl,
+      });
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[send-contract-email] Error:", err);
+      res.status(500).json({ error: err.message || "E-Mail konnte nicht gesendet werden" });
+    }
+  });
+
   // ── Direkte E-Mail-Endpunkte (kein tRPC, einfacher JSON POST) ──
 
   app.post("/api/create-portal-user", async (req, res) => {

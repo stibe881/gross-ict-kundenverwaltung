@@ -570,7 +570,20 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
         </div>
       </div>
     </div>
-  </section>` : ""}
+  </section>` : `
+  <section class="section action-section">
+    <div class="container action-glow">
+      <div class="action-box animate-in">
+        ${isAccepted ? '<div style="font-size:56px;margin-bottom:16px;">&#x2705;</div><h2 style="color:#22c55e;">Angebot angenommen</h2><p>Vielen Dank f&uuml;r Ihr Vertrauen. Hier k&ouml;nnen Sie das Angebot weiterhin als PDF herunterladen.</p>' : '<h2>Dieses Angebot ist nicht mehr g&uuml;ltig</h2><p>Sie k&ouml;nnen das Angebot trotzdem als PDF herunterladen.</p>'}
+        <div class="action-buttons">
+          <button class="btn btn-secondary" onclick="downloadPdf()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Angebot als PDF herunterladen
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>`}
 
   <footer class="site-footer">
     <div class="container footer-inner">

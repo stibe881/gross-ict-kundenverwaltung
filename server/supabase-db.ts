@@ -236,6 +236,38 @@ export async function updateContract(id: string, contract: any) {
   return data;
 }
 
+export async function getContractByToken(token: string) {
+  const { data, error } = await supabase
+    .from("contracts")
+    .select(`
+      *,
+      customer:customers(*)
+    `)
+    .eq("token", token)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function signContract(token: string, signatureName: string, signatureIp: string) {
+  const { data, error } = await supabase
+    .from("contracts")
+    .update({
+      signature_name: signatureName,
+      signature_ip: signatureIp,
+      signature_date: new Date().toISOString(),
+      status: "active",
+    })
+    .eq("token", token)
+    .is("signature_date", null)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 // ==================== TICKETS ====================
 
 export async function getAllTickets() {
