@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS leads (
     priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
     notes TEXT,
     assigned_to UUID REFERENCES users(id),
+    quote_id UUID REFERENCES quotes(id),
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );

@@ -444,6 +444,8 @@ function LeadDetailsModal({
   const [newActivity, setNewActivity] = useState("");
   const [currentUserName, setCurrentUserName] = useState("Admin");
   const [currentStatus, setCurrentStatus] = useState(lead.status);
+  const [linkedQuoteId, setLinkedQuoteId] = useState<string | null>(lead.quote_id || null);
+  const [showQuotePicker, setShowQuotePicker] = useState(false);
 
   // Echten Benutzernamen laden
   useEffect(() => {
@@ -463,6 +465,14 @@ function LeadDetailsModal({
     queryKey: ["lead_activities", lead.id],
     queryFn: () => Data.getLeadActivities(lead.id),
   });
+
+  // Quotes laden für Verknüpfung
+  const { data: allQuotes = [] } = useQuery({
+    queryKey: ["quotes"],
+    queryFn: Data.getAllQuotes,
+    enabled: currentStatus === 'proposal' || !!linkedQuoteId,
+  });
+  const linkedQuote = allQuotes.find((q: any) => q.id === linkedQuoteId);
 
   const updateStatus = useMutation({
     mutationFn: (status: string) => Data.updateLead(lead.id, { status }),
@@ -610,6 +620,74 @@ function LeadDetailsModal({
                   </View>
                 </View>
               </View>
+
+              {/* Verknüpftes Angebot */}
+              {(currentStatus === 'proposal' || linkedQuoteId) && (
+                <View className="bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-sm font-semibold text-foreground mb-2">Verknüpftes Angebot</Text>
+                  {linkedQuote ? (
+                    <View className="flex-row items-center justify-between">
+                      <View>
+                        <Text className="text-base font-semibold text-foreground">{linkedQuote.quote_number}</Text>
+                        <Text className="text-sm text-muted">{linkedQuote.customer?.company_name || linkedQuote.customer?.first_name} • CHF {(linkedQuote.total || 0).toLocaleString('de-CH')}</Text>
+                      </View>
+                      <TouchableOpacity
+                        className="px-3 py-1.5 rounded-lg bg-error/20"
+                        onPress={async () => {
+                          await Data.updateLead(lead.id, { quote_id: null });
+                          setLinkedQuoteId(null);
+                          queryClient.invalidateQueries({ queryKey: ["leads"] });
+                        }}
+                      >
+                        <Text className="text-xs font-semibold text-error">Entfernen</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View>
+                      {showQuotePicker ? (
+                        <View className="gap-2">
+                          {allQuotes.length === 0 ? (
+                            <Text className="text-sm text-muted">Keine Angebote vorhanden</Text>
+                          ) : (
+                            allQuotes.slice(0, 10).map((q: any) => (
+                              <TouchableOpacity
+                                key={q.id}
+                                className="bg-background rounded-lg p-3 border border-border"
+                                onPress={async () => {
+                                  await Data.updateLead(lead.id, { quote_id: q.id });
+                                  setLinkedQuoteId(q.id);
+                                  setShowQuotePicker(false);
+                                  await Data.addLeadActivity({
+                                    lead_id: lead.id,
+                                    type: 'system',
+                                    content: `Angebot ${q.quote_number} verknüpft`,
+                                    user_name: 'System',
+                                  });
+                                  refetchActivities();
+                                  queryClient.invalidateQueries({ queryKey: ["leads"] });
+                                }}
+                              >
+                                <Text className="text-sm font-semibold text-foreground">{q.quote_number}</Text>
+                                <Text className="text-xs text-muted">{q.customer?.company_name || q.customer?.first_name} • CHF {(q.total || 0).toLocaleString('de-CH')}</Text>
+                              </TouchableOpacity>
+                            ))
+                          )}
+                          <TouchableOpacity onPress={() => setShowQuotePicker(false)}>
+                            <Text className="text-sm text-muted text-center mt-1">Abbrechen</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          className="bg-primary/10 rounded-lg p-3 items-center"
+                          onPress={() => setShowQuotePicker(true)}
+                        >
+                          <Text className="text-sm font-semibold text-primary">Angebot verknüpfen</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
 
               {/* Status ändern */}
               <View>
