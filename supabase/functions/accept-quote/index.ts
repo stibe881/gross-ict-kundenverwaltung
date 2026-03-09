@@ -134,11 +134,11 @@ Deno.serve(async (req) => {
     }
 
     // Optional: E-Mail-Benachrichtigung an Gross ICT
+    const customerName = (quote.customer as any)?.company_name ||
+      `${(quote.customer as any)?.first_name || ""} ${(quote.customer as any)?.last_name || ""}`.trim() || "Kunde";
+
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (resendApiKey) {
-      const customerName = (quote.customer as any)?.company_name ||
-        `${(quote.customer as any)?.first_name || ""} ${(quote.customer as any)?.last_name || ""}`.trim() || "Kunde";
-
       try {
         await fetch("https://api.resend.com/emails", {
           method: "POST",
@@ -159,6 +159,39 @@ Deno.serve(async (req) => {
       } catch (emailErr) {
         console.error("[accept-quote] Notification email failed:", emailErr);
       }
+    }
+
+    // Push-Benachrichtigung an alle Admins
+    try {
+      // Get all admin users with push tokens
+      const { data: admins } = await supabase
+        .from("users")
+        .select("id, push_token")
+        .not("push_token", "is", null);
+
+      if (admins && admins.length > 0) {
+        const messages = admins
+          .filter((a: any) => a.push_token?.startsWith("ExponentPushToken"))
+          .map((a: any) => ({
+            to: a.push_token,
+            sound: "default",
+            title: "Angebot angenommen! 🎉",
+            body: `${customerName} hat das Angebot ${quote.quote_number} angenommen.`,
+            data: { url: "/quotes" },
+          }));
+
+        if (messages.length > 0) {
+          const pushRes = await fetch("https://exp.host/--/api/v2/push/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(messages),
+          });
+          const pushResult = await pushRes.json();
+          console.log("[accept-quote] Push sent:", JSON.stringify(pushResult));
+        }
+      }
+    } catch (pushErr) {
+      console.error("[accept-quote] Push notification failed:", pushErr);
     }
 
     return new Response(

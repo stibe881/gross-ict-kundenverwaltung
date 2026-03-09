@@ -19,7 +19,18 @@ export async function triggerPushNotification(
             body: { recipients, recipientType, title, body, data },
         });
         if (error) {
-            console.error("[Push] Edge Function error:", error);
+            // Extract actual error details from response
+            const ctx = (error as any)?.context;
+            let details = '';
+            try {
+                if (ctx && typeof ctx.json === 'function') {
+                    const errBody = await ctx.json();
+                    details = JSON.stringify(errBody);
+                } else if (ctx && typeof ctx.text === 'function') {
+                    details = await ctx.text();
+                }
+            } catch (_) {}
+            console.error("[Push] Edge Function error:", error.message, "Details:", details);
         } else {
             console.log("[Push] Edge Function response:", JSON.stringify(result));
         }
