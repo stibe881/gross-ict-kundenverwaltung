@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import * as Data from "@/lib/data";
+import { showAlert } from "@/lib/alert";
 
 interface LeadFormModalProps {
   visible: boolean;
@@ -25,18 +27,20 @@ export function LeadFormModal({
   onSuccess,
 }: LeadFormModalProps) {
   const colors = useColors();
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
-    name: lead?.name || "",
-    company: lead?.company || "",
-    email: lead?.email || "",
-    phone: lead?.phone || "",
-    value: lead?.value?.toString() || "",
-    status: lead?.status || "new",
-    notes: lead?.notes || "",
+    name: "",
+    company: "",
+    email: "",
+    phone: "",
+    value: "",
+    status: "new",
+    source: "",
+    notes: "",
   });
 
   // Formular aktualisieren wenn lead sich ändert
-  useState(() => {
+  useEffect(() => {
     if (lead) {
       setFormData({
         name: lead.name || "",
@@ -45,32 +49,62 @@ export function LeadFormModal({
         phone: lead.phone || "",
         value: lead.value?.toString() || "",
         status: lead.status || "new",
+        source: lead.source || "",
         notes: lead.notes || "",
       });
+    } else {
+      setFormData({
+        name: "",
+        company: "",
+        email: "",
+        phone: "",
+        value: "",
+        status: "new",
+        source: "",
+        notes: "",
+      });
     }
-  });
+  }, [lead, visible]);
 
-  const handleSubmit = () => {
-    if (!formData.name || !formData.company) {
-      alert("Bitte füllen Sie mindestens Name und Firma aus");
+  const handleSubmit = async () => {
+    if (!formData.name && !formData.company) {
+      showAlert("Fehler", "Bitte geben Sie mindestens einen Namen oder eine Firma ein.");
       return;
     }
 
-    // TODO: API-Call implementieren
-    console.log("Lead erstellen:", formData);
-    onSuccess?.();
-    onClose();
-    
-    // Reset form
-    setFormData({
-      name: "",
-      company: "",
-      email: "",
-      phone: "",
-      value: "",
-      status: "new",
-      notes: "",
-    });
+    setSaving(true);
+    try {
+      const payload = {
+        name: formData.name,
+        company: formData.company || undefined,
+        email: formData.email || undefined,
+        phone: formData.phone || undefined,
+        value: formData.value ? parseFloat(formData.value) : 0,
+        status: formData.status,
+        source: formData.source || undefined,
+        notes: formData.notes || undefined,
+      };
+
+      if (lead) {
+        await Data.updateLead(lead.id, payload);
+      } else {
+        const newLead = await Data.createLead(payload);
+        // System-Aktivität für neuen Lead
+        await Data.addLeadActivity({
+          lead_id: newLead.id,
+          type: "system",
+          text: "Lead erstellt",
+          user_name: "System",
+        });
+      }
+
+      onSuccess?.();
+      onClose();
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -101,7 +135,7 @@ export function LeadFormModal({
               {/* Name */}
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
-                  Kontaktperson *
+                  Kontaktperson
                 </Text>
                 <TextInput
                   className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
@@ -117,7 +151,7 @@ export function LeadFormModal({
               {/* Firma */}
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
-                  Firma *
+                  Firma
                 </Text>
                 <TextInput
                   className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
@@ -172,7 +206,7 @@ export function LeadFormModal({
                 </Text>
                 <TextInput
                   className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="10'000"
+                  placeholder="10000"
                   placeholderTextColor={colors.muted}
                   keyboardType="decimal-pad"
                   value={formData.value}
@@ -182,10 +216,47 @@ export function LeadFormModal({
                 />
               </View>
 
+              {/* Quelle */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Quelle
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {[
+                    { key: "", label: "Keine" },
+                    { key: "website", label: "Website" },
+                    { key: "empfehlung", label: "Empfehlung" },
+                    { key: "messe", label: "Messe" },
+                    { key: "kaltakquise", label: "Kaltakquise" },
+                    { key: "social_media", label: "Social Media" },
+                  ].map((sourceOption) => (
+                    <TouchableOpacity
+                      key={sourceOption.key}
+                      className={`px-3 py-1.5 rounded-lg border ${formData.source === sourceOption.key
+                        ? "bg-primary border-primary"
+                        : "bg-surface border-border"
+                        }`}
+                      onPress={() =>
+                        setFormData({ ...formData, source: sourceOption.key })
+                      }
+                    >
+                      <Text
+                        className={`text-xs font-semibold ${formData.source === sourceOption.key
+                          ? "text-background"
+                          : "text-foreground"
+                          }`}
+                      >
+                        {sourceOption.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
               {/* Status */}
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
-                  Status *
+                  Status
                 </Text>
                 <View className="flex-row flex-wrap gap-2">
                   {[
@@ -198,46 +269,25 @@ export function LeadFormModal({
                   ].map((statusOption) => (
                     <TouchableOpacity
                       key={statusOption.key}
-                      className={`px-4 py-2 rounded-lg border ${
-                        formData.status === statusOption.key
-                          ? "bg-primary border-primary"
-                          : "bg-surface border-border"
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg border ${formData.status === statusOption.key
+                        ? "bg-primary border-primary"
+                        : "bg-surface border-border"
+                        }`}
                       onPress={() =>
                         setFormData({ ...formData, status: statusOption.key })
                       }
                     >
                       <Text
-                        className={`text-sm font-semibold ${
-                          formData.status === statusOption.key
-                            ? "text-background"
-                            : "text-foreground"
-                        }`}
+                        className={`text-xs font-semibold ${formData.status === statusOption.key
+                          ? "text-background"
+                          : "text-foreground"
+                          }`}
                       >
                         {statusOption.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-              </View>
-
-              {/* Notizen - wird nach Status verschoben */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Notizen
-                </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="Zusätzliche Informationen..."
-                  placeholderTextColor={colors.muted}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                  value={formData.notes}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, notes: text })
-                  }
-                />
               </View>
 
               {/* Notizen */}
@@ -266,6 +316,7 @@ export function LeadFormModal({
             <TouchableOpacity
               className="flex-1 bg-surface border border-border py-3 rounded-lg"
               onPress={onClose}
+              disabled={saving}
               activeOpacity={0.7}
             >
               <Text className="text-foreground font-semibold text-center">
@@ -275,11 +326,16 @@ export function LeadFormModal({
             <TouchableOpacity
               className="flex-1 bg-primary py-3 rounded-lg"
               onPress={handleSubmit}
+              disabled={saving}
               activeOpacity={0.8}
             >
-              <Text className="text-background font-semibold text-center">
-                {lead ? "Aktualisieren" : "Speichern"}
-              </Text>
+              {saving ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text className="text-background font-semibold text-center">
+                  {lead ? "Aktualisieren" : "Speichern"}
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
