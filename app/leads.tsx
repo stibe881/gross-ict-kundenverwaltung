@@ -563,6 +563,15 @@ function LeadDetailsModal({
                 </View>
               )}
 
+              {lead.source && (
+                <View>
+                  <Text className="text-sm text-muted mb-1">Quelle</Text>
+                  <Text className="text-base text-foreground">
+                    {{ website: "Website", empfehlung: "Empfehlung", messe: "Messe", kaltakquise: "Kaltakquise", social_media: "Social Media" }[lead.source as string] || lead.source}
+                  </Text>
+                </View>
+              )}
+
               <View className="flex-row gap-3">
                 <View className="flex-1">
                   <Text className="text-sm text-muted mb-1">Status</Text>
