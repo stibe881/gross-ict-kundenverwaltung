@@ -8,14 +8,17 @@ async function triggerPushNotification(
   data?: any
 ) {
   try {
-    const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3000";
-    await fetch(`${baseUrl}/api/send-notification`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipients, recipientType, title, body, data })
+    console.log("[Push Server] Sending via Edge Function:", { recipients, recipientType, title });
+    const { data: result, error } = await supabase.functions.invoke('send-push', {
+      body: { recipients, recipientType, title, body, data },
     });
+    if (error) {
+      console.error("[Push Server] Edge Function error:", error);
+    } else {
+      console.log("[Push Server] Edge Function response:", JSON.stringify(result));
+    }
   } catch (e) {
-    console.warn("Push notification failed to send:", e);
+    console.warn("[Push Server] Failed to send:", e);
   }
 }
 
