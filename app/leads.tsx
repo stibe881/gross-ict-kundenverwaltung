@@ -297,7 +297,7 @@ function ConvertLeadModal({
       await Data.addLeadActivity({
         lead_id: lead.id,
         type: "system",
-        text: "Lead als Kunde erfasst und Status auf 'Gewonnen' gesetzt",
+        content: "Lead als Kunde erfasst und Status auf 'Gewonnen' gesetzt",
         user_name: "System",
       });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
@@ -420,7 +420,7 @@ function LeadDetailsModal({
       await Data.addLeadActivity({
         lead_id: lead.id,
         type: "system",
-        text: `Status geändert zu: ${getStatusLabel(status as LeadStatus)}`,
+        content: `Status geändert zu: ${getStatusLabel(status as LeadStatus)}`,
         user_name: "System",
       });
       refetchActivities();
@@ -434,7 +434,7 @@ function LeadDetailsModal({
       await Data.addLeadActivity({
         lead_id: lead.id,
         type: "activity",
-        text: newActivity.trim(),
+        content: newActivity.trim(),
         user_name: currentUserName,
       });
       setNewActivity("");
@@ -584,7 +584,7 @@ function LeadDetailsModal({
                           })}
                         </Text>
                       </View>
-                      <Text className="text-sm text-foreground">{activity.text}</Text>
+                      <Text className="text-sm text-foreground">{activity.content}</Text>
                     </View>
                   ))
                 )}

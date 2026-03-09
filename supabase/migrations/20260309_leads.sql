@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS lead_activities (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
     type TEXT NOT NULL DEFAULT 'activity' CHECK (type IN ('activity', 'system', 'email', 'call', 'meeting', 'note')),
-    text TEXT NOT NULL,
+    content TEXT NOT NULL,
     user_name TEXT,
     created_at TIMESTAMPTZ DEFAULT now()
 );

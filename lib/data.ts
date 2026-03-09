@@ -1287,7 +1287,7 @@ export async function getLeadActivities(leadId: string) {
 export async function addLeadActivity(activity: {
     lead_id: string;
     type: string;
-    text: string;
+    content: string;
     user_name: string;
 }) {
     const { data, error } = await supabase

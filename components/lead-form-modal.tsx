@@ -93,7 +93,7 @@ export function LeadFormModal({
         await Data.addLeadActivity({
           lead_id: newLead.id,
           type: "system",
-          text: "Lead erstellt",
+          content: "Lead erstellt",
           user_name: "System",
         });
       }
