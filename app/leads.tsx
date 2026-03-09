@@ -30,6 +30,7 @@ export default function LeadsScreen() {
   const [editingLead, setEditingLead] = useState<any | null>(null);
   const [convertingLead, setConvertingLead] = useState<any | null>(null);
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads"],
@@ -70,11 +71,15 @@ export default function LeadsScreen() {
     return colorMap[status];
   };
 
+  const filteredLeads = priorityFilter === "all"
+    ? leads
+    : leads.filter((l: any) => (l.priority || "medium") === priorityFilter);
+
   const groupedLeads = {
-    new: leads.filter((l: any) => l.status === "new"),
-    contacted: leads.filter((l: any) => l.status === "contacted"),
-    qualified: leads.filter((l: any) => l.status === "qualified"),
-    proposal: leads.filter((l: any) => l.status === "proposal"),
+    new: filteredLeads.filter((l: any) => l.status === "new"),
+    contacted: filteredLeads.filter((l: any) => l.status === "contacted"),
+    qualified: filteredLeads.filter((l: any) => l.status === "qualified"),
+    proposal: filteredLeads.filter((l: any) => l.status === "proposal"),
   };
 
   const totalValue = leads.reduce((sum: number, lead: any) => sum + (lead.value || 0), 0);
@@ -104,6 +109,33 @@ export default function LeadsScreen() {
             >
               <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
             </TouchableOpacity>
+          </View>
+
+          {/* Prioritätsfilter */}
+          <View className="flex-row gap-2 mb-4">
+            {[
+              { key: "all", label: "Alle", color: colors.foreground },
+              { key: "high", label: "⬆ Hoch", color: "#EF4444" },
+              { key: "medium", label: "● Mittel", color: "#F59E0B" },
+              { key: "low", label: "⬇ Tief", color: "#6B7280" },
+            ].map((f) => (
+              <TouchableOpacity
+                key={f.key}
+                className="px-3 py-1.5 rounded-lg border"
+                style={{
+                  backgroundColor: priorityFilter === f.key ? f.color + '20' : undefined,
+                  borderColor: priorityFilter === f.key ? f.color : '#374151',
+                }}
+                onPress={() => setPriorityFilter(f.key)}
+              >
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: priorityFilter === f.key ? f.color : '#9CA3AF' }}
+                >
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {/* Statistik */}
