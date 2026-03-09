@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
+  Platform,
+  useWindowDimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -77,161 +79,166 @@ export default function LeadsScreen() {
 
   const totalValue = leads.reduce((sum: number, lead: any) => sum + (lead.value || 0), 0);
 
+  const { width } = useWindowDimensions();
+  const isWide = Platform.OS === 'web' && width > 768;
+
   return (
     <ScreenContainer>
       <ScrollView className="flex-1 p-4">
-        {/* Header */}
-        <View className="flex-row items-center justify-between mb-4">
-          <View className="flex-row items-center gap-3">
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+        <View style={isWide ? { maxWidth: 1200, alignSelf: 'center', width: '100%' } : undefined}>
+          {/* Header */}
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center gap-3">
+              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+              </TouchableOpacity>
+              <Text className="text-3xl font-bold text-foreground">Akquise</Text>
+            </View>
+            <TouchableOpacity
+              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+              activeOpacity={0.8}
+              onPress={() => setShowAddModal(true)}
+            >
+              <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
             </TouchableOpacity>
-            <Text className="text-3xl font-bold text-foreground">Akquise</Text>
           </View>
-          <TouchableOpacity
-            className="bg-primary w-12 h-12 rounded-full items-center justify-center"
-            activeOpacity={0.8}
-            onPress={() => setShowAddModal(true)}
-          >
-            <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
 
-        {/* Statistik */}
-        <View className="flex-row gap-3 mb-4">
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-foreground">{leads.length}</Text>
-            <Text className="text-sm text-muted">Leads</Text>
+          {/* Statistik */}
+          <View className="flex-row gap-3 mb-4">
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-foreground">{leads.length}</Text>
+              <Text className="text-sm text-muted">Leads</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-success">
+                CHF {totalValue.toLocaleString("de-CH")}
+              </Text>
+              <Text className="text-sm text-muted">Potenzial</Text>
+            </View>
           </View>
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-success">
-              CHF {totalValue.toLocaleString("de-CH")}
-            </Text>
-            <Text className="text-sm text-muted">Potenzial</Text>
-          </View>
-        </View>
 
-        {isLoading ? (
-          <View className="flex-1 items-center justify-center py-12">
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : (
-          <>
-            {/* Pipeline-Stages */}
-            <View className="gap-4">
-              {(Object.keys(groupedLeads) as Array<keyof typeof groupedLeads>).map((stage) => (
-                <View key={stage} className="bg-surface rounded-xl p-4 border border-border">
-                  <View className="flex-row items-center justify-between mb-3">
-                    <Text className="text-lg font-bold text-foreground">
-                      {getStatusLabel(stage)}
-                    </Text>
-                    <View
-                      className="px-3 py-1 rounded-full"
-                      style={{ backgroundColor: getStatusColor(stage) + "20" }}
-                    >
-                      <Text
-                        className="text-sm font-semibold"
-                        style={{ color: getStatusColor(stage) }}
+          {isLoading ? (
+            <View className="flex-1 items-center justify-center py-12">
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
+            <>
+              {/* Pipeline-Stages */}
+              <View style={isWide ? { flexDirection: 'row', flexWrap: 'wrap', gap: 16 } : { gap: 16 }}>
+                {(Object.keys(groupedLeads) as Array<keyof typeof groupedLeads>).map((stage) => (
+                  <View key={stage} className="bg-surface rounded-xl p-4 border border-border" style={isWide ? { flex: 1, minWidth: '45%' } : undefined}>
+                    <View className="flex-row items-center justify-between mb-3">
+                      <Text className="text-lg font-bold text-foreground">
+                        {getStatusLabel(stage)}
+                      </Text>
+                      <View
+                        className="px-3 py-1 rounded-full"
+                        style={{ backgroundColor: getStatusColor(stage) + "20" }}
                       >
-                        {groupedLeads[stage].length}
+                        <Text
+                          className="text-sm font-semibold"
+                          style={{ color: getStatusColor(stage) }}
+                        >
+                          {groupedLeads[stage].length}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {groupedLeads[stage].length > 0 ? (
+                      <View className="gap-2">
+                        {groupedLeads[stage].map((lead: any) => (
+                          <TouchableOpacity
+                            key={lead.id}
+                            className="bg-background rounded-lg p-3 border border-border"
+                            activeOpacity={0.7}
+                            onPress={() => setSelectedLead(lead)}
+                          >
+                            <Text className="text-base font-semibold text-foreground mb-1">
+                              {lead.name}
+                            </Text>
+                            <Text className="text-sm text-muted mb-2">{lead.company || "-"}</Text>
+                            <Text className="text-sm font-semibold text-success">
+                              CHF {(lead.value || 0).toLocaleString("de-CH")}
+                            </Text>
+                            <View className="flex-row gap-2 mt-2">
+                              <TouchableOpacity
+                                className="flex-1 bg-primary/20 py-1 rounded"
+                                onPress={() => {
+                                  setEditingLead(lead);
+                                  setShowAddModal(true);
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <Text className="text-primary text-xs font-semibold text-center">
+                                  Bearbeiten
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                className="flex-1 bg-success/20 py-1 rounded"
+                                onPress={() => setConvertingLead(lead)}
+                                activeOpacity={0.7}
+                              >
+                                <Text className="text-success text-xs font-semibold text-center">
+                                  Als Kunde
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                className="flex-1 bg-error/20 py-1 rounded"
+                                onPress={() => {
+                                  showConfirm(
+                                    "Lead löschen",
+                                    `Möchten Sie "${lead.name}" wirklich löschen?`,
+                                    () => deleteLead.mutate(lead.id)
+                                  );
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <Text className="text-error text-xs font-semibold text-center">
+                                  Löschen
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text className="text-sm text-muted text-center py-2">
+                        Keine Leads in dieser Phase
+                      </Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+
+              {/* Gewonnen/Verloren */}
+              <View className="flex-row gap-3 mt-4">
+                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                  <View className="flex-row items-center justify-between mb-2">
+                    <Text className="text-base font-semibold text-foreground">Gewonnen</Text>
+                    <View className="px-2 py-1 rounded-full bg-success">
+                      <Text className="text-xs font-semibold text-white">
+                        {leads.filter((l: any) => l.status === "won").length}
                       </Text>
                     </View>
                   </View>
+                  <Text className="text-sm text-muted">Erfolgreich abgeschlossen</Text>
+                </View>
 
-                  {groupedLeads[stage].length > 0 ? (
-                    <View className="gap-2">
-                      {groupedLeads[stage].map((lead: any) => (
-                        <TouchableOpacity
-                          key={lead.id}
-                          className="bg-background rounded-lg p-3 border border-border"
-                          activeOpacity={0.7}
-                          onPress={() => setSelectedLead(lead)}
-                        >
-                          <Text className="text-base font-semibold text-foreground mb-1">
-                            {lead.name}
-                          </Text>
-                          <Text className="text-sm text-muted mb-2">{lead.company || "-"}</Text>
-                          <Text className="text-sm font-semibold text-success">
-                            CHF {(lead.value || 0).toLocaleString("de-CH")}
-                          </Text>
-                          <View className="flex-row gap-2 mt-2">
-                            <TouchableOpacity
-                              className="flex-1 bg-primary/20 py-1 rounded"
-                              onPress={() => {
-                                setEditingLead(lead);
-                                setShowAddModal(true);
-                              }}
-                              activeOpacity={0.7}
-                            >
-                              <Text className="text-primary text-xs font-semibold text-center">
-                                Bearbeiten
-                              </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              className="flex-1 bg-success/20 py-1 rounded"
-                              onPress={() => setConvertingLead(lead)}
-                              activeOpacity={0.7}
-                            >
-                              <Text className="text-success text-xs font-semibold text-center">
-                                Als Kunde
-                              </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              className="flex-1 bg-error/20 py-1 rounded"
-                              onPress={() => {
-                                showConfirm(
-                                  "Lead löschen",
-                                  `Möchten Sie "${lead.name}" wirklich löschen?`,
-                                  () => deleteLead.mutate(lead.id)
-                                );
-                              }}
-                              activeOpacity={0.7}
-                            >
-                              <Text className="text-error text-xs font-semibold text-center">
-                                Löschen
-                              </Text>
-                            </TouchableOpacity>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
+                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                  <View className="flex-row items-center justify-between mb-2">
+                    <Text className="text-base font-semibold text-foreground">Verloren</Text>
+                    <View className="px-2 py-1 rounded-full bg-error">
+                      <Text className="text-xs font-semibold text-white">
+                        {leads.filter((l: any) => l.status === "lost").length}
+                      </Text>
                     </View>
-                  ) : (
-                    <Text className="text-sm text-muted text-center py-2">
-                      Keine Leads in dieser Phase
-                    </Text>
-                  )}
-                </View>
-              ))}
-            </View>
-
-            {/* Gewonnen/Verloren */}
-            <View className="flex-row gap-3 mt-4">
-              <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-base font-semibold text-foreground">Gewonnen</Text>
-                  <View className="px-2 py-1 rounded-full bg-success">
-                    <Text className="text-xs font-semibold text-white">
-                      {leads.filter((l: any) => l.status === "won").length}
-                    </Text>
                   </View>
+                  <Text className="text-sm text-muted">Nicht erfolgreich</Text>
                 </View>
-                <Text className="text-sm text-muted">Erfolgreich abgeschlossen</Text>
               </View>
-
-              <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-base font-semibold text-foreground">Verloren</Text>
-                  <View className="px-2 py-1 rounded-full bg-error">
-                    <Text className="text-xs font-semibold text-white">
-                      {leads.filter((l: any) => l.status === "lost").length}
-                    </Text>
-                  </View>
-                </View>
-                <Text className="text-sm text-muted">Nicht erfolgreich</Text>
-              </View>
-            </View>
-          </>
-        )}
+            </>
+          )}
+        </View>
       </ScrollView>
 
       {/* Add/Edit Lead Modal */}
@@ -474,8 +481,8 @@ function LeadDetailsModal({
 
   return (
     <Modal visible={true} animationType="slide" transparent onRequestClose={onClose}>
-      <View className="flex-1 bg-black/50 justify-end">
-        <View className="bg-background rounded-t-3xl" style={{ maxHeight: "90%" }}>
+      <View className="flex-1 bg-black/50 justify-end" style={Platform.OS === 'web' ? { justifyContent: 'center', alignItems: 'center' } : undefined}>
+        <View className="bg-background rounded-t-3xl" style={Platform.OS === 'web' ? { maxWidth: 700, width: '100%', borderRadius: 24, maxHeight: '85%' } : { maxHeight: '90%' }}>
           {/* Header */}
           <View className="flex-row items-center justify-between p-4 border-b border-border">
             <Text className="text-2xl font-bold text-foreground">Lead-Details</Text>
