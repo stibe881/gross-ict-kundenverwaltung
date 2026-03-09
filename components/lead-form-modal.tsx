@@ -36,6 +36,7 @@ export function LeadFormModal({
     website: "",
     value: "",
     status: "new",
+    priority: "medium",
     source: "",
     notes: "",
   });
@@ -51,6 +52,7 @@ export function LeadFormModal({
         website: lead.website || "",
         value: lead.value?.toString() || "",
         status: lead.status || "new",
+        priority: lead.priority || "medium",
         source: lead.source || "",
         notes: lead.notes || "",
       });
@@ -63,6 +65,7 @@ export function LeadFormModal({
         website: "",
         value: "",
         status: "new",
+        priority: "medium",
         source: "",
         notes: "",
       });
@@ -85,6 +88,7 @@ export function LeadFormModal({
         website: formData.website || undefined,
         value: formData.value ? parseFloat(formData.value) : 0,
         status: formData.status,
+        priority: formData.priority,
         source: formData.source || undefined,
         notes: formData.notes || undefined,
       };
@@ -269,6 +273,37 @@ export function LeadFormModal({
                           }`}
                       >
                         {sourceOption.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Priorität */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Priorität
+                </Text>
+                <View className="flex-row gap-2">
+                  {[
+                    { key: "low", label: "Tief", color: "#6B7280" },
+                    { key: "medium", label: "Mittel", color: "#F59E0B" },
+                    { key: "high", label: "Hoch", color: "#EF4444" },
+                  ].map((p) => (
+                    <TouchableOpacity
+                      key={p.key}
+                      className="flex-1 py-2 rounded-lg border"
+                      style={{
+                        backgroundColor: formData.priority === p.key ? p.color + "20" : undefined,
+                        borderColor: formData.priority === p.key ? p.color : "#374151",
+                      }}
+                      onPress={() => setFormData({ ...formData, priority: p.key })}
+                    >
+                      <Text
+                        className="text-xs font-semibold text-center"
+                        style={{ color: formData.priority === p.key ? p.color : "#9CA3AF" }}
+                      >
+                        {p.label}
                       </Text>
                     </TouchableOpacity>
                   ))}

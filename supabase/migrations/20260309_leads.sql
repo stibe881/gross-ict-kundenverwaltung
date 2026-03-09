@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS leads (
     value NUMERIC(12,2) DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'qualified', 'proposal', 'won', 'lost')),
     source TEXT,
+    priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
     notes TEXT,
     assigned_to UUID REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT now(),
