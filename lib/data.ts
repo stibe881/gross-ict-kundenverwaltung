@@ -14,13 +14,48 @@ export async function triggerPushNotification(
     data?: any
 ) {
     try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
-        await apiCall<any>("/api/send-notification", {
-            method: "POST",
-            headers: token ? { "Authorization": `Bearer ${token}` } : undefined,
-            body: JSON.stringify({ recipients, recipientType, title, body, data })
-        });
+        // Direkt Push Tokens aus Supabase laden (ohne Express-Server)
+        const table = recipientType === "customer" ? "customer_portal_users" : "users";
+        let query = supabase.from(table).select("id, push_token").not("push_token", "is", null);
+
+        if (recipients !== "all_admins" && Array.isArray(recipients)) {
+            query = query.in("id", recipients);
+        }
+
+        const { data: targetUsers } = await query;
+        if (!targetUsers || targetUsers.length === 0) {
+            console.warn("[Push] No users with push tokens found");
+            return;
+        }
+
+        // Notification History für alle speichern
+        const histories = targetUsers.map(u => ({
+            user_id: u.id,
+            title,
+            body,
+            data: data || {},
+            read: false,
+        }));
+        try { await supabase.from("notification_history").insert(histories); } catch {}
+
+        // Expo Push API direkt aufrufen
+        const messages = targetUsers
+            .filter(u => u.push_token && u.push_token.startsWith("ExponentPushToken"))
+            .map(u => ({
+                to: u.push_token,
+                sound: "default",
+                title,
+                body,
+                data: data || {},
+            }));
+
+        if (messages.length > 0) {
+            await fetch("https://exp.host/--/api/v2/push/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(messages),
+            });
+        }
     } catch (e) {
         console.warn("Push notification failed to send:", e);
     }
