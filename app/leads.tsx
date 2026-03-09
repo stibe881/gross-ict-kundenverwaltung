@@ -79,6 +79,9 @@ export default function LeadsScreen() {
 
   const totalValue = leads.reduce((sum: number, lead: any) => sum + (lead.value || 0), 0);
 
+  const getPriorityLabel = (p: string) => ({ low: "Tief", medium: "Mittel", high: "Hoch" }[p] || "Mittel");
+  const getPriorityColor = (p: string) => ({ low: "#6B7280", medium: "#F59E0B", high: "#EF4444" }[p] || "#F59E0B");
+
   const { width } = useWindowDimensions();
   const isWide = Platform.OS === 'web' && width > 768;
 
@@ -153,10 +156,17 @@ export default function LeadsScreen() {
                             activeOpacity={0.7}
                             onPress={() => setSelectedLead(lead)}
                           >
-                            <Text className="text-base font-semibold text-foreground mb-1">
-                              {lead.name}
-                            </Text>
-                            <Text className="text-sm text-muted mb-2">{lead.company || "-"}</Text>
+                            <View className="flex-row items-center justify-between mb-1">
+                              <Text className="text-base font-semibold text-foreground">
+                                {lead.name || lead.company || "-"}
+                              </Text>
+                              <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: getPriorityColor(lead.priority) + '20' }}>
+                                <Text className="text-xs font-semibold" style={{ color: getPriorityColor(lead.priority) }}>
+                                  {getPriorityLabel(lead.priority)}
+                                </Text>
+                              </View>
+                            </View>
+                            {lead.name && lead.company ? <Text className="text-sm text-muted mb-2">{lead.company}</Text> : null}
                             <Text className="text-sm font-semibold text-success">
                               CHF {(lead.value || 0).toLocaleString("de-CH")}
                             </Text>
@@ -453,6 +463,9 @@ function LeadDetailsModal({
     }
   };
 
+  const getPriorityLabel = (p: string) => ({ low: "Tief", medium: "Mittel", high: "Hoch" }[p] || "Mittel");
+  const getPriorityColor = (p: string) => ({ low: "#6B7280", medium: "#F59E0B", high: "#EF4444" }[p] || "#F59E0B");
+
   const getStatusLabel = (status: LeadStatus) => {
     const labels: Record<LeadStatus, string> = {
       new: "Neu",
@@ -530,6 +543,20 @@ function LeadDetailsModal({
                       style={{ color: getStatusColor(currentStatus) }}
                     >
                       {getStatusLabel(currentStatus)}
+                    </Text>
+                  </View>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm text-muted mb-1">Priorität</Text>
+                  <View
+                    className="px-3 py-2 rounded-lg"
+                    style={{ backgroundColor: getPriorityColor(lead.priority) + '20' }}
+                  >
+                    <Text
+                      className="text-sm font-semibold text-center"
+                      style={{ color: getPriorityColor(lead.priority) }}
+                    >
+                      {getPriorityLabel(lead.priority)}
                     </Text>
                   </View>
                 </View>
