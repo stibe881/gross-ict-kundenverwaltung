@@ -14,6 +14,7 @@ export async function triggerPushNotification(
     data?: any
 ) {
     try {
+        console.log("[Push] Sending notification:", { recipients, recipientType, title });
         // Direkt Push Tokens aus Supabase laden (ohne Express-Server)
         const table = recipientType === "customer" ? "customer_portal_users" : "users";
         let query = supabase.from(table).select("id, push_token").not("push_token", "is", null);
@@ -22,7 +23,13 @@ export async function triggerPushNotification(
             query = query.in("id", recipients);
         }
 
-        const { data: targetUsers } = await query;
+        const { data: targetUsers, error: queryError } = await query;
+        console.log("[Push] Query result:", { table, userCount: targetUsers?.length, error: queryError?.message });
+        
+        if (queryError) {
+            console.error("[Push] DB query error:", queryError);
+            return;
+        }
         if (!targetUsers || targetUsers.length === 0) {
             console.warn("[Push] No users with push tokens found");
             return;
@@ -49,15 +56,22 @@ export async function triggerPushNotification(
                 data: data || {},
             }));
 
+        console.log("[Push] Sending", messages.length, "messages to Expo API");
         if (messages.length > 0) {
-            await fetch("https://exp.host/--/api/v2/push/send", {
+            const response = await fetch("https://exp.host/--/api/v2/push/send", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "Accept-Encoding": "gzip, deflate",
+                },
                 body: JSON.stringify(messages),
             });
+            const result = await response.json();
+            console.log("[Push] Expo API response:", JSON.stringify(result));
         }
     } catch (e) {
-        console.warn("Push notification failed to send:", e);
+        console.error("[Push] Failed to send:", e);
     }
 }
 

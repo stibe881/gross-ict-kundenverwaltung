@@ -116,57 +116,42 @@ export default function BusinessCardScreen() {
 
         setGenerating(true);
         try {
-            // 1. Call Edge Function to generate .pkpass
-            const { data, error } = await supabase.functions.invoke('generate-wallet-pass', {
-                body: {
-                    name,
-                    position,
-                    phone,
-                    email,
-                    website
-                },
-            });
+            if (Platform.OS === 'ios') {
+                // iOS: Open the Edge Function GET URL directly in Safari
+                // Safari recognizes .pkpass content-type and shows native "Add to Wallet" dialog
+                const params = new URLSearchParams({
+                    name: name || '',
+                    position: position || '',
+                    phone: phone || '',
+                    email: email || '',
+                    website: website || '',
+                });
+                const walletUrl = `https://bvluvvyvftygnxtmboxw.supabase.co/functions/v1/generate-wallet-pass?${params.toString()}`;
+                await Linking.openURL(walletUrl);
+            } else {
+                // Web & Android: Use POST endpoint with base64 response
+                const { data, error } = await supabase.functions.invoke('generate-wallet-pass', {
+                    body: { name, position, phone, email, website },
+                });
 
-            if (error) throw error;
-            if (data && data.success === false) throw new Error(data.error + (data.stack ? '\n' + data.stack : ''));
+                if (error) throw error;
+                if (data && data.success === false) throw new Error(data.error);
 
-            // 2. Handle the base64 encoded pkpass data
-            if (data && data.file) {
-                const base64Data = data.file;
-                const filename = `visitenkarte_${name.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}.pkpass`;
+                if (data && data.file) {
+                    const base64Data = data.file;
+                    const filename = `visitenkarte_${name.replace(/\s+/g, '_').toLowerCase()}.pkpass`;
 
-                if (Platform.OS === 'web') {
-                    // Web download
-                    const url = `data:application/vnd.apple.pkpass;base64,${base64Data}`;
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = filename;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    Alert.alert("Erfolg", "Pass wurde heruntergeladen. Öffnen Sie die Datei auf einem Apple-Gerät, um sie zum Wallet hinzuzufügen.");
-                } else {
-                    // Native: Upload to Supabase Storage and open URL in browser
-                    // iOS recognizes .pkpass content-type and shows "Add to Wallet" directly
-
-
-                    // Decode base64 to Uint8Array for upload
-                    const binaryStr = atob(base64Data);
-                    const bytes = new Uint8Array(binaryStr.length);
-                    for (let i = 0; i < binaryStr.length; i++) {
-                        bytes[i] = binaryStr.charCodeAt(i);
-                    }
-
-                    // Upload to Supabase Storage (public bucket)
-                    const { error: uploadError } = await supabase.storage
-                        .from('wallet-passes')
-                        .upload(filename, bytes, {
-                            contentType: 'application/vnd.apple.pkpass',
-                            upsert: true,
-                        });
-
-                    if (uploadError) {
-                        // Fallback: try sharing locally
+                    if (Platform.OS === 'web') {
+                        const url = `data:application/vnd.apple.pkpass;base64,${base64Data}`;
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = filename;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        Alert.alert("Erfolg", "Pass wurde heruntergeladen.");
+                    } else {
+                        // Android fallback
                         const filepath = `${FileSystem.documentDirectory}${filename}`;
                         await FileSystem.writeAsStringAsync(filepath, base64Data, {
                             encoding: FileSystem.EncodingType.Base64,
@@ -174,30 +159,13 @@ export default function BusinessCardScreen() {
                         if (await Sharing.isAvailableAsync()) {
                             await Sharing.shareAsync(filepath, {
                                 mimeType: 'application/vnd.apple.pkpass',
-                                UTI: 'com.apple.pkpass',
                             });
                         }
-                        return;
                     }
-
-                    // Get public URL and open in browser
-                    const { data: urlData } = supabase.storage
-                        .from('wallet-passes')
-                        .getPublicUrl(filename);
-
-                    if (urlData?.publicUrl) {
-                        await Linking.openURL(urlData.publicUrl);
-
-                        // Clean up after 60 seconds
-                        setTimeout(async () => {
-                            await supabase.storage.from('wallet-passes').remove([filename]);
-                        }, 60000);
-                    }
+                } else {
+                    throw new Error("Invalid response from server");
                 }
-            } else {
-                throw new Error("Invalid response from server");
             }
-
         } catch (error: any) {
             console.error("Error generating pass:", error);
             Alert.alert("Fehler", `Die Visitenkarte konnte nicht generiert werden: ${error.message}`);
