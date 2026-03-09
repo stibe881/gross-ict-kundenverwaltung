@@ -34,17 +34,16 @@ export async function registerForPushNotificationsAsync(userType: "admin" | "cus
       finalStatus = status;
     }
     if (finalStatus !== 'granted') {
-      console.log('Push notification permission denied!');
+      console.log('[Push] Permission not granted');
       return null;
     }
+    console.log('[Push] Permission granted');
 
     try {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
         
-      if (!projectId) {
-        console.warn('Project ID not found in app.config.ts / app.json');
-      }
+      console.log('[Push] Project ID:', projectId);
 
       token = (
         await Notifications.getExpoPushTokenAsync({
@@ -52,14 +51,43 @@ export async function registerForPushNotificationsAsync(userType: "admin" | "cus
         })
       ).data;
 
+      console.log('[Push] Token:', token);
+
       if (token) {
         const table = userType === "admin" ? "users" : "customer_portal_users";
-        const { error } = await supabase.from(table).update({ push_token: token }).eq("id", userId);
+        
+        // Try direct update first
+        const { error, count } = await supabase
+          .from(table)
+          .update({ push_token: token })
+          .eq("id", userId)
+          .select();
         
         if (error) {
-            console.error(`Failed to save push token for ${userType} ${userId}:`, error.message);
+          console.error(`[Push] Direct save failed for ${userType}:`, error.message);
+        }
+        
+        // Verify token was actually saved by reading it back
+        const { data: verify } = await supabase.from(table).select("push_token").eq("id", userId).single();
+        
+        if (verify?.push_token === token) {
+          console.log(`[Push] Token saved successfully for ${userType}`);
         } else {
-            console.log(`Push token registered successfully for ${userType}`);
+          console.warn(`[Push] Token NOT saved (RLS?). Trying Edge Function fallback...`);
+          // Fallback: save via Edge Function which uses service role key
+          try {
+            await supabase.functions.invoke('send-push', {
+              body: { 
+                action: 'save-token',
+                userId,
+                userType,
+                pushToken: token,
+              },
+            });
+            console.log(`[Push] Token saved via Edge Function fallback`);
+          } catch (fallbackErr) {
+            console.error('[Push] Edge Function fallback also failed:', fallbackErr);
+          }
         }
       }
     } catch (e) {

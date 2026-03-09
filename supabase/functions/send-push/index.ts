@@ -12,7 +12,30 @@ serve(async (req) => {
   }
 
   try {
-    const { recipients, recipientType, title, body, data } = await req.json();
+    const reqBody = await req.json();
+
+    // Handle save-token action (fallback when RLS blocks direct update)
+    if (reqBody.action === 'save-token') {
+      const { userId, userType, pushToken } = reqBody;
+      console.log("[send-push] Saving token for", userType, userId);
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      );
+      const table = userType === "customer" ? "customer_portal_users" : "users";
+      const { error } = await supabaseAdmin.from(table).update({ push_token: pushToken }).eq("id", userId);
+      if (error) {
+        console.error("[send-push] Save token error:", error.message);
+        return new Response(JSON.stringify({ error: error.message }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
+        });
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { recipients, recipientType, title, body, data } = reqBody;
     console.log("[send-push] Request:", { recipients, recipientType, title });
 
     // Use service role key to bypass RLS
