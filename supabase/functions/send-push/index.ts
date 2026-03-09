@@ -46,15 +46,19 @@ serve(async (req) => {
       });
     }
 
-    // Save notification history
-    const histories = targetUsers.map(u => ({
-      user_id: u.id,
-      title,
-      body,
-      data: data || {},
-      read: false,
-    }));
-    await supabaseAdmin.from("notification_history").insert(histories);
+    // Save notification history (non-blocking)
+    try {
+      const histories = targetUsers.map(u => ({
+        user_id: u.id,
+        title,
+        body,
+        data: data || {},
+        read: false,
+      }));
+      await supabaseAdmin.from("notification_history").insert(histories);
+    } catch (histErr) {
+      console.warn("[send-push] Could not save notification history:", histErr);
+    }
 
     // Send via Expo Push API
     const messages = targetUsers
