@@ -394,6 +394,7 @@ function LeadDetailsModal({
   const queryClient = useQueryClient();
   const [newActivity, setNewActivity] = useState("");
   const [currentUserName, setCurrentUserName] = useState("Admin");
+  const [currentStatus, setCurrentStatus] = useState(lead.status);
 
   // Echten Benutzernamen laden
   useEffect(() => {
@@ -417,6 +418,7 @@ function LeadDetailsModal({
   const updateStatus = useMutation({
     mutationFn: (status: string) => Data.updateLead(lead.id, { status }),
     onSuccess: async (_, status) => {
+      setCurrentStatus(status);
       await Data.addLeadActivity({
         lead_id: lead.id,
         type: "system",
@@ -514,13 +516,13 @@ function LeadDetailsModal({
                   <Text className="text-sm text-muted mb-1">Status</Text>
                   <View
                     className="px-3 py-2 rounded-lg"
-                    style={{ backgroundColor: getStatusColor(lead.status) + "20" }}
+                    style={{ backgroundColor: getStatusColor(currentStatus) + "20" }}
                   >
                     <Text
                       className="text-sm font-semibold text-center"
-                      style={{ color: getStatusColor(lead.status) }}
+                      style={{ color: getStatusColor(currentStatus) }}
                     >
-                      {getStatusLabel(lead.status)}
+                      {getStatusLabel(currentStatus)}
                     </Text>
                   </View>
                 </View>
@@ -542,11 +544,11 @@ function LeadDetailsModal({
                     {allStatuses.map((s) => (
                       <TouchableOpacity
                         key={s}
-                        className={`px-3 py-1.5 rounded-md ${lead.status === s ? "bg-primary" : "bg-surface border border-border"}`}
+                        className={`px-3 py-1.5 rounded-md ${currentStatus === s ? "bg-primary" : "bg-surface border border-border"}`}
                         onPress={() => updateStatus.mutate(s)}
                         activeOpacity={0.7}
                       >
-                        <Text className={`text-xs font-semibold ${lead.status === s ? "text-background" : "text-foreground"}`}>
+                        <Text className={`text-xs font-semibold ${currentStatus === s ? "text-background" : "text-foreground"}`}>
                           {getStatusLabel(s)}
                         </Text>
                       </TouchableOpacity>
