@@ -133,7 +133,7 @@ export default function BusinessCardScreen() {
             // 2. Handle the base64 encoded pkpass data
             if (data && data.file) {
                 const base64Data = data.file;
-                const filename = `visitenkarte_${name.replace(/\\s+/g, '_').toLowerCase()}.pkpass`;
+                const filename = `visitenkarte_${name.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}.pkpass`;
 
                 if (Platform.OS === 'web') {
                     // Web download
@@ -146,20 +146,52 @@ export default function BusinessCardScreen() {
                     document.body.removeChild(link);
                     Alert.alert("Erfolg", "Pass wurde heruntergeladen. Öffnen Sie die Datei auf einem Apple-Gerät, um sie zum Wallet hinzuzufügen.");
                 } else {
-                    // Native device handling
-                    const filepath = `${FileSystem.documentDirectory}${filename}`;
-                    await FileSystem.writeAsStringAsync(filepath, base64Data, {
-                        encoding: FileSystem.EncodingType.Base64,
-                    });
+                    // Native: Upload to Supabase Storage and open URL in browser
+                    // iOS recognizes .pkpass content-type and shows "Add to Wallet" directly
 
-                    if (await Sharing.isAvailableAsync()) {
-                        await Sharing.shareAsync(filepath, {
-                            mimeType: 'application/vnd.apple.pkpass',
-                            UTI: 'com.apple.pkpass',
-                            dialogTitle: 'Visitenkarte zum Wallet hinzufügen',
+
+                    // Decode base64 to Uint8Array for upload
+                    const binaryStr = atob(base64Data);
+                    const bytes = new Uint8Array(binaryStr.length);
+                    for (let i = 0; i < binaryStr.length; i++) {
+                        bytes[i] = binaryStr.charCodeAt(i);
+                    }
+
+                    // Upload to Supabase Storage (public bucket)
+                    const { error: uploadError } = await supabase.storage
+                        .from('wallet-passes')
+                        .upload(filename, bytes, {
+                            contentType: 'application/vnd.apple.pkpass',
+                            upsert: true,
                         });
-                    } else {
-                        Alert.alert("Fehler", "Teilen ist auf diesem Gerät nicht verfügbar.");
+
+                    if (uploadError) {
+                        // Fallback: try sharing locally
+                        const filepath = `${FileSystem.documentDirectory}${filename}`;
+                        await FileSystem.writeAsStringAsync(filepath, base64Data, {
+                            encoding: FileSystem.EncodingType.Base64,
+                        });
+                        if (await Sharing.isAvailableAsync()) {
+                            await Sharing.shareAsync(filepath, {
+                                mimeType: 'application/vnd.apple.pkpass',
+                                UTI: 'com.apple.pkpass',
+                            });
+                        }
+                        return;
+                    }
+
+                    // Get public URL and open in browser
+                    const { data: urlData } = supabase.storage
+                        .from('wallet-passes')
+                        .getPublicUrl(filename);
+
+                    if (urlData?.publicUrl) {
+                        await Linking.openURL(urlData.publicUrl);
+
+                        // Clean up after 60 seconds
+                        setTimeout(async () => {
+                            await supabase.storage.from('wallet-passes').remove([filename]);
+                        }, 60000);
                     }
                 }
             } else {
