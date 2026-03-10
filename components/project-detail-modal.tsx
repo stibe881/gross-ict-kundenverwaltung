@@ -326,163 +326,217 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     ];
 
     // ---- Render Sections ----
-    const renderOverview = () => (
-        <>
-            {/* Project Info */}
-            <View className="bg-surface rounded-xl p-4 border border-border" style={{ zIndex: 100, overflow: "visible" }}>
-                <Text className="text-xl font-bold text-foreground">{projectData.title}</Text>
-                {projectData.description ? (
-                    <Text className="text-sm text-muted mt-2">{projectData.description}</Text>
-                ) : null}
+    const renderOverview = () => {
+        const customerName = project.customer?.company_name ||
+            `${project.customer?.first_name || ""} ${project.customer?.last_name || ""}`.trim() || "—";
+        const customerEmail = project.customer?.email;
+        const customerPhone = project.customer?.phone;
+        const statusColor = projectData.status === "completed" ? "#10B981" :
+            projectData.status === "in_progress" ? "#3B82F6" :
+                projectData.status === "cancelled" ? "#EF4444" : "#6B7280";
 
-                <View className="flex-row flex-wrap gap-4 mt-4" style={{ zIndex: 50 }}>
-                    <View style={{ position: "relative", zIndex: 60 }}>
-                        <TouchableOpacity onPress={() => setShowStatusPicker(!showStatusPicker)}>
-                            <Text className="text-xs text-muted">Status</Text>
-                            <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+        const InfoRow = ({ label, value, icon }: { label: string; value?: string | null; icon: string }) => {
+            if (!value) return null;
+            return (
+                <View className="flex-row items-start py-2.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.border + "40" }}>
+                    <View style={{ width: 32, alignItems: "center", paddingTop: 2 }}>
+                        <IconSymbol name={icon as any} size={14} color={colors.muted} />
+                    </View>
+                    <View className="flex-1">
+                        <Text className="text-xs text-muted mb-0.5">{label}</Text>
+                        <Text className="text-sm font-medium text-foreground">{value}</Text>
+                    </View>
+                </View>
+            );
+        };
+
+        return (
+            <>
+                {/* Titel & Beschreibung */}
+                <View className="bg-surface rounded-xl p-5 border border-border">
+                    <Text className="text-xl font-bold text-foreground">{projectData.title}</Text>
+                    {projectData.description ? (
+                        <Text className="text-sm text-muted mt-2 leading-5">{projectData.description}</Text>
+                    ) : null}
+
+                    {/* Status & Priorität als Badges */}
+                    <View className="flex-row gap-2 mt-4">
+                        <TouchableOpacity
+                            onPress={() => setShowStatusPicker(!showStatusPicker)}
+                            style={{ backgroundColor: statusColor + "15", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 }}
+                        >
+                            <Text style={{ color: statusColor, fontSize: 13, fontWeight: "600" }}>
                                 {STATUS_LABELS[projectData.status] || projectData.status} ▾
                             </Text>
                         </TouchableOpacity>
-                        {showStatusPicker && (
-                            <View style={{
-                                position: "absolute", top: 40, left: 0, zIndex: 100,
-                                backgroundColor: colors.surface, borderRadius: 12,
-                                borderWidth: 1, borderColor: colors.border,
-                                minWidth: 180, overflow: "hidden",
-                                shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
-                            }}>
-                                {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                                    <TouchableOpacity
-                                        key={key}
-                                        onPress={async () => {
-                                            setShowStatusPicker(false);
-                                            try {
-                                                await Data.updateProject(projectData.id, { status: key });
-                                                await Data.addProjectActivity(projectData.id, "status_change", `Status geändert: ${STATUS_LABELS[key]}`);
-                                                setProjectData({ ...projectData, status: key });
-                                                onUpdate();
-                                            } catch (e: any) { showAlert("Fehler", e.message); }
-                                        }}
-                                        style={{
-                                            padding: 12, paddingHorizontal: 16,
-                                            backgroundColor: projectData.status === key ? colors.primary + "15" : "transparent",
-                                        }}
-                                    >
-                                        <Text style={{
-                                            color: projectData.status === key ? colors.primary : colors.foreground,
-                                            fontWeight: projectData.status === key ? "700" : "400",
-                                            fontSize: 14,
-                                        }}>{label}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
-                    </View>
-                    <View style={{ position: "relative", zIndex: 55 }}>
-                        <TouchableOpacity onPress={() => setShowPriorityPicker(!showPriorityPicker)}>
-                            <Text className="text-xs text-muted">Priorität</Text>
-                            <Text className="text-sm font-semibold" style={{ color: priorityConfig.color }}>
+                        <TouchableOpacity
+                            onPress={() => setShowPriorityPicker(!showPriorityPicker)}
+                            style={{ backgroundColor: priorityConfig.color + "15", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 }}
+                        >
+                            <Text style={{ color: priorityConfig.color, fontSize: 13, fontWeight: "600" }}>
                                 {priorityConfig.label} ▾
                             </Text>
                         </TouchableOpacity>
-                        {showPriorityPicker && (
-                            <View style={{
-                                position: "absolute", top: 40, left: 0, zIndex: 100,
-                                backgroundColor: colors.surface, borderRadius: 12,
-                                borderWidth: 1, borderColor: colors.border,
-                                minWidth: 160, overflow: "hidden",
-                                shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
-                            }}>
-                                {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
-                                    <TouchableOpacity
-                                        key={key}
-                                        onPress={async () => {
-                                            setShowPriorityPicker(false);
-                                            try {
-                                                await Data.updateProject(projectData.id, { priority: key });
-                                                setProjectData({ ...projectData, priority: key });
-                                                onUpdate();
-                                            } catch (e: any) { showAlert("Fehler", e.message); }
-                                        }}
-                                        style={{
-                                            padding: 12, paddingHorizontal: 16,
-                                            backgroundColor: projectData.priority === key ? cfg.color + "15" : "transparent",
-                                        }}
-                                    >
-                                        <Text style={{
-                                            color: projectData.priority === key ? cfg.color : colors.foreground,
-                                            fontWeight: projectData.priority === key ? "700" : "400",
-                                            fontSize: 14,
-                                        }}>{cfg.label}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
                     </View>
-                    <View>
-                        <Text className="text-xs text-muted">Kunde</Text>
-                        <Text className="text-sm font-semibold text-foreground">
-                            {project.customer?.company_name ||
-                                `${project.customer?.first_name || ""} ${project.customer?.last_name || ""}`.trim() ||
-                                "—"}
-                        </Text>
-                    </View>
-                    {project.budget > 0 && (
-                        <View>
-                            <Text className="text-xs text-muted">Budget</Text>
-                            <Text className="text-sm font-semibold text-foreground">
-                                {formatCurrency(project.budget)}
-                            </Text>
+
+                    {/* Status Picker Dropdown */}
+                    {showStatusPicker && (
+                        <View style={{
+                            backgroundColor: colors.surface, borderRadius: 12,
+                            borderWidth: 1, borderColor: colors.border,
+                            marginTop: 8, overflow: "hidden",
+                            shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
+                        }}>
+                            {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                                <TouchableOpacity
+                                    key={key}
+                                    onPress={async () => {
+                                        setShowStatusPicker(false);
+                                        try {
+                                            await Data.updateProject(projectData.id, { status: key });
+                                            await Data.addProjectActivity(projectData.id, "status_change", `Status geändert: ${STATUS_LABELS[key]}`);
+                                            setProjectData({ ...projectData, status: key });
+                                            onUpdate();
+                                        } catch (e: any) { showAlert("Fehler", e.message); }
+                                    }}
+                                    style={{
+                                        padding: 12, paddingHorizontal: 16,
+                                        backgroundColor: projectData.status === key ? colors.primary + "15" : "transparent",
+                                    }}
+                                >
+                                    <Text style={{
+                                        color: projectData.status === key ? colors.primary : colors.foreground,
+                                        fontWeight: projectData.status === key ? "700" : "400",
+                                        fontSize: 14,
+                                    }}>{label}</Text>
+                                </TouchableOpacity>
+                            ))}
                         </View>
                     )}
-                    {project.start_date && (
-                        <View>
-                            <Text className="text-xs text-muted">Zeitraum</Text>
-                            <Text className="text-sm font-semibold text-foreground">
-                                {formatDate(project.start_date)}
-                                {project.end_date ? ` – ${formatDate(project.end_date)}` : ""}
-                            </Text>
+
+                    {/* Priority Picker Dropdown */}
+                    {showPriorityPicker && (
+                        <View style={{
+                            backgroundColor: colors.surface, borderRadius: 12,
+                            borderWidth: 1, borderColor: colors.border,
+                            marginTop: 8, overflow: "hidden",
+                            shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
+                        }}>
+                            {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
+                                <TouchableOpacity
+                                    key={key}
+                                    onPress={async () => {
+                                        setShowPriorityPicker(false);
+                                        try {
+                                            await Data.updateProject(projectData.id, { priority: key });
+                                            setProjectData({ ...projectData, priority: key });
+                                            onUpdate();
+                                        } catch (e: any) { showAlert("Fehler", e.message); }
+                                    }}
+                                    style={{
+                                        padding: 12, paddingHorizontal: 16,
+                                        backgroundColor: projectData.priority === key ? cfg.color + "15" : "transparent",
+                                    }}
+                                >
+                                    <Text style={{
+                                        color: projectData.priority === key ? cfg.color : colors.foreground,
+                                        fontWeight: projectData.priority === key ? "700" : "400",
+                                        fontSize: 14,
+                                    }}>{cfg.label}</Text>
+                                </TouchableOpacity>
+                            ))}
                         </View>
                     )}
                 </View>
-            </View>
 
-            {/* Notes */}
-            {project.notes ? (
-                <View className="bg-surface rounded-xl p-4 border border-border">
-                    <Text className="text-sm font-bold text-foreground mb-1">Notizen</Text>
-                    <Text className="text-sm text-muted">{project.notes}</Text>
-                </View>
-            ) : null}
-
-            {/* Progress */}
-            {milestones.length > 0 && (
-                <View className="bg-surface rounded-xl p-4 border border-border">
-                    <View className="flex-row justify-between items-center mb-3">
-                        <Text className="text-base font-bold text-foreground">Fortschritt</Text>
-                        <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
-                            {progressPercent}%
-                        </Text>
-                    </View>
-                    <View style={{ height: 8, backgroundColor: colors.border, borderRadius: 4 }}>
-                        <View
-                            style={{
-                                height: 8,
-                                width: `${progressPercent}%`,
-                                backgroundColor: colors.primary,
-                                borderRadius: 4,
-                            }}
-                        />
-                    </View>
-                    <Text className="text-xs text-muted mt-2">
-                        {completedCount} von {milestones.length} Meilensteinen abgeschlossen
+                {/* Projektdaten */}
+                <View className="bg-surface rounded-xl p-5 border border-border">
+                    <Text className="text-base font-bold text-foreground mb-2">
+                        <IconSymbol name="folder" size={15} color={colors.foreground} />  Projektdaten
                     </Text>
+                    <InfoRow label="Kunde" value={customerName} icon="person" />
+                    {project.customer?.company_name && (
+                        <InfoRow label="Kontakt" value={`${project.customer?.first_name || ""} ${project.customer?.last_name || ""}`.trim() || undefined} icon="person.2" />
+                    )}
+                    <InfoRow label="E-Mail" value={customerEmail} icon="envelope" />
+                    <InfoRow label="Telefon" value={customerPhone} icon="phone" />
+                    <InfoRow label="Budget" value={project.budget > 0 ? formatCurrency(project.budget) : undefined} icon="banknote" />
+                    <InfoRow
+                        label="Zeitraum"
+                        value={project.start_date ? `${formatDate(project.start_date)}${project.end_date ? ` – ${formatDate(project.end_date)}` : ""}` : undefined}
+                        icon="calendar"
+                    />
                 </View>
-            )}
-        </>
-    );
+
+                {/* Notizen */}
+                {project.notes ? (
+                    <View className="bg-surface rounded-xl p-5 border border-border">
+                        <Text className="text-base font-bold text-foreground mb-2">
+                            <IconSymbol name="note.text" size={15} color={colors.foreground} />  Notizen
+                        </Text>
+                        <Text className="text-sm text-muted leading-5">{project.notes}</Text>
+                    </View>
+                ) : null}
+
+                {/* Fortschritt */}
+                {milestones.length > 0 && (
+                    <View className="bg-surface rounded-xl p-5 border border-border">
+                        <View className="flex-row justify-between items-center mb-3">
+                            <Text className="text-base font-bold text-foreground">
+                                <IconSymbol name="chart.bar" size={15} color={colors.foreground} />  Fortschritt
+                            </Text>
+                            <Text className="text-sm font-bold" style={{ color: colors.primary }}>
+                                {progressPercent}%
+                            </Text>
+                        </View>
+                        <View style={{ height: 8, backgroundColor: colors.border, borderRadius: 4 }}>
+                            <View
+                                style={{
+                                    height: 8,
+                                    width: `${progressPercent}%`,
+                                    backgroundColor: progressPercent === 100 ? "#10B981" : colors.primary,
+                                    borderRadius: 4,
+                                }}
+                            />
+                        </View>
+                        <Text className="text-xs text-muted mt-2">
+                            {completedCount} von {milestones.length} Meilensteinen abgeschlossen
+                        </Text>
+
+                        {/* Quick milestone overview */}
+                        <View className="mt-3 gap-1.5">
+                            {milestones.slice(0, 5).map((m: any) => (
+                                <View key={m.id} className="flex-row items-center gap-2">
+                                    <IconSymbol
+                                        name={(MILESTONE_ICONS[m.status] || "clock") as any}
+                                        size={12}
+                                        color={MILESTONE_COLORS[m.status] || "#6B7280"}
+                                    />
+                                    <Text
+                                        className="text-xs flex-1"
+                                        style={{
+                                            color: m.status === "completed" ? colors.muted : colors.foreground,
+                                            textDecorationLine: m.status === "completed" ? "line-through" : "none",
+                                        }}
+                                        numberOfLines={1}
+                                    >
+                                        {m.title}
+                                    </Text>
+                                </View>
+                            ))}
+                            {milestones.length > 5 && (
+                                <Text className="text-xs text-muted mt-1">
+                                    + {milestones.length - 5} weitere Meilensteine
+                                </Text>
+                            )}
+                        </View>
+                    </View>
+                )}
+            </>
+        );
+    };
 
     const renderMilestones = () => (
         <>
