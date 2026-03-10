@@ -24,7 +24,7 @@ function escHtml(str: string): string {
   return (str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-function renderPage(quote: any, supabaseUrl: string, project?: any): string {
+function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: string): string {
   const customer = quote.customer || {};
   const customerName = customer.company_name ||
     `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Kunde";
@@ -795,7 +795,7 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
         const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
         const supabase = createClient(
           '${supabaseUrl}',
-          '${Deno.env.get("SUPABASE_ANON_KEY") || ""}'
+          '${anonKey || ""}'
         );
         supabase
           .channel('quote-live-${quote.id}')
@@ -866,18 +866,18 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
           setTimeout(() => {
             closeModal();
             const ab = document.getElementById('action-box');
-            if (ab) ab.innerHTML = '<div style="font-size:56px;margin-bottom:16px;">&#x2705;</div><h2 style="color:#22c55e;">Angebot angenommen!</h2><p>Vielen Dank f\u00fcr Ihr Vertrauen. Wir melden uns innerhalb von 24 Stunden bei Ihnen.</p>';
+            if (ab) ab.innerHTML = '<div style="font-size:56px;margin-bottom:16px;">&#x2705;</div><h2 style="color:#22c55e;">Angebot angenommen!</h2><p>Vielen Dank für Ihr Vertrauen. Wir melden uns innerhalb von 24 Stunden bei Ihnen.</p>';
           }, 1500);
         } else {
           throw new Error(data.error || 'Fehler');
         }
       } catch (err) {
-        confirmBtn.innerHTML = 'Fehler \u2013 bitte erneut versuchen';
+        confirmBtn.innerHTML = 'Fehler – bitte erneut versuchen';
         confirmBtn.disabled = false;
         confirmBtn.style.background = '#ef4444';
         setTimeout(() => {
           confirmBtn.style.background = '';
-          confirmBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg> Best\u00e4tigen';
+          confirmBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg> Bestätigen';
         }, 3000);
       }
     });
@@ -946,7 +946,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const html = renderPage(quote, supabaseUrl, project);
+    const html = renderPage(quote, supabaseUrl, project, Deno.env.get("SUPABASE_ANON_KEY"));
 
     return new Response(
       JSON.stringify({ html, quoteNumber: quote.quote_number }),
