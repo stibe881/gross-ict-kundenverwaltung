@@ -102,9 +102,39 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
     }
     .container { max-width:1140px; margin:0 auto; padding:0 24px; }
     @keyframes fadeInUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeInLeft { from{opacity:0;transform:translateX(-30px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes fadeInRight { from{opacity:0;transform:translateX(30px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes fadeInScale { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
     @keyframes pulse-glow { 0%,100%{box-shadow:0 0 20px var(--primary-glow)} 50%{box-shadow:0 0 40px var(--primary-glow-strong)} }
-    .animate-in { opacity:0; transform:translateY(30px); transition:opacity 0.7s ease,transform 0.7s ease; }
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    @keyframes particle-drift { 0%{transform:translate(0,0) scale(1);opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0} }
+    @keyframes slide-in-row { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes count-up { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes border-glow { 0%,100%{border-color:var(--border)} 50%{border-color:var(--border-hover)} }
+    .animate-in { opacity:0; transform:translateY(30px); transition:opacity 0.8s cubic-bezier(0.16,1,0.3,1),transform 0.8s cubic-bezier(0.16,1,0.3,1); }
     .animate-in.visible { opacity:1; transform:translateY(0); }
+    .animate-in[data-delay="1"] { transition-delay:0.1s; }
+    .animate-in[data-delay="2"] { transition-delay:0.2s; }
+    .animate-in[data-delay="3"] { transition-delay:0.3s; }
+    .animate-in[data-delay="4"] { transition-delay:0.4s; }
+    .animate-in[data-delay="5"] { transition-delay:0.5s; }
+
+    /* Particles */
+    .particles { position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+    .particle { position:absolute; width:4px; height:4px; background:var(--primary); border-radius:50%; opacity:0; animation:particle-drift linear infinite; }
+
+    /* Live Update Toast */
+    .live-toast { position:fixed; top:80px; right:24px; z-index:200; background:var(--bg-card); border:1px solid var(--primary); border-radius:12px; padding:16px 24px; display:flex; align-items:center; gap:12px; box-shadow:0 8px 32px rgba(0,0,0,0.4); transform:translateX(120%); transition:transform 0.5s cubic-bezier(0.16,1,0.3,1); max-width:360px; }
+    .live-toast.show { transform:translateX(0); }
+    .live-dot { width:8px; height:8px; background:#22c55e; border-radius:50%; animation:pulse-glow 2s infinite; flex-shrink:0; }
+    .live-toast-text { font-size:13px; color:var(--text); line-height:1.4; }
+    .live-toast-text strong { color:var(--primary); }
+
+    /* Card shine effect */
+    .card-shine { position:relative; overflow:hidden; }
+    .card-shine::after { content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%; background:linear-gradient(to right,transparent 0%,rgba(255,255,255,0.03) 50%,transparent 100%); transform:rotate(30deg); transition:all 0.6s; opacity:0; pointer-events:none; }
+    .card-shine:hover::after { opacity:1; transform:rotate(30deg) translateX(30%); }
 
     /* Header */
     .site-header {
@@ -129,28 +159,34 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
     .preview-link svg { width:14px; height:14px; }
 
     /* Hero */
-    .hero { padding:80px 0 60px; text-align:center; position:relative; }
+    .hero { padding:80px 0 60px; text-align:center; position:relative; overflow:hidden; }
     .hero::before {
       content:''; position:absolute; top:-100px; left:50%; transform:translateX(-50%);
       width:600px; height:600px; background:radial-gradient(circle,var(--primary-glow) 0%,transparent 70%);
-      pointer-events:none;
+      pointer-events:none; animation:float 6s ease-in-out infinite;
+    }
+    .hero::after {
+      content:''; position:absolute; bottom:-200px; right:-100px;
+      width:400px; height:400px; background:radial-gradient(circle,rgba(59,130,246,0.08) 0%,transparent 70%);
+      pointer-events:none; animation:float 8s ease-in-out infinite reverse;
     }
     .hero-badge {
       display:inline-flex; align-items:center; gap:8px;
       background:var(--primary-glow); border:1px solid rgba(212,164,50,0.2);
       border-radius:100px; padding:6px 18px; font-size:12px; font-weight:600;
       color:var(--primary); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:24px;
+      animation:fadeInScale 0.6s ease both;
     }
-    .hero-badge::before { content:''; width:6px; height:6px; background:var(--primary); border-radius:50%; }
+    .hero-badge::before { content:''; width:6px; height:6px; background:var(--primary); border-radius:50%; animation:pulse-glow 2s infinite; }
     .hero h1 {
       font-size:clamp(32px,5vw,52px); font-weight:800; color:var(--text-heading);
-      letter-spacing:-1px; line-height:1.15; margin-bottom:16px; animation:fadeInUp 0.8s ease;
+      letter-spacing:-1px; line-height:1.15; margin-bottom:16px; animation:fadeInUp 0.8s ease both;
     }
     .hero h1 em {
       font-style:normal; background:linear-gradient(135deg,var(--primary),var(--primary-light));
       -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
     }
-    .hero-sub { font-size:18px; color:var(--text-muted); max-width:560px; margin:0 auto 48px; line-height:1.7; }
+    .hero-sub { font-size:18px; color:var(--text-muted); max-width:560px; margin:0 auto 48px; line-height:1.7; animation:fadeInUp 0.8s 0.2s ease both; }
 
     /* Section */
     .section { padding:80px 0; position:relative; }
@@ -189,17 +225,21 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
     .usps-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
     .usp-card {
       background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);
-      padding:32px; transition:all 0.4s ease; position:relative; overflow:hidden;
+      padding:32px; transition:all 0.5s cubic-bezier(0.16,1,0.3,1); position:relative; overflow:hidden;
     }
-    .usp-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--primary),transparent); opacity:0; transition:opacity 0.4s; }
-    .usp-card:hover { border-color:var(--border-hover); transform:translateY(-4px); box-shadow:0 0 40px var(--primary-glow); }
+    .usp-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--primary),var(--primary-light),transparent); opacity:0; transition:opacity 0.4s; }
+    .usp-card::after { content:''; position:absolute; inset:0; background:radial-gradient(circle at var(--mouse-x,50%) var(--mouse-y,50%),rgba(212,164,50,0.06) 0%,transparent 60%); opacity:0; transition:opacity 0.4s; pointer-events:none; }
+    .usp-card:hover { border-color:var(--border-hover); transform:translateY(-6px) scale(1.02); box-shadow:0 12px 48px var(--primary-glow); }
     .usp-card:hover::before { opacity:1; }
+    .usp-card:hover::after { opacity:1; }
     .usp-icon {
       width:52px; height:52px; background:var(--primary-glow); border:1px solid rgba(212,164,50,0.15);
       border-radius:14px; display:flex; align-items:center; justify-content:center; margin-bottom:20px;
+      transition:all 0.4s cubic-bezier(0.16,1,0.3,1);
     }
-    .usp-card:hover .usp-icon { background:var(--primary); border-color:var(--primary); }
-    .usp-card h3 { font-size:17px; font-weight:700; color:var(--text-heading); margin-bottom:8px; }
+    .usp-card:hover .usp-icon { background:var(--primary); border-color:var(--primary); transform:scale(1.1) rotate(-5deg); }
+    .usp-card h3 { font-size:17px; font-weight:700; color:var(--text-heading); margin-bottom:8px; transition:color 0.3s; }
+    .usp-card:hover h3 { color:var(--primary); }
     .usp-card p { font-size:14px; color:var(--text-muted); line-height:1.6; }
 
     /* Action */
@@ -342,7 +382,8 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
   </header>
 
   <section class="hero">
-    <div class="container">
+    <div class="particles" id="particles"></div>
+    <div class="container" style="position:relative;z-index:1;">
       <div class="hero-badge">Persönliches Angebot</div>
       <h1>Guten Tag, ${escHtml(customer.first_name || customerName)}<br><em>Ihr Angebot ist bereit</em></h1>
       <p class="hero-sub">
@@ -527,23 +568,23 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
         <h2>Warum Gross ICT?</h2>
         <p class="section-desc" style="margin-left:auto;margin-right:auto;">Vier Gründe, warum Schweizer KMU auf uns vertrauen.</p>
       </div>
-      <div class="usps-grid animate-in">
-        <div class="usp-card">
+      <div class="usps-grid">
+        <div class="usp-card card-shine animate-in" data-delay="1">
           <div class="usp-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
           <h3>Schnelle Umsetzung</h3>
           <p>Von der Idee zum Ergebnis in kürzester Zeit. Ergebnisse, keine Endlos-Meetings.</p>
         </div>
-        <div class="usp-card">
+        <div class="usp-card card-shine animate-in" data-delay="2">
           <div class="usp-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
           <h3>Swiss Made Quality</h3>
           <p>Hosting in der Schweiz, DSGVO-konform, persönlicher Ansprechpartner in Zell LU.</p>
         </div>
-        <div class="usp-card">
+        <div class="usp-card card-shine animate-in" data-delay="3">
           <div class="usp-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
           <h3>Alles aus einer Hand</h3>
           <p>Design, Entwicklung, Hosting & Support — ein Ansprechpartner, null Stress.</p>
         </div>
-        <div class="usp-card">
+        <div class="usp-card card-shine animate-in" data-delay="4">
           <div class="usp-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></div>
           <h3>Faire Preise</h3>
           <p>Transparent und verständlich. Keine versteckten Kosten — unser Preis ist unser Preis.</p>
@@ -654,11 +695,137 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
       }, 2000);
     }
 
-    // Scroll animations
+    // === Particles ===
+    (function() {
+      const container = document.getElementById('particles');
+      if (!container) return;
+      for (let i = 0; i < 20; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.top = Math.random() * 100 + '%';
+        p.style.setProperty('--dx', (Math.random() - 0.5) * 200 + 'px');
+        p.style.setProperty('--dy', (Math.random() - 0.5) * 200 + 'px');
+        p.style.animationDuration = (4 + Math.random() * 6) + 's';
+        p.style.animationDelay = Math.random() * 5 + 's';
+        p.style.width = p.style.height = (2 + Math.random() * 4) + 'px';
+        container.appendChild(p);
+      }
+    })();
+
+    // === Scroll animations with stagger ===
     const obs = new IntersectionObserver((entries) => {
-      entries.forEach((e,i) => { if(e.isIntersecting){setTimeout(()=>e.target.classList.add('visible'),i*100);obs.unobserve(e.target);} });
-    }, {threshold:0.15});
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const delay = parseInt(entry.target.dataset.delay || '0') * 100;
+          setTimeout(() => entry.target.classList.add('visible'), delay);
+          obs.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
     document.querySelectorAll('.animate-in').forEach(el => obs.observe(el));
+
+    // === Number counter animation ===
+    document.querySelectorAll('[data-count]').forEach(el => {
+      const target = parseFloat(el.dataset.count);
+      const obs2 = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            let start = 0;
+            const duration = 1500;
+            const startTime = performance.now();
+            function step(now) {
+              const progress = Math.min((now - startTime) / duration, 1);
+              const eased = 1 - Math.pow(1 - progress, 3);
+              const current = start + (target - start) * eased;
+              el.textContent = current.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              if (progress < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+            obs2.unobserve(el);
+          }
+        });
+      }, { threshold: 0.5 });
+      obs2.observe(el);
+    });
+
+    // === USP card mouse tracking ===
+    document.querySelectorAll('.usp-card').forEach(card => {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        card.style.setProperty('--mouse-x', x + '%');
+        card.style.setProperty('--mouse-y', y + '%');
+      });
+    });
+
+    // === Parallax on scroll ===
+    const hero = document.querySelector('.hero');
+    if (hero) {
+      window.addEventListener('scroll', () => {
+        const scroll = window.scrollY;
+        const before = hero.querySelector('.particles');
+        if (before) before.style.transform = 'translateY(' + scroll * 0.3 + 'px)';
+      }, { passive: true });
+    }
+
+    // === Pricing table row animation ===
+    document.querySelectorAll('.pricing-table tbody tr').forEach((row, i) => {
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(-20px)';
+      const rowObs = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            setTimeout(() => {
+              row.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+              row.style.opacity = '1';
+              row.style.transform = 'translateX(0)';
+            }, i * 80);
+            rowObs.unobserve(row);
+          }
+        });
+      }, { threshold: 0.1 });
+      rowObs.observe(row);
+    });
+
+    // === Supabase Realtime for live updates ===
+    (async function() {
+      try {
+        const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+        const supabase = createClient(
+          '${supabaseUrl}',
+          '${Deno.env.get("SUPABASE_ANON_KEY") || ""}'
+        );
+        supabase
+          .channel('quote-live-${quote.id}')
+          .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'quotes',
+            filter: 'id=eq.${quote.id}',
+          }, (payload) => {
+            const newStatus = payload.new.status;
+            showLiveToast('Angebotsstatus wurde aktualisiert auf: <strong>' + newStatus + '</strong>. Seite wird neu geladen…');
+            setTimeout(() => window.location.reload(), 3000);
+          })
+          .subscribe();
+      } catch(e) { console.log('Realtime not available:', e); }
+    })();
+
+    function showLiveToast(html) {
+      let toast = document.getElementById('live-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'live-toast';
+        toast.className = 'live-toast';
+        toast.innerHTML = '<div class="live-dot"></div><div class="live-toast-text"></div>';
+        document.body.appendChild(toast);
+      }
+      toast.querySelector('.live-toast-text').innerHTML = html;
+      requestAnimationFrame(() => { toast.classList.add('show'); });
+      setTimeout(() => toast.classList.remove('show'), 8000);
+    }
 
     // Modal
     const overlay = document.getElementById('modal-overlay');
@@ -692,24 +859,25 @@ function renderPage(quote: any, supabaseUrl: string, project?: any): string {
         const res = await fetch('${acceptUrl}', { method: 'POST' });
         const data = await res.json();
         if (data.success) {
-          confirmBtn.innerHTML = '✓ Angenommen!';
+          confirmBtn.innerHTML = '&#x2713; Angenommen!';
           confirmBtn.style.background = '#22c55e';
           confirmBtn.style.boxShadow = '0 4px 20px rgba(34,197,94,0.3)';
           checkbox.disabled = true;
           setTimeout(() => {
             closeModal();
-            document.getElementById('action-box').innerHTML = '<div style="font-size:56px;margin-bottom:16px;">🎉</div><h2 style="color:#22c55e;">Angebot angenommen!</h2><p>Vielen Dank für Ihr Vertrauen. Wir melden uns innerhalb von 24 Stunden bei Ihnen.</p>';
+            const ab = document.getElementById('action-box');
+            if (ab) ab.innerHTML = '<div style="font-size:56px;margin-bottom:16px;">&#x2705;</div><h2 style="color:#22c55e;">Angebot angenommen!</h2><p>Vielen Dank f\u00fcr Ihr Vertrauen. Wir melden uns innerhalb von 24 Stunden bei Ihnen.</p>';
           }, 1500);
         } else {
           throw new Error(data.error || 'Fehler');
         }
       } catch (err) {
-        confirmBtn.innerHTML = 'Fehler – bitte erneut versuchen';
+        confirmBtn.innerHTML = 'Fehler \u2013 bitte erneut versuchen';
         confirmBtn.disabled = false;
         confirmBtn.style.background = '#ef4444';
         setTimeout(() => {
           confirmBtn.style.background = '';
-          confirmBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg> Bestätigen';
+          confirmBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg> Best\u00e4tigen';
         }, 3000);
       }
     });
