@@ -936,18 +936,33 @@ export async function addProjectActivity(
     let resolvedName = userName;
     if (!resolvedName) {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: sessionData } = await supabase.auth.getSession();
+            const user = sessionData?.session?.user;
             if (user) {
+                // Versuch 1: Users-Tabelle
                 const { data: profile } = await supabase
                     .from("users")
                     .select("first_name, last_name")
                     .eq("id", user.id)
                     .single();
                 if (profile) {
-                    resolvedName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
+                    const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
+                    if (fullName) resolvedName = fullName;
+                }
+                // Versuch 2: User Metadata
+                if (!resolvedName && user.user_metadata) {
+                    const meta = user.user_metadata;
+                    const metaName = `${meta.first_name || meta.name || ""} ${meta.last_name || ""}`.trim();
+                    if (metaName) resolvedName = metaName;
+                }
+                // Versuch 3: Email
+                if (!resolvedName && user.email) {
+                    resolvedName = user.email.split("@")[0];
                 }
             }
-        } catch (_) { /* fallback to System */ }
+        } catch (e) {
+            console.warn("Could not resolve user name for activity:", e);
+        }
         if (!resolvedName) resolvedName = "System";
     }
 
