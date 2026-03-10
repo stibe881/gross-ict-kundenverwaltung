@@ -16,24 +16,42 @@ serve(async (req) => {
 
     // Handle save-token action — APPENDS token (keeps max 5, deduplicates)
     if (reqBody.action === 'save-token') {
-      const { userId, userType, pushToken } = reqBody;
-      console.log("[send-push] Saving token for", userType, userId, "token:", pushToken);
+      const { userId, userType, pushToken, userEmail } = reqBody;
+      console.log("[send-push] Saving token for", userType, userId, "email:", userEmail, "token:", pushToken);
       const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
       );
       const table = userType === "customer" ? "customer_portal_users" : "users";
 
-      // Read existing token(s)
-      const { data: existing } = await supabaseAdmin
+      // Try to find user by ID first, then fall back to email
+      let { data: existing } = await supabaseAdmin
         .from(table)
-        .select("push_token")
+        .select("id, push_token")
         .eq("id", userId)
         .single();
 
+      // If ID not found, try by email (handles auth ID ≠ users table ID)
+      if (!existing && userEmail) {
+        console.log("[send-push] ID not found, trying email:", userEmail);
+        const { data: byEmail } = await supabaseAdmin
+          .from(table)
+          .select("id, push_token")
+          .eq("email", userEmail)
+          .single();
+        existing = byEmail;
+      }
+
+      if (!existing) {
+        console.error("[send-push] User not found by ID or email");
+        return new Response(JSON.stringify({ error: "User not found", userId, userEmail }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404,
+        });
+      }
+
       // Parse existing tokens (could be single token or comma-separated)
       let tokens: string[] = [];
-      if (existing?.push_token) {
+      if (existing.push_token) {
         tokens = existing.push_token.split(',').map((t: string) => t.trim()).filter(Boolean);
       }
 
@@ -44,16 +62,16 @@ serve(async (req) => {
       }
 
       const newValue = tokens.join(',');
-      console.log("[send-push] Storing tokens:", newValue);
+      console.log("[send-push] Storing tokens for user", existing.id, ":", newValue);
 
-      const { error } = await supabaseAdmin.from(table).update({ push_token: newValue }).eq("id", userId);
+      const { error } = await supabaseAdmin.from(table).update({ push_token: newValue }).eq("id", existing.id);
       if (error) {
         console.error("[send-push] Save token error:", error.message);
         return new Response(JSON.stringify({ error: error.message }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
         });
       }
-      return new Response(JSON.stringify({ success: true, tokens: tokens.length }), {
+      return new Response(JSON.stringify({ success: true, tokens: tokens.length, matchedById: existing.id === userId }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

@@ -23,7 +23,7 @@ function debugAlert(title: string, msg: string) {
   }
 }
 
-export async function registerForPushNotificationsAsync(userType: "admin" | "customer", userId: string) {
+export async function registerForPushNotificationsAsync(userType: "admin" | "customer", userId: string, userEmail?: string) {
   let token;
 
   const executionEnv = Constants.executionEnvironment || 'unknown';
@@ -76,6 +76,7 @@ export async function registerForPushNotificationsAsync(userType: "admin" | "cus
               userId,
               userType,
               pushToken: token,
+              userEmail,
             },
           });
 

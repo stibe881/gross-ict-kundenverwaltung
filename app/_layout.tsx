@@ -88,7 +88,7 @@ export default function RootLayout() {
             await AsyncStorage.setItem("isLoggedIn", "true");
             await AsyncStorage.setItem("userEmail", session.user.email || "");
             // Still register push token even when not navigating
-            registerForPushNotificationsAsync("admin", session.user.id).catch(console.error);
+            registerForPushNotificationsAsync("admin", session.user.id, session.user.email).catch(console.error);
             return;
           }
 
@@ -103,7 +103,7 @@ export default function RootLayout() {
               email: session.user.email,
             }));
 
-            registerForPushNotificationsAsync("customer", session.user.id).catch(console.error);
+            registerForPushNotificationsAsync("customer", session.user.id, session.user.email).catch(console.error);
             router.replace("/portal-tickets-customer");
           } else {
             console.log("[Auth] Session stored for:", session.user.email);
@@ -116,7 +116,7 @@ export default function RootLayout() {
               session.user.email || ""
             );
 
-            registerForPushNotificationsAsync("admin", session.user.id).catch(console.error);
+            registerForPushNotificationsAsync("admin", session.user.id, session.user.email).catch(console.error);
             router.replace("/(tabs)");
           }
 
@@ -128,11 +128,11 @@ export default function RootLayout() {
           if (isCustomerPortalUser) {
             await AsyncStorage.setItem("isCustomerLoggedIn", "true");
             await AsyncStorage.setItem("customerEmail", session.user.email || "");
-            registerForPushNotificationsAsync("customer", session.user.id).catch(console.error);
+            registerForPushNotificationsAsync("customer", session.user.id, session.user.email).catch(console.error);
           } else {
             await AsyncStorage.setItem("isLoggedIn", "true");
             await AsyncStorage.setItem("userEmail", session.user.email || "");
-            registerForPushNotificationsAsync("admin", session.user.id).catch(console.error);
+            registerForPushNotificationsAsync("admin", session.user.id, session.user.email).catch(console.error);
           }
         }
         if (event === "SIGNED_OUT") {
