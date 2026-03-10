@@ -114,9 +114,9 @@ export default function LeadsScreen() {
           <View className="flex-row gap-2 mb-4">
             {[
               { key: "all", label: "Alle", color: colors.foreground },
-              { key: "high", label: "⬆ Hoch", color: "#EF4444" },
+              { key: "high", label: "↑ Hoch", color: "#EF4444" },
               { key: "medium", label: "● Mittel", color: "#F59E0B" },
-              { key: "low", label: "⬇ Tief", color: "#6B7280" },
+              { key: "low", label: "↓ Tief", color: "#6B7280" },
             ].map((f) => (
               <TouchableOpacity
                 key={f.key}

@@ -565,7 +565,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                         {milestones.map((milestone, index) => {
                             const isLast = index === milestones.length - 1;
                             const statusColor = MILESTONE_COLORS[milestone.status] || "#6B7280";
-                            const icon = MILESTONE_ICONS[milestone.status] || "⏳";
+                            const icon = MILESTONE_ICONS[milestone.status] || "clock";
 
                             return (
                                 <View key={milestone.id} className="flex-row">

@@ -20,10 +20,10 @@ import { ProjectFormModal } from "@/components/project-form-modal";
 import { ProjectDetailModal } from "@/components/project-detail-modal";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-    planning: { label: "Planung", color: "#6B7280", icon: "📋" },
-    in_progress: { label: "In Arbeit", color: "#3B82F6", icon: "🔄" },
-    completed: { label: "Abgeschlossen", color: "#10B981", icon: "✅" },
-    cancelled: { label: "Abgebrochen", color: "#EF4444", icon: "❌" },
+    planning: { label: "Planung", color: "#6B7280", icon: "clipboard" },
+    in_progress: { label: "In Arbeit", color: "#3B82F6", icon: "arrow.triangle.2.circlepath" },
+    completed: { label: "Abgeschlossen", color: "#10B981", icon: "checkmark.circle.fill" },
+    cancelled: { label: "Abgebrochen", color: "#EF4444", icon: "xmark.circle.fill" },
 };
 
 export default function ProjectsScreen() {
@@ -123,7 +123,7 @@ export default function ProjectsScreen() {
                                         fontWeight: "600",
                                     }}
                                 >
-                                    {item.priority === "urgent" ? "🔥" : item.priority === "high" ? "⬆️" : "⬇️"}
+                                    {item.priority === "urgent" ? "!!" : item.priority === "high" ? "↑" : "↓"}
                                 </Text>
                             </View>
                         )}
@@ -131,7 +131,7 @@ export default function ProjectsScreen() {
                             style={{ backgroundColor: config.color + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}
                         >
                             <Text style={{ color: config.color, fontSize: 12, fontWeight: "600" }}>
-                                {config.icon} {config.label}
+                                {config.label}
                             </Text>
                         </View>
                     </View>

@@ -103,17 +103,15 @@ export function NewsletterFormModal({
                   ].map((option) => (
                     <TouchableOpacity
                       key={option.key}
-                      className={`flex-1 px-4 py-3 rounded-xl border ${
-                        recipientType === option.key
+                      className={`flex-1 px-4 py-3 rounded-xl border ${recipientType === option.key
                           ? "bg-primary border-primary"
                           : "bg-surface border-border"
-                      }`}
+                        }`}
                       onPress={() => setRecipientType(option.key as any)}
                     >
                       <Text
-                        className={`text-sm font-semibold text-center ${
-                          recipientType === option.key ? "text-background" : "text-foreground"
-                        }`}
+                        className={`text-sm font-semibold text-center ${recipientType === option.key ? "text-background" : "text-foreground"
+                          }`}
                       >
                         {option.label}
                       </Text>
@@ -143,7 +141,7 @@ export function NewsletterFormModal({
               {/* Info */}
               <View className="bg-surface rounded-xl p-4 mb-6">
                 <Text className="text-sm text-muted">
-                  💡 Die Kampagne wird als Entwurf gespeichert. Sie können sie später planen
+                  Die Kampagne wird als Entwurf gespeichert. Sie können sie später planen
                   oder sofort versenden.
                 </Text>
               </View>

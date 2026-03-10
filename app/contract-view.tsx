@@ -11,6 +11,7 @@ import {
 import { useLocalSearchParams } from "expo-router";
 import { useColors } from "@/hooks/use-colors";
 import { ScreenContainer } from "@/components/screen-container";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 
 const API_BASE = Platform.OS === "web"
     ? (typeof window !== "undefined" ? window.location.origin : "")
@@ -91,7 +92,7 @@ export default function ContractViewPage() {
         return (
             <ScreenContainer>
                 <View className="flex-1 items-center justify-center p-6">
-                    <Text className="text-3xl mb-4">❌</Text>
+                    <IconSymbol name="xmark.circle.fill" size={48} color="#EF4444" />
                     <Text className="text-xl font-bold text-foreground mb-2">
                         Vertrag nicht gefunden
                     </Text>
@@ -177,7 +178,7 @@ export default function ContractViewPage() {
                 {/* Signature Section */}
                 {signed ? (
                     <View className="bg-green-50 border border-green-200 rounded-2xl p-6 items-center">
-                        <Text className="text-3xl mb-3">✅</Text>
+                        <IconSymbol name="checkmark.seal.fill" size={48} color="#10B981" />
                         <Text className="text-xl font-bold text-green-700 mb-2">
                             Vertrag unterzeichnet
                         </Text>
@@ -227,7 +228,7 @@ export default function ContractViewPage() {
                                 <ActivityIndicator color="#FFFFFF" />
                             ) : (
                                 <Text className="text-background font-bold text-base">
-                                    ✍️ Verbindlich unterzeichnen
+                                    Verbindlich unterzeichnen
                                 </Text>
                             )}
                         </TouchableOpacity>

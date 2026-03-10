@@ -160,7 +160,7 @@ export function PasswordResetModal({
               </View>
 
               <Text className="text-xs text-muted text-center mb-6">
-                💡 Tipp: Kopieren Sie das Passwort oder machen Sie einen Screenshot
+                Tipp: Kopieren Sie das Passwort oder machen Sie einen Screenshot
               </Text>
 
               {/* Schließen-Button */}

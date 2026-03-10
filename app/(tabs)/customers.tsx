@@ -135,7 +135,7 @@ export default function CustomersScreen() {
           <View className="flex-row items-center gap-2 mt-3 pt-3 border-t border-border">
             {counts.activeContracts > 0 && (
               <View className="flex-row items-center bg-success/15 px-2 py-1 rounded-lg">
-                <Text className="text-xs">📄</Text>
+                <IconSymbol name="doc.text" size={12} color={colors.success} />
                 <Text className="text-xs font-semibold text-success ml-1">
                   {counts.activeContracts} {counts.activeContracts === 1 ? "Vertrag" : "Verträge"}
                 </Text>
