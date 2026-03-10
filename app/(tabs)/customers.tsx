@@ -143,7 +143,7 @@ export default function CustomersScreen() {
             )}
             {counts.openTickets > 0 && (
               <View className="flex-row items-center bg-warning/15 px-2 py-1 rounded-lg">
-                <Text className="text-xs">🎫</Text>
+                <IconSymbol name="ticket" size={12} color={colors.warning} />
                 <Text className="text-xs font-semibold text-warning ml-1">
                   {counts.openTickets} {counts.openTickets === 1 ? "Ticket" : "Tickets"}
                 </Text>
@@ -151,7 +151,7 @@ export default function CustomersScreen() {
             )}
             {counts.openInvoices > 0 && (
               <View className="flex-row items-center bg-error/15 px-2 py-1 rounded-lg">
-                <Text className="text-xs">💰</Text>
+                <IconSymbol name="banknote" size={12} color={colors.error} />
                 <Text className="text-xs font-semibold text-error ml-1">
                   {counts.openInvoices} {counts.openInvoices === 1 ? "Rechnung" : "Rechnungen"}
                 </Text>

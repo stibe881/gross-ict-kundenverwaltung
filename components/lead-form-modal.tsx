@@ -383,7 +383,7 @@ export function LeadFormModal({
               {/* ── POTENZIAL SECTION ── */}
               <View className="bg-surface rounded-xl p-4 border border-border">
                 <Text className="text-base font-bold text-foreground mb-3">
-                  💰 Potenzial
+                  <IconSymbol name="banknote" size={16} color={colors.foreground} /> Potenzial
                 </Text>
 
                 {/* Produkte */}

@@ -405,18 +405,19 @@ export default function InvoiceDetailScreen() {
                         ) : (
                             <View className="gap-3">
                                 {activities.map((activity: any, index: number) => {
-                                    const icons: Record<string, string> = {
-                                        created: "📝",
-                                        edited: "✏️",
-                                        sent: "📧",
-                                        reminder_sent: "⚠️",
-                                        opened: "👁️",
-                                        payment_added: "💰",
+                                    const iconNames: Record<string, string> = {
+                                        created: "doc.text",
+                                        edited: "pencil",
+                                        sent: "paperplane",
+                                        reminder_sent: "exclamationmark.triangle",
+                                        opened: "eye",
+                                        payment_added: "banknote",
                                     };
+                                    const iconName = iconNames[activity.type] || "circle.fill";
                                     return (
                                         <View key={activity.id} className="flex-row items-start gap-3">
                                             <View className="items-center">
-                                                <Text className="text-base">{icons[activity.type] || "•"}</Text>
+                                                <IconSymbol name={iconName as any} size={14} color={colors.primary} />
                                                 {index < activities.length - 1 && (
                                                     <View className="w-[1px] flex-1 bg-border mt-1" style={{ minHeight: 20 }} />
                                                 )}

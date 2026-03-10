@@ -629,7 +629,7 @@ function LeadDetailsModal({
               {/* Notizen */}
               {lead.notes && (
                 <View className="bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-sm font-semibold text-foreground mb-2">📝 Notizen</Text>
+                  <Text className="text-sm font-semibold text-foreground mb-2"><IconSymbol name="note.text" size={14} color={colors.foreground} /> Notizen</Text>
                   <Text className="text-sm text-foreground leading-5">{lead.notes}</Text>
                 </View>
               )}
@@ -637,7 +637,7 @@ function LeadDetailsModal({
               {/* Produkte & Potenzial-Aufschlüsselung */}
               {(leadItems.length > 0 || lead.extra_amount) && (
                 <View className="bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-sm font-semibold text-foreground mb-2">💰 Potenzial-Details</Text>
+                  <Text className="text-sm font-semibold text-foreground mb-2"><IconSymbol name="banknote" size={14} color={colors.foreground} /> Potenzial-Details</Text>
                   {leadItems.length > 0 && (
                     <View className="gap-1 mb-2">
                       {leadItems.map((item: any, idx: number) => (

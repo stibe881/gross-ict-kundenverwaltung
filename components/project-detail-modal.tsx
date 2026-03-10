@@ -24,23 +24,23 @@ interface Props {
 }
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-    low: { label: "Niedrig", color: "#6B7280", icon: "⬇️" },
-    medium: { label: "Mittel", color: "#F59E0B", icon: "➡️" },
-    high: { label: "Hoch", color: "#EF4444", icon: "⬆️" },
-    urgent: { label: "Dringend", color: "#DC2626", icon: "🔥" },
+    low: { label: "Niedrig", color: "#6B7280", icon: "arrow.down" },
+    medium: { label: "Mittel", color: "#F59E0B", icon: "arrow.right" },
+    high: { label: "Hoch", color: "#EF4444", icon: "arrow.up" },
+    urgent: { label: "Dringend", color: "#DC2626", icon: "flame.fill" },
 };
 
 const STATUS_LABELS: Record<string, string> = {
-    planning: "📋 Planung",
-    in_progress: "🔄 In Arbeit",
-    completed: "✅ Abgeschlossen",
-    cancelled: "❌ Abgebrochen",
+    planning: "Planung",
+    in_progress: "In Arbeit",
+    completed: "Abgeschlossen",
+    cancelled: "Abgebrochen",
 };
 
 const MILESTONE_ICONS: Record<string, string> = {
-    pending: "⏳",
-    in_progress: "🔄",
-    completed: "✅",
+    pending: "clock",
+    in_progress: "arrow.triangle.2.circlepath",
+    completed: "checkmark.circle.fill",
 };
 
 const MILESTONE_COLORS: Record<string, string> = {
@@ -56,11 +56,11 @@ const TASK_STATUS_CONFIG: Record<string, { label: string; color: string; icon: s
 };
 
 const ACTIVITY_ICONS: Record<string, string> = {
-    note: "📝",
-    status_change: "🔄",
-    milestone: "🏁",
-    task: "✓",
-    system: "⚙️",
+    note: "note.text",
+    status_change: "arrow.triangle.2.circlepath",
+    milestone: "flag.checkered",
+    task: "checkmark",
+    system: "gearshape",
 };
 
 type TabKey = "overview" | "milestones" | "tasks" | "documents" | "verlauf";
@@ -580,7 +580,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                                 justifyContent: "center",
                                             }}
                                         >
-                                            <Text style={{ fontSize: 14 }}>{icon}</Text>
+                                            <IconSymbol name={icon as any} size={14} color={statusColor} />
                                         </View>
                                         {!isLast && (
                                             <View
@@ -621,7 +621,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                                 </Text>
                                                 {milestone.due_date && (
                                                     <Text className="text-xs text-muted">
-                                                        📅 {formatDate(milestone.due_date)}
+                                                        <IconSymbol name="calendar" size={10} color={colors.muted} /> {formatDate(milestone.due_date)}
                                                     </Text>
                                                 )}
                                             </View>
@@ -686,7 +686,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
             ) : (
                 <View>
                     {activities.map((activity, index) => {
-                        const icon = ACTIVITY_ICONS[activity.type] || "📌";
+                        const iconName = ACTIVITY_ICONS[activity.type] || "pin";
                         const isLast = index === activities.length - 1;
 
                         return (
@@ -702,7 +702,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                             justifyContent: "center",
                                         }}
                                     >
-                                        <Text style={{ fontSize: 13 }}>{icon}</Text>
+                                        <IconSymbol name={iconName as any} size={13} color={colors.primary} />
                                     </View>
                                     {!isLast && (
                                         <View
