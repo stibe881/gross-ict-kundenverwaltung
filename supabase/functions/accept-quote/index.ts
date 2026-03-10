@@ -170,15 +170,22 @@ Deno.serve(async (req) => {
         .not("push_token", "is", null);
 
       if (admins && admins.length > 0) {
-        const messages = admins
-          .filter((a: any) => a.push_token?.startsWith("ExponentPushToken"))
-          .map((a: any) => ({
-            to: a.push_token,
-            sound: "default",
-            title: "Angebot angenommen! 🎉",
-            body: `${customerName} hat das Angebot ${quote.quote_number} angenommen.`,
-            data: { url: "/quotes" },
-          }));
+        const messages: any[] = [];
+        for (const a of admins) {
+          if (!a.push_token) continue;
+          const tokens = a.push_token.split(',').map((t: string) => t.trim()).filter(Boolean);
+          for (const token of tokens) {
+            if (token.startsWith("ExponentPushToken")) {
+              messages.push({
+                to: token,
+                sound: "default",
+                title: "Angebot angenommen! 🎉",
+                body: `${customerName} hat das Angebot ${quote.quote_number} angenommen.`,
+                data: { url: "/quotes" },
+              });
+            }
+          }
+        }
 
         if (messages.length > 0) {
           const pushRes = await fetch("https://exp.host/--/api/v2/push/send", {

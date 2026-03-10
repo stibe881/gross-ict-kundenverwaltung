@@ -41,9 +41,12 @@ export async function registerForPushNotificationsAsync(userType: "admin" | "cus
 
     try {
       const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+        Constants?.expoConfig?.extra?.eas?.projectId
+        ?? Constants?.easConfig?.projectId
+        ?? "f1e370f0-264c-4354-bec5-3295208bfd21"; // Hardcoded fallback for standalone builds
 
-      console.log('[Push] Project ID:', projectId);
+      const executionEnv = Constants.executionEnvironment || 'unknown';
+      console.log('[Push] Project ID:', projectId, 'Environment:', executionEnv);
 
       token = (
         await Notifications.getExpoPushTokenAsync({
@@ -54,7 +57,7 @@ export async function registerForPushNotificationsAsync(userType: "admin" | "cus
       console.log('[Push] Token:', token);
 
       if (token) {
-        console.log(`[Push] Saving token for ${userType} (${userId}) via Edge Function...`);
+        console.log(`[Push] Saving token for ${userType} (${userId}) via Edge Function... (env: ${executionEnv})`);
 
         // Always save via Edge Function (uses service role key, bypasses RLS)
         try {
@@ -87,7 +90,7 @@ export async function registerForPushNotificationsAsync(userType: "admin" | "cus
         }
       }
     } catch (e) {
-      console.error('Error fetching Expo Push token:', e);
+      console.error('[Push] Error fetching Expo Push token:', e);
     }
   } else {
     console.log('Must use a physical device for Push Notifications');

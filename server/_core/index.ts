@@ -445,10 +445,10 @@ async function startServer() {
 
       // Verify caller is doing this properly, ideally we should have an authorization check here similar to create-portal-user
       // For now we trust it if it has an auth header or is coming from our trusted clients
-      
+
       let targetUsers: any[] = [];
       const recipientIds = Array.isArray(recipients) ? recipients : [recipients];
-      
+
       if (recipients === "all_admins") {
         const { data: adminUsers } = await supabaseAdmin
           .from("users")
@@ -458,7 +458,7 @@ async function startServer() {
       } else {
         const table = recipientType === "customer" ? "customer_portal_users" : "users";
         const idColumn = recipientType === "customer" ? "customer_id" : "id";
-        
+
         const { data: specificUsers } = await supabaseAdmin
           .from(table)
           .select("id, push_token")
@@ -469,39 +469,39 @@ async function startServer() {
       // Create history entries in notifications table
       // We do this for everyone, even if they don't have a push token, so it shows up in their Notification Center
       const allHistories: any[] = [];
-      
+
       if (recipients === "all_admins") {
         const { data: allAdminUsers } = await supabaseAdmin.from("users").select("id");
         if (allAdminUsers) {
-           allAdminUsers.forEach(u => allHistories.push({ title, message: body, type: "info", link: data?.url || null, user_id: u.id }));
+          allAdminUsers.forEach(u => allHistories.push({ title, message: body, type: "info", link: data?.url || null, user_id: u.id }));
         }
       } else {
         if (recipientType === "customer") {
-            // targetUsers contains exactly the portal users we need to save history for!
-            targetUsers.forEach(u => {
-                allHistories.push({
-                    title,
-                    message: body,
-                    type: "info",
-                    link: data?.url || null,
-                    customer_portal_user_id: u.id
-                });
+          // targetUsers contains exactly the portal users we need to save history for!
+          targetUsers.forEach(u => {
+            allHistories.push({
+              title,
+              message: body,
+              type: "info",
+              link: data?.url || null,
+              customer_portal_user_id: u.id
             });
+          });
         } else {
-            recipientIds.forEach(id => {
-               allHistories.push({
-                 title,
-                 message: body,
-                 type: "info",
-                 link: data?.url || null,
-                 user_id: id
-               });
+          recipientIds.forEach(id => {
+            allHistories.push({
+              title,
+              message: body,
+              type: "info",
+              link: data?.url || null,
+              user_id: id
             });
+          });
         }
       }
-      
+
       if (allHistories.length > 0) {
-         await supabaseAdmin.from("notifications").insert(allHistories);
+        await supabaseAdmin.from("notifications").insert(allHistories);
       }
 
       // Filter only those with valid push tokens for the actual Expo send
@@ -510,21 +510,24 @@ async function startServer() {
       if (usersWithTokens.length > 0) {
         const { Expo } = await import("expo-server-sdk");
         const expo = new Expo();
-        
+
         let messages: any[] = [];
         for (let user of usersWithTokens) {
-          if (!Expo.isExpoPushToken(user.push_token)) {
-            console.error(`Push token ${user.push_token} is not a valid Expo push token`);
-            continue;
+          // Support comma-separated tokens (Expo Go + TestFlight on same device)
+          const tokens = user.push_token.split(',').map((t: string) => t.trim()).filter(Boolean);
+          for (const token of tokens) {
+            if (!Expo.isExpoPushToken(token)) {
+              console.error(`Push token ${token} is not a valid Expo push token`);
+              continue;
+            }
+            messages.push({
+              to: token,
+              sound: 'default',
+              title,
+              body,
+              data,
+            });
           }
-
-          messages.push({
-            to: user.push_token,
-            sound: 'default',
-            title,
-            body,
-            data,
-          });
         }
 
         let chunks = expo.chunkPushNotifications(messages);

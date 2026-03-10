@@ -14,23 +14,46 @@ serve(async (req) => {
   try {
     const reqBody = await req.json();
 
-    // Handle save-token action (fallback when RLS blocks direct update)
+    // Handle save-token action — APPENDS token (keeps max 5, deduplicates)
     if (reqBody.action === 'save-token') {
       const { userId, userType, pushToken } = reqBody;
-      console.log("[send-push] Saving token for", userType, userId);
+      console.log("[send-push] Saving token for", userType, userId, "token:", pushToken);
       const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
       );
       const table = userType === "customer" ? "customer_portal_users" : "users";
-      const { error } = await supabaseAdmin.from(table).update({ push_token: pushToken }).eq("id", userId);
+
+      // Read existing token(s)
+      const { data: existing } = await supabaseAdmin
+        .from(table)
+        .select("push_token")
+        .eq("id", userId)
+        .single();
+
+      // Parse existing tokens (could be single token or comma-separated)
+      let tokens: string[] = [];
+      if (existing?.push_token) {
+        tokens = existing.push_token.split(',').map((t: string) => t.trim()).filter(Boolean);
+      }
+
+      // Add new token if not already present, keep max 5 most recent
+      if (!tokens.includes(pushToken)) {
+        tokens.push(pushToken);
+        if (tokens.length > 5) tokens = tokens.slice(-5);
+      }
+
+      const newValue = tokens.join(',');
+      console.log("[send-push] Storing tokens:", newValue);
+
+      const { error } = await supabaseAdmin.from(table).update({ push_token: newValue }).eq("id", userId);
       if (error) {
         console.error("[send-push] Save token error:", error.message);
         return new Response(JSON.stringify({ error: error.message }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
         });
       }
-      return new Response(JSON.stringify({ success: true }), {
+      return new Response(JSON.stringify({ success: true, tokens: tokens.length }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -83,16 +106,23 @@ serve(async (req) => {
       console.warn("[send-push] Could not save notification history:", histErr);
     }
 
-    // Send via Expo Push API
-    const messages = targetUsers
-      .filter(u => u.push_token && u.push_token.startsWith("ExponentPushToken"))
-      .map(u => ({
-        to: u.push_token,
-        sound: "default",
-        title,
-        body,
-        data: data || {},
-      }));
+    // Expand comma-separated tokens into individual messages
+    const messages: any[] = [];
+    for (const u of targetUsers) {
+      if (!u.push_token) continue;
+      const tokens = u.push_token.split(',').map((t: string) => t.trim()).filter(Boolean);
+      for (const token of tokens) {
+        if (token.startsWith("ExponentPushToken")) {
+          messages.push({
+            to: token,
+            sound: "default",
+            title,
+            body,
+            data: data || {},
+          });
+        }
+      }
+    }
 
     console.log("[send-push] Sending", messages.length, "messages to Expo");
 
@@ -108,6 +138,34 @@ serve(async (req) => {
       });
       expoResult = await response.json();
       console.log("[send-push] Expo response:", JSON.stringify(expoResult));
+
+      // Clean up invalid tokens (DeviceNotRegistered)
+      if (expoResult?.data) {
+        const invalidTokens: string[] = [];
+        for (let i = 0; i < expoResult.data.length; i++) {
+          if (expoResult.data[i]?.details?.error === 'DeviceNotRegistered') {
+            invalidTokens.push(messages[i].to);
+          }
+        }
+
+        if (invalidTokens.length > 0) {
+          console.log("[send-push] Cleaning up", invalidTokens.length, "invalid tokens");
+          // Remove invalid tokens from the DB
+          for (const u of targetUsers) {
+            if (!u.push_token) continue;
+            const validTokens = u.push_token.split(',')
+              .map((t: string) => t.trim())
+              .filter((t: string) => t && !invalidTokens.includes(t));
+
+            if (validTokens.length !== u.push_token.split(',').length) {
+              await supabaseAdmin.from(table)
+                .update({ push_token: validTokens.join(',') || null })
+                .eq("id", u.id);
+              console.log("[send-push] Cleaned tokens for user", u.id);
+            }
+          }
+        }
+      }
     }
 
     return new Response(JSON.stringify({
