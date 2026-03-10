@@ -439,6 +439,7 @@ function LeadDetailsModal({
   onClose: () => void;
 }) {
   const colors = useColors();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [newActivity, setNewActivity] = useState("");
   const [currentUserName, setCurrentUserName] = useState("Admin");
@@ -587,14 +588,14 @@ function LeadDetailsModal({
                 </View>
               )}
 
-              {(lead.address || lead.postal_code || lead.city) && (
+              {(lead.address || lead.zip || lead.city) ? (
                 <View>
                   <Text className="text-sm text-muted mb-1">Adresse</Text>
                   <Text className="text-base text-foreground">
-                    {[lead.address, [lead.postal_code, lead.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                    {[lead.address, [lead.zip, lead.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
                   </Text>
                 </View>
-              )}
+              ) : null}
 
               <View className="flex-row gap-3">
                 <View className="flex-1">
@@ -687,10 +688,10 @@ function LeadDetailsModal({
                   <Text className="text-sm font-semibold text-foreground mb-2">Verknüpftes Angebot</Text>
                   {linkedQuote ? (
                     <View className="flex-row items-center justify-between">
-                      <View>
-                        <Text className="text-base font-semibold text-foreground">{linkedQuote.quote_number}</Text>
-                        <Text className="text-sm text-muted">{linkedQuote.customer?.company_name || linkedQuote.customer?.first_name} • CHF {(linkedQuote.total || 0).toLocaleString('de-CH')}</Text>
-                      </View>
+                      <TouchableOpacity onPress={() => router.push(`/quote/${linkedQuote.id}` as any)} activeOpacity={0.7}>
+                        <Text className="text-base font-semibold text-primary">{linkedQuote.quote_number}</Text>
+                        <Text className="text-sm text-muted">{linkedQuote.customer?.company_name || linkedQuote.customer?.first_name} - CHF {(linkedQuote.total || 0).toLocaleString('de-CH')}</Text>
+                      </TouchableOpacity>
                       <TouchableOpacity
                         className="px-3 py-1.5 rounded-lg bg-error/20"
                         onPress={async () => {

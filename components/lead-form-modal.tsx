@@ -364,11 +364,13 @@ export function LeadFormModal({
                       setFormData(prev => ({ ...prev, zip: text }));
                       if (text.length === 4 && /^\d{4}$/.test(text)) {
                         try {
-                          const res = await fetch(`https://swisspost.opendatasoft.com/api/records/1.0/search/?dataset=plz_verzeichnis_v2&q=${text}&rows=1&facet=postleitzahl`);
-                          const json = await res.json();
-                          const city = json?.records?.[0]?.fields?.ortbez18;
-                          if (city) setFormData(prev => ({ ...prev, city }));
-                        } catch (_) {}
+                          const res = await fetch(`https://api.zippopotam.us/CH/${text}`);
+                          if (res.ok) {
+                            const json = await res.json();
+                            const city = json?.places?.[0]?.['place name'];
+                            if (city) setFormData(prev => ({ ...prev, city }));
+                          }
+                        } catch (_) { }
                       }
                     }}
                   />
