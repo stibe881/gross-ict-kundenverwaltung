@@ -942,12 +942,11 @@ export async function addProjectActivity(
                 // Versuch 1: Users-Tabelle
                 const { data: profile } = await supabase
                     .from("users")
-                    .select("first_name, last_name")
+                    .select("name")
                     .eq("id", user.id)
                     .single();
-                if (profile) {
-                    const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
-                    if (fullName) resolvedName = fullName;
+                if (profile && profile.name) {
+                    resolvedName = profile.name;
                 }
                 // Versuch 2: User Metadata
                 if (!resolvedName && user.user_metadata) {
