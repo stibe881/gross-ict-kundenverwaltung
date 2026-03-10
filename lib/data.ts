@@ -938,19 +938,22 @@ export async function addProjectActivity(
         try {
             const { data: sessionData } = await supabase.auth.getSession();
             const user = sessionData?.session?.user;
+            console.log("[Activity Debug] user id:", user?.id, "email:", user?.email);
             if (user) {
                 // Versuch 1: Users-Tabelle
-                const { data: profile } = await supabase
+                const { data: profile, error: profileError } = await supabase
                     .from("users")
-                    .select("name")
+                    .select("*")
                     .eq("id", user.id)
                     .single();
+                console.log("[Activity Debug] profile:", JSON.stringify(profile), "error:", profileError?.message);
                 if (profile && profile.name) {
                     resolvedName = profile.name;
                 }
                 // Versuch 2: User Metadata
                 if (!resolvedName && user.user_metadata) {
                     const meta = user.user_metadata;
+                    console.log("[Activity Debug] metadata:", JSON.stringify(meta));
                     const metaName = `${meta.first_name || meta.name || ""} ${meta.last_name || ""}`.trim();
                     if (metaName) resolvedName = metaName;
                 }
@@ -959,6 +962,7 @@ export async function addProjectActivity(
                     resolvedName = user.email.split("@")[0];
                 }
             }
+            console.log("[Activity Debug] resolvedName:", resolvedName);
         } catch (e) {
             console.warn("Could not resolve user name for activity:", e);
         }
