@@ -9,6 +9,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "./ui/icon-symbol";
@@ -261,7 +263,7 @@ export function CustomerPortalManagement({
         transparent={true}
         onRequestClose={() => setShowAddUserModal(false)}
       >
-        <View className="flex-1 justify-end bg-black/50">
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-end bg-black/50">
           <View
             style={{ backgroundColor: colors.background }}
             className="rounded-t-3xl p-6 max-h-[80%]"
@@ -459,7 +461,7 @@ export function CustomerPortalManagement({
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

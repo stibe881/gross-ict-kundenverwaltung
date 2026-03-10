@@ -6,6 +6,8 @@ import {
     TouchableOpacity,
     ScrollView,
     Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -74,7 +76,7 @@ export function ContractTemplateFormModal({
             transparent
             onRequestClose={onClose}
         >
-            <View className="flex-1 bg-black/50 justify-end">
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-black/50 justify-end">
                 <View className="bg-background rounded-t-3xl" style={{ maxHeight: "90%" }}>
                     {/* Header */}
                     <View className="flex-row items-center justify-between p-4 border-b border-border">
@@ -191,7 +193,7 @@ export function ContractTemplateFormModal({
                         </TouchableOpacity>
                     </View>
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </Modal>
     );
 }

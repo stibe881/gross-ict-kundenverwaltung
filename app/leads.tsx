@@ -587,6 +587,15 @@ function LeadDetailsModal({
                 </View>
               )}
 
+              {(lead.address || lead.postal_code || lead.city) && (
+                <View>
+                  <Text className="text-sm text-muted mb-1">Adresse</Text>
+                  <Text className="text-base text-foreground">
+                    {[lead.address, [lead.postal_code, lead.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                  </Text>
+                </View>
+              )}
+
               <View className="flex-row gap-3">
                 <View className="flex-1">
                   <Text className="text-sm text-muted mb-1">Status</Text>

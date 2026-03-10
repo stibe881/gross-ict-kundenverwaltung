@@ -8,6 +8,7 @@ import {
   Modal,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -228,7 +229,7 @@ export function LeadFormModal({
       transparent
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-black/50 justify-end" style={Platform.OS === 'web' ? { justifyContent: 'center', alignItems: 'center' } : undefined}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-black/50 justify-end" style={Platform.OS === 'web' ? { justifyContent: 'center', alignItems: 'center' } : undefined}>
         <View
           className="bg-background rounded-t-3xl"
           style={Platform.OS === 'web' ? { maxWidth: 700, width: '100%', borderRadius: 24, maxHeight: '90%' } : { maxHeight: "90%" }}
@@ -359,9 +360,17 @@ export function LeadFormModal({
                     placeholderTextColor={colors.muted}
                     keyboardType="number-pad"
                     value={formData.zip}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, zip: text })
-                    }
+                    onChangeText={async (text) => {
+                      setFormData(prev => ({ ...prev, zip: text }));
+                      if (text.length === 4 && /^\d{4}$/.test(text)) {
+                        try {
+                          const res = await fetch(`https://swisspost.opendatasoft.com/api/records/1.0/search/?dataset=plz_verzeichnis_v2&q=${text}&rows=1&facet=postleitzahl`);
+                          const json = await res.json();
+                          const city = json?.records?.[0]?.fields?.ortbez18;
+                          if (city) setFormData(prev => ({ ...prev, city }));
+                        } catch (_) {}
+                      }
+                    }}
                   />
                 </View>
                 <View className="flex-1">
@@ -657,11 +666,11 @@ export function LeadFormModal({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       {/* Product Picker Modal */}
       <Modal visible={showProductPicker} animationType="fade" transparent onRequestClose={() => setShowProductPicker(false)}>
-        <View className="flex-1 bg-black/50 items-center justify-center p-4">
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-black/50 items-center justify-center p-4">
           <View className="bg-background rounded-2xl w-full max-w-md" style={{ maxHeight: "70%" }}>
             <View className="flex-row items-center justify-between p-4 border-b border-border">
               <Text className="text-lg font-bold text-foreground">Produkt wählen</Text>
@@ -719,7 +728,7 @@ export function LeadFormModal({
               )}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </Modal>
   );

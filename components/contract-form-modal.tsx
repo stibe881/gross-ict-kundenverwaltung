@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -147,7 +149,7 @@ export function ContractFormModal({
       transparent
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-black/50 justify-end">
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-black/50 justify-end">
         <View
           className="bg-background rounded-t-3xl"
           style={{ maxHeight: "90%" }}
@@ -359,7 +361,7 @@ export function ContractFormModal({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       {/* Kunden-Picker Modal */}
       <Modal
@@ -368,7 +370,7 @@ export function ContractFormModal({
         transparent
         onRequestClose={() => setShowCustomerPicker(false)}
       >
-        <View className="flex-1 bg-black/50 justify-end">
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-black/50 justify-end">
           <View className="bg-background rounded-t-3xl" style={{ maxHeight: "70%" }}>
             <View className="flex-row items-center justify-between p-4 border-b border-border">
               <Text className="text-xl font-bold text-foreground">
@@ -419,7 +421,7 @@ export function ContractFormModal({
               )}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Vorlagen-Picker Modal */}
@@ -429,7 +431,7 @@ export function ContractFormModal({
         transparent
         onRequestClose={() => setShowTemplatePicker(false)}
       >
-        <View className="flex-1 bg-black/50 justify-end">
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-black/50 justify-end">
           <View className="bg-background rounded-t-3xl" style={{ maxHeight: "70%" }}>
             <View className="flex-row items-center justify-between p-4 border-b border-border">
               <Text className="text-xl font-bold text-foreground">
@@ -476,7 +478,7 @@ export function ContractFormModal({
               )}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </Modal>
   );
