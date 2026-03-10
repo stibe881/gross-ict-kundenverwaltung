@@ -465,6 +465,12 @@ function LeadDetailsModal({
     queryFn: () => Data.getLeadActivities(lead.id),
   });
 
+  // Load lead items (products)
+  const { data: leadItems = [] } = useQuery({
+    queryKey: ["lead_items", lead.id],
+    queryFn: () => Data.getLeadItems(lead.id),
+  });
+
   // Quotes laden für Verknüpfung
   const { data: allQuotes = [] } = useQuery({
     queryKey: ["quotes"],
@@ -619,6 +625,52 @@ function LeadDetailsModal({
                   </View>
                 </View>
               </View>
+
+              {/* Notizen */}
+              {lead.notes && (
+                <View className="bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-sm font-semibold text-foreground mb-2">📝 Notizen</Text>
+                  <Text className="text-sm text-foreground leading-5">{lead.notes}</Text>
+                </View>
+              )}
+
+              {/* Produkte & Potenzial-Aufschlüsselung */}
+              {(leadItems.length > 0 || lead.extra_amount) && (
+                <View className="bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-sm font-semibold text-foreground mb-2">💰 Potenzial-Details</Text>
+                  {leadItems.length > 0 && (
+                    <View className="gap-1 mb-2">
+                      {leadItems.map((item: any, idx: number) => (
+                        <View key={idx} className="flex-row items-center justify-between py-1">
+                          <View className="flex-1 mr-3">
+                            <Text className="text-sm text-foreground">{item.description}</Text>
+                            <Text className="text-xs text-muted">{item.quantity}× CHF {(item.unit_price || 0).toLocaleString("de-CH", { minimumFractionDigits: 2 })}</Text>
+                          </View>
+                          <Text className="text-sm font-semibold text-foreground">
+                            CHF {((item.quantity || 1) * (item.unit_price || 0)).toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  {lead.extra_amount > 0 && (
+                    <View className="flex-row items-center justify-between py-1 border-t border-border mt-1 pt-2">
+                      <Text className="text-sm text-foreground">
+                        {lead.extra_description || "Sonstiges"}
+                      </Text>
+                      <Text className="text-sm font-semibold text-foreground">
+                        CHF {(lead.extra_amount || 0).toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  )}
+                  <View className="flex-row items-center justify-between border-t border-border mt-2 pt-2">
+                    <Text className="text-sm font-bold text-foreground">Gesamt</Text>
+                    <Text className="text-sm font-bold text-success">
+                      CHF {(lead.value || 0).toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                    </Text>
+                  </View>
+                </View>
+              )}
 
               {/* Verknüpftes Angebot */}
               {(currentStatus === 'proposal' || linkedQuoteId) && (

@@ -1,7 +1,7 @@
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
 Notifications.setNotificationHandler({
@@ -14,20 +14,8 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Debug flag — set to true to show alerts on push registration (for TestFlight debugging)
-const PUSH_DEBUG = true;
-
-function debugAlert(title: string, msg: string) {
-  if (PUSH_DEBUG && Platform.OS !== 'web') {
-    Alert.alert(`[Push Debug] ${title}`, msg);
-  }
-}
-
 export async function registerForPushNotificationsAsync(userType: "admin" | "customer", userId: string, userEmail?: string) {
   let token;
-
-  const executionEnv = Constants.executionEnvironment || 'unknown';
-  debugAlert('Start', `userType=${userType}\nuserId=${userId}\nenv=${executionEnv}\nisDevice=${Device.isDevice}`);
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
@@ -46,19 +34,17 @@ export async function registerForPushNotificationsAsync(userType: "admin" | "cus
       finalStatus = status;
     }
     if (finalStatus !== 'granted') {
-      debugAlert('Permission', `NOT granted (status: ${finalStatus})`);
       console.log('[Push] Permission not granted');
       return null;
     }
-    debugAlert('Permission', `Granted ✅`);
 
     try {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId
         ?? Constants?.easConfig?.projectId
-        ?? "f1e370f0-264c-4354-bec5-3295208bfd21";
+        ?? "f1e370f0-264c-4354-bec5-3295208bfd21"; // Hardcoded fallback for standalone builds
 
-      debugAlert('ProjectId', `${projectId}\nexpoConfig: ${JSON.stringify(Constants?.expoConfig?.extra?.eas)}\neasConfig: ${JSON.stringify(Constants?.easConfig)}`);
+      console.log('[Push] Project ID:', projectId);
 
       token = (
         await Notifications.getExpoPushTokenAsync({
@@ -66,7 +52,7 @@ export async function registerForPushNotificationsAsync(userType: "admin" | "cus
         })
       ).data;
 
-      debugAlert('Token', `${token}`);
+      console.log('[Push] Token:', token);
 
       if (token) {
         try {
@@ -81,29 +67,28 @@ export async function registerForPushNotificationsAsync(userType: "admin" | "cus
           });
 
           if (saveError) {
-            debugAlert('Save FAILED', `Edge: ${saveError.message}\nTrying direct...`);
+            console.error('[Push] Edge Function save failed:', saveError.message);
             const { error: directError } = await supabase
               .from(userType === "admin" ? "users" : "customer_portal_users")
               .update({ push_token: token })
               .eq("id", userId);
             if (directError) {
-              debugAlert('Direct FAILED', directError.message);
+              console.error('[Push] Direct save also failed:', directError.message);
             } else {
-              debugAlert('Direct OK', 'Token saved via direct update');
+              console.log('[Push] Token saved via direct update fallback');
             }
           } else {
-            debugAlert('Save OK ✅', `Result: ${JSON.stringify(saveResult)}`);
+            console.log('[Push] Token saved successfully via Edge Function', JSON.stringify(saveResult));
           }
-        } catch (err: any) {
-          debugAlert('Save ERROR', err?.message || String(err));
+        } catch (err) {
+          console.error('[Push] Token save error:', err);
         }
       }
-    } catch (e: any) {
-      debugAlert('Token ERROR', e?.message || String(e));
+    } catch (e) {
       console.error('[Push] Error fetching Expo Push token:', e);
     }
   } else {
-    debugAlert('Skip', `Not a physical device (isDevice=${Device.isDevice})`);
+    console.log('Must use a physical device for Push Notifications');
   }
 
   return token;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -7,11 +7,13 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import * as Data from "@/lib/data";
 import { showAlert } from "@/lib/alert";
+import { useQuery } from "@tanstack/react-query";
 
 interface LeadFormModalProps {
   visible: boolean;
@@ -19,6 +21,13 @@ interface LeadFormModalProps {
   onClose: () => void;
   onSuccess?: () => void;
 }
+
+type SelectedProduct = {
+  product_id: string;
+  name: string;
+  quantity: number;
+  unit_price: number;
+};
 
 export function LeadFormModal({
   visible,
@@ -28,6 +37,9 @@ export function LeadFormModal({
 }: LeadFormModalProps) {
   const colors = useColors();
   const [saving, setSaving] = useState(false);
+  const [showProductPicker, setShowProductPicker] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+
   const [formData, setFormData] = useState({
     name: "",
     company: "",
@@ -37,15 +49,35 @@ export function LeadFormModal({
     address: "",
     zip: "",
     city: "",
-    value: "",
     status: "new",
     priority: "medium",
     source: "",
     notes: "",
+    extraAmount: "",
+    extraDescription: "",
   });
 
-  // Formular aktualisieren wenn lead sich ändert
+  const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
+
+  // Load products
+  const { data: allProducts = [] } = useQuery({
+    queryKey: ["products"],
+    queryFn: Data.getAllProducts,
+    enabled: visible,
+  });
+
+  // Calculate total value from products + extra
+  const productsTotal = useMemo(
+    () => selectedProducts.reduce((sum, p) => sum + p.quantity * p.unit_price, 0),
+    [selectedProducts]
+  );
+  const extraAmount = parseFloat(formData.extraAmount) || 0;
+  const totalValue = productsTotal + extraAmount;
+
+  // Load form data when editing
   useEffect(() => {
+    if (!visible) return;
+
     if (lead) {
       setFormData({
         name: lead.name || "",
@@ -56,12 +88,24 @@ export function LeadFormModal({
         address: lead.address || "",
         zip: lead.zip || "",
         city: lead.city || "",
-        value: lead.value?.toString() || "",
         status: lead.status || "new",
         priority: lead.priority || "medium",
         source: lead.source || "",
         notes: lead.notes || "",
+        extraAmount: lead.extra_amount?.toString() || "",
+        extraDescription: lead.extra_description || "",
       });
+      // Load existing items
+      Data.getLeadItems(lead.id).then((items) => {
+        setSelectedProducts(
+          items.map((item: any) => ({
+            product_id: item.product_id || "",
+            name: item.description || "",
+            quantity: item.quantity || 1,
+            unit_price: item.unit_price || 0,
+          }))
+        );
+      }).catch(() => setSelectedProducts([]));
     } else {
       setFormData({
         name: "",
@@ -72,14 +116,56 @@ export function LeadFormModal({
         address: "",
         zip: "",
         city: "",
-        value: "",
         status: "new",
         priority: "medium",
         source: "",
         notes: "",
+        extraAmount: "",
+        extraDescription: "",
       });
+      setSelectedProducts([]);
     }
   }, [lead, visible]);
+
+  const addProduct = (product: any) => {
+    const existing = selectedProducts.find((p) => p.product_id === product.id);
+    if (existing) {
+      setSelectedProducts(
+        selectedProducts.map((p) =>
+          p.product_id === product.id ? { ...p, quantity: p.quantity + 1 } : p
+        )
+      );
+    } else {
+      setSelectedProducts([
+        ...selectedProducts,
+        {
+          product_id: product.id,
+          name: product.name,
+          quantity: 1,
+          unit_price: product.price || 0,
+        },
+      ]);
+    }
+    setShowProductPicker(false);
+    setProductSearch("");
+  };
+
+  const removeProduct = (productId: string) => {
+    setSelectedProducts(selectedProducts.filter((p) => p.product_id !== productId));
+  };
+
+  const updateProductQty = (productId: string, qty: number) => {
+    if (qty < 1) return;
+    setSelectedProducts(
+      selectedProducts.map((p) =>
+        p.product_id === productId ? { ...p, quantity: qty } : p
+      )
+    );
+  };
+
+  const filteredProducts = allProducts.filter((p: any) =>
+    p.name?.toLowerCase().includes(productSearch.toLowerCase())
+  );
 
   const handleSubmit = async () => {
     if (!formData.name && !formData.company) {
@@ -89,7 +175,7 @@ export function LeadFormModal({
 
     setSaving(true);
     try {
-      const payload = {
+      const payload: any = {
         name: formData.name,
         company: formData.company || undefined,
         email: formData.email || undefined,
@@ -98,18 +184,26 @@ export function LeadFormModal({
         address: formData.address || undefined,
         zip: formData.zip || undefined,
         city: formData.city || undefined,
-        value: formData.value ? parseFloat(formData.value) : 0,
+        value: totalValue,
+        extra_amount: extraAmount || undefined,
+        extra_description: formData.extraDescription || undefined,
         status: formData.status,
         priority: formData.priority,
         source: formData.source || undefined,
         notes: formData.notes || undefined,
       };
 
+      const items = selectedProducts.map((p) => ({
+        description: p.name,
+        quantity: p.quantity,
+        unit_price: p.unit_price,
+        product_id: p.product_id,
+      }));
+
       if (lead) {
-        await Data.updateLead(lead.id, payload);
+        await Data.updateLead(lead.id, payload, items);
       } else {
-        const newLead = await Data.createLead(payload);
-        // System-Aktivität für neuen Lead
+        const newLead = await Data.createLead(payload, items);
         await Data.addLeadActivity({
           lead_id: newLead.id,
           type: "system",
@@ -134,10 +228,10 @@ export function LeadFormModal({
       transparent
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-black/50 justify-end">
+      <View className="flex-1 bg-black/50 justify-end" style={Platform.OS === 'web' ? { justifyContent: 'center', alignItems: 'center' } : undefined}>
         <View
           className="bg-background rounded-t-3xl"
-          style={{ maxHeight: "90%" }}
+          style={Platform.OS === 'web' ? { maxWidth: 700, width: '100%', borderRadius: 24, maxHeight: '90%' } : { maxHeight: "90%" }}
         >
           {/* Header */}
           <View className="flex-row items-center justify-between p-4 border-b border-border">
@@ -149,74 +243,77 @@ export function LeadFormModal({
             </TouchableOpacity>
           </View>
 
-          {/* Form */}
-          <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
-            <View className="gap-4">
-              {/* Name */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Kontaktperson
-                </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="Max Mustermann"
-                  placeholderTextColor={colors.muted}
-                  value={formData.name}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, name: text })
-                  }
-                />
+          <ScrollView
+            className="p-4"
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View className="gap-4 pb-4">
+              {/* Name + Firma */}
+              <View className="flex-row gap-3">
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    Name *
+                  </Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="Max Muster"
+                    placeholderTextColor={colors.muted}
+                    value={formData.name}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, name: text })
+                    }
+                  />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    Firma
+                  </Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="Muster AG"
+                    placeholderTextColor={colors.muted}
+                    value={formData.company}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, company: text })
+                    }
+                  />
+                </View>
               </View>
 
-              {/* Firma */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Firma
-                </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="Musterfirma GmbH"
-                  placeholderTextColor={colors.muted}
-                  value={formData.company}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, company: text })
-                  }
-                />
-              </View>
-
-              {/* E-Mail */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  E-Mail
-                </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="max@musterfirma.ch"
-                  placeholderTextColor={colors.muted}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={formData.email}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, email: text })
-                  }
-                />
-              </View>
-
-              {/* Telefon */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Telefon
-                </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="+41 44 123 45 67"
-                  placeholderTextColor={colors.muted}
-                  keyboardType="phone-pad"
-                  value={formData.phone}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, phone: text })
-                  }
-                />
+              {/* E-Mail + Telefon */}
+              <View className="flex-row gap-3">
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    E-Mail
+                  </Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="max@muster.ch"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={formData.email}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, email: text })
+                    }
+                  />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    Telefon
+                  </Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="+41 79 123 45 67"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="phone-pad"
+                    value={formData.phone}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, phone: text })
+                    }
+                  />
+                </View>
               </View>
 
               {/* Website */}
@@ -226,9 +323,8 @@ export function LeadFormModal({
                 </Text>
                 <TextInput
                   className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="www.firma.ch"
+                  placeholder="www.muster.ch"
                   placeholderTextColor={colors.muted}
-                  keyboardType="url"
                   autoCapitalize="none"
                   value={formData.website}
                   onChangeText={(text) =>
@@ -244,7 +340,7 @@ export function LeadFormModal({
                 </Text>
                 <TextInput
                   className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="Musterstrasse 12"
+                  placeholder="Musterstrasse 1"
                   placeholderTextColor={colors.muted}
                   value={formData.address}
                   onChangeText={(text) =>
@@ -252,10 +348,8 @@ export function LeadFormModal({
                   }
                 />
               </View>
-
-              {/* PLZ & Ort */}
               <View className="flex-row gap-3">
-                <View className="w-24">
+                <View style={{ width: 100 }}>
                   <Text className="text-sm font-semibold text-foreground mb-2">
                     PLZ
                   </Text>
@@ -286,21 +380,127 @@ export function LeadFormModal({
                 </View>
               </View>
 
-              {/* Potenzial */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Potenzial (CHF)
+              {/* ── POTENZIAL SECTION ── */}
+              <View className="bg-surface rounded-xl p-4 border border-border">
+                <Text className="text-base font-bold text-foreground mb-3">
+                  💰 Potenzial
                 </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="10000"
-                  placeholderTextColor={colors.muted}
-                  keyboardType="decimal-pad"
-                  value={formData.value}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, value: text })
-                  }
-                />
+
+                {/* Produkte */}
+                <View className="mb-3">
+                  <View className="flex-row items-center justify-between mb-2">
+                    <Text className="text-sm font-semibold text-foreground">
+                      Produkte
+                    </Text>
+                    <TouchableOpacity
+                      className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg bg-primary/10"
+                      onPress={() => setShowProductPicker(true)}
+                      activeOpacity={0.7}
+                    >
+                      <IconSymbol name="plus" size={14} color={colors.primary} />
+                      <Text className="text-xs font-semibold" style={{ color: colors.primary }}>
+                        Hinzufügen
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {selectedProducts.length > 0 ? (
+                    <View className="gap-2">
+                      {selectedProducts.map((product) => (
+                        <View
+                          key={product.product_id}
+                          className="flex-row items-center bg-background rounded-lg p-3 border border-border"
+                        >
+                          <View className="flex-1 mr-2">
+                            <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                              {product.name}
+                            </Text>
+                            <Text className="text-xs text-muted">
+                              CHF {product.unit_price.toLocaleString("de-CH", { minimumFractionDigits: 2 })} / Stk.
+                            </Text>
+                          </View>
+                          <View className="flex-row items-center gap-2">
+                            <TouchableOpacity
+                              className="w-7 h-7 rounded-md bg-surface border border-border items-center justify-center"
+                              onPress={() => updateProductQty(product.product_id, product.quantity - 1)}
+                            >
+                              <Text className="text-foreground font-bold">−</Text>
+                            </TouchableOpacity>
+                            <Text className="text-sm font-semibold text-foreground w-6 text-center">
+                              {product.quantity}
+                            </Text>
+                            <TouchableOpacity
+                              className="w-7 h-7 rounded-md bg-surface border border-border items-center justify-center"
+                              onPress={() => updateProductQty(product.product_id, product.quantity + 1)}
+                            >
+                              <Text className="text-foreground font-bold">+</Text>
+                            </TouchableOpacity>
+                            <Text className="text-sm font-semibold text-foreground ml-2" style={{ minWidth: 70, textAlign: "right" }}>
+                              CHF {(product.quantity * product.unit_price).toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                            </Text>
+                            <TouchableOpacity
+                              className="ml-2"
+                              onPress={() => removeProduct(product.product_id)}
+                            >
+                              <IconSymbol name="trash" size={16} color={colors.error} />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))}
+                      <View className="flex-row justify-end">
+                        <Text className="text-xs text-muted">
+                          Produkte: CHF {productsTotal.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <Text className="text-sm text-muted italic">
+                      Keine Produkte ausgewählt
+                    </Text>
+                  )}
+                </View>
+
+                {/* Freier Betrag */}
+                <View className="border-t border-border pt-3">
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    Freier Betrag
+                  </Text>
+                  <View className="flex-row gap-3">
+                    <View style={{ width: 130 }}>
+                      <TextInput
+                        className="bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                        placeholder="0.00"
+                        placeholderTextColor={colors.muted}
+                        keyboardType="decimal-pad"
+                        value={formData.extraAmount}
+                        onChangeText={(text) =>
+                          setFormData({ ...formData, extraAmount: text })
+                        }
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <TextInput
+                        className="bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                        placeholder="Beschreibung (z.B. Beratung)"
+                        placeholderTextColor={colors.muted}
+                        value={formData.extraDescription}
+                        onChangeText={(text) =>
+                          setFormData({ ...formData, extraDescription: text })
+                        }
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                {/* Total */}
+                <View className="border-t border-border mt-3 pt-3 flex-row items-center justify-between">
+                  <Text className="text-sm font-bold text-foreground">
+                    Gesamtpotenzial
+                  </Text>
+                  <Text className="text-lg font-bold text-success">
+                    CHF {totalValue.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
               </View>
 
               {/* Quelle */}
@@ -458,6 +658,69 @@ export function LeadFormModal({
           </View>
         </View>
       </View>
+
+      {/* Product Picker Modal */}
+      <Modal visible={showProductPicker} animationType="fade" transparent onRequestClose={() => setShowProductPicker(false)}>
+        <View className="flex-1 bg-black/50 items-center justify-center p-4">
+          <View className="bg-background rounded-2xl w-full max-w-md" style={{ maxHeight: "70%" }}>
+            <View className="flex-row items-center justify-between p-4 border-b border-border">
+              <Text className="text-lg font-bold text-foreground">Produkt wählen</Text>
+              <TouchableOpacity onPress={() => { setShowProductPicker(false); setProductSearch(""); }}>
+                <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <View className="p-3">
+              <TextInput
+                className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                placeholder="Produkt suchen..."
+                placeholderTextColor={colors.muted}
+                value={productSearch}
+                onChangeText={setProductSearch}
+                autoFocus
+              />
+            </View>
+
+            <ScrollView className="px-3 pb-3" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {filteredProducts.length === 0 ? (
+                <Text className="text-sm text-muted text-center py-6">
+                  Keine Produkte gefunden
+                </Text>
+              ) : (
+                filteredProducts.map((product: any) => {
+                  const isSelected = selectedProducts.some((p) => p.product_id === product.id);
+                  return (
+                    <TouchableOpacity
+                      key={product.id}
+                      className="flex-row items-center justify-between p-3 rounded-lg mb-1"
+                      style={{
+                        backgroundColor: isSelected ? colors.primary + "15" : undefined,
+                      }}
+                      onPress={() => addProduct(product)}
+                      activeOpacity={0.7}
+                    >
+                      <View className="flex-1 mr-3">
+                        <Text className="text-sm font-semibold text-foreground">{product.name}</Text>
+                        {product.description ? (
+                          <Text className="text-xs text-muted" numberOfLines={1}>{product.description}</Text>
+                        ) : null}
+                      </View>
+                      <Text className="text-sm font-semibold" style={{ color: colors.success }}>
+                        CHF {(product.price || 0).toLocaleString("de-CH", { minimumFractionDigits: 2 })}
+                      </Text>
+                      {isSelected && (
+                        <View className="ml-2 w-5 h-5 rounded-full bg-primary items-center justify-center">
+                          <Text className="text-xs text-white font-bold">✓</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
