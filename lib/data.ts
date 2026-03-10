@@ -932,13 +932,32 @@ export async function addProjectActivity(
     description: string,
     userName?: string
 ) {
+    // Automatisch den eingeloggten Benutzer holen, falls kein Name übergeben
+    let resolvedName = userName;
+    if (!resolvedName) {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: profile } = await supabase
+                    .from("users")
+                    .select("first_name, last_name")
+                    .eq("id", user.id)
+                    .single();
+                if (profile) {
+                    resolvedName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
+                }
+            }
+        } catch (_) { /* fallback to System */ }
+        if (!resolvedName) resolvedName = "System";
+    }
+
     const { data, error } = await supabase
         .from("project_activities")
         .insert({
             project_id: projectId,
             type,
             description,
-            user_name: userName || "System",
+            user_name: resolvedName,
         })
         .select()
         .single();
