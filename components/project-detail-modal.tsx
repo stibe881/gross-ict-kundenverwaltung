@@ -1011,8 +1011,25 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                         <Text className="text-lg font-bold text-foreground" numberOfLines={1}>
                             {project.project_number}
                         </Text>
-                        <TouchableOpacity onPress={() => setShowEditModal(true)}>
-                            <IconSymbol name="pencil" size={20} color={colors.primary} />
+                        <TouchableOpacity onPress={() => {
+                            Alert.alert(
+                                "Projekt löschen",
+                                `Möchten Sie "${project.title}" wirklich löschen?`,
+                                [
+                                    { text: "Abbrechen", style: "cancel" },
+                                    {
+                                        text: "Löschen",
+                                        style: "destructive",
+                                        onPress: async () => {
+                                            await Data.deleteProject(project.id);
+                                            onUpdate();
+                                            onClose();
+                                        },
+                                    },
+                                ]
+                            );
+                        }}>
+                            <IconSymbol name="trash" size={20} color={colors.error || "#EF4444"} />
                         </TouchableOpacity>
                     </View>
 
