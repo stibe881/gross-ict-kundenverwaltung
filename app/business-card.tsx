@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { supabase } from "@/lib/supabase";
 import * as Data from "@/lib/data";
 import * as FileSystem from 'expo-file-system/legacy';
@@ -12,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function BusinessCardScreen() {
     const colors = useColors();
+    const { containerStyle, contentPadding } = useResponsiveLayout();
     const router = useRouter();
 
     const [user, setUser] = useState<any>(null);
@@ -212,176 +214,178 @@ export default function BusinessCardScreen() {
                 </View>
             </View>
 
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: contentPadding, paddingBottom: 40 }}>
+                <View style={containerStyle}>
 
-                {/* Pass Preview Wrapper */}
-                <View className="items-center mb-8">
-                    <View className="w-full max-w-[350px] shadow-2xl elevation-xl rounded-[20px] overflow-hidden" style={{ backgroundColor: '#000000', borderWidth: 1, borderColor: '#2A2A2A', aspectRatio: 1.6 }}>
+                    {/* Pass Preview Wrapper */}
+                    <View className="items-center mb-8">
+                        <View className="w-full max-w-[350px] shadow-2xl elevation-xl rounded-[20px] overflow-hidden" style={{ backgroundColor: '#000000', borderWidth: 1, borderColor: '#2A2A2A', aspectRatio: 1.6 }}>
 
-                        {/* Pass Header */}
-                        <View className="flex-row items-center justify-between px-5 pt-4">
-                            <View className="flex-row items-center">
-                                <Image
-                                    source={require("@/assets/images/favicon.png")}
-                                    style={{ width: 120, height: 30 }}
-                                    resizeMode="contain"
+                            {/* Pass Header */}
+                            <View className="flex-row items-center justify-between px-5 pt-4">
+                                <View className="flex-row items-center">
+                                    <Image
+                                        source={require("@/assets/images/favicon.png")}
+                                        style={{ width: 120, height: 30 }}
+                                        resizeMode="contain"
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Golden Accent Bar */}
+                            <View className="w-full h-1 mt-4" style={{ backgroundColor: '#D4A432' }} />
+
+                            {/* Pass Content */}
+                            <View className="px-5 pt-6 pb-2">
+                                <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold', marginBottom: 2 }} numberOfLines={1}>{name || 'Max Mustermann'}</Text>
+                                <Text style={{ color: '#D4A432', fontSize: 13, fontWeight: '500', marginBottom: 8 }} numberOfLines={1}>{position || 'Position'}</Text>
+
+                                <View className="flex-row justify-between">
+                                    <View className="flex-1">
+                                        <Text style={{ color: '#888', fontSize: 10, textTransform: 'uppercase' }}>TELEFON</Text>
+                                        <Text style={{ color: 'white', fontSize: 12, marginTop: 2 }}>{phone || '-'}</Text>
+                                    </View>
+                                    <View className="flex-1 items-end">
+                                        <Text style={{ color: '#888', fontSize: 10, textTransform: 'uppercase' }}>E-MAIL</Text>
+                                        <Text style={{ color: 'white', fontSize: 12, marginTop: 2 }} numberOfLines={1}>{email || '-'}</Text>
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Fake QR Area block for preview */}
+                            <View className="mt-auto w-full items-center py-4">
+                                <IconSymbol name="qrcode" size={48} color="white" />
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Employee Selection for Admins */}
+                    {isAdmin && (
+                        <View className="bg-surface p-5 rounded-2xl border border-border shadow-sm mb-6 flex-row justify-between items-center">
+                            <View className="flex-1 mr-4">
+                                <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">Mitarbeiter auswählen</Text>
+                                <Text className="text-foreground text-base font-semibold" numberOfLines={1}>
+                                    {name || "Eigene Karte konfigurieren"}
+                                </Text>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setShowUserModal(true)}
+                                className="bg-primary/10 px-4 py-3 rounded-xl border border-primary/20"
+                            >
+                                <Text className="text-primary font-bold">Ändern</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {/* Input Form */}
+                    <View className="bg-surface p-5 rounded-2xl border border-border shadow-sm mb-6">
+                        <Text className="text-lg font-bold text-foreground mb-4">Kartendaten</Text>
+
+                        <View className="gap-4">
+                            <View>
+                                <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">Name *</Text>
+                                <TextInput
+                                    value={name}
+                                    onChangeText={setName}
+                                    placeholder="Name"
+                                    placeholderTextColor={colors.muted}
+                                    className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-foreground text-base"
+                                />
+                            </View>
+
+                            <View>
+                                <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">Position / Jobtitel</Text>
+                                <TextInput
+                                    value={position}
+                                    onChangeText={setPosition}
+                                    placeholder="z.B. Geschäftsführer"
+                                    placeholderTextColor={colors.muted}
+                                    className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-foreground text-base"
+                                />
+                            </View>
+
+                            <View>
+                                <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">E-Mail *</Text>
+                                <TextInput
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    placeholder="email@beispiel.ch"
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    placeholderTextColor={colors.muted}
+                                    className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-foreground text-base"
+                                />
+                            </View>
+
+                            <View>
+                                <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">Telefon</Text>
+                                <TextInput
+                                    value={phone}
+                                    onChangeText={setPhone}
+                                    placeholder="+41 79 123 45 67"
+                                    keyboardType="phone-pad"
+                                    placeholderTextColor={colors.muted}
+                                    className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-foreground text-base"
+                                />
+                            </View>
+
+                            <View>
+                                <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">Website</Text>
+                                <TextInput
+                                    value={website}
+                                    onChangeText={setWebsite}
+                                    placeholder="https://gross-ict.ch"
+                                    keyboardType="url"
+                                    autoCapitalize="none"
+                                    placeholderTextColor={colors.muted}
+                                    className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-foreground text-base"
                                 />
                             </View>
                         </View>
 
-                        {/* Golden Accent Bar */}
-                        <View className="w-full h-1 mt-4" style={{ backgroundColor: '#D4A432' }} />
-
-                        {/* Pass Content */}
-                        <View className="px-5 pt-6 pb-2">
-                            <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold', marginBottom: 2 }} numberOfLines={1}>{name || 'Max Mustermann'}</Text>
-                            <Text style={{ color: '#D4A432', fontSize: 13, fontWeight: '500', marginBottom: 8 }} numberOfLines={1}>{position || 'Position'}</Text>
-
-                            <View className="flex-row justify-between">
-                                <View className="flex-1">
-                                    <Text style={{ color: '#888', fontSize: 10, textTransform: 'uppercase' }}>TELEFON</Text>
-                                    <Text style={{ color: 'white', fontSize: 12, marginTop: 2 }}>{phone || '-'}</Text>
-                                </View>
-                                <View className="flex-1 items-end">
-                                    <Text style={{ color: '#888', fontSize: 10, textTransform: 'uppercase' }}>E-MAIL</Text>
-                                    <Text style={{ color: 'white', fontSize: 12, marginTop: 2 }} numberOfLines={1}>{email || '-'}</Text>
-                                </View>
-                            </View>
-                        </View>
-
-                        {/* Fake QR Area block for preview */}
-                        <View className="mt-auto w-full items-center py-4">
-                            <IconSymbol name="qrcode" size={48} color="white" />
-                        </View>
-                    </View>
-                </View>
-
-                {/* Employee Selection for Admins */}
-                {isAdmin && (
-                    <View className="bg-surface p-5 rounded-2xl border border-border shadow-sm mb-6 flex-row justify-between items-center">
-                        <View className="flex-1 mr-4">
-                            <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">Mitarbeiter auswählen</Text>
-                            <Text className="text-foreground text-base font-semibold" numberOfLines={1}>
-                                {name || "Eigene Karte konfigurieren"}
-                            </Text>
-                        </View>
+                        {/* Added Save button */}
                         <TouchableOpacity
-                            onPress={() => setShowUserModal(true)}
-                            className="bg-primary/10 px-4 py-3 rounded-xl border border-primary/20"
+                            onPress={handleSave}
+                            activeOpacity={0.8}
+                            className="bg-surface border-border border p-4 rounded-xl items-center mt-6 flex-row justify-center gap-2 shadow-sm"
                         >
-                            <Text className="text-primary font-bold">Ändern</Text>
+                            <IconSymbol name="tray.and.arrow.down.fill" size={20} color={colors.foreground} />
+                            <Text className="text-foreground font-bold text-lg">Angaben speichern</Text>
                         </TouchableOpacity>
                     </View>
-                )}
 
-                {/* Input Form */}
-                <View className="bg-surface p-5 rounded-2xl border border-border shadow-sm mb-6">
-                    <Text className="text-lg font-bold text-foreground mb-4">Kartendaten</Text>
+                    {/* Action Buttons */}
+                    <View className="gap-3">
+                        <TouchableOpacity
+                            onPress={handleDownload}
+                            disabled={generating}
+                            activeOpacity={0.8}
+                            className="w-full rounded-xl py-4 items-center justify-center flex-row gap-2 shadow-sm"
+                            style={{ backgroundColor: '#000000', opacity: generating ? 0.7 : 1 }}
+                        >
+                            {generating ? (
+                                <ActivityIndicator color="white" size="small" />
+                            ) : (
+                                <IconSymbol name="wallet.pass.fill" size={20} color="white" />
+                            )}
+                            <Text className="text-lg font-bold" style={{ color: 'white' }}>
+                                {generating ? "Generiere..." : "Zu Apple Wallet hinzufügen"}
+                            </Text>
+                        </TouchableOpacity>
 
-                    <View className="gap-4">
-                        <View>
-                            <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">Name *</Text>
-                            <TextInput
-                                value={name}
-                                onChangeText={setName}
-                                placeholder="Name"
-                                placeholderTextColor={colors.muted}
-                                className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-foreground text-base"
-                            />
-                        </View>
-
-                        <View>
-                            <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">Position / Jobtitel</Text>
-                            <TextInput
-                                value={position}
-                                onChangeText={setPosition}
-                                placeholder="z.B. Geschäftsführer"
-                                placeholderTextColor={colors.muted}
-                                className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-foreground text-base"
-                            />
-                        </View>
-
-                        <View>
-                            <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">E-Mail *</Text>
-                            <TextInput
-                                value={email}
-                                onChangeText={setEmail}
-                                placeholder="email@beispiel.ch"
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                placeholderTextColor={colors.muted}
-                                className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-foreground text-base"
-                            />
-                        </View>
-
-                        <View>
-                            <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">Telefon</Text>
-                            <TextInput
-                                value={phone}
-                                onChangeText={setPhone}
-                                placeholder="+41 79 123 45 67"
-                                keyboardType="phone-pad"
-                                placeholderTextColor={colors.muted}
-                                className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-foreground text-base"
-                            />
-                        </View>
-
-                        <View>
-                            <Text className="text-sm font-semibold text-muted mb-1.5 ml-1">Website</Text>
-                            <TextInput
-                                value={website}
-                                onChangeText={setWebsite}
-                                placeholder="https://gross-ict.ch"
-                                keyboardType="url"
-                                autoCapitalize="none"
-                                placeholderTextColor={colors.muted}
-                                className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 text-foreground text-base"
-                            />
-                        </View>
+                        <TouchableOpacity
+                            onPress={handleShareVcard}
+                            activeOpacity={0.8}
+                            className="w-full bg-surface border border-border rounded-xl py-4 items-center justify-center flex-row gap-2 shadow-sm"
+                        >
+                            <IconSymbol name="square.and.arrow.up" size={20} color={colors.primary} />
+                            <Text className="text-primary text-lg font-bold">
+                                vCard Link teilen
+                            </Text>
+                        </TouchableOpacity>
                     </View>
 
-                    {/* Added Save button */}
-                    <TouchableOpacity
-                        onPress={handleSave}
-                        activeOpacity={0.8}
-                        className="bg-surface border-border border p-4 rounded-xl items-center mt-6 flex-row justify-center gap-2 shadow-sm"
-                    >
-                        <IconSymbol name="tray.and.arrow.down.fill" size={20} color={colors.foreground} />
-                        <Text className="text-foreground font-bold text-lg">Angaben speichern</Text>
-                    </TouchableOpacity>
                 </View>
-
-                {/* Action Buttons */}
-                <View className="gap-3">
-                    <TouchableOpacity
-                        onPress={handleDownload}
-                        disabled={generating}
-                        activeOpacity={0.8}
-                        className="w-full rounded-xl py-4 items-center justify-center flex-row gap-2 shadow-sm"
-                        style={{ backgroundColor: '#000000', opacity: generating ? 0.7 : 1 }}
-                    >
-                        {generating ? (
-                            <ActivityIndicator color="white" size="small" />
-                        ) : (
-                            <IconSymbol name="wallet.pass.fill" size={20} color="white" />
-                        )}
-                        <Text className="text-lg font-bold" style={{ color: 'white' }}>
-                            {generating ? "Generiere..." : "Zu Apple Wallet hinzufügen"}
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={handleShareVcard}
-                        activeOpacity={0.8}
-                        className="w-full bg-surface border border-border rounded-xl py-4 items-center justify-center flex-row gap-2 shadow-sm"
-                    >
-                        <IconSymbol name="square.and.arrow.up" size={20} color={colors.primary} />
-                        <Text className="text-primary text-lg font-bold">
-                            vCard Link teilen
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
             </ScrollView>
 
             <Modal

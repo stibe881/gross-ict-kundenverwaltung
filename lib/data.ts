@@ -29,7 +29,7 @@ export async function triggerPushNotification(
                 } else if (ctx && typeof ctx.text === 'function') {
                     details = await ctx.text();
                 }
-            } catch (_) {}
+            } catch (_) { }
             console.error("[Push] Edge Function error:", error.message, "Details:", details);
         } else {
             console.log("[Push] Edge Function response:", JSON.stringify(result));
@@ -1083,7 +1083,7 @@ export async function createCustomerPortalUser(user: any) {
     // but for web, we manually pass it to bypass the Edge Function hangs.
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
-    
+
     const payload = { ...user, password: user.password_hash };
 
     // Use local Custom Express Server API Route instead of Supabase Edge function
@@ -1143,13 +1143,13 @@ export async function addPortalTicketComment(ticketId: number, comment: string, 
             is_internal: false,
             // A system comment wouldn't be added directly by the customer this way,
             // so we hardcode is_system to false
-            is_system: false 
+            is_system: false
         })
         .select()
         .single();
-        
+
     if (error) throw new Error(error.message);
-    
+
     // Add Trigger Push here
     const { data: ticket } = await supabase.from("tickets").select("title").eq("id", ticketId).single();
     triggerPushNotification("all_admins", "admin", "Neue Kunden-Antwort", `Der Kunde hat auf das Ticket "${ticket?.title || ticketId}" geantwortet.`, { url: '/tickets' }).catch(console.error);
@@ -1177,7 +1177,7 @@ export async function updateCustomerPortalUser(id: string, updates: any) {
 export async function deleteCustomerPortalUser(id: string) {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
-    
+
     // Fallback: Delete directly from the table since the Edge Function
     // is throwing Unauthorized due to deployment issues.
     // Note: This leaves the Auth User intact, but removes their portal access.
@@ -1247,12 +1247,16 @@ export async function createLead(lead: {
     mobile?: string;
     website?: string;
     address?: string;
+    zip?: string;
+    city?: string;
     value?: number;
+    extra_amount?: number;
     status?: string;
+    priority?: string;
     source?: string;
     notes?: string;
     assigned_to?: string;
-}) {
+}, items?: { description: string; quantity: number; unit_price: number; product_id?: string }[]) {
     const { data, error } = await supabase
         .from("leads")
         .insert(lead)
@@ -1260,10 +1264,22 @@ export async function createLead(lead: {
         .single();
 
     if (error) throw new Error(error.message);
+
+    if (items && items.length > 0) {
+        const itemsWithLeadId = items.map((item) => ({
+            ...item,
+            lead_id: data.id,
+        }));
+        const { error: itemsError } = await supabase
+            .from("lead_items")
+            .insert(itemsWithLeadId);
+        if (itemsError) console.error("[Lead] Items insert error:", itemsError.message);
+    }
+
     return data;
 }
 
-export async function updateLead(id: string, updates: Record<string, any>) {
+export async function updateLead(id: string, updates: Record<string, any>, items?: { description: string; quantity: number; unit_price: number; product_id?: string }[]) {
     const { data, error } = await supabase
         .from("leads")
         .update({ ...updates, updated_at: new Date().toISOString() })
@@ -1272,16 +1288,55 @@ export async function updateLead(id: string, updates: Record<string, any>) {
         .single();
 
     if (error) throw new Error(error.message);
+
+    if (items !== undefined) {
+        // Delete old items, insert new
+        await supabase.from("lead_items").delete().eq("lead_id", id);
+        if (items.length > 0) {
+            const itemsWithLeadId = items.map((item) => ({
+                ...item,
+                lead_id: id,
+            }));
+            const { error: itemsError } = await supabase
+                .from("lead_items")
+                .insert(itemsWithLeadId);
+            if (itemsError) console.error("[Lead] Items update error:", itemsError.message);
+        }
+    }
+
     return data;
 }
 
 export async function deleteLead(id: string) {
+    // Items get cascade-deleted by FK constraint
     const { error } = await supabase
         .from("leads")
         .delete()
         .eq("id", id);
 
     if (error) throw new Error(error.message);
+}
+
+export async function getLeadItems(leadId: string) {
+    const { data, error } = await supabase
+        .from("lead_items")
+        .select("*")
+        .eq("lead_id", leadId)
+        .order("created_at", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function getLeadWithItems(leadId: string) {
+    const { data, error } = await supabase
+        .from("leads")
+        .select("*, items:lead_items(*)")
+        .eq("id", leadId)
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
 }
 
 export async function getLeadActivities(leadId: string) {

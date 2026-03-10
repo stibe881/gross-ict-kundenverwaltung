@@ -11,6 +11,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -26,6 +27,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 
 export default function QuotesScreen() {
     const colors = useColors();
+    const { containerStyle, contentPadding } = useResponsiveLayout();
     const router = useRouter();
     const queryClient = useQueryClient();
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -104,104 +106,106 @@ export default function QuotesScreen() {
 
     return (
         <ScreenContainer>
-            <View className="flex-1 p-4">
-                {/* Header */}
-                <View className="flex-row justify-between items-center mb-4">
-                    <View className="flex-row items-center gap-3">
-                        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-                            <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-                        </TouchableOpacity>
-                        <View>
-                            <Text className="text-2xl font-bold text-foreground">Angebote</Text>
-                            <Text className="text-sm text-muted mt-1">
-                                {filteredQuotes.length} Angebote · Gesamt: {formatCurrency(totalValue)}
-                            </Text>
+            <View className="flex-1" style={{ padding: contentPadding }}>
+                <View style={containerStyle}>
+                    {/* Header */}
+                    <View className="flex-row justify-between items-center mb-4">
+                        <View className="flex-row items-center gap-3">
+                            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+                            </TouchableOpacity>
+                            <View>
+                                <Text className="text-2xl font-bold text-foreground">Angebote</Text>
+                                <Text className="text-sm text-muted mt-1">
+                                    {filteredQuotes.length} Angebote · Gesamt: {formatCurrency(totalValue)}
+                                </Text>
+                            </View>
                         </View>
-                    </View>
-                    <TouchableOpacity
-                        onPress={() => setShowCreateModal(true)}
-                        style={{ backgroundColor: colors.primary }}
-                        className="w-10 h-10 rounded-full items-center justify-center"
-                    >
-                        <IconSymbol name="plus" size={20} color="#fff" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Filter */}
-                <View className="flex-row gap-2 mb-4">
-                    <TouchableOpacity
-                        onPress={() => setFilterStatus(null)}
-                        style={{
-                            backgroundColor: filterStatus === null ? colors.primary : colors.surface,
-                            borderColor: colors.border,
-                        }}
-                        className="px-3 py-1.5 rounded-full border"
-                    >
-                        <Text
-                            style={{
-                                color: filterStatus === null ? "#fff" : colors.foreground,
-                                fontSize: 13,
-                                fontWeight: "600",
-                            }}
-                        >
-                            Alle
-                        </Text>
-                    </TouchableOpacity>
-                    {Object.entries(STATUS_CONFIG).map(([key, config]) => (
                         <TouchableOpacity
-                            key={key}
-                            onPress={() => setFilterStatus(key)}
+                            onPress={() => setShowCreateModal(true)}
+                            style={{ backgroundColor: colors.primary }}
+                            className="w-10 h-10 rounded-full items-center justify-center"
+                        >
+                            <IconSymbol name="plus" size={20} color="#fff" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Filter */}
+                    <View className="flex-row gap-2 mb-4">
+                        <TouchableOpacity
+                            onPress={() => setFilterStatus(null)}
                             style={{
-                                backgroundColor: filterStatus === key ? config.color : colors.surface,
+                                backgroundColor: filterStatus === null ? colors.primary : colors.surface,
                                 borderColor: colors.border,
                             }}
                             className="px-3 py-1.5 rounded-full border"
                         >
                             <Text
                                 style={{
-                                    color: filterStatus === key ? "#fff" : colors.foreground,
+                                    color: filterStatus === null ? "#fff" : colors.foreground,
                                     fontSize: 13,
                                     fontWeight: "600",
                                 }}
                             >
-                                {config.label}
+                                Alle
                             </Text>
                         </TouchableOpacity>
-                    ))}
-                </View>
-
-                {/* Liste */}
-                {isLoading && !quotes ? (
-                    <View className="flex-1 items-center justify-center">
-                        <ActivityIndicator size="large" color={colors.primary} />
-                    </View>
-                ) : (
-                    <FlatList
-                        data={filteredQuotes}
-                        renderItem={renderQuote}
-                        keyExtractor={(item) => item.id}
-                        refreshControl={
-                            <RefreshControl refreshing={false} onRefresh={refetch} />
-                        }
-                        ListEmptyComponent={
-                            <View className="items-center justify-center py-12">
-                                <IconSymbol name="doc.text" size={48} color={colors.muted} />
-                                <Text className="text-muted text-base mt-4">
-                                    Keine Angebote vorhanden
-                                </Text>
-                                <TouchableOpacity
-                                    onPress={() => setShowCreateModal(true)}
-                                    style={{ backgroundColor: colors.primary }}
-                                    className="mt-4 px-6 py-3 rounded-lg"
+                        {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                            <TouchableOpacity
+                                key={key}
+                                onPress={() => setFilterStatus(key)}
+                                style={{
+                                    backgroundColor: filterStatus === key ? config.color : colors.surface,
+                                    borderColor: colors.border,
+                                }}
+                                className="px-3 py-1.5 rounded-full border"
+                            >
+                                <Text
+                                    style={{
+                                        color: filterStatus === key ? "#fff" : colors.foreground,
+                                        fontSize: 13,
+                                        fontWeight: "600",
+                                    }}
                                 >
-                                    <Text className="text-background font-semibold">
-                                        Erstes Angebot erstellen
+                                    {config.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    {/* Liste */}
+                    {isLoading && !quotes ? (
+                        <View className="flex-1 items-center justify-center">
+                            <ActivityIndicator size="large" color={colors.primary} />
+                        </View>
+                    ) : (
+                        <FlatList
+                            data={filteredQuotes}
+                            renderItem={renderQuote}
+                            keyExtractor={(item) => item.id}
+                            refreshControl={
+                                <RefreshControl refreshing={false} onRefresh={refetch} />
+                            }
+                            ListEmptyComponent={
+                                <View className="items-center justify-center py-12">
+                                    <IconSymbol name="doc.text" size={48} color={colors.muted} />
+                                    <Text className="text-muted text-base mt-4">
+                                        Keine Angebote vorhanden
                                     </Text>
-                                </TouchableOpacity>
-                            </View>
-                        }
-                    />
-                )}
+                                    <TouchableOpacity
+                                        onPress={() => setShowCreateModal(true)}
+                                        style={{ backgroundColor: colors.primary }}
+                                        className="mt-4 px-6 py-3 rounded-lg"
+                                    >
+                                        <Text className="text-background font-semibold">
+                                            Erstes Angebot erstellen
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            }
+                        />
+                    )}
+                </View>
             </View>
 
             <QuoteFormModal

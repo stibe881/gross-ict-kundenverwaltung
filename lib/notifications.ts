@@ -42,7 +42,7 @@ export async function registerForPushNotificationsAsync(userType: "admin" | "cus
     try {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
-        
+
       console.log('[Push] Project ID:', projectId);
 
       token = (
@@ -54,40 +54,36 @@ export async function registerForPushNotificationsAsync(userType: "admin" | "cus
       console.log('[Push] Token:', token);
 
       if (token) {
-        const table = userType === "admin" ? "users" : "customer_portal_users";
-        
-        // Try direct update first
-        const { error, count } = await supabase
-          .from(table)
-          .update({ push_token: token })
-          .eq("id", userId)
-          .select();
-        
-        if (error) {
-          console.error(`[Push] Direct save failed for ${userType}:`, error.message);
-        }
-        
-        // Verify token was actually saved by reading it back
-        const { data: verify } = await supabase.from(table).select("push_token").eq("id", userId).single();
-        
-        if (verify?.push_token === token) {
-          console.log(`[Push] Token saved successfully for ${userType}`);
-        } else {
-          console.warn(`[Push] Token NOT saved (RLS?). Trying Edge Function fallback...`);
-          // Fallback: save via Edge Function which uses service role key
-          try {
-            await supabase.functions.invoke('send-push', {
-              body: { 
-                action: 'save-token',
-                userId,
-                userType,
-                pushToken: token,
-              },
-            });
-            console.log(`[Push] Token saved via Edge Function fallback`);
-          } catch (fallbackErr) {
-            console.error('[Push] Edge Function fallback also failed:', fallbackErr);
+        console.log(`[Push] Saving token for ${userType} (${userId}) via Edge Function...`);
+
+        // Always save via Edge Function (uses service role key, bypasses RLS)
+        try {
+          const { data: saveResult, error: saveError } = await supabase.functions.invoke('send-push', {
+            body: {
+              action: 'save-token',
+              userId,
+              userType,
+              pushToken: token,
+            },
+          });
+
+          if (saveError) {
+            console.error(`[Push] Edge Function save failed:`, saveError.message);
+            // Try direct update as fallback
+            const { error: directError } = await supabase
+              .from(userType === "admin" ? "users" : "customer_portal_users")
+              .update({ push_token: token })
+              .eq("id", userId);
+            if (directError) {
+              console.error(`[Push] Direct save also failed:`, directError.message);
+            } else {
+              console.log(`[Push] Token saved via direct update fallback`);
+            }
+          } else {
+            console.log(`[Push] Token saved successfully via Edge Function`, JSON.stringify(saveResult));
           }
+        } catch (err) {
+          console.error(`[Push] Token save error:`, err);
         }
       }
     } catch (e) {

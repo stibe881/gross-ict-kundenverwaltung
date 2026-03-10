@@ -87,6 +87,8 @@ export default function RootLayout() {
             // Already on main app (and allowed) — just store session, don't navigate
             await AsyncStorage.setItem("isLoggedIn", "true");
             await AsyncStorage.setItem("userEmail", session.user.email || "");
+            // Still register push token even when not navigating
+            registerForPushNotificationsAsync("admin", session.user.id).catch(console.error);
             return;
           }
 

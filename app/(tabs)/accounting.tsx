@@ -11,6 +11,7 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { useQuery } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
@@ -20,6 +21,7 @@ import { router as expoRouter } from "expo-router";
 export default function AccountingScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const [activeTab, setActiveTab] = useState<"overview" | "invoices" | "expenses">("overview");
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,7 +66,8 @@ export default function AccountingScreen() {
   return (
     <ScreenContainer>
       <ScrollView
-        className="flex-1 p-4"
+        className="flex-1"
+        contentContainerStyle={{ padding: contentPadding }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -74,158 +77,160 @@ export default function AccountingScreen() {
           />
         }
       >
-        {/* Header */}
-        <View className="flex-row items-center justify-between mb-4">
-          <View className="flex-row items-center gap-3">
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-            </TouchableOpacity>
-            <Text className="text-3xl font-bold text-foreground">Buchhaltung</Text>
-          </View>
-          <TouchableOpacity
-            className="bg-primary w-12 h-12 rounded-full items-center justify-center"
-            activeOpacity={0.8}
-            onPress={() => setShowInvoiceModal(true)}
-          >
-            <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Tab Navigation */}
-        <View className="flex-row gap-2 mb-4">
-          {(["overview", "invoices", "expenses"] as const).map((tab) => (
+        <View style={containerStyle}>
+          {/* Header */}
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center gap-3">
+              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+              </TouchableOpacity>
+              <Text className="text-3xl font-bold text-foreground">Buchhaltung</Text>
+            </View>
             <TouchableOpacity
-              key={tab}
-              className={`flex-1 py-3 rounded-lg ${activeTab === tab ? "bg-primary" : "bg-surface border border-border"
-                }`}
-              onPress={() => setActiveTab(tab)}
+              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+              activeOpacity={0.8}
+              onPress={() => setShowInvoiceModal(true)}
             >
-              <Text
-                className={`text-center font-semibold ${activeTab === tab ? "text-background" : "text-foreground"
-                  }`}
-              >
-                {tab === "overview" ? "Übersicht" : tab === "invoices" ? "Rechnungen" : "Ausgaben"}
-              </Text>
+              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
             </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Übersicht */}
-        {activeTab === "overview" && (
-          <View className="gap-4">
-            <View className="flex-row gap-3">
-              <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                <Text className="text-sm text-muted mb-1">Umsatz (gesamt)</Text>
-                <Text className="text-2xl font-bold text-success">{formatCurrency(totalAll)}</Text>
-              </View>
-              <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                <Text className="text-sm text-muted mb-1">Bezahlt</Text>
-                <Text className="text-2xl font-bold text-primary">{formatCurrency(totalPaid)}</Text>
-              </View>
-            </View>
-
-            <View className="flex-row gap-3">
-              <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                <Text className="text-sm text-muted mb-1">Offene Posten</Text>
-                <Text className="text-2xl font-bold text-warning">{formatCurrency(totalOpen)}</Text>
-              </View>
-              <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                <Text className="text-sm text-muted mb-1">Rechnungen</Text>
-                <Text className="text-2xl font-bold text-foreground">{invoices?.length || 0}</Text>
-              </View>
-            </View>
-
-
           </View>
-        )}
 
-        {/* Rechnungen */}
-        {activeTab === "invoices" && (
-          <View>
-            {isLoading ? (
-              <View className="flex-1 items-center justify-center py-12">
-                <ActivityIndicator size="large" color={colors.primary} />
-              </View>
-            ) : invoices && invoices.length > 0 ? (
-              <View className="gap-3">
-                <TouchableOpacity
-                  className="bg-primary py-3 rounded-lg flex-row items-center justify-center mb-2"
-                  activeOpacity={0.8}
-                  onPress={() => setShowInvoiceModal(true)}
+          {/* Tab Navigation */}
+          <View className="flex-row gap-2 mb-4">
+            {(["overview", "invoices", "expenses"] as const).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                className={`flex-1 py-3 rounded-lg ${activeTab === tab ? "bg-primary" : "bg-surface border border-border"
+                  }`}
+                onPress={() => setActiveTab(tab)}
+              >
+                <Text
+                  className={`text-center font-semibold ${activeTab === tab ? "text-background" : "text-foreground"
+                    }`}
                 >
-                  <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
-                  <Text className="text-background font-semibold ml-2">Neue Rechnung</Text>
-                </TouchableOpacity>
+                  {tab === "overview" ? "Übersicht" : tab === "invoices" ? "Rechnungen" : "Ausgaben"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-                {invoices.map((invoice: any) => {
-                  const customerName = invoice.customer?.company_name ||
-                    `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() ||
-                    "Unbekannt";
-                  return (
-                    <TouchableOpacity
-                      key={invoice.id}
-                      className="bg-surface rounded-xl p-4 border border-border"
-                      activeOpacity={0.7}
-                      onPress={() => expoRouter.push(`/invoice/${invoice.id}` as any)}
-                    >
-                      <View className="flex-row items-center justify-between mb-2">
-                        <Text className="text-base font-bold text-foreground">
-                          {invoice.invoice_number}
-                        </Text>
-                        <View className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
-                          <Text className="text-xs font-semibold text-white">
-                            {getStatusLabel(invoice.status)}
+          {/* Übersicht */}
+          {activeTab === "overview" && (
+            <View className="gap-4">
+              <View className="flex-row gap-3">
+                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-sm text-muted mb-1">Umsatz (gesamt)</Text>
+                  <Text className="text-2xl font-bold text-success">{formatCurrency(totalAll)}</Text>
+                </View>
+                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-sm text-muted mb-1">Bezahlt</Text>
+                  <Text className="text-2xl font-bold text-primary">{formatCurrency(totalPaid)}</Text>
+                </View>
+              </View>
+
+              <View className="flex-row gap-3">
+                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-sm text-muted mb-1">Offene Posten</Text>
+                  <Text className="text-2xl font-bold text-warning">{formatCurrency(totalOpen)}</Text>
+                </View>
+                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-sm text-muted mb-1">Rechnungen</Text>
+                  <Text className="text-2xl font-bold text-foreground">{invoices?.length || 0}</Text>
+                </View>
+              </View>
+
+
+            </View>
+          )}
+
+          {/* Rechnungen */}
+          {activeTab === "invoices" && (
+            <View>
+              {isLoading ? (
+                <View className="flex-1 items-center justify-center py-12">
+                  <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+              ) : invoices && invoices.length > 0 ? (
+                <View className="gap-3">
+                  <TouchableOpacity
+                    className="bg-primary py-3 rounded-lg flex-row items-center justify-center mb-2"
+                    activeOpacity={0.8}
+                    onPress={() => setShowInvoiceModal(true)}
+                  >
+                    <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
+                    <Text className="text-background font-semibold ml-2">Neue Rechnung</Text>
+                  </TouchableOpacity>
+
+                  {invoices.map((invoice: any) => {
+                    const customerName = invoice.customer?.company_name ||
+                      `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() ||
+                      "Unbekannt";
+                    return (
+                      <TouchableOpacity
+                        key={invoice.id}
+                        className="bg-surface rounded-xl p-4 border border-border"
+                        activeOpacity={0.7}
+                        onPress={() => expoRouter.push(`/invoice/${invoice.id}` as any)}
+                      >
+                        <View className="flex-row items-center justify-between mb-2">
+                          <Text className="text-base font-bold text-foreground">
+                            {invoice.invoice_number}
+                          </Text>
+                          <View className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
+                            <Text className="text-xs font-semibold text-white">
+                              {getStatusLabel(invoice.status)}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text className="text-sm text-foreground mb-1">{customerName}</Text>
+                        <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-border">
+                          <Text className="text-xs text-muted">
+                            {formatDate(invoice.invoice_date)} · Fällig: {formatDate(invoice.due_date)}
+                          </Text>
+                          <Text className="text-base font-bold text-primary">
+                            {formatCurrency(getInvoiceTotal(invoice))}
                           </Text>
                         </View>
-                      </View>
-                      <Text className="text-sm text-foreground mb-1">{customerName}</Text>
-                      <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-border">
-                        <Text className="text-xs text-muted">
-                          {formatDate(invoice.invoice_date)} · Fällig: {formatDate(invoice.due_date)}
-                        </Text>
-                        <Text className="text-base font-bold text-primary">
-                          {formatCurrency(getInvoiceTotal(invoice))}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ) : (
-              <View className="flex-1 items-center justify-center py-12">
-                <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
-                <Text className="text-lg text-muted mt-4 mb-2">Keine Rechnungen</Text>
-                <Text className="text-sm text-muted text-center mb-6">
-                  Erstellen Sie Ihre erste Rechnung
-                </Text>
-                <TouchableOpacity
-                  className="bg-primary px-6 py-3 rounded-lg"
-                  activeOpacity={0.8}
-                  onPress={() => setShowInvoiceModal(true)}
-                >
-                  <Text className="text-background font-semibold">Rechnung erstellen</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View className="flex-1 items-center justify-center py-12">
+                  <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
+                  <Text className="text-lg text-muted mt-4 mb-2">Keine Rechnungen</Text>
+                  <Text className="text-sm text-muted text-center mb-6">
+                    Erstellen Sie Ihre erste Rechnung
+                  </Text>
+                  <TouchableOpacity
+                    className="bg-primary px-6 py-3 rounded-lg"
+                    activeOpacity={0.8}
+                    onPress={() => setShowInvoiceModal(true)}
+                  >
+                    <Text className="text-background font-semibold">Rechnung erstellen</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
 
-        {/* Ausgaben */}
-        {activeTab === "expenses" && (
-          <View className="flex-1 items-center justify-center py-12">
-            <IconSymbol name="chart.bar.fill" size={48} color={colors.muted} />
-            <Text className="text-lg text-muted mt-4 mb-2">Keine Ausgaben</Text>
-            <Text className="text-sm text-muted text-center mb-6">
-              Erfassen Sie Ihre erste Ausgabe
-            </Text>
-            <TouchableOpacity
-              className="bg-primary px-6 py-3 rounded-lg"
-              activeOpacity={0.8}
-            >
-              <Text className="text-background font-semibold">Ausgabe erfassen</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          {/* Ausgaben */}
+          {activeTab === "expenses" && (
+            <View className="flex-1 items-center justify-center py-12">
+              <IconSymbol name="chart.bar.fill" size={48} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4 mb-2">Keine Ausgaben</Text>
+              <Text className="text-sm text-muted text-center mb-6">
+                Erfassen Sie Ihre erste Ausgabe
+              </Text>
+              <TouchableOpacity
+                className="bg-primary px-6 py-3 rounded-lg"
+                activeOpacity={0.8}
+              >
+                <Text className="text-background font-semibold">Ausgabe erfassen</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* Invoice Form Modal */}

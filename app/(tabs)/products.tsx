@@ -12,6 +12,7 @@ import {
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { formatCurrency, VAT_RATES } from "@/lib/format";
@@ -28,6 +29,7 @@ const PRODUCT_CATEGORIES = [
 
 export default function ProductsScreen() {
   const colors = useColors();
+  const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -119,119 +121,121 @@ export default function ProductsScreen() {
 
   return (
     <ScreenContainer>
-      <View className="flex-1 p-4">
-        {/* Header */}
-        <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-3xl font-bold text-foreground">Produkte</Text>
-          <TouchableOpacity
-            className="bg-primary w-12 h-12 rounded-full items-center justify-center"
-            activeOpacity={0.8}
-            onPress={() => {
-              setEditingProduct(null);
-              setShowAddModal(true);
-            }}
-          >
-            <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Statistik */}
-        <View className="flex-row gap-3 mb-4">
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-foreground">
-              {products?.length || 0}
-            </Text>
-            <Text className="text-sm text-muted">Gesamt</Text>
-          </View>
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-primary">
-              {products?.filter((p) => p.type === "product").length || 0}
-            </Text>
-            <Text className="text-sm text-muted">Artikel</Text>
-          </View>
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-success">
-              {products?.filter((p) => p.type === "service").length || 0}
-            </Text>
-            <Text className="text-sm text-muted">Dienstleistungen</Text>
-          </View>
-        </View>
-
-        {/* Suchfeld */}
-        <View className="mb-4">
-          <View className="flex-row items-center bg-surface border border-border rounded-lg px-3">
-            <IconSymbol name="magnifyingglass" size={18} color={colors.muted} />
-            <TextInput
-              className="flex-1 py-3 px-2 text-foreground"
-              placeholder="Produkt suchen..."
-              placeholderTextColor={colors.muted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 ? (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <IconSymbol name="xmark.circle.fill" size={18} color={colors.muted} />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        </View>
-
-        {/* Kategorie-Filter */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0, minHeight: 36 }}>
-          <View className="flex-row gap-2">
+      <View className="flex-1" style={{ padding: contentPadding }}>
+        <View style={containerStyle}>
+          {/* Header */}
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-3xl font-bold text-foreground">Produkte</Text>
             <TouchableOpacity
-              className={`px-3 py-2 rounded-lg ${!selectedCategory ? "bg-primary" : "bg-surface border border-border"}`}
-              onPress={() => setSelectedCategory("")}
-              activeOpacity={0.7}
-            >
-              <Text className={`text-sm font-medium ${!selectedCategory ? "text-background" : "text-foreground"}`}>Alle</Text>
-            </TouchableOpacity>
-            {PRODUCT_CATEGORIES.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                className={`px-3 py-2 rounded-lg ${selectedCategory === cat ? "bg-primary" : "bg-surface border border-border"}`}
-                onPress={() => setSelectedCategory(selectedCategory === cat ? "" : cat)}
-                activeOpacity={0.7}
-              >
-                <Text className={`text-sm font-medium ${selectedCategory === cat ? "text-background" : "text-foreground"}`}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
-
-        {/* Produktliste */}
-        {isLoading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : filteredProducts && filteredProducts.length > 0 ? (
-          <FlatList
-            data={filteredProducts}
-            renderItem={renderProductItem}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <View className="flex-1 items-center justify-center">
-            <IconSymbol name="cube.box.fill" size={64} color={colors.muted} />
-            <Text className="text-lg text-muted mt-4 mb-2">Keine Produkte</Text>
-            <Text className="text-sm text-muted text-center mb-6">
-              Erstellen Sie Ihr erstes Produkt
-            </Text>
-            <TouchableOpacity
-              className="bg-primary px-6 py-3 rounded-lg"
+              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
               activeOpacity={0.8}
               onPress={() => {
                 setEditingProduct(null);
                 setShowAddModal(true);
               }}
             >
-              <Text className="text-background font-semibold">
-                Produkt erstellen
-              </Text>
+              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
             </TouchableOpacity>
           </View>
-        )}
+
+          {/* Statistik */}
+          <View className="flex-row gap-3 mb-4">
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-foreground">
+                {products?.length || 0}
+              </Text>
+              <Text className="text-sm text-muted">Gesamt</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-primary">
+                {products?.filter((p) => p.type === "product").length || 0}
+              </Text>
+              <Text className="text-sm text-muted">Artikel</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-success">
+                {products?.filter((p) => p.type === "service").length || 0}
+              </Text>
+              <Text className="text-sm text-muted">Dienstleistungen</Text>
+            </View>
+          </View>
+
+          {/* Suchfeld */}
+          <View className="mb-4">
+            <View className="flex-row items-center bg-surface border border-border rounded-lg px-3">
+              <IconSymbol name="magnifyingglass" size={18} color={colors.muted} />
+              <TextInput
+                className="flex-1 py-3 px-2 text-foreground"
+                placeholder="Produkt suchen..."
+                placeholderTextColor={colors.muted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 ? (
+                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <IconSymbol name="xmark.circle.fill" size={18} color={colors.muted} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Kategorie-Filter */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0, minHeight: 36 }}>
+            <View className="flex-row gap-2">
+              <TouchableOpacity
+                className={`px-3 py-2 rounded-lg ${!selectedCategory ? "bg-primary" : "bg-surface border border-border"}`}
+                onPress={() => setSelectedCategory("")}
+                activeOpacity={0.7}
+              >
+                <Text className={`text-sm font-medium ${!selectedCategory ? "text-background" : "text-foreground"}`}>Alle</Text>
+              </TouchableOpacity>
+              {PRODUCT_CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  className={`px-3 py-2 rounded-lg ${selectedCategory === cat ? "bg-primary" : "bg-surface border border-border"}`}
+                  onPress={() => setSelectedCategory(selectedCategory === cat ? "" : cat)}
+                  activeOpacity={0.7}
+                >
+                  <Text className={`text-sm font-medium ${selectedCategory === cat ? "text-background" : "text-foreground"}`}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* Produktliste */}
+          {isLoading ? (
+            <View className="flex-1 items-center justify-center">
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : filteredProducts && filteredProducts.length > 0 ? (
+            <FlatList
+              data={filteredProducts}
+              renderItem={renderProductItem}
+              keyExtractor={(item) => item.id.toString()}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <View className="flex-1 items-center justify-center">
+              <IconSymbol name="cube.box.fill" size={64} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4 mb-2">Keine Produkte</Text>
+              <Text className="text-sm text-muted text-center mb-6">
+                Erstellen Sie Ihr erstes Produkt
+              </Text>
+              <TouchableOpacity
+                className="bg-primary px-6 py-3 rounded-lg"
+                activeOpacity={0.8}
+                onPress={() => {
+                  setEditingProduct(null);
+                  setShowAddModal(true);
+                }}
+              >
+                <Text className="text-background font-semibold">
+                  Produkt erstellen
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Add/Edit Product Modal */}

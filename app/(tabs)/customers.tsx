@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { CustomerFormModal } from "@/components/customer-form-modal";
@@ -21,6 +22,7 @@ import { CustomerFormModal } from "@/components/customer-form-modal";
 export default function CustomersScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -163,82 +165,84 @@ export default function CustomersScreen() {
 
   return (
     <ScreenContainer>
-      <View className="flex-1 p-4">
-        {/* Header */}
-        <View className="flex-row items-center justify-between mb-4">
-          <View className="flex-row items-center gap-3">
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+      <View className="flex-1" style={{ padding: contentPadding }}>
+        <View style={containerStyle}>
+          {/* Header */}
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center gap-3">
+              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+              </TouchableOpacity>
+              <Text className="text-3xl font-bold text-foreground">Kunden</Text>
+            </View>
+            <TouchableOpacity
+              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+              activeOpacity={0.8}
+              onPress={() => setShowAddModal(true)}
+            >
+              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
             </TouchableOpacity>
-            <Text className="text-3xl font-bold text-foreground">Kunden</Text>
           </View>
-          <TouchableOpacity
-            className="bg-primary w-12 h-12 rounded-full items-center justify-center"
-            activeOpacity={0.8}
-            onPress={() => setShowAddModal(true)}
-          >
-            <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
 
-        {/* Suchleiste */}
-        <View className="bg-surface rounded-xl p-3 mb-4 flex-row items-center border border-border">
-          <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
-          <TextInput
-            className="flex-1 ml-2 text-base text-foreground"
-            placeholder="Kunde suchen..."
-            placeholderTextColor={colors.muted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+          {/* Suchleiste */}
+          <View className="bg-surface rounded-xl p-3 mb-4 flex-row items-center border border-border">
+            <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
+            <TextInput
+              className="flex-1 ml-2 text-base text-foreground"
+              placeholder="Kunde suchen..."
+              placeholderTextColor={colors.muted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
 
-        {/* Statistik-Karten */}
-        <View className="flex-row gap-3 mb-4">
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-foreground">
-              {customers?.length || 0}
-            </Text>
-            <Text className="text-sm text-muted">Gesamt</Text>
+          {/* Statistik-Karten */}
+          <View className="flex-row gap-3 mb-4">
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-foreground">
+                {customers?.length || 0}
+              </Text>
+              <Text className="text-sm text-muted">Gesamt</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-success">
+                {customers?.filter((c) => c.status === "active").length || 0}
+              </Text>
+              <Text className="text-sm text-muted">Aktiv</Text>
+            </View>
           </View>
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-success">
-              {customers?.filter((c) => c.status === "active").length || 0}
-            </Text>
-            <Text className="text-sm text-muted">Aktiv</Text>
-          </View>
-        </View>
 
-        {/* Kundenliste */}
-        {isLoading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : filteredCustomers && filteredCustomers.length > 0 ? (
-          <FlatList
-            data={filteredCustomers}
-            renderItem={renderCustomerItem}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
-              />
-            }
-          />
-        ) : (
-          <View className="flex-1 items-center justify-center">
-            <Text className="text-lg text-muted mb-2">Keine Kunden gefunden</Text>
-            <Text className="text-sm text-muted text-center">
-              {searchQuery
-                ? "Versuchen Sie einen anderen Suchbegriff"
-                : "Fügen Sie Ihren ersten Kunden hinzu"}
-            </Text>
-          </View>
-        )}
+          {/* Kundenliste */}
+          {isLoading ? (
+            <View className="flex-1 items-center justify-center">
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : filteredCustomers && filteredCustomers.length > 0 ? (
+            <FlatList
+              data={filteredCustomers}
+              renderItem={renderCustomerItem}
+              keyExtractor={(item) => item.id.toString()}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={colors.primary}
+                  colors={[colors.primary]}
+                />
+              }
+            />
+          ) : (
+            <View className="flex-1 items-center justify-center">
+              <Text className="text-lg text-muted mb-2">Keine Kunden gefunden</Text>
+              <Text className="text-sm text-muted text-center">
+                {searchQuery
+                  ? "Versuchen Sie einen anderen Suchbegriff"
+                  : "Fügen Sie Ihren ersten Kunden hinzu"}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Add Customer Modal */}

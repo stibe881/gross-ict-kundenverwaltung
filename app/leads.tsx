@@ -9,12 +9,12 @@ import {
   TextInput,
   Alert,
   Platform,
-  useWindowDimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { LeadFormModal } from "@/components/lead-form-modal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
@@ -87,13 +87,12 @@ export default function LeadsScreen() {
   const getPriorityLabel = (p: string) => ({ low: "Tief", medium: "Mittel", high: "Hoch" }[p] || "Mittel");
   const getPriorityColor = (p: string) => ({ low: "#6B7280", medium: "#F59E0B", high: "#EF4444" }[p] || "#F59E0B");
 
-  const { width } = useWindowDimensions();
-  const isWide = Platform.OS === 'web' && width > 768;
+  const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
 
   return (
     <ScreenContainer>
-      <ScrollView className="flex-1 p-4">
-        <View style={isWide ? { maxWidth: 1200, alignSelf: 'center', width: '100%' } : undefined}>
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: contentPadding }}>
+        <View style={containerStyle}>
           {/* Header */}
           <View className="flex-row items-center justify-between mb-4">
             <View className="flex-row items-center gap-3">
@@ -107,7 +106,7 @@ export default function LeadsScreen() {
               activeOpacity={0.8}
               onPress={() => setShowAddModal(true)}
             >
-              <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
+              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
             </TouchableOpacity>
           </View>
 

@@ -10,6 +10,7 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatDate } from "@/lib/format";
 import { NewsletterFormModal, NewsletterFormData } from "@/components/newsletter-form-modal";
 
@@ -53,6 +54,7 @@ const mockNewsletters: Newsletter[] = [
 
 export default function NewsletterScreen() {
   const colors = useColors();
+  const { containerStyle, contentPadding } = useResponsiveLayout();
   const router = useRouter();
   const [newsletters, setNewsletters] = useState<Newsletter[]>(mockNewsletters);
   const [filter, setFilter] = useState<"all" | NewsletterStatus>("all");
@@ -149,93 +151,93 @@ export default function NewsletterScreen() {
 
   return (
     <ScreenContainer>
-      <View className="flex-1 p-4">
-        {/* Header */}
-        <View className="flex-row items-center justify-between mb-4">
-          <View className="flex-row items-center gap-3">
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-            </TouchableOpacity>
-            <Text className="text-3xl font-bold text-foreground">Newsletter</Text>
-          </View>
-          <TouchableOpacity
-            className="bg-primary w-12 h-12 rounded-full items-center justify-center"
-            activeOpacity={0.8}
-            onPress={() => setShowFormModal(true)}
-          >
-            <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Statistik */}
-        <View className="flex-row gap-3 mb-4">
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-primary">
-              {newsletters.length}
-            </Text>
-            <Text className="text-sm text-muted">Kampagnen</Text>
-          </View>
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-success">
-              {newsletters.filter((n) => n.status === "sent").length}
-            </Text>
-            <Text className="text-sm text-muted">Versendet</Text>
-          </View>
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-warning">
-              {newsletters.filter((n) => n.status === "scheduled").length}
-            </Text>
-            <Text className="text-sm text-muted">Geplant</Text>
-          </View>
-        </View>
-
-        {/* Filter */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-          <View className="flex-row gap-2">
-            {[
-              { key: "all", label: "Alle" },
-              { key: "draft", label: "Entwürfe" },
-              { key: "scheduled", label: "Geplant" },
-              { key: "sent", label: "Versendet" },
-            ].map((status) => (
-              <TouchableOpacity
-                key={status.key}
-                className={`px-4 py-2 rounded-lg ${
-                  filter === status.key ? "bg-primary" : "bg-surface border border-border"
-                }`}
-                onPress={() => setFilter(status.key as any)}
-              >
-                <Text
-                  className={`font-semibold ${
-                    filter === status.key ? "text-background" : "text-foreground"
-                  }`}
-                >
-                  {status.label}
-                </Text>
+      <View className="flex-1" style={{ padding: contentPadding }}>
+        <View style={containerStyle}>
+          {/* Header */}
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center gap-3">
+              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
               </TouchableOpacity>
-            ))}
+              <Text className="text-3xl font-bold text-foreground">Newsletter</Text>
+            </View>
+            <TouchableOpacity
+              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+              activeOpacity={0.8}
+              onPress={() => setShowFormModal(true)}
+            >
+              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
+            </TouchableOpacity>
           </View>
-        </ScrollView>
 
-        {/* Newsletter-Liste */}
-        {filteredNewsletters.length > 0 ? (
-          <FlatList
-            data={filteredNewsletters}
-            renderItem={renderNewsletterItem}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <View className="flex-1 items-center justify-center">
-            <IconSymbol name="envelope.fill" size={48} color={colors.muted} />
-            <Text className="text-lg text-muted mt-4">Keine Newsletter</Text>
-            <Text className="text-sm text-muted text-center mt-2">
-              {filter === "all"
-                ? "Erstellen Sie Ihre erste Kampagne"
-                : `Keine Newsletter mit Status "${getStatusLabel(filter as NewsletterStatus)}"`}
-            </Text>
+          {/* Statistik */}
+          <View className="flex-row gap-3 mb-4">
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-primary">
+                {newsletters.length}
+              </Text>
+              <Text className="text-sm text-muted">Kampagnen</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-success">
+                {newsletters.filter((n) => n.status === "sent").length}
+              </Text>
+              <Text className="text-sm text-muted">Versendet</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-warning">
+                {newsletters.filter((n) => n.status === "scheduled").length}
+              </Text>
+              <Text className="text-sm text-muted">Geplant</Text>
+            </View>
           </View>
-        )}
+
+          {/* Filter */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+            <View className="flex-row gap-2">
+              {[
+                { key: "all", label: "Alle" },
+                { key: "draft", label: "Entwürfe" },
+                { key: "scheduled", label: "Geplant" },
+                { key: "sent", label: "Versendet" },
+              ].map((status) => (
+                <TouchableOpacity
+                  key={status.key}
+                  className={`px-4 py-2 rounded-lg ${filter === status.key ? "bg-primary" : "bg-surface border border-border"
+                    }`}
+                  onPress={() => setFilter(status.key as any)}
+                >
+                  <Text
+                    className={`font-semibold ${filter === status.key ? "text-background" : "text-foreground"
+                      }`}
+                  >
+                    {status.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* Newsletter-Liste */}
+          {filteredNewsletters.length > 0 ? (
+            <FlatList
+              data={filteredNewsletters}
+              renderItem={renderNewsletterItem}
+              keyExtractor={(item) => item.id.toString()}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <View className="flex-1 items-center justify-center">
+              <IconSymbol name="envelope.fill" size={48} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4">Keine Newsletter</Text>
+              <Text className="text-sm text-muted text-center mt-2">
+                {filter === "all"
+                  ? "Erstellen Sie Ihre erste Kampagne"
+                  : `Keine Newsletter mit Status "${getStatusLabel(filter as NewsletterStatus)}"`}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Newsletter-Formular-Modal */}

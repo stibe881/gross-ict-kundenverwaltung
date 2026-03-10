@@ -10,6 +10,7 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { supabase } from "@/lib/supabase";
 
 type UserRole = "admin" | "manager" | "accounting" | "sales" | "support";
@@ -60,6 +61,7 @@ const mockUsers: User[] = [
 
 export default function UsersScreen() {
   const colors = useColors();
+  const { containerStyle, contentPadding } = useResponsiveLayout();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [users] = useState<User[]>(mockUsers);
@@ -162,85 +164,87 @@ export default function UsersScreen() {
 
   return (
     <ScreenContainer>
-      <View className="flex-1 p-4">
-        {/* Header */}
-        <View className="flex-row items-center justify-between mb-4">
-          <View className="flex-row items-center gap-3">
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-            </TouchableOpacity>
-            <Text className="text-3xl font-bold text-foreground">Benutzerverwaltung</Text>
-          </View>
-          <TouchableOpacity
-            className="bg-primary w-12 h-12 rounded-full items-center justify-center"
-            activeOpacity={0.8}
-          >
-            <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Statistik */}
-        <View className="flex-row gap-3 mb-4">
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-primary">
-              {users.length}
-            </Text>
-            <Text className="text-sm text-muted">Gesamt</Text>
-          </View>
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-success">
-              {users.filter((u) => u.isActive).length}
-            </Text>
-            <Text className="text-sm text-muted">Aktiv</Text>
-          </View>
-          <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-            <Text className="text-2xl font-bold text-error">
-              {users.filter((u) => !u.isActive).length}
-            </Text>
-            <Text className="text-sm text-muted">Inaktiv</Text>
-          </View>
-        </View>
-
-        {/* Filter */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-          <View className="flex-row gap-2">
-            {[
-              { key: "all", label: "Alle" },
-              { key: "active", label: "Aktiv" },
-              { key: "inactive", label: "Inaktiv" },
-            ].map((status) => (
-              <TouchableOpacity
-                key={status.key}
-                className={`px-4 py-2 rounded-lg ${filter === status.key ? "bg-primary" : "bg-surface border border-border"
-                  }`}
-                onPress={() => setFilter(status.key as any)}
-              >
-                <Text
-                  className={`font-semibold ${filter === status.key ? "text-background" : "text-foreground"
-                    }`}
-                >
-                  {status.label}
-                </Text>
+      <View className="flex-1" style={{ padding: contentPadding }}>
+        <View style={containerStyle}>
+          {/* Header */}
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center gap-3">
+              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
               </TouchableOpacity>
-            ))}
+              <Text className="text-3xl font-bold text-foreground">Benutzerverwaltung</Text>
+            </View>
+            <TouchableOpacity
+              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+              activeOpacity={0.8}
+            >
+              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
+            </TouchableOpacity>
           </View>
-        </ScrollView>
 
-        {/* Benutzerliste */}
-        {filteredUsers.length > 0 ? (
-          <FlatList
-            data={filteredUsers}
-            renderItem={renderUserItem}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <View className="flex-1 items-center justify-center">
-            <IconSymbol name="person.2.fill" size={48} color={colors.muted} />
-            <Text className="text-lg text-muted mt-4">Keine Benutzer</Text>
+          {/* Statistik */}
+          <View className="flex-row gap-3 mb-4">
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-primary">
+                {users.length}
+              </Text>
+              <Text className="text-sm text-muted">Gesamt</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-success">
+                {users.filter((u) => u.isActive).length}
+              </Text>
+              <Text className="text-sm text-muted">Aktiv</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-error">
+                {users.filter((u) => !u.isActive).length}
+              </Text>
+              <Text className="text-sm text-muted">Inaktiv</Text>
+            </View>
           </View>
-        )}
+
+          {/* Filter */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+            <View className="flex-row gap-2">
+              {[
+                { key: "all", label: "Alle" },
+                { key: "active", label: "Aktiv" },
+                { key: "inactive", label: "Inaktiv" },
+              ].map((status) => (
+                <TouchableOpacity
+                  key={status.key}
+                  className={`px-4 py-2 rounded-lg ${filter === status.key ? "bg-primary" : "bg-surface border border-border"
+                    }`}
+                  onPress={() => setFilter(status.key as any)}
+                >
+                  <Text
+                    className={`font-semibold ${filter === status.key ? "text-background" : "text-foreground"
+                      }`}
+                  >
+                    {status.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* Benutzerliste */}
+          {filteredUsers.length > 0 ? (
+            <FlatList
+              data={filteredUsers}
+              renderItem={renderUserItem}
+              keyExtractor={(item) => item.id.toString()}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <View className="flex-1 items-center justify-center">
+              <IconSymbol name="person.2.fill" size={48} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4">Keine Benutzer</Text>
+            </View>
+          )}
+        </View>
       </View>
-    </ScreenContainer>
+    </ScreenContainer >
   );
 }

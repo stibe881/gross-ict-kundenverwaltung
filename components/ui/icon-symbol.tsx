@@ -40,6 +40,10 @@ const MAPPING = {
   "checkmark": "check",
   "bell.fill": "notifications",
   "bell.slash.fill": "notifications-off",
+  "folder.fill": "folder",
+  "person.crop.rectangle.fill": "contact-page",
+  "person.fill.badge.plus": "person-add",
+  "plus": "add",
 } as IconMapping;
 
 /**

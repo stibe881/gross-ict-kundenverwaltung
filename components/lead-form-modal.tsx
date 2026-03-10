@@ -34,6 +34,9 @@ export function LeadFormModal({
     email: "",
     phone: "",
     website: "",
+    address: "",
+    zip: "",
+    city: "",
     value: "",
     status: "new",
     priority: "medium",
@@ -50,6 +53,9 @@ export function LeadFormModal({
         email: lead.email || "",
         phone: lead.phone || "",
         website: lead.website || "",
+        address: lead.address || "",
+        zip: lead.zip || "",
+        city: lead.city || "",
         value: lead.value?.toString() || "",
         status: lead.status || "new",
         priority: lead.priority || "medium",
@@ -63,6 +69,9 @@ export function LeadFormModal({
         email: "",
         phone: "",
         website: "",
+        address: "",
+        zip: "",
+        city: "",
         value: "",
         status: "new",
         priority: "medium",
@@ -86,6 +95,9 @@ export function LeadFormModal({
         email: formData.email || undefined,
         phone: formData.phone || undefined,
         website: formData.website || undefined,
+        address: formData.address || undefined,
+        zip: formData.zip || undefined,
+        city: formData.city || undefined,
         value: formData.value ? parseFloat(formData.value) : 0,
         status: formData.status,
         priority: formData.priority,
@@ -223,6 +235,55 @@ export function LeadFormModal({
                     setFormData({ ...formData, website: text })
                   }
                 />
+              </View>
+
+              {/* Adresse */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Adresse
+                </Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="Musterstrasse 12"
+                  placeholderTextColor={colors.muted}
+                  value={formData.address}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, address: text })
+                  }
+                />
+              </View>
+
+              {/* PLZ & Ort */}
+              <View className="flex-row gap-3">
+                <View className="w-24">
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    PLZ
+                  </Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="8000"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="number-pad"
+                    value={formData.zip}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, zip: text })
+                    }
+                  />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    Ort
+                  </Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="Zürich"
+                    placeholderTextColor={colors.muted}
+                    value={formData.city}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, city: text })
+                    }
+                  />
+                </View>
               </View>
 
               {/* Potenzial */}

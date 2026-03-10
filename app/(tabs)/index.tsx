@@ -1,5 +1,14 @@
 import { useState, useEffect } from "react";
-import { ScrollView, Text, View, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
+import {
+  ScrollView,
+  Text,
+  View,
+  TouchableOpacity,
+  ActivityIndicator,
+  Platform,
+  useWindowDimensions,
+  Image,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { supabase } from "@/lib/supabase";
@@ -13,11 +22,10 @@ import { QuoteFormModal } from "@/components/quote-form-modal";
 import { ProjectFormModal } from "@/components/project-form-modal";
 import { useQuery } from "@tanstack/react-query";
 
-
 interface DashboardTile {
   id: string;
   title: string;
-  value: string;
+  subtitle: string;
   icon: any;
   color: string;
   route?: string;
@@ -35,12 +43,19 @@ export default function DashboardScreen() {
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
 
+  const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === "web";
+  const isWide = isWeb && width > 900;
+  const isMedium = isWeb && width > 600 && width <= 900;
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
     return () => subscription.unsubscribe();
@@ -52,7 +67,7 @@ export default function DashboardScreen() {
       if (!user) return 0;
       const { count, error } = await supabase
         .from("notifications")
-        .select('*', { count: 'exact', head: true })
+        .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("is_read", false);
       if (error) throw new Error(error.message);
@@ -70,72 +85,234 @@ export default function DashboardScreen() {
     );
   }
 
+  const userName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split("@")[0] ||
+    "Admin";
+
   const tileCategories = [
     {
       label: "CRM",
       tiles: [
-        { id: "customers", title: "Kunden", value: "Verwalten", icon: "person.2.fill", color: colors.primary, route: "/customers" },
-        { id: "leads", title: "Akquise", value: "Pipeline", icon: "briefcase.fill", color: "#17A2B8", route: "/leads" },
+        {
+          id: "customers",
+          title: "Kunden",
+          subtitle: "Kundenverwaltung",
+          icon: "person.2.fill",
+          color: colors.primary,
+          route: "/customers",
+        },
+        {
+          id: "leads",
+          title: "Akquise",
+          subtitle: "Lead-Pipeline",
+          icon: "briefcase.fill",
+          color: "#17A2B8",
+          route: "/leads",
+        },
       ],
     },
     {
       label: "Finanzen",
       tiles: [
-        { id: "accounting", title: "Buchhaltung", value: "Rechnungen", icon: "chart.bar.fill", color: colors.success, route: "/accounting" },
-        { id: "quotes", title: "Angebote", value: "Offerten", icon: "doc.text.fill", color: "#EC4899", route: "/quotes" },
-        { id: "contracts", title: "Verträge", value: "Verwaltung", icon: "doc.text.fill", color: "#6366F1", route: "/contracts" },
+        {
+          id: "accounting",
+          title: "Buchhaltung",
+          subtitle: "Rechnungen & Zahlungen",
+          icon: "chart.bar.fill",
+          color: colors.success,
+          route: "/accounting",
+        },
+        {
+          id: "quotes",
+          title: "Angebote",
+          subtitle: "Offerten erstellen",
+          icon: "doc.text.fill",
+          color: "#EC4899",
+          route: "/quotes",
+        },
+        {
+          id: "contracts",
+          title: "Verträge",
+          subtitle: "Verwaltung",
+          icon: "doc.text.fill",
+          color: "#6366F1",
+          route: "/contracts",
+        },
       ],
     },
     {
       label: "Support & Kommunikation",
       tiles: [
-        { id: "tickets", title: "Tickets", value: "Support", icon: "ticket.fill", color: colors.warning, route: "/tickets" },
-        { id: "newsletter", title: "Newsletter", value: "Kampagnen", icon: "envelope.fill", color: "#8B5CF6", route: "/newsletter" },
+        {
+          id: "tickets",
+          title: "Tickets",
+          subtitle: "Supportanfragen",
+          icon: "ticket.fill",
+          color: colors.warning,
+          route: "/tickets",
+        },
+        {
+          id: "newsletter",
+          title: "Newsletter",
+          subtitle: "E-Mail-Kampagnen",
+          icon: "envelope.fill",
+          color: "#8B5CF6",
+          route: "/newsletter",
+        },
       ],
     },
     {
       label: "Projektmanagement",
       tiles: [
-        { id: "projects", title: "Projekte", value: "Verwalten", icon: "folder.fill", color: "#14B8A6", route: "/projects" },
+        {
+          id: "projects",
+          title: "Projekte",
+          subtitle: "Auftragsverwaltung",
+          icon: "folder.fill",
+          color: "#14B8A6",
+          route: "/projects",
+        },
       ],
     },
     {
       label: "Konfiguration",
       tiles: [
-        { id: "products", title: "Produkte", value: "Katalog", icon: "cube.box.fill", color: "#F97316", route: "/products" },
-        { id: "business-card", title: "Visitenkarte", value: "Apple Wallet", icon: "person.crop.rectangle.fill", color: "#0EA5E9", route: "/business-card" },
+        {
+          id: "products",
+          title: "Produkte",
+          subtitle: "Leistungskatalog",
+          icon: "cube.box.fill",
+          color: "#F97316",
+          route: "/products",
+        },
+        {
+          id: "business-card",
+          title: "Visitenkarte",
+          subtitle: "Apple Wallet",
+          icon: "person.crop.rectangle.fill",
+          color: "#0EA5E9",
+          route: "/business-card",
+        },
       ],
     },
   ];
 
-  // Admin-spezifische Kacheln
-  if ((user as any)?.role === "admin") {
-    tileCategories.push({
-      label: "Administration",
-      tiles: [
-        { id: "users", title: "Benutzerverwaltung", value: "Admin", icon: "gear", color: "#EF4444", route: "/users" },
-      ],
-    });
-  }
+  // Tile column count based on screen width
+  const tileColumns = isWide ? 4 : isMedium ? 3 : 2;
+  const tileGap = isWide ? 16 : 12;
 
   return (
     <ScreenContainer>
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
-        {/* Header */}
-        <View className="mb-6">
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-3xl font-bold text-foreground">Dashboard</Text>
-            <View className="flex-row items-center gap-4">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          padding: isWide ? 32 : 16,
+          paddingBottom: 100,
+        }}
+      >
+        <View
+          style={
+            isWide
+              ? { maxWidth: 1200, alignSelf: "center", width: "100%" }
+              : undefined
+          }
+        >
+          {/* Header */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: isWide ? 32 : 20,
+              paddingTop: isWide ? 8 : 0,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              {isWeb ? (
+                <Image
+                  source={require("@/assets/images/android-icon-foreground.png")}
+                  style={{ width: isWide ? 220 : 180, height: isWide ? 48 : 40 }}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 }}>
+                  <Image
+                    source={require("@/assets/images/icon.png")}
+                    style={{ width: 32, height: 32, borderRadius: 8 }}
+                    resizeMode="contain"
+                  />
+                  <Text
+                    style={{
+                      fontSize: 22,
+                      fontWeight: "800",
+                      color: colors.foreground,
+                      letterSpacing: -0.5,
+                    }}
+                  >
+                    Gross • ICT
+                  </Text>
+                </View>
+              )}
+              <Text
+                style={{
+                  fontSize: isWide ? 16 : 14,
+                  color: colors.muted,
+                  marginTop: 6,
+                }}
+              >
+                Willkommen, {userName}
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
               <TouchableOpacity
                 onPress={() => router.push("/admin-notifications")}
-                className="relative"
+                style={{ position: "relative" }}
                 activeOpacity={0.7}
               >
-                <IconSymbol name="bell.fill" size={24} color={colors.foreground} />
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <IconSymbol
+                    name="bell.fill"
+                    size={20}
+                    color={colors.foreground}
+                  />
+                </View>
                 {unreadCount > 0 && (
-                  <View className="absolute -top-1 -right-1 bg-primary rounded-full min-w-[16px] h-4 items-center justify-center px-1">
-                    <Text className="text-[10px] font-bold text-background leading-none">
-                      {unreadCount > 99 ? '99+' : unreadCount}
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: -2,
+                      right: -2,
+                      backgroundColor: colors.error,
+                      borderRadius: 10,
+                      minWidth: 20,
+                      height: 20,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingHorizontal: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: "700",
+                        color: "#FFFFFF",
+                      }}
+                    >
+                      {unreadCount > 99 ? "99+" : unreadCount}
                     </Text>
                   </View>
                 )}
@@ -143,47 +320,170 @@ export default function DashboardScreen() {
               <LogoutButton />
             </View>
           </View>
-          <Text className="text-base text-muted mt-1">
-            Willkommen zurück
-          </Text>
-        </View>
 
-        {/* Kategorisierte Kacheln */}
-        {tileCategories.map((category) => (
-          <View key={category.label} className="mb-6">
-            <Text className="text-sm font-bold text-muted uppercase tracking-wider mb-3">
-              {category.label}
-            </Text>
-            <View className="flex-row flex-wrap gap-3">
-              {category.tiles.map((tile) => (
-                <TouchableOpacity
-                  key={tile.id}
-                  className="bg-surface rounded-2xl p-5 border border-border"
-                  style={{ width: '48%', flexGrow: 1 }}
-                  onPress={() => {
-                    if (tile.route) {
-                      router.push(tile.route as any);
-                    }
+          {/* Quick Actions Bar */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: isWide ? 32 : 20 }}
+            contentContainerStyle={{ gap: 10 }}
+          >
+            {[
+              {
+                label: "Neuer Kunde",
+                icon: "person.fill.badge.plus",
+                onPress: () => setShowCustomerModal(true),
+              },
+              {
+                label: "Neues Ticket",
+                icon: "ticket.fill",
+                onPress: () => setShowTicketModal(true),
+              },
+              {
+                label: "Neue Rechnung",
+                icon: "doc.text.fill",
+                onPress: () => setShowInvoiceModal(true),
+              },
+              {
+                label: "Neues Angebot",
+                icon: "doc.text.fill",
+                onPress: () => setShowQuoteModal(true),
+              },
+              {
+                label: "Neues Projekt",
+                icon: "folder.fill",
+                onPress: () => setShowProjectModal(true),
+              },
+            ].map((action) => (
+              <TouchableOpacity
+                key={action.label}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 12,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                }}
+                activeOpacity={0.7}
+                onPress={action.onPress}
+              >
+                <IconSymbol
+                  name={action.icon as any}
+                  size={16}
+                  color={colors.primary}
+                />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: colors.foreground,
                   }}
-                  activeOpacity={0.7}
                 >
-                  <View
-                    className="w-10 h-10 rounded-xl items-center justify-center mb-3"
-                    style={{ backgroundColor: tile.color + "20" }}
-                  >
-                    <IconSymbol name={tile.icon as any} size={20} color={tile.color} />
-                  </View>
-                  <Text className="text-base font-semibold text-foreground">{tile.title}</Text>
-                  <Text className="text-xs text-muted mt-1">{tile.value}</Text>
-                </TouchableOpacity>
-              ))}
+                  {action.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Categorized Tiles */}
+          {tileCategories.map((category) => (
+            <View key={category.label} style={{ marginBottom: isWide ? 28 : 20 }}>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: colors.muted,
+                  textTransform: "uppercase",
+                  letterSpacing: 1.5,
+                  marginBottom: 12,
+                }}
+              >
+                {category.label}
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: tileGap,
+                }}
+              >
+                {category.tiles.map((tile) => {
+                  // Calculate tile width for responsive grid
+                  const tileWidth = isWide
+                    ? `${100 / tileColumns - 1.5}%`
+                    : isMedium
+                      ? `${100 / tileColumns - 1.5}%`
+                      : "47%";
+
+                  return (
+                    <TouchableOpacity
+                      key={tile.id}
+                      style={{
+                        width: tileWidth as any,
+                        flexGrow: 1,
+                        backgroundColor: colors.surface,
+                        borderRadius: 16,
+                        padding: isWide ? 24 : 18,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                      }}
+                      onPress={() => {
+                        if (tile.route) {
+                          router.push(tile.route as any);
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        style={{
+                          width: isWide ? 48 : 40,
+                          height: isWide ? 48 : 40,
+                          borderRadius: 14,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: tile.color + "18",
+                          marginBottom: isWide ? 16 : 12,
+                        }}
+                      >
+                        <IconSymbol
+                          name={tile.icon as any}
+                          size={isWide ? 24 : 20}
+                          color={tile.color}
+                        />
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: isWide ? 17 : 15,
+                          fontWeight: "700",
+                          color: colors.foreground,
+                          marginBottom: 2,
+                        }}
+                      >
+                        {tile.title}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: isWide ? 13 : 12,
+                          color: colors.muted,
+                        }}
+                      >
+                        {tile.subtitle}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
-          </View>
-        ))}
+          ))}
+        </View>
       </ScrollView>
 
-      {/* FAB Overlay */}
-      {showFabMenu && (
+      {/* FAB Overlay — Mobile only */}
+      {!isWeb && showFabMenu && (
         <TouchableOpacity
           className="absolute inset-0 bg-black/40"
           activeOpacity={1}
@@ -191,11 +491,46 @@ export default function DashboardScreen() {
         >
           <View className="absolute bottom-24 right-6 gap-3">
             {[
-              { label: "Neuer Kunde", icon: "person.fill.badge.plus", onPress: () => { setShowFabMenu(false); setShowCustomerModal(true); } },
-              { label: "Neues Ticket", icon: "ticket.fill", onPress: () => { setShowFabMenu(false); setShowTicketModal(true); } },
-              { label: "Neue Rechnung", icon: "doc.text.fill", onPress: () => { setShowFabMenu(false); setShowInvoiceModal(true); } },
-              { label: "Neues Angebot", icon: "doc.text.fill", onPress: () => { setShowFabMenu(false); setShowQuoteModal(true); } },
-              { label: "Neues Projekt", icon: "folder.fill", onPress: () => { setShowFabMenu(false); setShowProjectModal(true); } },
+              {
+                label: "Neuer Kunde",
+                icon: "person.fill.badge.plus",
+                onPress: () => {
+                  setShowFabMenu(false);
+                  setShowCustomerModal(true);
+                },
+              },
+              {
+                label: "Neues Ticket",
+                icon: "ticket.fill",
+                onPress: () => {
+                  setShowFabMenu(false);
+                  setShowTicketModal(true);
+                },
+              },
+              {
+                label: "Neue Rechnung",
+                icon: "doc.text.fill",
+                onPress: () => {
+                  setShowFabMenu(false);
+                  setShowInvoiceModal(true);
+                },
+              },
+              {
+                label: "Neues Angebot",
+                icon: "doc.text.fill",
+                onPress: () => {
+                  setShowFabMenu(false);
+                  setShowQuoteModal(true);
+                },
+              },
+              {
+                label: "Neues Projekt",
+                icon: "folder.fill",
+                onPress: () => {
+                  setShowFabMenu(false);
+                  setShowProjectModal(true);
+                },
+              },
             ].map((item) => (
               <TouchableOpacity
                 key={item.label}
@@ -203,14 +538,41 @@ export default function DashboardScreen() {
                 activeOpacity={0.7}
                 onPress={item.onPress}
               >
-                <View className="bg-surface rounded-lg px-4 py-2.5 border border-border shadow-lg">
-                  <Text className="text-foreground font-semibold text-sm">{item.label}</Text>
+                <View
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderRadius: 8,
+                    paddingHorizontal: 16,
+                    paddingVertical: 10,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: colors.foreground,
+                      fontWeight: "600",
+                      fontSize: 14,
+                    }}
+                  >
+                    {item.label}
+                  </Text>
                 </View>
                 <View
-                  className="w-11 h-11 rounded-full items-center justify-center shadow-lg"
-                  style={{ backgroundColor: colors.primary }}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: colors.primary,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
-                  <IconSymbol name={item.icon as any} size={20} color="#FFFFFF" />
+                  <IconSymbol
+                    name={item.icon as any}
+                    size={20}
+                    color="#111111"
+                  />
                 </View>
               </TouchableOpacity>
             ))}
@@ -218,19 +580,35 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       )}
 
-      {/* FAB Button */}
-      <TouchableOpacity
-        className="absolute bottom-6 right-6 w-14 h-14 rounded-full items-center justify-center shadow-lg"
-        style={{ backgroundColor: colors.primary, elevation: 8 }}
-        activeOpacity={0.8}
-        onPress={() => setShowFabMenu(!showFabMenu)}
-      >
-        <IconSymbol
-          name={showFabMenu ? "xmark" : "plus"}
-          size={28}
-          color="#FFFFFF"
-        />
-      </TouchableOpacity>
+      {/* FAB Button — Mobile only */}
+      {!isWeb && (
+        <TouchableOpacity
+          style={{
+            position: "absolute",
+            bottom: 24,
+            right: 24,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: colors.primary,
+            alignItems: "center",
+            justifyContent: "center",
+            elevation: 8,
+            shadowColor: colors.primary,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+          }}
+          activeOpacity={0.8}
+          onPress={() => setShowFabMenu(!showFabMenu)}
+        >
+          <IconSymbol
+            name={showFabMenu ? "xmark" : "plus"}
+            size={28}
+            color="#111111"
+          />
+        </TouchableOpacity>
+      )}
 
       {/* Modals */}
       <CustomerFormModal

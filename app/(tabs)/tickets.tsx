@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { TicketFormModal } from "@/components/ticket-form-modal";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +27,7 @@ type TicketPriority = "low" | "medium" | "high";
 export default function TicketsScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"all" | TicketStatus>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
@@ -165,117 +167,119 @@ export default function TicketsScreen() {
 
   return (
     <ScreenContainer>
-      <View className="flex-1 p-4">
-        {/* Header */}
-        <View className="flex-row items-center justify-between mb-4">
-          <View className="flex-row items-center gap-3">
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-            </TouchableOpacity>
-            <Text className="text-3xl font-bold text-foreground">Tickets</Text>
-          </View>
-          <TouchableOpacity
-            className="bg-primary w-12 h-12 rounded-full items-center justify-center"
-            activeOpacity={0.8}
-            onPress={() => setShowAddModal(true)}
-          >
-            <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Statistik */}
-        <View className="flex-row gap-3 mb-4">
-          <View className="flex-1 bg-surface rounded-lg p-2 border border-border">
-            <Text className="text-lg font-bold text-error">
-              {tickets.filter((t) => t.status === "open").length}
-            </Text>
-            <Text className="text-[10px] text-muted">Offen</Text>
-          </View>
-          <View className="flex-1 bg-surface rounded-lg p-2 border border-border">
-            <Text className="text-lg font-bold text-primary">
-              {tickets.filter((t) => t.status === "in_progress").length}
-            </Text>
-            <Text className="text-[10px] text-muted">In Arbeit</Text>
-          </View>
-          <View className="flex-1 bg-surface rounded-lg p-2 border border-border">
-            <Text className="text-lg font-bold text-success">
-              {tickets.filter((t) => t.status === "closed").length}
-            </Text>
-            <Text className="text-[10px] text-muted">Gelöst</Text>
-          </View>
-        </View>
-
-        {/* Filter */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
-          <View className="flex-row gap-2">
-            {["all", "open", "in_progress", "waiting", "closed"].map((status) => (
-              <TouchableOpacity
-                key={status}
-                className={`px-3 py-1.5 rounded-md ${filter === status ? "bg-primary" : "bg-surface border border-border"
-                  }`}
-                onPress={() => setFilter(status as any)}
-              >
-                <Text
-                  className={`text-sm font-semibold ${filter === status ? "text-background" : "text-foreground"
-                    }`}
-                >
-                  {status === "all"
-                    ? "Alle"
-                    : getStatusLabel(status as TicketStatus)}
-                </Text>
+      <View className="flex-1" style={{ padding: contentPadding }}>
+        <View style={containerStyle}>
+          {/* Header */}
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center gap-3">
+              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
               </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
-
-        {/* Zuweisungs-Filter */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
-          <View className="flex-row gap-2">
+              <Text className="text-3xl font-bold text-foreground">Tickets</Text>
+            </View>
             <TouchableOpacity
-              className={`px-3 py-1.5 rounded-md ${assigneeFilter === "all" ? "bg-primary" : "bg-surface border border-border"}`}
-              onPress={() => setAssigneeFilter("all")}
+              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+              activeOpacity={0.8}
+              onPress={() => setShowAddModal(true)}
             >
-              <Text className={`text-sm font-semibold ${assigneeFilter === "all" ? "text-background" : "text-foreground"}`}>
-                Alle Zuweisungen
-              </Text>
+              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
             </TouchableOpacity>
-            {allUsers.map((user: any) => (
+          </View>
+
+          {/* Statistik */}
+          <View className="flex-row gap-3 mb-4">
+            <View className="flex-1 bg-surface rounded-lg p-2 border border-border">
+              <Text className="text-lg font-bold text-error">
+                {tickets.filter((t) => t.status === "open").length}
+              </Text>
+              <Text className="text-[10px] text-muted">Offen</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-lg p-2 border border-border">
+              <Text className="text-lg font-bold text-primary">
+                {tickets.filter((t) => t.status === "in_progress").length}
+              </Text>
+              <Text className="text-[10px] text-muted">In Arbeit</Text>
+            </View>
+            <View className="flex-1 bg-surface rounded-lg p-2 border border-border">
+              <Text className="text-lg font-bold text-success">
+                {tickets.filter((t) => t.status === "closed").length}
+              </Text>
+              <Text className="text-[10px] text-muted">Gelöst</Text>
+            </View>
+          </View>
+
+          {/* Filter */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
+            <View className="flex-row gap-2">
+              {["all", "open", "in_progress", "waiting", "closed"].map((status) => (
+                <TouchableOpacity
+                  key={status}
+                  className={`px-3 py-1.5 rounded-md ${filter === status ? "bg-primary" : "bg-surface border border-border"
+                    }`}
+                  onPress={() => setFilter(status as any)}
+                >
+                  <Text
+                    className={`text-sm font-semibold ${filter === status ? "text-background" : "text-foreground"
+                      }`}
+                  >
+                    {status === "all"
+                      ? "Alle"
+                      : getStatusLabel(status as TicketStatus)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* Zuweisungs-Filter */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
+            <View className="flex-row gap-2">
               <TouchableOpacity
-                key={user.id}
-                className={`px-3 py-1.5 rounded-md ${assigneeFilter === user.id ? "bg-primary" : "bg-surface border border-border"}`}
-                onPress={() => setAssigneeFilter(user.id)}
+                className={`px-3 py-1.5 rounded-md ${assigneeFilter === "all" ? "bg-primary" : "bg-surface border border-border"}`}
+                onPress={() => setAssigneeFilter("all")}
               >
-                <Text className={`text-sm font-semibold ${assigneeFilter === user.id ? "text-background" : "text-foreground"}`}>
-                  {user.name}
+                <Text className={`text-sm font-semibold ${assigneeFilter === "all" ? "text-background" : "text-foreground"}`}>
+                  Alle Zuweisungen
                 </Text>
               </TouchableOpacity>
-            ))}
-          </View>
-        </ScrollView>
+              {allUsers.map((user: any) => (
+                <TouchableOpacity
+                  key={user.id}
+                  className={`px-3 py-1.5 rounded-md ${assigneeFilter === user.id ? "bg-primary" : "bg-surface border border-border"}`}
+                  onPress={() => setAssigneeFilter(user.id)}
+                >
+                  <Text className={`text-sm font-semibold ${assigneeFilter === user.id ? "text-background" : "text-foreground"}`}>
+                    {user.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
 
-        {/* Ticket-Liste */}
-        {isLoading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : filteredTickets.length > 0 ? (
-          <FlatList
-            data={filteredTickets}
-            renderItem={renderTicketItem}
-            keyExtractor={(item) => item.id.toString()}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <View className="flex-1 items-center justify-center">
-            <IconSymbol name="ticket.fill" size={48} color={colors.muted} />
-            <Text className="text-lg text-muted mt-4">Keine Tickets</Text>
-            <Text className="text-sm text-muted text-center mt-2">
-              {filter === "all"
-                ? "Erstellen Sie Ihr erstes Ticket"
-                : `Keine Tickets mit Status "${getStatusLabel(filter as TicketStatus)}"`}
-            </Text>
-          </View>
-        )}
+          {/* Ticket-Liste */}
+          {isLoading ? (
+            <View className="flex-1 items-center justify-center">
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : filteredTickets.length > 0 ? (
+            <FlatList
+              data={filteredTickets}
+              renderItem={renderTicketItem}
+              keyExtractor={(item) => item.id.toString()}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <View className="flex-1 items-center justify-center">
+              <IconSymbol name="ticket.fill" size={48} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4">Keine Tickets</Text>
+              <Text className="text-sm text-muted text-center mt-2">
+                {filter === "all"
+                  ? "Erstellen Sie Ihr erstes Ticket"
+                  : `Keine Tickets mit Status "${getStatusLabel(filter as TicketStatus)}"`}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Ticket-Formular Modal */}

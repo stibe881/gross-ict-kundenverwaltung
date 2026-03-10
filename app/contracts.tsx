@@ -12,6 +12,7 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { ContractFormModal } from "@/components/contract-form-modal";
 import { ContractTemplateFormModal } from "@/components/contract-template-form-modal";
@@ -23,6 +24,7 @@ type ContractStatus = "active" | "cancelled" | "expired";
 
 export default function ContractsScreen() {
   const colors = useColors();
+  const { containerStyle, contentPadding } = useResponsiveLayout();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"all" | ContractStatus>("all");
@@ -213,139 +215,141 @@ export default function ContractsScreen() {
 
   return (
     <ScreenContainer>
-      <View className="flex-1 p-4">
-        {/* Header */}
-        <View className="flex-row items-center justify-between mb-4">
-          <View className="flex-row items-center gap-3">
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-              <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-            </TouchableOpacity>
-            <Text className="text-3xl font-bold text-foreground">Verträge</Text>
-          </View>
-          <TouchableOpacity
-            className="bg-primary w-12 h-12 rounded-full items-center justify-center"
-            activeOpacity={0.8}
-            onPress={() => setShowPlusMenu(true)}
-          >
-            <IconSymbol name="plus.circle.fill" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Tab Switcher */}
-        <View className="flex-row gap-2 mb-4">
-          <TouchableOpacity
-            className={`flex-1 py-3 rounded-lg ${activeTab === "contracts" ? "bg-primary" : "bg-surface border border-border"}`}
-            onPress={() => setActiveTab("contracts")}
-          >
-            <Text className={`font-semibold text-center ${activeTab === "contracts" ? "text-background" : "text-foreground"}`}>
-              Verträge
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className={`flex-1 py-3 rounded-lg ${activeTab === "templates" ? "bg-primary" : "bg-surface border border-border"}`}
-            onPress={() => setActiveTab("templates")}
-          >
-            <Text className={`font-semibold text-center ${activeTab === "templates" ? "text-background" : "text-foreground"}`}>
-              Vorlagen {templates?.length ? `(${templates.length})` : ""}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {activeTab === "contracts" ? (
-          <>
-            {/* Statistik */}
-            <View className="flex-row gap-3 mb-4">
-              <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                <Text className="text-2xl font-bold text-success">
-                  {contracts.filter((c) => c.status === "active").length}
-                </Text>
-                <Text className="text-sm text-muted">Aktiv</Text>
-              </View>
-              <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                <Text className="text-2xl font-bold text-warning">
-                  {contracts.filter((c) => c.status === "cancelled").length}
-                </Text>
-                <Text className="text-sm text-muted">Gekündigt</Text>
-              </View>
-              <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                <Text className="text-2xl font-bold text-error">
-                  {contracts.filter((c) => c.status === "expired").length}
-                </Text>
-                <Text className="text-sm text-muted">Abgelaufen</Text>
-              </View>
+      <View className="flex-1" style={{ padding: contentPadding }}>
+        <View style={containerStyle}>
+          {/* Header */}
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center gap-3">
+              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+              </TouchableOpacity>
+              <Text className="text-3xl font-bold text-foreground">Verträge</Text>
             </View>
+            <TouchableOpacity
+              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+              activeOpacity={0.8}
+              onPress={() => setShowPlusMenu(true)}
+            >
+              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
+            </TouchableOpacity>
+          </View>
 
-            {/* Filter */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
-              <View className="flex-row gap-2">
-                {["all", "active", "cancelled", "expired"].map((status) => (
-                  <TouchableOpacity
-                    key={status}
-                    className={`px-4 py-2 rounded-lg ${filter === status ? "bg-primary" : "bg-surface border border-border"
-                      }`}
-                    onPress={() => setFilter(status as any)}
-                  >
-                    <Text
-                      className={`font-semibold ${filter === status ? "text-background" : "text-foreground"
+          {/* Tab Switcher */}
+          <View className="flex-row gap-2 mb-4">
+            <TouchableOpacity
+              className={`flex-1 py-3 rounded-lg ${activeTab === "contracts" ? "bg-primary" : "bg-surface border border-border"}`}
+              onPress={() => setActiveTab("contracts")}
+            >
+              <Text className={`font-semibold text-center ${activeTab === "contracts" ? "text-background" : "text-foreground"}`}>
+                Verträge
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className={`flex-1 py-3 rounded-lg ${activeTab === "templates" ? "bg-primary" : "bg-surface border border-border"}`}
+              onPress={() => setActiveTab("templates")}
+            >
+              <Text className={`font-semibold text-center ${activeTab === "templates" ? "text-background" : "text-foreground"}`}>
+                Vorlagen {templates?.length ? `(${templates.length})` : ""}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {activeTab === "contracts" ? (
+            <>
+              {/* Statistik */}
+              <View className="flex-row gap-3 mb-4">
+                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-2xl font-bold text-success">
+                    {contracts.filter((c) => c.status === "active").length}
+                  </Text>
+                  <Text className="text-sm text-muted">Aktiv</Text>
+                </View>
+                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-2xl font-bold text-warning">
+                    {contracts.filter((c) => c.status === "cancelled").length}
+                  </Text>
+                  <Text className="text-sm text-muted">Gekündigt</Text>
+                </View>
+                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-2xl font-bold text-error">
+                    {contracts.filter((c) => c.status === "expired").length}
+                  </Text>
+                  <Text className="text-sm text-muted">Abgelaufen</Text>
+                </View>
+              </View>
+
+              {/* Filter */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
+                <View className="flex-row gap-2">
+                  {["all", "active", "cancelled", "expired"].map((status) => (
+                    <TouchableOpacity
+                      key={status}
+                      className={`px-4 py-2 rounded-lg ${filter === status ? "bg-primary" : "bg-surface border border-border"
                         }`}
+                      onPress={() => setFilter(status as any)}
                     >
-                      {status === "all" ? "Alle" : getStatusLabel(status as ContractStatus)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+                      <Text
+                        className={`font-semibold ${filter === status ? "text-background" : "text-foreground"
+                          }`}
+                      >
+                        {status === "all" ? "Alle" : getStatusLabel(status as ContractStatus)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
 
-            {/* Vertragsliste */}
-            {filteredContracts.length > 0 ? (
-              <FlatList
-                data={filteredContracts}
-                renderItem={renderContractItem}
-                keyExtractor={(item) => item.id.toString()}
-                showsVerticalScrollIndicator={false}
-              />
-            ) : (
-              <View className="flex-1 items-center justify-center">
-                <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
-                <Text className="text-lg text-muted mt-4">Keine Verträge</Text>
-              </View>
-            )}
-          </>
-        ) : (
-          <>
-            {/* Vorlagenliste */}
-            {templatesLoading ? (
-              <View className="flex-1 items-center justify-center">
-                <ActivityIndicator size="large" color={colors.primary} />
-              </View>
-            ) : templates && templates.length > 0 ? (
-              <FlatList
-                data={templates}
-                renderItem={renderTemplateItem}
-                keyExtractor={(item) => item.id}
-                showsVerticalScrollIndicator={false}
-              />
-            ) : (
-              <View className="flex-1 items-center justify-center">
-                <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
-                <Text className="text-lg text-muted mt-4">Keine Vorlagen</Text>
-                <Text className="text-sm text-muted text-center mt-2">
-                  Erstellen Sie Vorlagen wie Wartungsvertrag, Hostingvertrag oder Domainvertrag
-                </Text>
-                <TouchableOpacity
-                  className="bg-primary px-6 py-3 rounded-lg mt-4"
-                  onPress={() => {
-                    setEditingTemplate(null);
-                    setShowTemplateModal(true);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text className="text-background font-semibold">Vorlage erstellen</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </>
-        )}
+              {/* Vertragsliste */}
+              {filteredContracts.length > 0 ? (
+                <FlatList
+                  data={filteredContracts}
+                  renderItem={renderContractItem}
+                  keyExtractor={(item) => item.id.toString()}
+                  showsVerticalScrollIndicator={false}
+                />
+              ) : (
+                <View className="flex-1 items-center justify-center">
+                  <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
+                  <Text className="text-lg text-muted mt-4">Keine Verträge</Text>
+                </View>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Vorlagenliste */}
+              {templatesLoading ? (
+                <View className="flex-1 items-center justify-center">
+                  <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+              ) : templates && templates.length > 0 ? (
+                <FlatList
+                  data={templates}
+                  renderItem={renderTemplateItem}
+                  keyExtractor={(item) => item.id}
+                  showsVerticalScrollIndicator={false}
+                />
+              ) : (
+                <View className="flex-1 items-center justify-center">
+                  <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
+                  <Text className="text-lg text-muted mt-4">Keine Vorlagen</Text>
+                  <Text className="text-sm text-muted text-center mt-2">
+                    Erstellen Sie Vorlagen wie Wartungsvertrag, Hostingvertrag oder Domainvertrag
+                  </Text>
+                  <TouchableOpacity
+                    className="bg-primary px-6 py-3 rounded-lg mt-4"
+                    onPress={() => {
+                      setEditingTemplate(null);
+                      setShowTemplateModal(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text className="text-background font-semibold">Vorlage erstellen</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
+        </View>
       </View>
 
       {/* Plus-Menü */}
