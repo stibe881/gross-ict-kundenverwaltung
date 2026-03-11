@@ -484,7 +484,7 @@ export default function ContractsScreen() {
   );
 }
 
-// Vertrags-Details Modal mit Historie
+// Vertrags-Details Modal mit Signing
 function ContractDetailsModal({
   contract,
   onClose,
@@ -501,22 +501,42 @@ function ContractDetailsModal({
   getStatusColor: (status: ContractStatus) => string;
 }) {
   const colors = useColors();
-  const [history] = useState([
-    {
-      id: 1,
-      type: "system" as const,
-      text: "Vertrag erstellt",
-      createdAt: contract.start_date || contract.created_at,
-      user: "System",
-    },
-    {
-      id: 2,
-      type: "activity" as const,
-      text: "Vertrag vom Kunden unterzeichnet",
-      createdAt: contract.start_date || contract.created_at,
-      user: "Admin User",
-    },
-  ]);
+  const [sending, setSending] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleSendForSignature = async () => {
+    if (!contract.customer_id) {
+      showAlert("Fehler", "Kein Kunde zugewiesen.");
+      return;
+    }
+    showConfirm(
+      "Zur Unterschrift senden",
+      `Vertrag "${contract.title}" per E-Mail an den Kunden senden?`,
+      async () => {
+        setSending(true);
+        try {
+          const { supabase } = await import("@/lib/supabase");
+          const { data, error } = await supabase.functions.invoke("send-contract-email", {
+            body: { contractId: contract.id },
+          });
+          if (error) throw new Error(error.message);
+          if (data?.error) throw new Error(data.error);
+          showAlert("Erfolg", "Vertrag wurde per E-Mail zur Unterschrift gesendet.");
+          queryClient.invalidateQueries({ queryKey: ["contracts"] });
+        } catch (err: any) {
+          showAlert("Fehler", err.message || "E-Mail konnte nicht gesendet werden");
+        } finally {
+          setSending(false);
+        }
+      },
+      "Senden"
+    );
+  };
+
+  const isSigned = !!contract.signature_date;
+  const isPending = contract.status === "pending_signature";
+  const statusLabel = isSigned ? "Unterzeichnet" : isPending ? "Warte auf Unterschrift" : getStatusLabel(contract.status);
+  const statusColor = isSigned ? "#22c55e" : isPending ? "#f59e0b" : getStatusColor(contract.status);
 
   return (
     <Modal visible={true} animationType="slide" transparent onRequestClose={onClose}>
@@ -543,13 +563,10 @@ function ContractDetailsModal({
                   </View>
                   <View
                     className="px-3 py-1 rounded-full"
-                    style={{ backgroundColor: getStatusColor(contract.status) + "20" }}
+                    style={{ backgroundColor: statusColor + "20" }}
                   >
-                    <Text
-                      className="text-sm font-semibold"
-                      style={{ color: getStatusColor(contract.status) }}
-                    >
-                      {getStatusLabel(contract.status)}
+                    <Text className="text-sm font-semibold" style={{ color: statusColor }}>
+                      {statusLabel}
                     </Text>
                   </View>
                 </View>
@@ -578,34 +595,69 @@ function ContractDetailsModal({
                 </View>
               </View>
 
-              <View>
-                <Text className="text-lg font-bold text-foreground mb-3">Vertragshistorie</Text>
-                {history.map((item) => (
-                  <View
-                    key={item.id}
-                    className={`mb-3 p-3 rounded-lg ${item.type === "system" ? "bg-surface" : "bg-primary/10"
-                      }`}
-                  >
-                    <View className="flex-row items-center justify-between mb-1">
-                      <Text
-                        className={`text-xs font-semibold ${item.type === "system" ? "text-muted" : "text-primary"
-                          }`}
-                      >
-                        {item.user}
-                      </Text>
-                      <Text className="text-xs text-muted">
-                        {formatDate(item.createdAt)}
+              {/* Signatur-Status */}
+              <View className="bg-surface rounded-xl p-4 border border-border">
+                <Text className="text-lg font-bold text-foreground mb-3">Digitale Unterschrift</Text>
+                {isSigned ? (
+                  <View className="gap-2">
+                    <View className="flex-row items-center gap-2">
+                      <IconSymbol name="checkmark.seal.fill" size={20} color="#22c55e" />
+                      <Text className="text-sm font-semibold text-success">Digital unterzeichnet</Text>
+                    </View>
+                    <View className="flex-row justify-between py-1">
+                      <Text className="text-sm text-muted">Unterzeichnet von</Text>
+                      <Text className="text-sm font-semibold text-foreground">{contract.signature_name}</Text>
+                    </View>
+                    <View className="flex-row justify-between py-1">
+                      <Text className="text-sm text-muted">Datum</Text>
+                      <Text className="text-sm text-foreground">
+                        {new Date(contract.signature_date).toLocaleDateString("de-CH")}
                       </Text>
                     </View>
-                    <Text className="text-sm text-foreground">{item.text}</Text>
+                    {contract.signature_ip && (
+                      <View className="flex-row justify-between py-1">
+                        <Text className="text-sm text-muted">IP-Adresse</Text>
+                        <Text className="text-sm text-muted">{contract.signature_ip}</Text>
+                      </View>
+                    )}
                   </View>
-                ))}
+                ) : isPending ? (
+                  <View className="gap-2">
+                    <View className="flex-row items-center gap-2">
+                      <IconSymbol name="clock.fill" size={20} color="#f59e0b" />
+                      <Text className="text-sm font-semibold text-warning">Warte auf Unterschrift</Text>
+                    </View>
+                    <Text className="text-xs text-muted mt-1">
+                      Der Vertrag wurde per E-Mail an den Kunden gesendet und wartet auf Unterschrift.
+                    </Text>
+                  </View>
+                ) : (
+                  <View className="gap-2">
+                    <View className="flex-row items-center gap-2">
+                      <IconSymbol name="pencil.and.outline" size={20} color={colors.muted} />
+                      <Text className="text-sm text-muted">Noch nicht unterschrieben</Text>
+                    </View>
+                  </View>
+                )}
               </View>
             </View>
           </ScrollView>
 
           {/* Footer */}
           <View className="p-4 border-t border-border gap-2">
+            {!isSigned && (
+              <TouchableOpacity
+                className="bg-success py-3 rounded-lg flex-row items-center justify-center"
+                activeOpacity={0.8}
+                onPress={handleSendForSignature}
+                disabled={sending}
+              >
+                <IconSymbol name="paperplane.fill" size={18} color="#FFFFFF" />
+                <Text className="text-white font-semibold ml-2">
+                  {sending ? "Wird gesendet..." : "Zur Unterschrift senden"}
+                </Text>
+              </TouchableOpacity>
+            )}
             <View className="flex-row gap-3">
               <TouchableOpacity
                 className="flex-1 bg-surface border border-border py-3 rounded-lg"
@@ -635,3 +687,4 @@ function ContractDetailsModal({
     </Modal>
   );
 }
+
