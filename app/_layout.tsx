@@ -70,7 +70,6 @@ export default function RootLayout() {
           user_id: session.user.id,
           title: title,
           message: body || "",
-          type: "push",
           is_read: false,
         });
       } catch (e) {
@@ -111,7 +110,6 @@ export default function RootLayout() {
               user_id: session.user.id,
               title: title,
               message: body || "",
-              type: "push",
               is_read: true, // Mark as read since user tapped it
             });
           } else {

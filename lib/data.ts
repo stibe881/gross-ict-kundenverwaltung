@@ -39,13 +39,15 @@ export async function triggerPushNotification(
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
-                await supabase.from("notifications").insert({
+                const { error: insErr } = await supabase.from("notifications").insert({
                     user_id: session.user.id,
                     title: title,
                     message: body,
-                    type: "action",
                     is_read: true,
                 });
+                console.log("[Push] Activity saved for user:", session.user.id, insErr ? "ERROR: " + insErr.message : "OK");
+            } else {
+                console.log("[Push] No session, cannot save activity");
             }
         } catch (e) {
             console.warn("[Push] Failed to save activity:", e);

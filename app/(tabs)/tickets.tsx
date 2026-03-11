@@ -374,9 +374,26 @@ function TicketDetailsModal({
     try {
       await Data.updateTicket(ticket.id, { assigned_to: userId });
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      // Push-Benachrichtigung an zugewiesenen Mitarbeiter
+
+      // Save activity to notifications table for CURRENT user
+      const assignedUserName = users.find((u: any) => u.id === userId)?.name || "Jemand";
+      try {
+        const { data: { session } } = await (await import("@/lib/supabase")).supabase.auth.getSession();
+        if (session?.user) {
+          const { error: insErr } = await (await import("@/lib/supabase")).supabase.from("notifications").insert({
+            user_id: session.user.id,
+            title: "Ticket zugewiesen",
+            message: `Ticket "${ticket.title}" wurde ${assignedUserName} zugewiesen.`,
+            is_read: true,
+          });
+          console.log("[Activities] Ticket assignment saved:", insErr ? "ERROR: " + insErr.message : "OK");
+        }
+      } catch (e) {
+        console.warn("[Activities] Failed to save assignment activity:", e);
+      }
+
+      // Push notification to assigned user
       if (userId) {
-        const assignedUserName = users.find((u: any) => u.id === userId)?.name || "Jemand";
         Data.triggerPushNotification(
           [userId],
           "admin",
