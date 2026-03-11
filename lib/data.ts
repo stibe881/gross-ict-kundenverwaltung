@@ -19,7 +19,6 @@ export async function triggerPushNotification(
             body: { recipients, recipientType, title, body, data },
         });
         if (error) {
-            // Extract actual error details from response
             const ctx = (error as any)?.context;
             let details = '';
             try {
@@ -33,6 +32,23 @@ export async function triggerPushNotification(
             console.error("[Push] Edge Function error:", error.message, "Details:", details);
         } else {
             console.log("[Push] Edge Function response:", JSON.stringify(result));
+        }
+
+        // Also save to notifications table for the CURRENT user (sender)
+        // so it appears in their own dashboard activity feed
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                await supabase.from("notifications").insert({
+                    user_id: session.user.id,
+                    title: title,
+                    message: body,
+                    type: "action",
+                    is_read: true,
+                });
+            }
+        } catch (e) {
+            console.warn("[Push] Failed to save activity:", e);
         }
     } catch (e) {
         console.error("[Push] Failed to send:", e);

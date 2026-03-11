@@ -666,28 +666,31 @@ function RecentActivities({ userId, colors, isWide }: { userId?: string; colors:
   const { data: activities = [] } = useQuery({
     queryKey: ["recentActivities", userId],
     queryFn: async () => {
+      console.log("[Activities] v2 - Fetching business data...");
       const items: Array<{ id: string; title: string; message: string; created_at: string; type: string; is_read: boolean }> = [];
 
       // 1. Push-Notifications aus DB
       try {
-        const { data: notifs } = await supabase
+        const { data: notifs, error: nErr } = await supabase
           .from("notifications")
           .select("id, title, message, created_at, is_read")
           .eq("user_id", userId!)
           .order("created_at", { ascending: false })
           .limit(5);
+        console.log("[Activities] Notifications:", notifs?.length || 0, nErr?.message || "ok");
         if (notifs) {
           items.push(...notifs.map(n => ({ ...n, type: "notification" })));
         }
-      } catch { }
+      } catch (e: any) { console.error("[Activities] Notifications error:", e.message); }
 
       // 2. Neueste Rechnungen
       try {
-        const { data: invoices } = await supabase
+        const { data: invoices, error: iErr } = await supabase
           .from("invoices")
           .select("id, invoice_number, total, status, created_at, customer:customers(company_name, first_name, last_name)")
           .order("created_at", { ascending: false })
           .limit(5);
+        console.log("[Activities] Invoices:", invoices?.length || 0, iErr?.message || "ok");
         if (invoices) {
           items.push(...invoices.map((inv: any) => {
             const customerName = inv.customer?.company_name || `${inv.customer?.first_name || ""} ${inv.customer?.last_name || ""}`.trim() || "Unbekannt";
@@ -702,15 +705,16 @@ function RecentActivities({ userId, colors, isWide }: { userId?: string; colors:
             };
           }));
         }
-      } catch { }
+      } catch (e: any) { console.error("[Activities] Invoices error:", e.message); }
 
       // 3. Neueste Tickets
       try {
-        const { data: tickets } = await supabase
+        const { data: tickets, error: tErr } = await supabase
           .from("tickets")
           .select("id, title, status, created_at")
           .order("created_at", { ascending: false })
           .limit(5);
+        console.log("[Activities] Tickets:", tickets?.length || 0, tErr?.message || "ok");
         if (tickets) {
           items.push(...tickets.map((t: any) => ({
             id: `tkt-${t.id}`,
@@ -721,15 +725,16 @@ function RecentActivities({ userId, colors, isWide }: { userId?: string; colors:
             is_read: true,
           })));
         }
-      } catch { }
+      } catch (e: any) { console.error("[Activities] Tickets error:", e.message); }
 
       // 4. Neueste Kunden
       try {
-        const { data: customers } = await supabase
+        const { data: customers, error: cErr } = await supabase
           .from("customers")
           .select("id, company_name, first_name, last_name, created_at")
           .order("created_at", { ascending: false })
           .limit(3);
+        console.log("[Activities] Customers:", customers?.length || 0, cErr?.message || "ok");
         if (customers) {
           items.push(...customers.map((c: any) => ({
             id: `cust-${c.id}`,
@@ -740,9 +745,10 @@ function RecentActivities({ userId, colors, isWide }: { userId?: string; colors:
             is_read: true,
           })));
         }
-      } catch { }
+      } catch (e: any) { console.error("[Activities] Customers error:", e.message); }
 
       // Sortiere nach Datum (neueste zuerst) und limit auf 8
+      console.log("[Activities] Total items:", items.length);
       items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       return items.slice(0, 8);
     },
