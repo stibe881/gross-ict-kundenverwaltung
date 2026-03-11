@@ -1526,20 +1526,33 @@ export async function getDunningSettings() {
 }
 
 export async function updateDunningSettings(settings: any) {
-    // Get existing ID
-    const existing = await getDunningSettings();
-    const { data, error } = await supabase
-        .from("dunning_settings")
-        .update({
-            ...settings,
-            updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id)
-        .select()
-        .single();
-
-    if (error) throw new Error(error.message);
-    return data;
+    try {
+        const existing = await getDunningSettings();
+        if (existing?.id) {
+            const { data, error } = await supabase
+                .from("dunning_settings")
+                .update({ ...settings, updated_at: new Date().toISOString() })
+                .eq("id", existing.id)
+                .select()
+                .single();
+            if (error) throw new Error(error.message);
+            return data;
+        } else {
+            // Try insert if no row exists
+            const { data, error } = await supabase
+                .from("dunning_settings")
+                .insert({ ...settings })
+                .select()
+                .single();
+            if (error) throw new Error("Bitte führe zuerst die SQL-Migration '20260311_dunning.sql' im Supabase SQL-Editor aus.");
+            return data;
+        }
+    } catch (e: any) {
+        if (e.message?.includes("schema cache") || e.message?.includes("relation")) {
+            throw new Error("Tabelle 'dunning_settings' existiert noch nicht. Bitte führe die SQL-Migration '20260311_dunning.sql' im Supabase SQL-Editor aus.");
+        }
+        throw e;
+    }
 }
 
 export async function getInvoiceDunningHistory(invoiceId: string) {
@@ -1605,19 +1618,33 @@ export async function getInvoiceSettings() {
 }
 
 export async function updateInvoiceSettings(settings: any) {
-    const existing = await getInvoiceSettings();
-    const { data, error } = await supabase
-        .from("invoice_settings")
-        .update({
-            ...settings,
-            updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id)
-        .select()
-        .single();
-
-    if (error) throw new Error(error.message);
-    return data;
+    try {
+        const existing = await getInvoiceSettings();
+        if (existing?.id) {
+            const { data, error } = await supabase
+                .from("invoice_settings")
+                .update({ ...settings, updated_at: new Date().toISOString() })
+                .eq("id", existing.id)
+                .select()
+                .single();
+            if (error) throw new Error(error.message);
+            return data;
+        } else {
+            // Try insert if no row exists
+            const { data, error } = await supabase
+                .from("invoice_settings")
+                .insert({ ...settings })
+                .select()
+                .single();
+            if (error) throw new Error("Bitte führe zuerst die SQL-Migration '20260311_dunning.sql' im Supabase SQL-Editor aus.");
+            return data;
+        }
+    } catch (e: any) {
+        if (e.message?.includes("schema cache") || e.message?.includes("relation")) {
+            throw new Error("Tabelle 'invoice_settings' existiert noch nicht. Bitte führe die SQL-Migration '20260311_dunning.sql' im Supabase SQL-Editor aus.");
+        }
+        throw e;
+    }
 }
 
 // ==================== DOKUMENTE ====================
