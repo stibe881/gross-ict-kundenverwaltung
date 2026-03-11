@@ -11,8 +11,8 @@ export function useResponsiveLayout() {
     const isMedium = isWeb && width > 600 && width <= 900;
 
     const containerStyle = isWide
-        ? ({ maxWidth: 1200, alignSelf: "center" as const, width: "100%" as const })
-        : undefined;
+        ? ({ flex: 1, maxWidth: 1200, alignSelf: "center" as const, width: "100%" as const })
+        : ({ flex: 1 } as const);
 
     const contentPadding = isWide ? 32 : 16;
 

@@ -154,8 +154,8 @@ export default function LoginScreen() {
         {/* Logo und Titel */}
         <View className="items-center mb-8">
           <Image
-            source={require("@/assets/images/icon.png")}
-            style={{ width: 160, height: 160, marginBottom: 20 }}
+            source={require("@/assets/images/android-icon-foreground.png")}
+            style={{ width: 400, height: 400, marginBottom: 20 }}
             contentFit="contain"
           />
           <Text className="text-lg text-muted text-center font-semibold">

@@ -213,6 +213,7 @@ export default function ProductsScreen() {
               renderItem={renderProductItem}
               keyExtractor={(item) => item.id.toString()}
               showsVerticalScrollIndicator={false}
+              style={{ flex: 1 }}
             />
           ) : (
             <View className="flex-1 items-center justify-center">

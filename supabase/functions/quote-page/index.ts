@@ -15,13 +15,13 @@ function fmtDate(dateString: string): string {
 }
 
 function fmtDateLong(dateString: string): string {
-  const months = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+  const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
   const d = new Date(dateString);
-  return `${d.getDate().toString().padStart(2,"0")}. ${months[d.getMonth()]} ${d.getFullYear()}`;
+  return `${d.getDate().toString().padStart(2, "0")}. ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 function escHtml(str: string): string {
-  return (str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: string): string {
@@ -81,7 +81,7 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
   <title>Angebot ${escHtml(quote.quote_number)} – Gross ICT</title>
   <meta name="description" content="Ihr persönliches Angebot von Gross ICT">
   <meta name="robots" content="noindex, nofollow">
-  <link rel="icon" type="image/png" href="https://bvluvvyvftygnxtmboxw.supabase.co/storage/v1/object/public/quote-pages/logo.png">
+  <link rel="icon" type="image/png" href="data:image/png;base64,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">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -442,18 +442,15 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">
           <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:6px;">Projektstatus</div>
           <div style="font-size:16px;font-weight:700;color:var(--text-heading);display:flex;align-items:center;gap:8px;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${
-              project.status === 'completed' ? '#22c55e' : project.status === 'in_progress' ? '#3b82f6' : 'var(--primary)'
-            }" stroke-width="2" stroke-linecap="round"><${
-              project.status === 'planning' ? 'rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/' :
-              project.status === 'in_progress' ? 'path d="M12 2v20M2 12h20"/' :
-              project.status === 'completed' ? 'path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/' : 'circle cx="12" cy="12" r="10"/'
-            }></svg>
-            ${
-              project.status === 'planning' ? 'Planung' :
-              project.status === 'in_progress' ? 'In Arbeit' :
-              project.status === 'completed' ? 'Abgeschlossen' : project.status
-            }
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${project.status === 'completed' ? '#22c55e' : project.status === 'in_progress' ? '#3b82f6' : 'var(--primary)'
+        }" stroke-width="2" stroke-linecap="round"><${project.status === 'planning' ? 'rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/' :
+          project.status === 'in_progress' ? 'path d="M12 2v20M2 12h20"/' :
+            project.status === 'completed' ? 'path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/' : 'circle cx="12" cy="12" r="10"/'
+        }></svg>
+            ${project.status === 'planning' ? 'Planung' :
+          project.status === 'in_progress' ? 'In Arbeit' :
+            project.status === 'completed' ? 'Abgeschlossen' : project.status
+        }
           </div>
         </div>
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;flex:1;min-width:140px;">

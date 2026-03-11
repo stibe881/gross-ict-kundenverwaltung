@@ -54,6 +54,7 @@ export function LeadFormModal({
     priority: "medium",
     source: "",
     notes: "",
+    position: "",
     extraAmount: "",
     extraDescription: "",
   });
@@ -93,6 +94,7 @@ export function LeadFormModal({
         priority: lead.priority || "medium",
         source: lead.source || "",
         notes: lead.notes || "",
+        position: lead.position || "",
         extraAmount: lead.extra_amount?.toString() || "",
         extraDescription: lead.extra_description || "",
       });
@@ -121,6 +123,7 @@ export function LeadFormModal({
         priority: "medium",
         source: "",
         notes: "",
+        position: "",
         extraAmount: "",
         extraDescription: "",
       });
@@ -147,8 +150,6 @@ export function LeadFormModal({
         },
       ]);
     }
-    setShowProductPicker(false);
-    setProductSearch("");
   };
 
   const removeProduct = (productId: string) => {
@@ -185,6 +186,7 @@ export function LeadFormModal({
         address: formData.address || undefined,
         zip: formData.zip || undefined,
         city: formData.city || undefined,
+        position: formData.position || undefined,
         value: totalValue,
         extra_amount: extraAmount || undefined,
         extra_description: formData.extraDescription || undefined,
@@ -254,7 +256,7 @@ export function LeadFormModal({
               <View className="flex-row gap-3">
                 <View className="flex-1">
                   <Text className="text-sm font-semibold text-foreground mb-2">
-                    Name *
+                    Kontaktperson *
                   </Text>
                   <TextInput
                     className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
@@ -266,6 +268,22 @@ export function LeadFormModal({
                     }
                   />
                 </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    Position
+                  </Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="z.B. Geschäftsführer"
+                    placeholderTextColor={colors.muted}
+                    value={formData.position}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, position: text })
+                    }
+                  />
+                </View>
+              </View>
+              <View className="flex-row gap-3">
                 <View className="flex-1">
                   <Text className="text-sm font-semibold text-foreground mb-2">
                     Firma
@@ -450,10 +468,13 @@ export function LeadFormModal({
                               CHF {(product.quantity * product.unit_price).toLocaleString("de-CH", { minimumFractionDigits: 2 })}
                             </Text>
                             <TouchableOpacity
-                              className="ml-2"
+                              className="ml-2 w-7 h-7 rounded-md items-center justify-center"
+                              style={{ backgroundColor: colors.error + '15' }}
                               onPress={() => removeProduct(product.product_id)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              activeOpacity={0.6}
                             >
-                              <IconSymbol name="trash" size={16} color={colors.error} />
+                              <IconSymbol name="xmark" size={14} color={colors.error} />
                             </TouchableOpacity>
                           </View>
                         </View>
