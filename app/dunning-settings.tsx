@@ -63,7 +63,14 @@ export default function DunningSettingsScreen() {
             queryClient.invalidateQueries({ queryKey: ["dunningSettings"] });
             Alert.alert("Gespeichert", "Mahnungseinstellungen aktualisiert.");
         },
-        onError: (err: any) => Alert.alert("Fehler", err.message),
+        onError: (err: any) => {
+            const msg = err.message || "";
+            if (msg.includes("schema cache") || msg.includes("relation") || msg.includes("not find")) {
+                Alert.alert("Migration erforderlich", "Bitte führe im Supabase SQL-Editor den Befehl 'NOTIFY pgrst, \\'reload schema\\'' aus, oder starte das Supabase-Projekt neu.\n\nDie Tabellen wurden erstellt, aber der API-Cache muss noch aktualisiert werden.");
+            } else {
+                Alert.alert("Fehler", msg);
+            }
+        },
     });
 
     const saveInvoiceMutation = useMutation({
@@ -72,7 +79,14 @@ export default function DunningSettingsScreen() {
             queryClient.invalidateQueries({ queryKey: ["invoiceSettings"] });
             Alert.alert("Gespeichert", "Rechnungseinstellungen aktualisiert.");
         },
-        onError: (err: any) => Alert.alert("Fehler", err.message),
+        onError: (err: any) => {
+            const msg = err.message || "";
+            if (msg.includes("schema cache") || msg.includes("relation") || msg.includes("not find")) {
+                Alert.alert("Migration erforderlich", "Bitte führe im Supabase SQL-Editor den Befehl 'NOTIFY pgrst, \\'reload schema\\'' aus, oder starte das Supabase-Projekt neu.\n\nDie Tabellen wurden erstellt, aber der API-Cache muss noch aktualisiert werden.");
+            } else {
+                Alert.alert("Fehler", msg);
+            }
+        },
     });
 
     const handleSave = () => {
