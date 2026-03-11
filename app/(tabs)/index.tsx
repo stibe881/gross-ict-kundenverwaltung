@@ -666,15 +666,85 @@ function RecentActivities({ userId, colors, isWide }: { userId?: string; colors:
   const { data: activities = [] } = useQuery({
     queryKey: ["recentActivities", userId],
     queryFn: async () => {
-      if (!userId) return [];
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(8);
-      if (error) return [];
-      return data || [];
+      const items: Array<{ id: string; title: string; message: string; created_at: string; type: string; is_read: boolean }> = [];
+
+      // 1. Push-Notifications aus DB
+      try {
+        const { data: notifs } = await supabase
+          .from("notifications")
+          .select("id, title, message, created_at, is_read")
+          .eq("user_id", userId!)
+          .order("created_at", { ascending: false })
+          .limit(5);
+        if (notifs) {
+          items.push(...notifs.map(n => ({ ...n, type: "notification" })));
+        }
+      } catch { }
+
+      // 2. Neueste Rechnungen
+      try {
+        const { data: invoices } = await supabase
+          .from("invoices")
+          .select("id, invoice_number, total, status, created_at, customer:customers(company_name, first_name, last_name)")
+          .order("created_at", { ascending: false })
+          .limit(5);
+        if (invoices) {
+          items.push(...invoices.map((inv: any) => {
+            const customerName = inv.customer?.company_name || `${inv.customer?.first_name || ""} ${inv.customer?.last_name || ""}`.trim() || "Unbekannt";
+            const statusLabel = inv.status === "paid" ? "bezahlt" : inv.status === "overdue" ? "überfällig" : "erstellt";
+            return {
+              id: `inv-${inv.id}`,
+              title: `Rechnung ${inv.invoice_number}`,
+              message: `${customerName} — CHF ${(inv.total || 0).toFixed(2)} (${statusLabel})`,
+              created_at: inv.created_at,
+              type: "invoice",
+              is_read: true,
+            };
+          }));
+        }
+      } catch { }
+
+      // 3. Neueste Tickets
+      try {
+        const { data: tickets } = await supabase
+          .from("tickets")
+          .select("id, title, status, created_at")
+          .order("created_at", { ascending: false })
+          .limit(5);
+        if (tickets) {
+          items.push(...tickets.map((t: any) => ({
+            id: `tkt-${t.id}`,
+            title: `Ticket: ${t.title}`,
+            message: `Status: ${t.status === "open" ? "Offen" : t.status === "in_progress" ? "In Bearbeitung" : t.status === "closed" ? "Geschlossen" : t.status}`,
+            created_at: t.created_at,
+            type: "ticket",
+            is_read: true,
+          })));
+        }
+      } catch { }
+
+      // 4. Neueste Kunden
+      try {
+        const { data: customers } = await supabase
+          .from("customers")
+          .select("id, company_name, first_name, last_name, created_at")
+          .order("created_at", { ascending: false })
+          .limit(3);
+        if (customers) {
+          items.push(...customers.map((c: any) => ({
+            id: `cust-${c.id}`,
+            title: "Neuer Kunde",
+            message: c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unbekannt",
+            created_at: c.created_at,
+            type: "customer",
+            is_read: true,
+          })));
+        }
+      } catch { }
+
+      // Sortiere nach Datum (neueste zuerst) und limit auf 8
+      items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      return items.slice(0, 8);
     },
     enabled: !!userId,
     refetchInterval: 30000,
@@ -699,16 +769,23 @@ function RecentActivities({ userId, colors, isWide }: { userId?: string; colors:
         Letzte Aktivitäten
       </Text>
       <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
-        {activities.map((item: any, index: number) => (
-          <View key={item.id} style={{ flexDirection: "row", alignItems: "flex-start", padding: 12, borderBottomWidth: index < activities.length - 1 ? 1 : 0, borderBottomColor: colors.border, gap: 10 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.is_read ? colors.muted : colors.primary, marginTop: 5 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{item.title}</Text>
-              <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }} numberOfLines={2}>{item.message}</Text>
+        {activities.map((item: any, index: number) => {
+          const dotColor = item.type === "notification" ? (item.is_read ? colors.muted : colors.primary)
+            : item.type === "invoice" ? "#22c55e"
+              : item.type === "ticket" ? "#f59e0b"
+                : item.type === "customer" ? "#8b5cf6"
+                  : colors.muted;
+          return (
+            <View key={item.id} style={{ flexDirection: "row", alignItems: "flex-start", padding: 12, borderBottomWidth: index < activities.length - 1 ? 1 : 0, borderBottomColor: colors.border, gap: 10 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dotColor, marginTop: 5 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{item.title}</Text>
+                <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }} numberOfLines={2}>{item.message}</Text>
+              </View>
+              <Text style={{ fontSize: 11, color: colors.muted }}>{timeAgo(item.created_at)}</Text>
             </View>
-            <Text style={{ fontSize: 11, color: colors.muted }}>{timeAgo(item.created_at)}</Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );
