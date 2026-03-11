@@ -55,12 +55,74 @@ export default function RootLayout() {
   const segmentsRef = useRef(segments);
   useEffect(() => { segmentsRef.current = segments; }, [segments]);
 
-  // Deep linking for notification taps
-  const responseListener = useRef<Notifications.EventSubscription>();
+  // Store received push notifications in DB for dashboard activities
+  const receivedListener = useRef<Notifications.EventSubscription>(null);
 
   useEffect(() => {
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+    // Listen for incoming notifications (while app is open)
+    receivedListener.current = Notifications.addNotificationReceivedListener(async (notification) => {
+      const { title, body } = notification.request.content;
+      if (!title) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+        await supabase.from("notifications").insert({
+          user_id: session.user.id,
+          title: title,
+          message: body || "",
+          type: "push",
+          is_read: false,
+        });
+      } catch (e) {
+        console.warn("[Push] Failed to save notification to DB:", e);
+      }
+    });
+
+    return () => {
+      if (receivedListener.current) {
+        receivedListener.current.remove();
+      }
+    };
+  }, []);
+
+  // Deep linking for notification taps
+  const responseListener = useRef<Notifications.EventSubscription>(null);
+
+  useEffect(() => {
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(async (response) => {
+      const { title, body } = response.notification.request.content;
       const { url } = response.notification.request.content.data;
+
+      // Also save tapped notifications to DB (in case they arrived while app was closed)
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user && title) {
+          // Check if already saved (avoid duplicates)
+          const { data: existing } = await supabase
+            .from("notifications")
+            .select("id")
+            .eq("user_id", session.user.id)
+            .eq("title", title)
+            .eq("message", body || "")
+            .gte("created_at", new Date(Date.now() - 60000).toISOString())
+            .limit(1);
+          if (!existing || existing.length === 0) {
+            await supabase.from("notifications").insert({
+              user_id: session.user.id,
+              title: title,
+              message: body || "",
+              type: "push",
+              is_read: true, // Mark as read since user tapped it
+            });
+          } else {
+            // Mark existing as read
+            await supabase.from("notifications").update({ is_read: true }).eq("id", existing[0].id);
+          }
+        }
+      } catch (e) {
+        console.warn("[Push] Failed to save tapped notification:", e);
+      }
+
       if (url) {
         router.push(url as any);
       }
