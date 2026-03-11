@@ -488,8 +488,7 @@ export default function DashboardScreen() {
             </View>
           ))}
 
-          {/* Letzte Aktivitäten */}
-          <RecentActivities userId={user?.id} colors={colors} isWide={isWide} />
+
         </View>
       </ScrollView>
 
