@@ -513,7 +513,18 @@ interface InvoiceForPDF {
   }>;
 }
 
-export function generateInvoiceHTML(invoice: InvoiceForPDF): string {
+interface InvoiceSettings {
+  greeting_text?: string;
+  closing_text?: string;
+  bank_name?: string;
+  account_holder?: string;
+  iban?: string;
+  swift_bic?: string;
+  account_number?: string;
+  payment_terms_days?: number;
+}
+
+export function generateInvoiceHTML(invoice: InvoiceForPDF, settings?: InvoiceSettings | null): string {
   const customerAddressHTML = buildCustomerAddressHTML(invoice.customer);
 
   // Total aus den Items berechnen (statt aus DB-Feld)
@@ -640,7 +651,7 @@ export function generateInvoiceHTML(invoice: InvoiceForPDF): string {
 
     <div class="intro">
       Guten Tag<br><br>
-      Wir bedanken uns für Ihren Auftrag und stellen folgende Positionen in Rechnung:
+      ${settings?.greeting_text || 'Wir bedanken uns für Ihren Auftrag und stellen folgende Positionen in Rechnung:'}
     </div>
 
     <table class="items-table">
@@ -681,17 +692,17 @@ export function generateInvoiceHTML(invoice: InvoiceForPDF): string {
       <tr>
         <td style="width:33%;">
           <div class="footer-label">Zahlungsempfänger</div>
-          <span class="footer-val">Stefan Gross</span>
+          <span class="footer-val">${settings?.account_holder || 'Stefan Gross'}</span>
         </td>
         <td style="width:33%;">
           <div class="footer-label">Bankverbindung</div>
-          <span class="footer-val">Bank Cler AG</span><br>
-          Konto: 2610.4169.200
+          <span class="footer-val">${settings?.bank_name || 'Bank Cler AG'}</span><br>
+          ${settings?.account_number ? `Konto: ${settings.account_number}` : 'Konto: 2610.4169.200'}
         </td>
         <td style="width:34%;">
           <div class="footer-label">IBAN / SWIFT</div>
-          <span class="footer-val">CH39 0844 0261 0416 9200 1</span><br>
-          SWIFT: BCLRCHBB
+          <span class="footer-val">${settings?.iban || 'CH39 0844 0261 0416 9200 1'}</span><br>
+          ${settings?.swift_bic ? `SWIFT: ${settings.swift_bic}` : 'SWIFT: BCLRCHBB'}
         </td>
       </tr>
     </table>
@@ -701,8 +712,8 @@ export function generateInvoiceHTML(invoice: InvoiceForPDF): string {
 </html>`;
 }
 
-export async function downloadInvoicePDF(invoice: InvoiceForPDF): Promise<void> {
-  const html = generateInvoiceHTML(invoice);
+export async function downloadInvoicePDF(invoice: InvoiceForPDF, settings?: InvoiceSettings | null): Promise<void> {
+  const html = generateInvoiceHTML(invoice, settings);
 
   // Web: Hidden-Iframe-Druck (nur HTML-Inhalt, keine App-Buttons)
   if (Platform.OS === "web") {
@@ -775,8 +786,8 @@ export async function downloadInvoicePDF(invoice: InvoiceForPDF): Promise<void> 
  * Generiert das Rechnungs-PDF als Base64-String (für E-Mail-Anhang).
  * Verwendet dasselbe HTML-Template wie downloadInvoicePDF.
  */
-export async function generateInvoicePDFBase64(invoice: InvoiceForPDF): Promise<string | null> {
-  const html = generateInvoiceHTML(invoice);
+export async function generateInvoicePDFBase64(invoice: InvoiceForPDF, settings?: InvoiceSettings | null): Promise<string | null> {
+  const html = generateInvoiceHTML(invoice, settings);
 
   if (Platform.OS === "web") {
     // Auf Web können wir kein Base64-PDF ohne Server erzeugen

@@ -41,6 +41,10 @@ export default function InvoiceDetailScreen() {
         queryFn: () => Data.getInvoiceActivities(id as string),
         enabled: !!id,
     });
+    const { data: invoiceSettings } = useQuery({
+        queryKey: ["invoiceSettings"],
+        queryFn: Data.getInvoiceSettings,
+    });
     const [showEditModal, setShowEditModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState("");
@@ -94,7 +98,7 @@ export default function InvoiceDetailScreen() {
     const handleDownloadPDF = async () => {
         if (!invoice) return;
         try {
-            await downloadInvoicePDF(invoice);
+            await downloadInvoicePDF(invoice, invoiceSettings);
         } catch (error: any) {
             showAlert("Fehler", "PDF konnte nicht erstellt werden: " + (error.message || ""));
         }
@@ -112,7 +116,7 @@ export default function InvoiceDetailScreen() {
             async () => {
                 try {
                     // PDF client-seitig generieren (gleich wie Download-Button)
-                    const pdfBase64 = await generateInvoicePDFBase64(invoice);
+                    const pdfBase64 = await generateInvoicePDFBase64(invoice, invoiceSettings);
                     const { data, error } = await supabase.functions.invoke('send-invoice-email', {
                         body: { id: invoice.id, pdfBase64 },
                     });
@@ -143,7 +147,7 @@ export default function InvoiceDetailScreen() {
             `${levelLabels[level]} für ${invoice.invoice_number} an ${invoice.customer.email} senden?`,
             async () => {
                 try {
-                    const pdfBase64 = await generateInvoicePDFBase64(invoice);
+                    const pdfBase64 = await generateInvoicePDFBase64(invoice, invoiceSettings);
                     const { data, error } = await supabase.functions.invoke('send-reminder-email', {
                         body: { id: invoice.id, pdfBase64, level },
                     });
