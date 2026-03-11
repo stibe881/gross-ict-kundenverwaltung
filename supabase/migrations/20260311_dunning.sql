@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS dunning_settings (
     dunning_fee DECIMAL(10,2) DEFAULT 20.00,
     days_after_due_reminder INTEGER DEFAULT 3,
     days_between_levels INTEGER DEFAULT 10,
-    -- Mahntexte pro Stufe
     text_reminder TEXT DEFAULT 'Wir möchten Sie freundlich daran erinnern, dass die Rechnung {invoice_number} über CHF {amount} seit dem {due_date} fällig ist. Bitte überweisen Sie den ausstehenden Betrag auf unser Konto. Sollten Sie die Zahlung bereits veranlasst haben, betrachten Sie diese Erinnerung bitte als gegenstandslos.',
     text_level1 TEXT DEFAULT 'Leider mussten wir feststellen, dass die Rechnung {invoice_number} über CHF {amount} trotz Fälligkeit am {due_date} noch nicht beglichen wurde. Wir bitten Sie, den ausstehenden Betrag innert 10 Tagen zu überweisen. Andernfalls sehen wir uns gezwungen, Ihnen eine Mahngebühr von CHF 20.00 in Rechnung zu stellen.',
     text_level2 TEXT DEFAULT 'Trotz unserer bisherigen Zahlungserinnerung ist die Rechnung {invoice_number} über CHF {amount} weiterhin unbezahlt. Der Rechnung wurde eine Mahngebühr von CHF 20.00 hinzugefügt. Wir fordern Sie auf, den Gesamtbetrag innert 10 Tagen zu begleichen. Bei Nichtbezahlung behalten wir uns vor, die von uns erbrachten Dienstleistungen (z.B. Webseite) zu sperren.',
@@ -45,7 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_dunning_history_level ON invoice_dunning_history(
 INSERT INTO dunning_settings (id) VALUES (gen_random_uuid())
 ON CONFLICT DO NOTHING;
 
--- Spalte reminder_level auf invoices (optional, für schnellen Zugriff)
+-- Spalten auf invoices
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS dunning_level INTEGER DEFAULT 0;
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS last_dunning_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS dunning_stopped BOOLEAN DEFAULT false;
