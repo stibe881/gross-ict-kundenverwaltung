@@ -156,7 +156,7 @@ export default function DashboardScreen() {
         {
           id: "newsletter",
           title: "Newsletter",
-          subtitle: "E-Mail-Kampagnen",
+          subtitle: "Bald verfügbar",
           icon: "envelope.fill",
           color: "#8B5CF6",
           route: "/newsletter",
@@ -186,6 +186,14 @@ export default function DashboardScreen() {
           icon: "cube.box.fill",
           color: "#F97316",
           route: "/products",
+        },
+        {
+          id: "dunning",
+          title: "Rechnungen",
+          subtitle: "Mahnwesen & Einstellungen",
+          icon: "doc.text.fill",
+          color: "#DC2626",
+          route: "/dunning-settings",
         },
         {
           id: "business-card",

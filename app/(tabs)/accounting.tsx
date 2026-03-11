@@ -526,7 +526,7 @@ export default function AccountingScreen() {
 
           {/* Ergebnis */}
           <Text className="text-xs text-muted uppercase tracking-wider mb-2 mt-4">Ergebnis</Text>
-          <View className="flex-row justify-between py-3">
+          <View className="flex-row justify-between py-3 border-b border-border">
             <Text className="text-base font-bold text-foreground">Gewinn vor Steuern</Text>
             <Text
               className="text-base font-bold"
@@ -535,6 +535,33 @@ export default function AccountingScreen() {
               {formatCurrency(profit)}
             </Text>
           </View>
+
+          {/* Sozialabgaben & Steuern */}
+          {profit > 0 && (
+            <>
+              <Text className="text-xs text-muted uppercase tracking-wider mb-2 mt-4">Abzüge & Rücklagen</Text>
+              <View className="flex-row justify-between py-2 border-b border-border">
+                <Text className="text-sm text-foreground">AHV/IV/EO (10.6%)</Text>
+                <Text className="text-sm text-error">{formatCurrency(profit * 0.106)}</Text>
+              </View>
+              <View className="flex-row justify-between py-2 border-b border-border">
+                <Text className="text-sm text-foreground">FAK Luzern (1.4%)</Text>
+                <Text className="text-sm text-error">{formatCurrency(profit * 0.014)}</Text>
+              </View>
+              <View className="flex-row justify-between py-2 border-b border-border">
+                <Text className="text-sm text-foreground">Einkommenssteuer (ca. 15%)</Text>
+                <Text className="text-sm text-error">{formatCurrency(profit * 0.15)}</Text>
+              </View>
+              <View className="flex-row justify-between py-2 border-b border-border">
+                <Text className="text-sm font-semibold text-foreground">Total Abzüge (ca. 27%)</Text>
+                <Text className="text-sm font-semibold text-error">{formatCurrency(profit * 0.27)}</Text>
+              </View>
+              <View className="flex-row justify-between py-3 mt-1" style={{ backgroundColor: "rgba(34,197,94,0.05)", borderRadius: 8, paddingHorizontal: 8 }}>
+                <Text className="text-base font-bold text-foreground">Nettoeinkommen (ca.)</Text>
+                <Text className="text-base font-bold text-success">{formatCurrency(profit * 0.73)}</Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Export */}
@@ -550,7 +577,7 @@ export default function AccountingScreen() {
               } else {
                 Alert.alert("Export", summaryText);
               }
-            } catch {
+            } catch (_e) {
               Alert.alert("Export", summaryText);
             }
           }}

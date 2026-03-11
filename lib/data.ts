@@ -1489,3 +1489,105 @@ export async function deleteExpense(id: string) {
     if (error) throw new Error(error.message);
 }
 
+// ==================== MAHNWESEN ====================
+
+export const DUNNING_LEVELS = [
+    { value: 0, label: "Zahlungserinnerung", color: "#f59e0b" },
+    { value: 1, label: "1. Mahnung", color: "#f97316" },
+    { value: 2, label: "2. Mahnung", color: "#ef4444" },
+    { value: 3, label: "Betreibungsandrohung", color: "#dc2626" },
+] as const;
+
+export async function getDunningSettings() {
+    const { data, error } = await supabase
+        .from("dunning_settings")
+        .select("*")
+        .limit(1)
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateDunningSettings(settings: any) {
+    // Get existing ID
+    const existing = await getDunningSettings();
+    const { data, error } = await supabase
+        .from("dunning_settings")
+        .update({
+            ...settings,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function getInvoiceDunningHistory(invoiceId: string) {
+    const { data, error } = await supabase
+        .from("invoice_dunning_history")
+        .select("*")
+        .eq("invoice_id", invoiceId)
+        .order("sent_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function addDunningRecord(record: {
+    invoice_id: string;
+    dunning_level: number;
+    email_to: string;
+    notes?: string;
+}) {
+    const { data, error } = await supabase
+        .from("invoice_dunning_history")
+        .insert(record)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+
+    // Update invoice dunning_level
+    await supabase
+        .from("invoices")
+        .update({
+            dunning_level: record.dunning_level,
+            last_dunning_at: new Date().toISOString(),
+        })
+        .eq("id", record.invoice_id);
+
+    return data;
+}
+
+// ==================== RECHNUNGSEINSTELLUNGEN ====================
+
+export async function getInvoiceSettings() {
+    const { data, error } = await supabase
+        .from("invoice_settings")
+        .select("*")
+        .limit(1)
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateInvoiceSettings(settings: any) {
+    const existing = await getInvoiceSettings();
+    const { data, error } = await supabase
+        .from("invoice_settings")
+        .update({
+            ...settings,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}

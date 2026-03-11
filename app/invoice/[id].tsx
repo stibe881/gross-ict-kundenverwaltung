@@ -123,25 +123,28 @@ export default function InvoiceDetailScreen() {
         );
     };
 
-    const handleSendReminder = async () => {
+    const [showDunningModal, setShowDunningModal] = useState(false);
+
+    const handleSendDunning = (level: number) => {
         if (!invoice) return;
         if (!invoice.customer?.email) {
             showAlert("Fehler", "Dieser Kunde hat keine E-Mail-Adresse hinterlegt.");
             return;
         }
+        const levelLabels = ["Zahlungserinnerung", "1. Mahnung", "2. Mahnung", "3. Mahnung"];
+        setShowDunningModal(false);
         showConfirm(
-            "Mahnung senden",
-            `Zahlungserinnerung für ${invoice.invoice_number} an ${invoice.customer.email} senden?`,
+            levelLabels[level] + " senden",
+            `${levelLabels[level]} für ${invoice.invoice_number} an ${invoice.customer.email} senden?`,
             async () => {
                 try {
-                    // PDF client-seitig generieren (gleich wie Download-Button)
                     const pdfBase64 = await generateInvoicePDFBase64(invoice);
                     const { data, error } = await supabase.functions.invoke('send-reminder-email', {
-                        body: { id: invoice.id, pdfBase64 },
+                        body: { id: invoice.id, pdfBase64, level },
                     });
                     if (error) throw new Error(error.message || "Mahnung konnte nicht gesendet werden");
                     if (data?.error) throw new Error(data.error);
-                    showAlert("Erfolg", `Mahnung wurde an ${invoice.customer.email} gesendet.`);
+                    showAlert("Erfolg", `${levelLabels[level]} wurde an ${invoice.customer.email} gesendet.`);
                     refetch();
                 } catch (error: any) {
                     showAlert("Fehler", error.message || "Mahnung konnte nicht gesendet werden");
@@ -295,7 +298,7 @@ export default function InvoiceDetailScreen() {
                             <TouchableOpacity
                                 className="flex-1 bg-surface border border-warning py-3 rounded-lg flex-row items-center justify-center"
                                 activeOpacity={0.8}
-                                onPress={handleSendReminder}
+                                onPress={() => setShowDunningModal(true)}
                             >
                                 <IconSymbol name="exclamationmark.triangle.fill" size={18} color={colors.warning} />
                                 <Text className="text-foreground font-semibold ml-2 text-sm">Mahnung</Text>
@@ -343,6 +346,14 @@ export default function InvoiceDetailScreen() {
                                     {formatCurrency(remainingAmount > 0 ? remainingAmount : 0)}
                                 </Text>
                             </View>
+                            {invoice.dunning_level > 0 && (
+                                <View className="flex-row justify-between pt-2 border-t border-border">
+                                    <Text className="text-sm text-muted">Mahnstufe</Text>
+                                    <Text className="text-sm font-semibold" style={{ color: "#ef4444" }}>
+                                        {["Erinnerung", "1. Mahnung", "2. Mahnung", "Betreibungsandrohung"][invoice.dunning_level] || `Stufe ${invoice.dunning_level}`}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
                     </View>
 
@@ -450,6 +461,52 @@ export default function InvoiceDetailScreen() {
                 editInvoice={invoice}
             />
 
+            {/* Dunning Level Selection Modal */}
+            <Modal
+                visible={showDunningModal}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setShowDunningModal(false)}
+            >
+                <View className="flex-1 bg-black/50 justify-end">
+                    <View className="bg-background rounded-t-3xl p-6">
+                        <View className="flex-row items-center justify-between mb-4">
+                            <Text className="text-xl font-bold text-foreground">
+                                Mahnstufe wählen
+                            </Text>
+                            <TouchableOpacity onPress={() => setShowDunningModal(false)} activeOpacity={0.7}>
+                                <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View className="gap-2 mb-4">
+                            {[
+                                { level: 0, label: "Zahlungserinnerung", desc: "Freundliche Erinnerung", color: "#f59e0b", icon: "bell.fill" },
+                                { level: 1, label: "1. Mahnung", desc: "Bestimmt, Androhung Gebühr", color: "#f97316", icon: "exclamationmark.triangle.fill" },
+                                { level: 2, label: "2. Mahnung", desc: "+CHF 20 Gebühr, Androhung Sperrung", color: "#ef4444", icon: "exclamationmark.circle.fill" },
+                                { level: 3, label: "Betreibungsandrohung", desc: "Letzte Warnung vor Betreibung", color: "#dc2626", icon: "xmark.octagon.fill" },
+                            ].map((item) => (
+                                <TouchableOpacity
+                                    key={item.level}
+                                    className="flex-row items-center gap-3 p-4 bg-surface rounded-xl border border-border"
+                                    activeOpacity={0.7}
+                                    onPress={() => handleSendDunning(item.level)}
+                                >
+                                    <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: item.color + "20" }}>
+                                        <IconSymbol name={item.icon as any} size={18} color={item.color} />
+                                    </View>
+                                    <View className="flex-1">
+                                        <Text className="text-sm font-bold text-foreground">{item.label}</Text>
+                                        <Text className="text-xs text-muted">{item.desc}</Text>
+                                    </View>
+                                    <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
             {/* Zahlung hinzufügen Modal */}
             <Modal
                 visible={showPaymentModal}
@@ -515,3 +572,4 @@ export default function InvoiceDetailScreen() {
         </ScreenContainer>
     );
 }
+
