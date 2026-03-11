@@ -78,10 +78,10 @@ export default function AccountingScreen() {
   const deductibleExpenses = yearExpenses.filter((e: any) => e.is_deductible).reduce((s: number, e: any) => s + (e.amount || 0), 0);
   const profit = totalRevenue - totalExpenses;
 
-  // MwSt
-  const vatCollected = yearInvoices.filter((i: any) => i.status === "paid").reduce((s: number, i: any) => s + (i.vat_amount || 0), 0);
-  const vatPaid = yearExpenses.reduce((s: number, e: any) => s + (e.tax_amount || 0), 0);
-  const vatOwed = vatCollected - vatPaid;
+  // Umsatz-Schwelle MwSt (CHF 100'000)
+  const MWST_THRESHOLD = 100000;
+  const totalAllRevenue = yearInvoices.reduce((s: number, i: any) => s + getInvoiceTotal(i), 0);
+  const revenuePercent = Math.min((totalAllRevenue / MWST_THRESHOLD) * 100, 100);
 
   // Expenses by category
   const expensesByCategory = useMemo(() => {
@@ -98,20 +98,17 @@ export default function AccountingScreen() {
       .sort((a, b) => b.amount - a.amount);
   }, [yearExpenses]);
 
-  // MwSt by quarter
-  const vatByQuarter = useMemo(() => {
-    const quarters = [
-      { label: "Q1 (Jan–Mär)", months: [0, 1, 2] },
-      { label: "Q2 (Apr–Jun)", months: [3, 4, 5] },
-      { label: "Q3 (Jul–Sep)", months: [6, 7, 8] },
-      { label: "Q4 (Okt–Dez)", months: [9, 10, 11] },
-    ];
-    return quarters.map((q) => {
-      const qInvoices = yearInvoices.filter((i: any) => i.status === "paid" && q.months.includes(new Date(i.invoice_date).getMonth()));
-      const qExpenses = yearExpenses.filter((e: any) => q.months.includes(new Date(e.expense_date).getMonth()));
-      const collected = qInvoices.reduce((s: number, i: any) => s + (i.vat_amount || 0), 0);
-      const paid = qExpenses.reduce((s: number, e: any) => s + (e.tax_amount || 0), 0);
-      return { ...q, collected, paid, owed: collected - paid };
+  // Umsatz by month
+  const revenueByMonth = useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+    return months.map((label, idx) => {
+      const rev = yearInvoices
+        .filter((i: any) => i.status === "paid" && new Date(i.invoice_date).getMonth() === idx)
+        .reduce((s: number, i: any) => s + getInvoiceTotal(i), 0);
+      const exp = yearExpenses
+        .filter((e: any) => new Date(e.expense_date).getMonth() === idx)
+        .reduce((s: number, e: any) => s + (e.amount || 0), 0);
+      return { label, revenue: rev, expenses: exp };
     });
   }, [yearInvoices, yearExpenses]);
 
@@ -135,18 +132,20 @@ export default function AccountingScreen() {
     }
   };
 
-  const handleDeleteExpense = async (expense: any) => {
-    const confirmed = await showConfirm(
+  const handleDeleteExpense = (expense: any) => {
+    showConfirm(
       "Ausgabe löschen",
-      `"${expense.description}" wirklich löschen?`
+      `"${expense.description}" wirklich löschen?`,
+      async () => {
+        try {
+          await Data.deleteExpense(expense.id);
+          refetchExpenses();
+        } catch (err: any) {
+          Alert.alert("Fehler", err.message);
+        }
+      },
+      "Löschen"
     );
-    if (!confirmed) return;
-    try {
-      await Data.deleteExpense(expense.id);
-      refetchExpenses();
-    } catch (err: any) {
-      Alert.alert("Fehler", err.message);
-    }
   };
 
   const getCategoryIcon = (cat: string) => {
@@ -221,8 +220,8 @@ export default function AccountingScreen() {
 
       <View className="flex-row gap-3">
         <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-          <Text className="text-xs text-muted mb-1">MwSt-Schuld</Text>
-          <Text className="text-xl font-bold text-foreground">{formatCurrency(vatOwed)}</Text>
+          <Text className="text-xs text-muted mb-1">Rechnungen</Text>
+          <Text className="text-xl font-bold text-foreground">{yearInvoices.length}</Text>
         </View>
         <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
           <Text className="text-xs text-muted mb-1">Abzugsfähig</Text>
@@ -395,56 +394,77 @@ export default function AccountingScreen() {
     <View className="gap-4">
       {renderYearSelector()}
 
-      {/* MwSt Zusammenfassung */}
-      <View className="bg-surface rounded-xl p-5 border border-border">
-        <Text className="text-base font-bold text-foreground mb-4">MwSt-Abrechnung {selectedYear}</Text>
-
-        <View className="flex-row justify-between py-3 border-b border-border">
-          <Text className="text-sm text-foreground">Eingenommene MwSt (Umsatzsteuer)</Text>
-          <Text className="text-sm font-semibold text-foreground">{formatCurrency(vatCollected)}</Text>
+      {/* MwSt-Status */}
+      <View className="bg-surface rounded-xl p-5 border border-border" style={{ borderColor: "#22c55e" }}>
+        <View className="flex-row items-center gap-2 mb-3">
+          <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: "rgba(34,197,94,0.15)" }}>
+            <IconSymbol name="checkmark.shield.fill" size={16} color="#22c55e" />
+          </View>
+          <Text className="text-base font-bold text-foreground">MwSt-befreit</Text>
         </View>
-        <View className="flex-row justify-between py-3 border-b border-border">
-          <Text className="text-sm text-foreground">Bezahlte Vorsteuer</Text>
-          <Text className="text-sm font-semibold text-foreground">-{formatCurrency(vatPaid)}</Text>
-        </View>
-        <View className="flex-row justify-between py-3">
-          <Text className="text-sm font-bold text-foreground">MwSt-Schuld (Zahllast)</Text>
-          <Text className="text-base font-bold" style={{ color: vatOwed > 0 ? "#ef4444" : "#22c55e" }}>
-            {formatCurrency(vatOwed)}
-          </Text>
-        </View>
-      </View>
-
-      {/* Info Box */}
-      <View className="bg-surface rounded-xl p-4 border border-border">
-        <Text className="text-xs text-muted leading-5">
-          ℹ️ Schweizer Einzelfirmen unter CHF 100'000 Jahresumsatz sind von der MwSt befreit.
-          Aktueller Normalsatz: 8.1%, Reduzierter Satz: 2.6%, Sondersatz: 3.8%.
-          {"\n\n"}Die MwSt-Abrechnung erfolgt quartalsweise oder halbjährlich an die ESTV.
+        <Text className="text-sm text-muted leading-5">
+          Ihre Einzelfirma ist von der MwSt befreit, da der Jahresumsatz unter CHF 100'000 liegt.
+          Sie stellen Rechnungen ohne MwSt und weisen keine Steuer aus.
         </Text>
       </View>
 
-      {/* Quartale */}
-      <Text className="text-base font-bold text-foreground">Quartalsübersicht</Text>
-      {vatByQuarter.map((q) => (
-        <View key={q.label} className="bg-surface rounded-xl p-4 border border-border">
-          <Text className="text-sm font-bold text-foreground mb-3">{q.label}</Text>
-          <View className="flex-row justify-between mb-1">
-            <Text className="text-xs text-muted">Umsatzsteuer</Text>
-            <Text className="text-xs text-foreground">{formatCurrency(q.collected)}</Text>
-          </View>
-          <View className="flex-row justify-between mb-1">
-            <Text className="text-xs text-muted">Vorsteuer</Text>
-            <Text className="text-xs text-foreground">-{formatCurrency(q.paid)}</Text>
-          </View>
-          <View className="flex-row justify-between pt-2 border-t border-border mt-1">
-            <Text className="text-xs font-semibold text-foreground">Zahllast</Text>
-            <Text className="text-xs font-bold" style={{ color: q.owed > 0 ? "#ef4444" : "#22c55e" }}>
-              {formatCurrency(q.owed)}
+      {/* Umsatz-Fortschritt */}
+      <View className="bg-surface rounded-xl p-5 border border-border">
+        <Text className="text-sm font-bold text-foreground mb-2">Umsatz-Schwelle {selectedYear}</Text>
+        <Text className="text-xs text-muted mb-3">
+          Ab CHF 100'000 Jahresumsatz wird die MwSt-Registrierung obligatorisch.
+        </Text>
+
+        <View className="flex-row items-end justify-between mb-2">
+          <Text className="text-2xl font-bold text-foreground">{formatCurrency(totalAllRevenue)}</Text>
+          <Text className="text-sm text-muted">/ {formatCurrency(MWST_THRESHOLD)}</Text>
+        </View>
+
+        {/* Progress bar */}
+        <View className="h-3 rounded-full overflow-hidden" style={{ backgroundColor: colors.border }}>
+          <View
+            className="h-3 rounded-full"
+            style={{
+              width: `${revenuePercent}%`,
+              backgroundColor: revenuePercent > 80 ? "#f59e0b" : "#22c55e",
+            }}
+          />
+        </View>
+        <Text className="text-xs text-muted mt-2">
+          {revenuePercent.toFixed(1)}% der Schwelle erreicht · Noch {formatCurrency(Math.max(0, MWST_THRESHOLD - totalAllRevenue))} bis zur MwSt-Pflicht
+        </Text>
+      </View>
+
+      {/* Monatsübersicht */}
+      <View className="bg-surface rounded-xl p-4 border border-border">
+        <Text className="text-sm font-bold text-foreground mb-3">Umsatz nach Monat</Text>
+        {revenueByMonth.map((m) => (
+          <View key={m.label} className="flex-row items-center justify-between py-2 border-b border-border">
+            <Text className="text-xs text-muted w-10">{m.label}</Text>
+            <View className="flex-1 mx-3 h-2 rounded-full overflow-hidden" style={{ backgroundColor: colors.border }}>
+              <View
+                className="h-2 rounded-full"
+                style={{
+                  width: `${totalAllRevenue > 0 ? (m.revenue / totalAllRevenue) * 100 : 0}%`,
+                  backgroundColor: colors.primary,
+                  minWidth: m.revenue > 0 ? 4 : 0,
+                }}
+              />
+            </View>
+            <Text className="text-xs font-semibold text-foreground w-20 text-right">
+              {m.revenue > 0 ? formatCurrency(m.revenue) : "–"}
             </Text>
           </View>
-        </View>
-      ))}
+        ))}
+      </View>
+
+      {/* Info */}
+      <View className="bg-surface rounded-xl p-4 border border-border">
+        <Text className="text-xs text-muted leading-5">
+          ℹ️ Als nicht MwSt-pflichtige Einzelfirma dürfen Sie keine MwSt auf Ihren Rechnungen ausweisen.
+          Sobald Ihr Jahresumsatz CHF 100'000 übersteigt, müssen Sie sich innerhalb von 30 Tagen bei der ESTV anmelden.
+        </Text>
+      </View>
     </View>
   );
 
@@ -469,10 +489,7 @@ export default function AccountingScreen() {
       `ERGEBNIS`,
       `Gewinn vor Steuern: ${formatCurrency(profit)}`,
       ``,
-      `MWST`,
-      `Umsatzsteuer: ${formatCurrency(vatCollected)}`,
-      `Vorsteuer: ${formatCurrency(vatPaid)}`,
-      `MwSt-Schuld: ${formatCurrency(vatOwed)}`,
+      `MWST-STATUS: Befreit (Umsatz unter CHF 100'000)`,
     ].join("\n");
 
     return (
