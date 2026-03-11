@@ -22,6 +22,7 @@ const PRODUCT_CATEGORIES = [
   "Software",
   "Netzwerk",
   "Domain & Hosting",
+  "E-Mail",
   "Webseite Unternehmen",
   "Webseite Verein",
   "Webseite privat",
