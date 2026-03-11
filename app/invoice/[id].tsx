@@ -27,6 +27,9 @@ import { supabase } from "@/lib/supabase";
 export default function InvoiceDetailScreen() {
     const { id } = useLocalSearchParams();
     const colors = useColors();
+    const { width } = useWindowDimensions();
+    const isWeb = Platform.OS === "web";
+    const isWebWide = isWeb && width > 800;
 
     const { data: invoice, isLoading, refetch } = useQuery({
         queryKey: ["invoice", id],
@@ -209,9 +212,7 @@ export default function InvoiceDetailScreen() {
     const invoiceTotal = getInvoiceTotal(invoice);
     const remainingAmount = invoiceTotal - (invoice.paid_amount || 0);
 
-    const { width } = useWindowDimensions();
-    const isWeb = Platform.OS === "web";
-    const isWebWide = isWeb && width > 800;
+
 
     return (
         <ScreenContainer>

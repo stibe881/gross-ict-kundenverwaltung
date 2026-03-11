@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   ScrollView,
   Text,
@@ -7,6 +7,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  TextInput,
+  Platform,
+  Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -19,9 +22,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
 import { router as expoRouter } from "expo-router";
-import { showConfirm } from "@/lib/alert";
+import { showConfirm, showAlert } from "@/lib/alert";
 
-type TabKey = "overview" | "invoices" | "expenses" | "vat" | "annual";
+type TabKey = "overview" | "invoices" | "expenses" | "vat" | "annual" | "documents";
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: "overview", label: "Übersicht", icon: "chart.pie.fill" },
@@ -29,6 +32,7 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: "expenses", label: "Ausgaben", icon: "cart.fill" },
   { key: "vat", label: "MwSt", icon: "percent" },
   { key: "annual", label: "Jahresabschluss", icon: "calendar" },
+  { key: "documents", label: "Dokumente", icon: "folder.fill" },
 ];
 
 export default function AccountingScreen() {
@@ -658,6 +662,7 @@ export default function AccountingScreen() {
           {activeTab === "expenses" && renderExpenses()}
           {activeTab === "vat" && renderVat()}
           {activeTab === "annual" && renderAnnual()}
+          {activeTab === "documents" && <DocumentsTab colors={colors} />}
         </View>
       </ScrollView>
 
@@ -673,5 +678,272 @@ export default function AccountingScreen() {
         expense={editingExpense}
       />
     </ScreenContainer>
+  );
+}
+
+// ── Dokumente Tab ──
+function DocumentsTab({ colors }: { colors: any }) {
+  const queryClient = useQueryClient();
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [folderPath, setFolderPath] = useState<{ id: string | null; name: string }[]>([{ id: null, name: "Dokumente" }]);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<any>(null);
+
+  const { data: folders = [], isLoading: foldersLoading } = useQuery({
+    queryKey: ["documentFolders", currentFolderId],
+    queryFn: () => Data.getDocumentFolders(currentFolderId),
+  });
+
+  const { data: documents = [], isLoading: docsLoading } = useQuery({
+    queryKey: ["documents", currentFolderId],
+    queryFn: () => currentFolderId ? Data.getDocuments(currentFolderId) : Promise.resolve([]),
+    enabled: !!currentFolderId,
+  });
+
+  const navigateToFolder = (folderId: string, folderName: string) => {
+    setCurrentFolderId(folderId);
+    setFolderPath(prev => [...prev, { id: folderId, name: folderName }]);
+  };
+
+  const navigateBack = (index: number) => {
+    const newPath = folderPath.slice(0, index + 1);
+    setFolderPath(newPath);
+    setCurrentFolderId(newPath[newPath.length - 1].id);
+  };
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+    try {
+      await Data.createDocumentFolder(newFolderName.trim(), currentFolderId);
+      queryClient.invalidateQueries({ queryKey: ["documentFolders", currentFolderId] });
+      setShowNewFolder(false);
+      setNewFolderName("");
+    } catch (err: any) {
+      showAlert("Fehler", err.message);
+    }
+  };
+
+  const handleDeleteFolder = (folder: any) => {
+    showConfirm("Ordner löschen", `"${folder.name}" und alle Dateien darin löschen?`, async () => {
+      try {
+        await Data.deleteDocumentFolder(folder.id);
+        queryClient.invalidateQueries({ queryKey: ["documentFolders", currentFolderId] });
+      } catch (err: any) {
+        showAlert("Fehler", err.message);
+      }
+    }, "Löschen");
+  };
+
+  const handleDeleteDocument = (doc: any) => {
+    showConfirm("Datei löschen", `"${doc.file_name}" löschen?`, async () => {
+      try {
+        await Data.deleteDocument(doc.id, doc.file_path);
+        queryClient.invalidateQueries({ queryKey: ["documents", currentFolderId] });
+      } catch (err: any) {
+        showAlert("Fehler", err.message);
+      }
+    }, "Löschen");
+  };
+
+  const handleFileUpload = async (files: FileList | any[]) => {
+    if (!currentFolderId) {
+      showAlert("Hinweis", "Bitte wählen Sie zuerst einen Ordner.");
+      return;
+    }
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const uri = Platform.OS === "web" ? URL.createObjectURL(file) : file.uri;
+        await Data.uploadDocument(currentFolderId, {
+          name: file.name || `Datei_${Date.now()}`,
+          type: file.type || "application/octet-stream",
+          uri,
+          size: file.size,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["documents", currentFolderId] });
+      showAlert("Erfolg", "Datei(en) hochgeladen.");
+    } catch (err: any) {
+      showAlert("Fehler", err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handlePickFile = async () => {
+    if (Platform.OS === "web") {
+      fileInputRef.current?.click();
+    } else {
+      try {
+        const ImagePicker = await import("expo-image-picker");
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.All,
+          allowsMultipleSelection: true,
+          quality: 0.8,
+        });
+        if (!result.canceled && result.assets) {
+          await handleFileUpload(result.assets.map((a: any) => ({
+            name: a.fileName || `Bild_${Date.now()}.jpg`,
+            type: a.mimeType || "image/jpeg",
+            uri: a.uri,
+            size: a.fileSize || 0,
+          })));
+        }
+      } catch (_e) {
+        showAlert("Fehler", "Dateiauswahl fehlgeschlagen");
+      }
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const ImagePicker = await import("expo-image-picker");
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) { showAlert("Berechtigung", "Kamera-Zugriff verweigert."); return; }
+      const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+      if (!result.canceled && result.assets?.[0]) {
+        const a = result.assets[0];
+        await handleFileUpload([{ name: a.fileName || `Foto_${Date.now()}.jpg`, type: a.mimeType || "image/jpeg", uri: a.uri, size: a.fileSize || 0 }]);
+      }
+    } catch (_e) {
+      showAlert("Fehler", "Kamera fehlgeschlagen");
+    }
+  };
+
+  const handleOpenDocument = async (doc: any) => {
+    try {
+      const url = await Data.getDocumentDownloadUrl(doc.file_path);
+      if (url) Linking.openURL(url);
+    } catch (_e) { showAlert("Fehler", "Datei konnte nicht geöffnet werden."); }
+  };
+
+  const fmtSize = (b: number) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`;
+  const isWeb = Platform.OS === "web";
+
+  return (
+    <View className="gap-3">
+      {/* Breadcrumb */}
+      <View className="flex-row items-center gap-1 flex-wrap">
+        {folderPath.map((item, i) => (
+          <TouchableOpacity key={i} onPress={() => navigateBack(i)} className="flex-row items-center" activeOpacity={0.7}>
+            {i > 0 && <IconSymbol name="chevron.right" size={12} color={colors.muted} />}
+            <Text className={`text-sm ${i === folderPath.length - 1 ? "font-bold text-foreground" : "text-primary"} ml-1`}>{item.name}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Actions */}
+      <View className="flex-row gap-2 flex-wrap">
+        <TouchableOpacity className="bg-primary px-4 py-2.5 rounded-lg flex-row items-center gap-2" activeOpacity={0.8} onPress={() => setShowNewFolder(true)}>
+          <IconSymbol name="folder.badge.plus" size={16} color="#111" />
+          <Text className="text-background font-semibold text-sm">Neuer Ordner</Text>
+        </TouchableOpacity>
+        {currentFolderId && (
+          <>
+            <TouchableOpacity className="bg-success px-4 py-2.5 rounded-lg flex-row items-center gap-2" activeOpacity={0.8} onPress={handlePickFile} disabled={uploading}>
+              <IconSymbol name="doc.badge.plus" size={16} color="#fff" />
+              <Text className="text-white font-semibold text-sm">{uploading ? "..." : isWeb ? "Datei wählen" : "Mediathek"}</Text>
+            </TouchableOpacity>
+            {!isWeb && (
+              <TouchableOpacity className="px-4 py-2.5 rounded-lg flex-row items-center gap-2" style={{ backgroundColor: "#3b82f6" }} activeOpacity={0.8} onPress={handleTakePhoto}>
+                <IconSymbol name="camera.fill" size={16} color="#fff" />
+                <Text className="text-white font-semibold text-sm">Foto</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+      </View>
+
+      {/* Web file input */}
+      {isWeb && <input ref={fileInputRef} type="file" multiple style={{ display: "none" } as any} onChange={(e: any) => { if (e.target.files) handleFileUpload(e.target.files); }} />}
+
+      {/* Web Drag & Drop */}
+      {isWeb && currentFolderId && (
+        <View
+          className="border-2 border-dashed rounded-xl p-6 items-center justify-center"
+          style={{ borderColor: colors.border }}
+          // @ts-ignore
+          onDragOver={(e: any) => { e.preventDefault(); }}
+          onDrop={(e: any) => { e.preventDefault(); if (e.dataTransfer?.files) handleFileUpload(e.dataTransfer.files); }}
+        >
+          <IconSymbol name="square.and.arrow.down" size={28} color={colors.muted} />
+          <Text className="text-sm text-muted mt-2">Dateien hierher ziehen</Text>
+        </View>
+      )}
+
+      {/* New folder form */}
+      {showNewFolder && (
+        <View className="bg-surface rounded-xl p-4 border border-border flex-row items-center gap-3">
+          <TextInput
+            className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+            style={{ color: colors.foreground }}
+            placeholder="Ordnername"
+            placeholderTextColor={colors.muted}
+            value={newFolderName}
+            onChangeText={setNewFolderName}
+            autoFocus
+            onSubmitEditing={handleCreateFolder}
+          />
+          <TouchableOpacity className="bg-primary px-4 py-2 rounded-lg" onPress={handleCreateFolder}>
+            <Text className="text-background font-semibold">OK</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { setShowNewFolder(false); setNewFolderName(""); }}>
+            <IconSymbol name="xmark" size={18} color={colors.muted} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {foldersLoading || docsLoading ? (
+        <ActivityIndicator size="large" color={colors.primary} />
+      ) : (
+        <>
+          {folders.map((f: any) => (
+            <TouchableOpacity key={f.id} className="bg-surface rounded-xl p-4 border border-border flex-row items-center justify-between" activeOpacity={0.7} onPress={() => navigateToFolder(f.id, f.name)} onLongPress={() => handleDeleteFolder(f)}>
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: colors.primary + "20" }}>
+                  <IconSymbol name="folder.fill" size={20} color={colors.primary} />
+                </View>
+                <Text className="text-base font-semibold text-foreground">{f.name}</Text>
+              </View>
+              <IconSymbol name="chevron.right" size={16} color={colors.muted} />
+            </TouchableOpacity>
+          ))}
+
+          {currentFolderId && documents.map((d: any) => (
+            <TouchableOpacity key={d.id} className="bg-surface rounded-xl p-4 border border-border flex-row items-center justify-between" activeOpacity={0.7} onPress={() => handleOpenDocument(d)} onLongPress={() => handleDeleteDocument(d)}>
+              <View className="flex-row items-center gap-3 flex-1">
+                <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: "#8B5CF620" }}>
+                  <IconSymbol name="doc.fill" size={18} color="#8B5CF6" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{d.file_name}</Text>
+                  <Text className="text-xs text-muted">{fmtSize(d.file_size)} · {new Date(d.created_at).toLocaleDateString("de-CH")}</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => handleDeleteDocument(d)}>
+                <IconSymbol name="trash" size={16} color={colors.error} />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
+
+          {!currentFolderId && folders.length === 0 && (
+            <View className="items-center justify-center py-12">
+              <IconSymbol name="folder.fill" size={48} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4">Keine Ordner</Text>
+              <Text className="text-sm text-muted text-center mt-2">Erstellen Sie Ordner um Belege und Dokumente zu organisieren.</Text>
+            </View>
+          )}
+          {currentFolderId && documents.length === 0 && folders.length === 0 && (
+            <View className="items-center justify-center py-8">
+              <IconSymbol name="doc.fill" size={36} color={colors.muted} />
+              <Text className="text-base text-muted mt-3">Ordner ist leer</Text>
+              <Text className="text-sm text-muted mt-1">{isWeb ? "Dateien hierher ziehen oder \"Datei wählen\"" : "\"Mediathek\" oder \"Foto\" antippen"}</Text>
+            </View>
+          )}
+        </>
+      )}
+    </View>
   );
 }

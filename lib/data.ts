@@ -1505,7 +1505,23 @@ export async function getDunningSettings() {
         .limit(1)
         .single();
 
-    if (error) throw new Error(error.message);
+    if (error || !data) {
+        // Return defaults if table doesn't exist yet
+        return {
+            auto_enabled: false,
+            days_after_due_reminder: 5,
+            days_between_levels: 10,
+            dunning_fee: 20,
+            text_reminder: "Wir möchten Sie freundlich daran erinnern, dass die Rechnung {invoice_number} über CHF {amount} am {due_date} fällig war.",
+            text_level1: "Trotz unserer Erinnerung ist die Zahlung der Rechnung {invoice_number} über CHF {amount} noch ausstehend.",
+            text_level2: "Die Rechnung {invoice_number} über CHF {amount} ist trotz mehrfacher Mahnung weiterhin unbezahlt.",
+            text_level3: "Letzte Mahnung vor Einleitung des Betreibungsverfahrens für Rechnung {invoice_number} über CHF {amount}.",
+            subject_reminder: "Zahlungserinnerung: Rechnung {invoice_number}",
+            subject_level1: "1. Mahnung: Rechnung {invoice_number}",
+            subject_level2: "2. Mahnung: Rechnung {invoice_number}",
+            subject_level3: "Betreibungsandrohung: Rechnung {invoice_number}",
+        };
+    }
     return data;
 }
 
@@ -1572,7 +1588,19 @@ export async function getInvoiceSettings() {
         .limit(1)
         .single();
 
-    if (error) throw new Error(error.message);
+    if (error || !data) {
+        // Return defaults if table doesn't exist yet
+        return {
+            greeting_text: "Vielen Dank für Ihren Auftrag. Wir erlauben uns, Ihnen folgende Leistungen in Rechnung zu stellen:",
+            closing_text: "Freundliche Grüsse",
+            payment_terms_days: 30,
+            bank_name: "",
+            account_holder: "",
+            iban: "",
+            swift_bic: "",
+            account_number: "",
+        };
+    }
     return data;
 }
 
@@ -1590,4 +1618,88 @@ export async function updateInvoiceSettings(settings: any) {
 
     if (error) throw new Error(error.message);
     return data;
+}
+
+// ==================== DOKUMENTE ====================
+
+export async function getDocumentFolders(parentId?: string | null) {
+    let query = supabase.from("document_folders").select("*").order("name");
+    if (parentId) {
+        query = query.eq("parent_id", parentId);
+    } else {
+        query = query.is("parent_id", null);
+    }
+    const { data, error } = await query;
+    if (error) return [];
+    return data || [];
+}
+
+export async function createDocumentFolder(name: string, parentId?: string | null) {
+    const { data, error } = await supabase
+        .from("document_folders")
+        .insert({ name, parent_id: parentId || null })
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteDocumentFolder(id: string) {
+    // Delete all documents in folder first
+    const docs = await getDocuments(id);
+    for (const doc of docs) {
+        await deleteDocument(doc.id, doc.file_path);
+    }
+    const { error } = await supabase.from("document_folders").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+export async function getDocuments(folderId: string) {
+    const { data, error } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("folder_id", folderId)
+        .order("created_at", { ascending: false });
+    if (error) return [];
+    return data || [];
+}
+
+export async function uploadDocument(folderId: string, file: { name: string; type: string; uri: string; size?: number }) {
+    const filePath = `${folderId}/${Date.now()}_${file.name}`;
+
+    // For web: fetch the file and upload as blob
+    const response = await fetch(file.uri);
+    const blob = await response.blob();
+
+    const { error: uploadErr } = await supabase.storage
+        .from("documents")
+        .upload(filePath, blob, { contentType: file.type });
+
+    if (uploadErr) throw new Error(uploadErr.message);
+
+    const { data, error: dbErr } = await supabase
+        .from("documents")
+        .insert({
+            folder_id: folderId,
+            file_name: file.name,
+            file_path: filePath,
+            file_size: file.size || 0,
+            mime_type: file.type,
+        })
+        .select()
+        .single();
+
+    if (dbErr) throw new Error(dbErr.message);
+    return data;
+}
+
+export async function deleteDocument(id: string, filePath: string) {
+    await supabase.storage.from("documents").remove([filePath]);
+    const { error } = await supabase.from("documents").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+export async function getDocumentDownloadUrl(filePath: string) {
+    const { data } = await supabase.storage.from("documents").createSignedUrl(filePath, 3600);
+    return data?.signedUrl || "";
 }
