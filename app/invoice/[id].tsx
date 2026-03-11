@@ -9,6 +9,8 @@ import {
     Modal,
     Platform,
     Linking,
+    Switch,
+    useWindowDimensions,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -207,248 +209,272 @@ export default function InvoiceDetailScreen() {
     const invoiceTotal = getInvoiceTotal(invoice);
     const remainingAmount = invoiceTotal - (invoice.paid_amount || 0);
 
+    const { width } = useWindowDimensions();
+    const isWeb = Platform.OS === "web";
+    const isWebWide = isWeb && width > 800;
+
     return (
         <ScreenContainer>
-            <ScrollView className="flex-1">
-                {/* Header */}
-                <View className="p-4 flex-row items-center justify-between border-b border-border">
-                    <TouchableOpacity
-                        onPress={() => router.back()}
-                        activeOpacity={0.7}
-                        className="flex-row items-center"
-                    >
-                        <IconSymbol name="chevron.left" size={20} color={colors.primary} />
-                        <Text className="text-primary font-semibold ml-1">Zurück</Text>
-                    </TouchableOpacity>
-                    <View className="flex-row items-center gap-3">
+            <ScrollView className="flex-1" contentContainerStyle={isWebWide ? { alignItems: "center" } : undefined}>
+                <View style={isWebWide ? { maxWidth: 800, width: "100%", paddingVertical: 16 } : { flex: 1 }}>
+                    {/* Header */}
+                    <View className="p-4 flex-row items-center justify-between border-b border-border">
                         <TouchableOpacity
-                            onPress={() => setShowEditModal(true)}
+                            onPress={() => router.back()}
                             activeOpacity={0.7}
-                            className="bg-primary px-4 py-2 rounded-lg"
+                            className="flex-row items-center"
                         >
-                            <Text className="text-background font-semibold text-sm">Bearbeiten</Text>
+                            <IconSymbol name="chevron.left" size={20} color={colors.primary} />
+                            <Text className="text-primary font-semibold ml-1">Zurück</Text>
                         </TouchableOpacity>
-                        <View className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
-                            <Text className="text-xs font-semibold text-white">
-                                {getStatusLabel(invoice.status)}
-                            </Text>
+                        <View className="flex-row items-center gap-3">
+                            <TouchableOpacity
+                                onPress={() => setShowEditModal(true)}
+                                activeOpacity={0.7}
+                                className="bg-primary px-4 py-2 rounded-lg"
+                            >
+                                <Text className="text-background font-semibold text-sm">Bearbeiten</Text>
+                            </TouchableOpacity>
+                            <View className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
+                                <Text className="text-xs font-semibold text-white">
+                                    {getStatusLabel(invoice.status)}
+                                </Text>
+                            </View>
                         </View>
                     </View>
-                </View>
 
-                {/* Rechnungsnummer & Betrag */}
-                <View className="p-4">
-                    <Text className="text-3xl font-bold text-foreground mb-1">
-                        {invoice.invoice_number}
-                    </Text>
-                    <Text className="text-lg text-muted mb-4">{customerName}</Text>
-                    <Text className="text-4xl font-bold text-primary mb-2">
-                        {formatCurrency(invoiceTotal)}
-                    </Text>
-                    {(invoice.paid_amount || 0) > 0 && (
-                        <View className="flex-row items-center gap-2 mb-4">
-                            <Text className="text-sm text-success">
-                                Bezahlt: {formatCurrency(invoice.paid_amount || 0)}
-                            </Text>
-                            {remainingAmount > 0 && (
-                                <Text className="text-sm text-warning">
-                                    · Offen: {formatCurrency(remainingAmount)}
+                    {/* Rechnungsnummer & Betrag */}
+                    <View className="p-4">
+                        <Text className="text-3xl font-bold text-foreground mb-1">
+                            {invoice.invoice_number}
+                        </Text>
+                        <Text className="text-lg text-muted mb-4">{customerName}</Text>
+                        <Text className="text-4xl font-bold text-primary mb-2">
+                            {formatCurrency(invoiceTotal)}
+                        </Text>
+                        {(invoice.paid_amount || 0) > 0 && (
+                            <View className="flex-row items-center gap-2 mb-4">
+                                <Text className="text-sm text-success">
+                                    Bezahlt: {formatCurrency(invoice.paid_amount || 0)}
+                                </Text>
+                                {remainingAmount > 0 && (
+                                    <Text className="text-sm text-warning">
+                                        · Offen: {formatCurrency(remainingAmount)}
+                                    </Text>
+                                )}
+                            </View>
+                        )}
+
+                        {/* Aktions-Buttons */}
+                        <View className="gap-3 mb-4">
+                            <View className="flex-row gap-3">
+                                <TouchableOpacity
+                                    className="flex-1 bg-success py-3 rounded-lg flex-row items-center justify-center"
+                                    activeOpacity={0.8}
+                                    onPress={() => setShowPaymentModal(true)}
+                                >
+                                    <IconSymbol name="banknote.fill" size={18} color="#FFFFFF" />
+                                    <Text className="text-white font-semibold ml-2 text-sm">Zahlung</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    className="flex-1 bg-primary py-3 rounded-lg flex-row items-center justify-center"
+                                    activeOpacity={0.8}
+                                    onPress={handleDownloadPDF}
+                                >
+                                    <IconSymbol name="arrow.down.doc.fill" size={18} color="#FFFFFF" />
+                                    <Text className="text-background font-semibold ml-2 text-sm">PDF</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    className="flex-1 bg-error py-3 rounded-lg flex-row items-center justify-center"
+                                    activeOpacity={0.8}
+                                    onPress={handleDelete}
+                                >
+                                    <IconSymbol name="trash.fill" size={18} color="#FFFFFF" />
+                                    <Text className="text-white font-semibold ml-2 text-sm">Löschen</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <View className="flex-row gap-3">
+                                <TouchableOpacity
+                                    className="flex-1 bg-surface border border-border py-3 rounded-lg flex-row items-center justify-center"
+                                    activeOpacity={0.8}
+                                    onPress={handleSendInvoice}
+                                >
+                                    <IconSymbol name="paperplane.fill" size={18} color={colors.primary} />
+                                    <Text className="text-foreground font-semibold ml-2 text-sm">Rechnung senden</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    className="flex-1 bg-surface border border-warning py-3 rounded-lg flex-row items-center justify-center"
+                                    activeOpacity={0.8}
+                                    onPress={() => setShowDunningModal(true)}
+                                >
+                                    <IconSymbol name="exclamationmark.triangle.fill" size={18} color={colors.warning} />
+                                    <Text className="text-foreground font-semibold ml-2 text-sm">Mahnung</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/* Rechnungsdetails */}
+                        <View className="bg-surface rounded-xl border border-border p-4 mb-4">
+                            <Text className="text-lg font-bold text-foreground mb-3">Details</Text>
+                            <View className="gap-3">
+                                <View className="flex-row justify-between">
+                                    <Text className="text-sm text-muted">Rechnungsdatum</Text>
+                                    <Text className="text-sm font-semibold text-foreground">
+                                        {formatDate(invoice.invoice_date)}
+                                    </Text>
+                                </View>
+                                <View className="flex-row justify-between">
+                                    <Text className="text-sm text-muted">Fälligkeitsdatum</Text>
+                                    <Text className="text-sm font-semibold text-foreground">
+                                        {formatDate(invoice.due_date)}
+                                    </Text>
+                                </View>
+                                <View className="flex-row justify-between">
+                                    <Text className="text-sm text-muted">Zwischensumme</Text>
+                                    <Text className="text-sm text-foreground">
+                                        {formatCurrency(invoice.subtotal)}
+                                    </Text>
+                                </View>
+                                <View className="flex-row justify-between">
+                                    <Text className="text-sm text-muted">MwSt.</Text>
+                                    <Text className="text-sm text-foreground">
+                                        {formatCurrency(invoice.vat_amount)}
+                                    </Text>
+                                </View>
+                                <View className="flex-row justify-between">
+                                    <Text className="text-sm text-muted">Bezahlt</Text>
+                                    <Text className="text-sm font-semibold text-success">
+                                        {formatCurrency(invoice.paid_amount || 0)}
+                                    </Text>
+                                </View>
+                                <View className="flex-row justify-between pt-2 border-t border-border">
+                                    <Text className="text-base font-bold text-foreground">Restbetrag</Text>
+                                    <Text className={`text-base font-bold ${remainingAmount <= 0 ? "text-success" : "text-primary"}`}>
+                                        {formatCurrency(remainingAmount > 0 ? remainingAmount : 0)}
+                                    </Text>
+                                </View>
+                                {invoice.dunning_level > 0 && (
+                                    <View className="flex-row justify-between pt-2 border-t border-border">
+                                        <Text className="text-sm text-muted">Mahnstufe</Text>
+                                        <Text className="text-sm font-semibold" style={{ color: "#ef4444" }}>
+                                            {["Erinnerung", "1. Mahnung", "2. Mahnung", "Betreibungsandrohung"][invoice.dunning_level] || `Stufe ${invoice.dunning_level}`}
+                                        </Text>
+                                    </View>
+                                )}
+                                {/* Mahnstop Toggle */}
+                                <View className="flex-row items-center justify-between pt-2 border-t border-border">
+                                    <View>
+                                        <Text className="text-sm text-foreground">Mahnstop</Text>
+                                        <Text className="text-xs text-muted">Keine automatischen Mahnungen</Text>
+                                    </View>
+                                    <Switch
+                                        value={!!invoice.dunning_stopped}
+                                        onValueChange={async (val: boolean) => {
+                                            try {
+                                                await supabase.from("invoices").update({ dunning_stopped: val }).eq("id", invoice.id);
+                                                refetch();
+                                            } catch (_e) { /* ignore */ }
+                                        }}
+                                        trackColor={{ false: colors.border, true: "#ef4444" }}
+                                        thumbColor="#fff"
+                                    />
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* Kunde */}
+                        <View className="bg-surface rounded-xl border border-border p-4 mb-4">
+                            <Text className="text-lg font-bold text-foreground mb-3">Kunde</Text>
+                            <Text className="text-base font-semibold text-foreground">{customerName}</Text>
+                            {invoice.customer?.email && (
+                                <Text className="text-sm text-muted mt-1">{invoice.customer.email}</Text>
+                            )}
+                            {invoice.customer?.phone && (
+                                <Text className="text-sm text-muted mt-1">{invoice.customer.phone}</Text>
+                            )}
+                            {(invoice.customer?.street || invoice.customer?.city) && (
+                                <Text className="text-sm text-muted mt-1">
+                                    {[invoice.customer?.street, `${invoice.customer?.zip || ""} ${invoice.customer?.city || ""}`.trim()]
+                                        .filter(Boolean)
+                                        .join(", ")}
                                 </Text>
                             )}
                         </View>
-                    )}
 
-                    {/* Aktions-Buttons */}
-                    <View className="gap-3 mb-4">
-                        <View className="flex-row gap-3">
-                            <TouchableOpacity
-                                className="flex-1 bg-success py-3 rounded-lg flex-row items-center justify-center"
-                                activeOpacity={0.8}
-                                onPress={() => setShowPaymentModal(true)}
-                            >
-                                <IconSymbol name="banknote.fill" size={18} color="#FFFFFF" />
-                                <Text className="text-white font-semibold ml-2 text-sm">Zahlung</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                className="flex-1 bg-primary py-3 rounded-lg flex-row items-center justify-center"
-                                activeOpacity={0.8}
-                                onPress={handleDownloadPDF}
-                            >
-                                <IconSymbol name="arrow.down.doc.fill" size={18} color="#FFFFFF" />
-                                <Text className="text-background font-semibold ml-2 text-sm">PDF</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                className="flex-1 bg-error py-3 rounded-lg flex-row items-center justify-center"
-                                activeOpacity={0.8}
-                                onPress={handleDelete}
-                            >
-                                <IconSymbol name="trash.fill" size={18} color="#FFFFFF" />
-                                <Text className="text-white font-semibold ml-2 text-sm">Löschen</Text>
-                            </TouchableOpacity>
+                        {/* Positionen */}
+                        <View className="bg-surface rounded-xl border border-border p-4 mb-4">
+                            <Text className="text-lg font-bold text-foreground mb-3">Positionen</Text>
+                            {invoice.items && invoice.items.length > 0 ? (
+                                <View className="gap-3">
+                                    {invoice.items.map((item: any, index: number) => (
+                                        <View key={item.id || index} className="pb-3 border-b border-border last:border-0">
+                                            <Text className="text-sm font-semibold text-foreground">{item.description}</Text>
+                                            <View className="flex-row justify-between mt-1">
+                                                <Text className="text-xs text-muted">
+                                                    {item.quantity} × {formatCurrency(item.unit_price)} · MwSt: {item.vat_rate}%
+                                                </Text>
+                                                <Text className="text-sm font-semibold text-foreground">
+                                                    {formatCurrency(item.total)}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+                            ) : (
+                                <Text className="text-sm text-muted">Keine Positionen</Text>
+                            )}
                         </View>
-                        <View className="flex-row gap-3">
-                            <TouchableOpacity
-                                className="flex-1 bg-surface border border-border py-3 rounded-lg flex-row items-center justify-center"
-                                activeOpacity={0.8}
-                                onPress={handleSendInvoice}
-                            >
-                                <IconSymbol name="paperplane.fill" size={18} color={colors.primary} />
-                                <Text className="text-foreground font-semibold ml-2 text-sm">Rechnung senden</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                className="flex-1 bg-surface border border-warning py-3 rounded-lg flex-row items-center justify-center"
-                                activeOpacity={0.8}
-                                onPress={() => setShowDunningModal(true)}
-                            >
-                                <IconSymbol name="exclamationmark.triangle.fill" size={18} color={colors.warning} />
-                                <Text className="text-foreground font-semibold ml-2 text-sm">Mahnung</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
 
-                    {/* Rechnungsdetails */}
-                    <View className="bg-surface rounded-xl border border-border p-4 mb-4">
-                        <Text className="text-lg font-bold text-foreground mb-3">Details</Text>
-                        <View className="gap-3">
-                            <View className="flex-row justify-between">
-                                <Text className="text-sm text-muted">Rechnungsdatum</Text>
-                                <Text className="text-sm font-semibold text-foreground">
-                                    {formatDate(invoice.invoice_date)}
-                                </Text>
+                        {/* Notizen */}
+                        {invoice.notes && (
+                            <View className="bg-surface rounded-xl border border-border p-4 mb-4">
+                                <Text className="text-lg font-bold text-foreground mb-2">Notizen</Text>
+                                <Text className="text-sm text-foreground">{invoice.notes}</Text>
                             </View>
-                            <View className="flex-row justify-between">
-                                <Text className="text-sm text-muted">Fälligkeitsdatum</Text>
-                                <Text className="text-sm font-semibold text-foreground">
-                                    {formatDate(invoice.due_date)}
-                                </Text>
-                            </View>
-                            <View className="flex-row justify-between">
-                                <Text className="text-sm text-muted">Zwischensumme</Text>
-                                <Text className="text-sm text-foreground">
-                                    {formatCurrency(invoice.subtotal)}
-                                </Text>
-                            </View>
-                            <View className="flex-row justify-between">
-                                <Text className="text-sm text-muted">MwSt.</Text>
-                                <Text className="text-sm text-foreground">
-                                    {formatCurrency(invoice.vat_amount)}
-                                </Text>
-                            </View>
-                            <View className="flex-row justify-between">
-                                <Text className="text-sm text-muted">Bezahlt</Text>
-                                <Text className="text-sm font-semibold text-success">
-                                    {formatCurrency(invoice.paid_amount || 0)}
-                                </Text>
-                            </View>
-                            <View className="flex-row justify-between pt-2 border-t border-border">
-                                <Text className="text-base font-bold text-foreground">Restbetrag</Text>
-                                <Text className={`text-base font-bold ${remainingAmount <= 0 ? "text-success" : "text-primary"}`}>
-                                    {formatCurrency(remainingAmount > 0 ? remainingAmount : 0)}
-                                </Text>
-                            </View>
-                            {invoice.dunning_level > 0 && (
-                                <View className="flex-row justify-between pt-2 border-t border-border">
-                                    <Text className="text-sm text-muted">Mahnstufe</Text>
-                                    <Text className="text-sm font-semibold" style={{ color: "#ef4444" }}>
-                                        {["Erinnerung", "1. Mahnung", "2. Mahnung", "Betreibungsandrohung"][invoice.dunning_level] || `Stufe ${invoice.dunning_level}`}
-                                    </Text>
+                        )}
+
+                        {/* Aktivitätsverlauf */}
+                        <View className="bg-surface rounded-xl border border-border p-4 mb-4">
+                            <Text className="text-lg font-bold text-foreground mb-3">Verlauf</Text>
+                            {!activities || activities.length === 0 ? (
+                                <Text className="text-sm text-muted">Noch keine Aktivitäten.</Text>
+                            ) : (
+                                <View className="gap-3">
+                                    {activities.map((activity: any, index: number) => {
+                                        const iconNames: Record<string, string> = {
+                                            created: "doc.text",
+                                            edited: "pencil",
+                                            sent: "paperplane",
+                                            reminder_sent: "exclamationmark.triangle",
+                                            opened: "eye",
+                                            payment_added: "banknote",
+                                        };
+                                        const iconName = iconNames[activity.type] || "circle.fill";
+                                        return (
+                                            <View key={activity.id} className="flex-row items-start gap-3">
+                                                <View className="items-center">
+                                                    <IconSymbol name={iconName as any} size={14} color={colors.primary} />
+                                                    {index < activities.length - 1 && (
+                                                        <View className="w-[1px] flex-1 bg-border mt-1" style={{ minHeight: 20 }} />
+                                                    )}
+                                                </View>
+                                                <View className="flex-1">
+                                                    <Text className="text-sm text-foreground">{activity.description}</Text>
+                                                    <View className="flex-row items-center gap-2 mt-1">
+                                                        <Text className="text-xs text-muted">
+                                                            {formatDate(activity.created_at)}
+                                                        </Text>
+                                                        {activity.user_name && (
+                                                            <Text className="text-xs text-muted">• {activity.user_name}</Text>
+                                                        )}
+                                                    </View>
+                                                </View>
+                                            </View>
+                                        );
+                                    })}
                                 </View>
                             )}
                         </View>
-                    </View>
-
-                    {/* Kunde */}
-                    <View className="bg-surface rounded-xl border border-border p-4 mb-4">
-                        <Text className="text-lg font-bold text-foreground mb-3">Kunde</Text>
-                        <Text className="text-base font-semibold text-foreground">{customerName}</Text>
-                        {invoice.customer?.email && (
-                            <Text className="text-sm text-muted mt-1">{invoice.customer.email}</Text>
-                        )}
-                        {invoice.customer?.phone && (
-                            <Text className="text-sm text-muted mt-1">{invoice.customer.phone}</Text>
-                        )}
-                        {(invoice.customer?.street || invoice.customer?.city) && (
-                            <Text className="text-sm text-muted mt-1">
-                                {[invoice.customer?.street, `${invoice.customer?.zip || ""} ${invoice.customer?.city || ""}`.trim()]
-                                    .filter(Boolean)
-                                    .join(", ")}
-                            </Text>
-                        )}
-                    </View>
-
-                    {/* Positionen */}
-                    <View className="bg-surface rounded-xl border border-border p-4 mb-4">
-                        <Text className="text-lg font-bold text-foreground mb-3">Positionen</Text>
-                        {invoice.items && invoice.items.length > 0 ? (
-                            <View className="gap-3">
-                                {invoice.items.map((item: any, index: number) => (
-                                    <View key={item.id || index} className="pb-3 border-b border-border last:border-0">
-                                        <Text className="text-sm font-semibold text-foreground">{item.description}</Text>
-                                        <View className="flex-row justify-between mt-1">
-                                            <Text className="text-xs text-muted">
-                                                {item.quantity} × {formatCurrency(item.unit_price)} · MwSt: {item.vat_rate}%
-                                            </Text>
-                                            <Text className="text-sm font-semibold text-foreground">
-                                                {formatCurrency(item.total)}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                ))}
-                            </View>
-                        ) : (
-                            <Text className="text-sm text-muted">Keine Positionen</Text>
-                        )}
-                    </View>
-
-                    {/* Notizen */}
-                    {invoice.notes && (
-                        <View className="bg-surface rounded-xl border border-border p-4 mb-4">
-                            <Text className="text-lg font-bold text-foreground mb-2">Notizen</Text>
-                            <Text className="text-sm text-foreground">{invoice.notes}</Text>
-                        </View>
-                    )}
-
-                    {/* Aktivitätsverlauf */}
-                    <View className="bg-surface rounded-xl border border-border p-4 mb-4">
-                        <Text className="text-lg font-bold text-foreground mb-3">Verlauf</Text>
-                        {!activities || activities.length === 0 ? (
-                            <Text className="text-sm text-muted">Noch keine Aktivitäten.</Text>
-                        ) : (
-                            <View className="gap-3">
-                                {activities.map((activity: any, index: number) => {
-                                    const iconNames: Record<string, string> = {
-                                        created: "doc.text",
-                                        edited: "pencil",
-                                        sent: "paperplane",
-                                        reminder_sent: "exclamationmark.triangle",
-                                        opened: "eye",
-                                        payment_added: "banknote",
-                                    };
-                                    const iconName = iconNames[activity.type] || "circle.fill";
-                                    return (
-                                        <View key={activity.id} className="flex-row items-start gap-3">
-                                            <View className="items-center">
-                                                <IconSymbol name={iconName as any} size={14} color={colors.primary} />
-                                                {index < activities.length - 1 && (
-                                                    <View className="w-[1px] flex-1 bg-border mt-1" style={{ minHeight: 20 }} />
-                                                )}
-                                            </View>
-                                            <View className="flex-1">
-                                                <Text className="text-sm text-foreground">{activity.description}</Text>
-                                                <View className="flex-row items-center gap-2 mt-1">
-                                                    <Text className="text-xs text-muted">
-                                                        {formatDate(activity.created_at)}
-                                                    </Text>
-                                                    {activity.user_name && (
-                                                        <Text className="text-xs text-muted">• {activity.user_name}</Text>
-                                                    )}
-                                                </View>
-                                            </View>
-                                        </View>
-                                    );
-                                })}
-                            </View>
-                        )}
                     </View>
                 </View>
             </ScrollView>

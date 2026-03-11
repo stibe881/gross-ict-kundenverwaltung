@@ -487,6 +487,9 @@ export default function DashboardScreen() {
               </View>
             </View>
           ))}
+
+          {/* Letzte Aktivitäten */}
+          <RecentActivities userId={user?.id} colors={colors} isWide={isWide} />
         </View>
       </ScrollView>
 
@@ -657,4 +660,56 @@ function getRoleLabel(role?: string): string {
     support: "Support",
   };
   return roleLabels[role || ""] || "Unbekannt";
+}
+
+function RecentActivities({ userId, colors, isWide }: { userId?: string; colors: any; isWide: boolean }) {
+  const { data: activities = [] } = useQuery({
+    queryKey: ["recentActivities", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(8);
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!userId,
+    refetchInterval: 30000,
+  });
+
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Gerade eben";
+    if (mins < 60) return `Vor ${mins} Min.`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `Vor ${hrs} Std.`;
+    const days = Math.floor(hrs / 24);
+    return `Vor ${days} Tag${days > 1 ? "en" : ""}`;
+  };
+
+  if (activities.length === 0) return null;
+
+  return (
+    <View style={{ marginTop: isWide ? 12 : 8 }}>
+      <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 12 }}>
+        Letzte Aktivitäten
+      </Text>
+      <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+        {activities.map((item: any, index: number) => (
+          <View key={item.id} style={{ flexDirection: "row", alignItems: "flex-start", padding: 12, borderBottomWidth: index < activities.length - 1 ? 1 : 0, borderBottomColor: colors.border, gap: 10 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.is_read ? colors.muted : colors.primary, marginTop: 5 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{item.title}</Text>
+              <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }} numberOfLines={2}>{item.message}</Text>
+            </View>
+            <Text style={{ fontSize: 11, color: colors.muted }}>{timeAgo(item.created_at)}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
 }
