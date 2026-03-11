@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   ScrollView,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -13,30 +14,106 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
-import { useQuery } from "@tanstack/react-query";
+import { ExpenseFormModal } from "@/components/expense-form-modal";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
 import { router as expoRouter } from "expo-router";
+import { showConfirm } from "@/lib/alert";
+
+type TabKey = "overview" | "invoices" | "expenses" | "vat" | "annual";
+
+const TABS: { key: TabKey; label: string; icon: string }[] = [
+  { key: "overview", label: "Übersicht", icon: "chart.pie.fill" },
+  { key: "invoices", label: "Rechnungen", icon: "doc.text.fill" },
+  { key: "expenses", label: "Ausgaben", icon: "cart.fill" },
+  { key: "vat", label: "MwSt", icon: "percent" },
+  { key: "annual", label: "Jahresabschluss", icon: "calendar" },
+];
 
 export default function AccountingScreen() {
   const router = useRouter();
   const colors = useColors();
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
-  const [activeTab, setActiveTab] = useState<"overview" | "invoices" | "expenses">("overview");
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // Rechnungen laden
-  const { data: invoices, isLoading, refetch } = useQuery({
+  const { data: invoices, isLoading: loadingInvoices, refetch: refetchInvoices } = useQuery({
     queryKey: ["invoices"],
     queryFn: Data.getAllInvoices,
   });
 
+  const { data: expenses, isLoading: loadingExpenses, refetch: refetchExpenses } = useQuery({
+    queryKey: ["expenses"],
+    queryFn: Data.getAllExpenses,
+  });
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([refetchInvoices(), refetchExpenses()]);
     setRefreshing(false);
-  }, [refetch]);
+  }, [refetchInvoices, refetchExpenses]);
+
+  // Filter by year
+  const yearInvoices = useMemo(() =>
+    invoices?.filter((i: any) => new Date(i.invoice_date).getFullYear() === selectedYear) || [],
+    [invoices, selectedYear]
+  );
+
+  const yearExpenses = useMemo(() =>
+    expenses?.filter((e: any) => new Date(e.expense_date).getFullYear() === selectedYear) || [],
+    [expenses, selectedYear]
+  );
+
+  // Stats
+  const totalRevenue = yearInvoices.filter((i: any) => i.status === "paid").reduce((s: number, i: any) => s + getInvoiceTotal(i), 0);
+  const totalOpen = yearInvoices.filter((i: any) => i.status === "open").reduce((s: number, i: any) => s + getInvoiceTotal(i), 0);
+  const totalOverdue = yearInvoices.filter((i: any) => i.status === "overdue").reduce((s: number, i: any) => s + getInvoiceTotal(i), 0);
+  const totalExpenses = yearExpenses.reduce((s: number, e: any) => s + (e.amount || 0), 0);
+  const deductibleExpenses = yearExpenses.filter((e: any) => e.is_deductible).reduce((s: number, e: any) => s + (e.amount || 0), 0);
+  const profit = totalRevenue - totalExpenses;
+
+  // MwSt
+  const vatCollected = yearInvoices.filter((i: any) => i.status === "paid").reduce((s: number, i: any) => s + (i.vat_amount || 0), 0);
+  const vatPaid = yearExpenses.reduce((s: number, e: any) => s + (e.tax_amount || 0), 0);
+  const vatOwed = vatCollected - vatPaid;
+
+  // Expenses by category
+  const expensesByCategory = useMemo(() => {
+    const map: Record<string, number> = {};
+    yearExpenses.forEach((e: any) => {
+      map[e.category] = (map[e.category] || 0) + (e.amount || 0);
+    });
+    return Object.entries(map)
+      .map(([cat, amount]) => ({
+        category: cat,
+        label: Data.EXPENSE_CATEGORIES.find((c) => c.value === cat)?.label || cat,
+        amount,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [yearExpenses]);
+
+  // MwSt by quarter
+  const vatByQuarter = useMemo(() => {
+    const quarters = [
+      { label: "Q1 (Jan–Mär)", months: [0, 1, 2] },
+      { label: "Q2 (Apr–Jun)", months: [3, 4, 5] },
+      { label: "Q3 (Jul–Sep)", months: [6, 7, 8] },
+      { label: "Q4 (Okt–Dez)", months: [9, 10, 11] },
+    ];
+    return quarters.map((q) => {
+      const qInvoices = yearInvoices.filter((i: any) => i.status === "paid" && q.months.includes(new Date(i.invoice_date).getMonth()));
+      const qExpenses = yearExpenses.filter((e: any) => q.months.includes(new Date(e.expense_date).getMonth()));
+      const collected = qInvoices.reduce((s: number, i: any) => s + (i.vat_amount || 0), 0);
+      const paid = qExpenses.reduce((s: number, e: any) => s + (e.tax_amount || 0), 0);
+      return { ...q, collected, paid, owed: collected - paid };
+    });
+  }, [yearInvoices, yearExpenses]);
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -58,10 +135,423 @@ export default function AccountingScreen() {
     }
   };
 
-  // Statistiken berechnen
-  const totalOpen = invoices?.filter((i: any) => i.status === "open").reduce((sum: number, i: any) => sum + getInvoiceTotal(i), 0) || 0;
-  const totalPaid = invoices?.filter((i: any) => i.status === "paid").reduce((sum: number, i: any) => sum + getInvoiceTotal(i), 0) || 0;
-  const totalAll = invoices?.reduce((sum: number, i: any) => sum + getInvoiceTotal(i), 0) || 0;
+  const handleDeleteExpense = async (expense: any) => {
+    const confirmed = await showConfirm(
+      "Ausgabe löschen",
+      `"${expense.description}" wirklich löschen?`
+    );
+    if (!confirmed) return;
+    try {
+      await Data.deleteExpense(expense.id);
+      refetchExpenses();
+    } catch (err: any) {
+      Alert.alert("Fehler", err.message);
+    }
+  };
+
+  const getCategoryIcon = (cat: string) => {
+    const icons: Record<string, string> = {
+      material: "shippingbox.fill",
+      software: "desktopcomputer",
+      office: "building.2.fill",
+      vehicle: "car.fill",
+      insurance: "shield.fill",
+      telecom: "phone.fill",
+      travel: "airplane",
+      education: "book.fill",
+      marketing: "megaphone.fill",
+      accounting: "doc.text.fill",
+      equipment: "wrench.and.screwdriver.fill",
+      other: "ellipsis.circle.fill",
+    };
+    return icons[cat] || "ellipsis.circle.fill";
+  };
+
+  const renderYearSelector = () => (
+    <View className="flex-row items-center justify-center gap-4 mb-4">
+      <TouchableOpacity onPress={() => setSelectedYear(selectedYear - 1)} activeOpacity={0.7}>
+        <IconSymbol name="chevron.left" size={20} color={colors.primary} />
+      </TouchableOpacity>
+      <Text className="text-lg font-bold text-foreground">{selectedYear}</Text>
+      <TouchableOpacity onPress={() => setSelectedYear(selectedYear + 1)} activeOpacity={0.7}>
+        <IconSymbol name="chevron.right" size={20} color={colors.primary} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderOverview = () => (
+    <View className="gap-4">
+      {renderYearSelector()}
+
+      {/* Gewinn/Verlust Hero */}
+      <View
+        className="rounded-xl p-5 border border-border"
+        style={{ backgroundColor: profit >= 0 ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)" }}
+      >
+        <Text className="text-sm text-muted mb-1">Gewinn / Verlust ({selectedYear})</Text>
+        <Text
+          className="text-3xl font-bold"
+          style={{ color: profit >= 0 ? "#22c55e" : "#ef4444" }}
+        >
+          {formatCurrency(profit)}
+        </Text>
+        <View className="flex-row mt-3 gap-6">
+          <View>
+            <Text className="text-xs text-muted">Einnahmen</Text>
+            <Text className="text-sm font-semibold text-success">{formatCurrency(totalRevenue)}</Text>
+          </View>
+          <View>
+            <Text className="text-xs text-muted">Ausgaben</Text>
+            <Text className="text-sm font-semibold text-error">{formatCurrency(totalExpenses)}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Quick Stats */}
+      <View className="flex-row gap-3">
+        <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+          <Text className="text-xs text-muted mb-1">Offene Posten</Text>
+          <Text className="text-xl font-bold text-warning">{formatCurrency(totalOpen)}</Text>
+        </View>
+        <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+          <Text className="text-xs text-muted mb-1">Überfällig</Text>
+          <Text className="text-xl font-bold text-error">{formatCurrency(totalOverdue)}</Text>
+        </View>
+      </View>
+
+      <View className="flex-row gap-3">
+        <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+          <Text className="text-xs text-muted mb-1">MwSt-Schuld</Text>
+          <Text className="text-xl font-bold text-foreground">{formatCurrency(vatOwed)}</Text>
+        </View>
+        <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+          <Text className="text-xs text-muted mb-1">Abzugsfähig</Text>
+          <Text className="text-xl font-bold text-primary">{formatCurrency(deductibleExpenses)}</Text>
+        </View>
+      </View>
+
+      {/* Ausgaben nach Kategorie */}
+      {expensesByCategory.length > 0 && (
+        <View className="bg-surface rounded-xl p-4 border border-border">
+          <Text className="text-sm font-bold text-foreground mb-3">Ausgaben nach Kategorie</Text>
+          {expensesByCategory.map((cat) => (
+            <View key={cat.category} className="flex-row items-center justify-between py-2 border-b border-border">
+              <View className="flex-row items-center gap-2 flex-1">
+                <IconSymbol name={getCategoryIcon(cat.category) as any} size={16} color={colors.primary} />
+                <Text className="text-sm text-foreground" numberOfLines={1}>{cat.label}</Text>
+              </View>
+              <Text className="text-sm font-semibold text-foreground">{formatCurrency(cat.amount)}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+
+  const renderInvoices = () => (
+    <View>
+      {loadingInvoices ? (
+        <View className="flex-1 items-center justify-center py-12">
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : invoices && invoices.length > 0 ? (
+        <View className="gap-3">
+          <TouchableOpacity
+            className="bg-primary py-3 rounded-lg flex-row items-center justify-center mb-2"
+            activeOpacity={0.8}
+            onPress={() => setShowInvoiceModal(true)}
+          >
+            <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
+            <Text className="text-background font-semibold ml-2">Neue Rechnung</Text>
+          </TouchableOpacity>
+
+          {invoices.map((invoice: any) => {
+            const customerName = invoice.customer?.company_name ||
+              `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() ||
+              "Unbekannt";
+            return (
+              <TouchableOpacity
+                key={invoice.id}
+                className="bg-surface rounded-xl p-4 border border-border"
+                activeOpacity={0.7}
+                onPress={() => expoRouter.push(`/invoice/${invoice.id}` as any)}
+              >
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-base font-bold text-foreground">
+                    {invoice.invoice_number}
+                  </Text>
+                  <View className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
+                    <Text className="text-xs font-semibold text-white">
+                      {getStatusLabel(invoice.status)}
+                    </Text>
+                  </View>
+                </View>
+                <Text className="text-sm text-foreground mb-1">{customerName}</Text>
+                <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-border">
+                  <Text className="text-xs text-muted">
+                    {formatDate(invoice.invoice_date)} · Fällig: {formatDate(invoice.due_date)}
+                  </Text>
+                  <Text className="text-base font-bold text-primary">
+                    {formatCurrency(getInvoiceTotal(invoice))}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : (
+        <View className="flex-1 items-center justify-center py-12">
+          <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
+          <Text className="text-lg text-muted mt-4 mb-2">Keine Rechnungen</Text>
+          <TouchableOpacity className="bg-primary px-6 py-3 rounded-lg" activeOpacity={0.8} onPress={() => setShowInvoiceModal(true)}>
+            <Text className="text-background font-semibold">Rechnung erstellen</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderExpenses = () => (
+    <View>
+      {loadingExpenses ? (
+        <View className="flex-1 items-center justify-center py-12">
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        <View className="gap-3">
+          <TouchableOpacity
+            className="bg-primary py-3 rounded-lg flex-row items-center justify-center mb-2"
+            activeOpacity={0.8}
+            onPress={() => { setEditingExpense(null); setShowExpenseModal(true); }}
+          >
+            <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
+            <Text className="text-background font-semibold ml-2">Neue Ausgabe</Text>
+          </TouchableOpacity>
+
+          {yearExpenses.length > 0 ? (
+            <>
+              {/* Summe */}
+              <View className="bg-surface rounded-xl p-4 border border-border flex-row justify-between items-center">
+                <Text className="text-sm text-muted">Total Ausgaben ({selectedYear})</Text>
+                <Text className="text-lg font-bold text-error">{formatCurrency(totalExpenses)}</Text>
+              </View>
+
+              {renderYearSelector()}
+
+              {yearExpenses.map((expense: any) => (
+                <TouchableOpacity
+                  key={expense.id}
+                  className="bg-surface rounded-xl p-4 border border-border"
+                  activeOpacity={0.7}
+                  onPress={() => { setEditingExpense(expense); setShowExpenseModal(true); }}
+                  onLongPress={() => handleDeleteExpense(expense)}
+                >
+                  <View className="flex-row items-center justify-between mb-2">
+                    <View className="flex-row items-center gap-2 flex-1">
+                      <View className="w-8 h-8 rounded-lg bg-error/20 items-center justify-center">
+                        <IconSymbol name={getCategoryIcon(expense.category) as any} size={14} color={colors.error || "#ef4444"} />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                          {expense.description}
+                        </Text>
+                        <Text className="text-xs text-muted">
+                          {Data.EXPENSE_CATEGORIES.find((c) => c.value === expense.category)?.label || expense.category}
+                          {expense.supplier ? ` · ${expense.supplier}` : ""}
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="items-end">
+                      <Text className="text-base font-bold text-error">
+                        -{formatCurrency(expense.amount)}
+                      </Text>
+                      <Text className="text-xs text-muted">{formatDate(expense.expense_date)}</Text>
+                    </View>
+                  </View>
+                  {expense.tax_amount > 0 && (
+                    <Text className="text-xs text-muted mt-1">
+                      Vorsteuer: {formatCurrency(expense.tax_amount)} ({expense.tax_rate}%)
+                      {expense.is_deductible ? " · Abzugsfähig" : ""}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </>
+          ) : (
+            <View className="items-center justify-center py-12">
+              <IconSymbol name="cart.fill" size={48} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4 mb-2">Keine Ausgaben</Text>
+              <Text className="text-sm text-muted text-center mb-4">
+                Erfassen Sie Geschäftsausgaben für die Steuererklärung
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+
+  const renderVat = () => (
+    <View className="gap-4">
+      {renderYearSelector()}
+
+      {/* MwSt Zusammenfassung */}
+      <View className="bg-surface rounded-xl p-5 border border-border">
+        <Text className="text-base font-bold text-foreground mb-4">MwSt-Abrechnung {selectedYear}</Text>
+
+        <View className="flex-row justify-between py-3 border-b border-border">
+          <Text className="text-sm text-foreground">Eingenommene MwSt (Umsatzsteuer)</Text>
+          <Text className="text-sm font-semibold text-foreground">{formatCurrency(vatCollected)}</Text>
+        </View>
+        <View className="flex-row justify-between py-3 border-b border-border">
+          <Text className="text-sm text-foreground">Bezahlte Vorsteuer</Text>
+          <Text className="text-sm font-semibold text-foreground">-{formatCurrency(vatPaid)}</Text>
+        </View>
+        <View className="flex-row justify-between py-3">
+          <Text className="text-sm font-bold text-foreground">MwSt-Schuld (Zahllast)</Text>
+          <Text className="text-base font-bold" style={{ color: vatOwed > 0 ? "#ef4444" : "#22c55e" }}>
+            {formatCurrency(vatOwed)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Info Box */}
+      <View className="bg-surface rounded-xl p-4 border border-border">
+        <Text className="text-xs text-muted leading-5">
+          ℹ️ Schweizer Einzelfirmen unter CHF 100'000 Jahresumsatz sind von der MwSt befreit.
+          Aktueller Normalsatz: 8.1%, Reduzierter Satz: 2.6%, Sondersatz: 3.8%.
+          {"\n\n"}Die MwSt-Abrechnung erfolgt quartalsweise oder halbjährlich an die ESTV.
+        </Text>
+      </View>
+
+      {/* Quartale */}
+      <Text className="text-base font-bold text-foreground">Quartalsübersicht</Text>
+      {vatByQuarter.map((q) => (
+        <View key={q.label} className="bg-surface rounded-xl p-4 border border-border">
+          <Text className="text-sm font-bold text-foreground mb-3">{q.label}</Text>
+          <View className="flex-row justify-between mb-1">
+            <Text className="text-xs text-muted">Umsatzsteuer</Text>
+            <Text className="text-xs text-foreground">{formatCurrency(q.collected)}</Text>
+          </View>
+          <View className="flex-row justify-between mb-1">
+            <Text className="text-xs text-muted">Vorsteuer</Text>
+            <Text className="text-xs text-foreground">-{formatCurrency(q.paid)}</Text>
+          </View>
+          <View className="flex-row justify-between pt-2 border-t border-border mt-1">
+            <Text className="text-xs font-semibold text-foreground">Zahllast</Text>
+            <Text className="text-xs font-bold" style={{ color: q.owed > 0 ? "#ef4444" : "#22c55e" }}>
+              {formatCurrency(q.owed)}
+            </Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+
+  const renderAnnual = () => {
+    const allRevenue = yearInvoices.reduce((s: number, i: any) => s + getInvoiceTotal(i), 0);
+    const paidRevenue = totalRevenue;
+
+    const summaryText = [
+      `JAHRESABSCHLUSS ${selectedYear}`,
+      `Gross ICT — Einzelfirma, Kanton Luzern`,
+      ``,
+      `EINNAHMEN`,
+      `Rechnungen total: ${formatCurrency(allRevenue)}`,
+      `Davon bezahlt: ${formatCurrency(paidRevenue)}`,
+      `Davon offen: ${formatCurrency(totalOpen)}`,
+      ``,
+      `AUSGABEN`,
+      ...expensesByCategory.map((c) => `${c.label}: ${formatCurrency(c.amount)}`),
+      `Total Ausgaben: ${formatCurrency(totalExpenses)}`,
+      `Davon abzugsfähig: ${formatCurrency(deductibleExpenses)}`,
+      ``,
+      `ERGEBNIS`,
+      `Gewinn vor Steuern: ${formatCurrency(profit)}`,
+      ``,
+      `MWST`,
+      `Umsatzsteuer: ${formatCurrency(vatCollected)}`,
+      `Vorsteuer: ${formatCurrency(vatPaid)}`,
+      `MwSt-Schuld: ${formatCurrency(vatOwed)}`,
+    ].join("\n");
+
+    return (
+      <View className="gap-4">
+        {renderYearSelector()}
+
+        <View className="bg-surface rounded-xl p-5 border border-border">
+          <Text className="text-base font-bold text-foreground mb-1">Jahresabschluss {selectedYear}</Text>
+          <Text className="text-xs text-muted mb-4">Einzelfirma · Kanton Luzern</Text>
+
+          {/* Einnahmen */}
+          <Text className="text-xs text-muted uppercase tracking-wider mb-2 mt-2">Einnahmen</Text>
+          <View className="flex-row justify-between py-2 border-b border-border">
+            <Text className="text-sm text-foreground">Rechnungen (bezahlt)</Text>
+            <Text className="text-sm font-semibold text-success">{formatCurrency(paidRevenue)}</Text>
+          </View>
+          <View className="flex-row justify-between py-2 border-b border-border">
+            <Text className="text-sm text-foreground">Offene Forderungen</Text>
+            <Text className="text-sm text-warning">{formatCurrency(totalOpen)}</Text>
+          </View>
+
+          {/* Ausgaben */}
+          <Text className="text-xs text-muted uppercase tracking-wider mb-2 mt-4">Ausgaben</Text>
+          {expensesByCategory.map((cat) => (
+            <View key={cat.category} className="flex-row justify-between py-2 border-b border-border">
+              <Text className="text-sm text-foreground">{cat.label}</Text>
+              <Text className="text-sm text-error">{formatCurrency(cat.amount)}</Text>
+            </View>
+          ))}
+          <View className="flex-row justify-between py-2 border-b border-border">
+            <Text className="text-sm font-semibold text-foreground">Total Ausgaben</Text>
+            <Text className="text-sm font-semibold text-error">{formatCurrency(totalExpenses)}</Text>
+          </View>
+
+          {/* Ergebnis */}
+          <Text className="text-xs text-muted uppercase tracking-wider mb-2 mt-4">Ergebnis</Text>
+          <View className="flex-row justify-between py-3">
+            <Text className="text-base font-bold text-foreground">Gewinn vor Steuern</Text>
+            <Text
+              className="text-base font-bold"
+              style={{ color: profit >= 0 ? "#22c55e" : "#ef4444" }}
+            >
+              {formatCurrency(profit)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Export */}
+        <TouchableOpacity
+          className="bg-primary py-3 rounded-lg flex-row items-center justify-center"
+          activeOpacity={0.8}
+          onPress={() => {
+            try {
+              const { Clipboard } = require("react-native");
+              if (Clipboard?.setString) {
+                Clipboard.setString(summaryText);
+                Alert.alert("Kopiert", "Jahresabschluss in die Zwischenablage kopiert.");
+              } else {
+                Alert.alert("Export", summaryText);
+              }
+            } catch {
+              Alert.alert("Export", summaryText);
+            }
+          }}
+        >
+          <IconSymbol name="doc.on.doc.fill" size={18} color="#FFFFFF" />
+          <Text className="text-background font-semibold ml-2">Für Steuerberater kopieren</Text>
+        </TouchableOpacity>
+
+        <View className="bg-surface rounded-xl p-4 border border-border">
+          <Text className="text-xs text-muted leading-5">
+            ℹ️ Die Gewinnsteuer für Einzelfirmen im Kanton Luzern wird zusammen mit der persönlichen
+            Einkommenssteuer veranlagt. Der Gewinn fliesst in Ihr steuerbares Einkommen ein.
+            Abzugsfähige Geschäftsausgaben reduzieren den steuerbaren Gewinn.
+          </Text>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <ScreenContainer>
@@ -89,155 +579,54 @@ export default function AccountingScreen() {
             <TouchableOpacity
               className="bg-primary w-12 h-12 rounded-full items-center justify-center"
               activeOpacity={0.8}
-              onPress={() => setShowInvoiceModal(true)}
+              onPress={() => {
+                if (activeTab === "expenses") {
+                  setEditingExpense(null);
+                  setShowExpenseModal(true);
+                } else {
+                  setShowInvoiceModal(true);
+                }
+              }}
             >
               <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
             </TouchableOpacity>
           </View>
 
           {/* Tab Navigation */}
-          <View className="flex-row gap-2 mb-4">
-            {(["overview", "invoices", "expenses"] as const).map((tab) => (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" contentContainerStyle={{ gap: 8 }}>
+            {TABS.map((tab) => (
               <TouchableOpacity
-                key={tab}
-                className={`flex-1 py-3 rounded-lg ${activeTab === tab ? "bg-primary" : "bg-surface border border-border"
-                  }`}
-                onPress={() => setActiveTab(tab)}
+                key={tab.key}
+                className={`py-2 px-4 rounded-lg flex-row items-center gap-2 ${activeTab === tab.key ? "bg-primary" : "bg-surface border border-border"}`}
+                onPress={() => setActiveTab(tab.key)}
               >
-                <Text
-                  className={`text-center font-semibold ${activeTab === tab ? "text-background" : "text-foreground"
-                    }`}
-                >
-                  {tab === "overview" ? "Übersicht" : tab === "invoices" ? "Rechnungen" : "Ausgaben"}
+                <IconSymbol name={tab.icon as any} size={14} color={activeTab === tab.key ? "#111" : colors.muted} />
+                <Text className={`text-sm font-semibold ${activeTab === tab.key ? "text-background" : "text-foreground"}`}>
+                  {tab.label}
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
 
-          {/* Übersicht */}
-          {activeTab === "overview" && (
-            <View className="gap-4">
-              <View className="flex-row gap-3">
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-sm text-muted mb-1">Umsatz (gesamt)</Text>
-                  <Text className="text-2xl font-bold text-success">{formatCurrency(totalAll)}</Text>
-                </View>
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-sm text-muted mb-1">Bezahlt</Text>
-                  <Text className="text-2xl font-bold text-primary">{formatCurrency(totalPaid)}</Text>
-                </View>
-              </View>
-
-              <View className="flex-row gap-3">
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-sm text-muted mb-1">Offene Posten</Text>
-                  <Text className="text-2xl font-bold text-warning">{formatCurrency(totalOpen)}</Text>
-                </View>
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-sm text-muted mb-1">Rechnungen</Text>
-                  <Text className="text-2xl font-bold text-foreground">{invoices?.length || 0}</Text>
-                </View>
-              </View>
-
-
-            </View>
-          )}
-
-          {/* Rechnungen */}
-          {activeTab === "invoices" && (
-            <View>
-              {isLoading ? (
-                <View className="flex-1 items-center justify-center py-12">
-                  <ActivityIndicator size="large" color={colors.primary} />
-                </View>
-              ) : invoices && invoices.length > 0 ? (
-                <View className="gap-3">
-                  <TouchableOpacity
-                    className="bg-primary py-3 rounded-lg flex-row items-center justify-center mb-2"
-                    activeOpacity={0.8}
-                    onPress={() => setShowInvoiceModal(true)}
-                  >
-                    <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
-                    <Text className="text-background font-semibold ml-2">Neue Rechnung</Text>
-                  </TouchableOpacity>
-
-                  {invoices.map((invoice: any) => {
-                    const customerName = invoice.customer?.company_name ||
-                      `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() ||
-                      "Unbekannt";
-                    return (
-                      <TouchableOpacity
-                        key={invoice.id}
-                        className="bg-surface rounded-xl p-4 border border-border"
-                        activeOpacity={0.7}
-                        onPress={() => expoRouter.push(`/invoice/${invoice.id}` as any)}
-                      >
-                        <View className="flex-row items-center justify-between mb-2">
-                          <Text className="text-base font-bold text-foreground">
-                            {invoice.invoice_number}
-                          </Text>
-                          <View className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
-                            <Text className="text-xs font-semibold text-white">
-                              {getStatusLabel(invoice.status)}
-                            </Text>
-                          </View>
-                        </View>
-                        <Text className="text-sm text-foreground mb-1">{customerName}</Text>
-                        <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-border">
-                          <Text className="text-xs text-muted">
-                            {formatDate(invoice.invoice_date)} · Fällig: {formatDate(invoice.due_date)}
-                          </Text>
-                          <Text className="text-base font-bold text-primary">
-                            {formatCurrency(getInvoiceTotal(invoice))}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ) : (
-                <View className="flex-1 items-center justify-center py-12">
-                  <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
-                  <Text className="text-lg text-muted mt-4 mb-2">Keine Rechnungen</Text>
-                  <Text className="text-sm text-muted text-center mb-6">
-                    Erstellen Sie Ihre erste Rechnung
-                  </Text>
-                  <TouchableOpacity
-                    className="bg-primary px-6 py-3 rounded-lg"
-                    activeOpacity={0.8}
-                    onPress={() => setShowInvoiceModal(true)}
-                  >
-                    <Text className="text-background font-semibold">Rechnung erstellen</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Ausgaben */}
-          {activeTab === "expenses" && (
-            <View className="flex-1 items-center justify-center py-12">
-              <IconSymbol name="chart.bar.fill" size={48} color={colors.muted} />
-              <Text className="text-lg text-muted mt-4 mb-2">Keine Ausgaben</Text>
-              <Text className="text-sm text-muted text-center mb-6">
-                Erfassen Sie Ihre erste Ausgabe
-              </Text>
-              <TouchableOpacity
-                className="bg-primary px-6 py-3 rounded-lg"
-                activeOpacity={0.8}
-              >
-                <Text className="text-background font-semibold">Ausgabe erfassen</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          {/* Content */}
+          {activeTab === "overview" && renderOverview()}
+          {activeTab === "invoices" && renderInvoices()}
+          {activeTab === "expenses" && renderExpenses()}
+          {activeTab === "vat" && renderVat()}
+          {activeTab === "annual" && renderAnnual()}
         </View>
       </ScrollView>
 
-      {/* Invoice Form Modal */}
       <InvoiceFormModal
         visible={showInvoiceModal}
         onClose={() => setShowInvoiceModal(false)}
-        onSuccess={() => refetch()}
+        onSuccess={() => refetchInvoices()}
+      />
+      <ExpenseFormModal
+        visible={showExpenseModal}
+        onClose={() => { setShowExpenseModal(false); setEditingExpense(null); }}
+        onSuccess={() => refetchExpenses()}
+        expense={editingExpense}
       />
     </ScreenContainer>
   );

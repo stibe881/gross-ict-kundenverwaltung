@@ -1402,3 +1402,90 @@ export async function addLeadActivity(activity: {
     if (error) throw new Error(error.message);
     return data;
 }
+
+// ==================== AUSGABEN ====================
+
+export const EXPENSE_CATEGORIES = [
+    { value: "material", label: "Material & Waren" },
+    { value: "software", label: "Lizenzen & Software" },
+    { value: "office", label: "Büro & Miete" },
+    { value: "vehicle", label: "Fahrzeug & Transport" },
+    { value: "insurance", label: "Versicherungen" },
+    { value: "telecom", label: "Telefon & Internet" },
+    { value: "travel", label: "Reisen & Spesen" },
+    { value: "education", label: "Weiterbildung" },
+    { value: "marketing", label: "Werbung & Marketing" },
+    { value: "accounting", label: "Buchhaltung & Beratung" },
+    { value: "equipment", label: "Geräte & Werkzeug" },
+    { value: "other", label: "Sonstiges" },
+] as const;
+
+export const PAYMENT_METHODS = [
+    { value: "bank", label: "Banküberweisung" },
+    { value: "card", label: "Kreditkarte" },
+    { value: "cash", label: "Bargeld" },
+    { value: "twint", label: "TWINT" },
+    { value: "other", label: "Sonstiges" },
+] as const;
+
+export async function getAllExpenses() {
+    const { data, error } = await supabase
+        .from("expenses")
+        .select("*")
+        .order("expense_date", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createExpense(expense: any) {
+    const taxAmount = expense.tax_rate
+        ? (expense.amount * expense.tax_rate) / 100
+        : 0;
+
+    const { date, ...rest } = expense;
+    const { data, error } = await supabase
+        .from("expenses")
+        .insert({
+            ...rest,
+            expense_date: date,
+            tax_amount: taxAmount,
+        })
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateExpense(id: string, expense: any) {
+    const taxAmount = expense.tax_rate
+        ? (expense.amount * expense.tax_rate) / 100
+        : 0;
+
+    const { date, ...rest } = expense;
+    const { data, error } = await supabase
+        .from("expenses")
+        .update({
+            ...rest,
+            expense_date: date,
+            tax_amount: taxAmount,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteExpense(id: string) {
+    const { error } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("id", id);
+
+    if (error) throw new Error(error.message);
+}
+
