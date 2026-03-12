@@ -143,14 +143,34 @@ export async function deleteCustomer(id: string) {
 // ── Customer Logo ──
 
 export async function uploadCustomerLogo(customerId: string, uri: string): Promise<string> {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const ext = uri.split(".").pop()?.split("?")[0] || "png";
+    let body: Blob | ArrayBuffer;
+    let contentType = "image/png";
+
+    if (uri.startsWith("data:")) {
+        // Web: expo-image-picker returns data URIs — convert base64 to ArrayBuffer
+        const [header, base64Data] = uri.split(",");
+        const mimeMatch = header.match(/data:([^;]+)/);
+        if (mimeMatch) contentType = mimeMatch[1];
+
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        body = bytes.buffer;
+    } else {
+        // Native: normal file URI — fetch as blob
+        const response = await fetch(uri);
+        body = await response.blob();
+        contentType = (body as Blob).type || "image/png";
+    }
+
+    const ext = contentType.split("/")[1] || "png";
     const path = `${customerId}/logo_${Date.now()}.${ext}`;
 
     const { error } = await supabase.storage
         .from("customer-logos")
-        .upload(path, blob, { contentType: blob.type || "image/png", upsert: true });
+        .upload(path, body, { contentType, upsert: true });
     if (error) throw new Error(error.message);
 
     const { data: publicUrlData } = supabase.storage
