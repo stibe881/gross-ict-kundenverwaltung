@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS kb_articles (
   title TEXT NOT NULL,
   content TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+  visibility TEXT NOT NULL DEFAULT 'internal' CHECK (visibility IN ('public', 'internal')),
   tags TEXT[] DEFAULT '{}',
   is_pinned BOOLEAN DEFAULT false,
   view_count INTEGER DEFAULT 0,
@@ -44,6 +45,7 @@ CREATE TABLE IF NOT EXISTS kb_article_attachments (
 
 CREATE INDEX IF NOT EXISTS idx_kb_articles_category ON kb_articles(category_id);
 CREATE INDEX IF NOT EXISTS idx_kb_articles_status ON kb_articles(status);
+CREATE INDEX IF NOT EXISTS idx_kb_articles_visibility ON kb_articles(visibility);
 CREATE INDEX IF NOT EXISTS idx_kb_articles_pinned ON kb_articles(is_pinned) WHERE is_pinned = true;
 CREATE INDEX IF NOT EXISTS idx_kb_articles_search ON kb_articles USING gin(search_vector);
 CREATE INDEX IF NOT EXISTS idx_kb_articles_tags ON kb_articles USING gin(tags);

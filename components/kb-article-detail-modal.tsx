@@ -173,6 +173,19 @@ export function KbArticleDetailModal({ article: initialArticle, onClose }: Props
                                             </Text>
                                         </View>
                                     )}
+                                    <View
+                                        className="px-2 py-0.5 rounded-full flex-row items-center gap-1"
+                                        style={{ backgroundColor: (article.visibility === "public" ? colors.success : colors.muted) + "20" }}
+                                    >
+                                        <IconSymbol
+                                            name={article.visibility === "public" ? "globe" : "lock.fill"}
+                                            size={10}
+                                            color={article.visibility === "public" ? colors.success : colors.muted}
+                                        />
+                                        <Text className="text-[10px] font-semibold" style={{ color: article.visibility === "public" ? colors.success : colors.muted }}>
+                                            {article.visibility === "public" ? "Öffentlich" : "Intern"}
+                                        </Text>
+                                    </View>
                                 </View>
                                 <Text className="text-xl font-bold text-foreground" numberOfLines={2}>
                                     {article.title}

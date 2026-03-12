@@ -78,6 +78,11 @@ export default function KnowledgeBaseScreen() {
                             {item.is_pinned && (
                                 <IconSymbol name="pin.fill" size={12} color={colors.primary} />
                             )}
+                            <IconSymbol
+                                name={item.visibility === "public" ? "globe" : "lock.fill"}
+                                size={11}
+                                color={item.visibility === "public" ? colors.success : colors.muted}
+                            />
                             <Text className="text-base font-semibold text-foreground flex-1" numberOfLines={2}>
                                 {item.title}
                             </Text>

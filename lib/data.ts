@@ -1851,6 +1851,7 @@ export async function deleteKbCategory(id: string) {
 export async function getKbArticles(filters?: {
     category_id?: string;
     status?: string;
+    visibility?: string;
     tag?: string;
     search?: string;
     sort?: "newest" | "popular" | "alphabetical";
@@ -1864,6 +1865,9 @@ export async function getKbArticles(filters?: {
     }
     if (filters?.status) {
         query = query.eq("status", filters.status);
+    }
+    if (filters?.visibility) {
+        query = query.eq("visibility", filters.visibility);
     }
     if (filters?.tag) {
         query = query.contains("tags", [filters.tag]);
@@ -1921,6 +1925,7 @@ export async function createKbArticle(article: {
     content?: string;
     category_id?: string;
     status?: string;
+    visibility?: string;
     tags?: string[];
     is_pinned?: boolean;
     author_name?: string;

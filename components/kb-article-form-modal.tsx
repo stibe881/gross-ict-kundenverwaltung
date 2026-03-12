@@ -32,6 +32,7 @@ export function KbArticleFormModal({ visible, onClose, onSuccess, article }: Pro
         content: "",
         category_id: "",
         status: "draft" as string,
+        visibility: "internal" as string,
         tags: "",
         is_pinned: false,
     });
@@ -50,6 +51,7 @@ export function KbArticleFormModal({ visible, onClose, onSuccess, article }: Pro
                     content: article.content || "",
                     category_id: article.category_id || "",
                     status: article.status || "draft",
+                    visibility: article.visibility || "internal",
                     tags: (article.tags || []).join(", "),
                     is_pinned: article.is_pinned || false,
                 });
@@ -59,6 +61,7 @@ export function KbArticleFormModal({ visible, onClose, onSuccess, article }: Pro
                     content: "",
                     category_id: "",
                     status: "draft",
+                    visibility: "internal",
                     tags: "",
                     is_pinned: false,
                 });
@@ -79,6 +82,7 @@ export function KbArticleFormModal({ visible, onClose, onSuccess, article }: Pro
                 content: formData.content,
                 category_id: formData.category_id || undefined,
                 status: formData.status,
+                visibility: formData.visibility,
                 tags: tagsArr,
                 is_pinned: formData.is_pinned,
             };
@@ -289,6 +293,55 @@ export function KbArticleFormModal({ visible, onClose, onSuccess, article }: Pro
                                                 style={{ color: formData.status === opt.key ? "#FFF" : opt.color }}
                                             >
                                                 {opt.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+
+                            {/* Sichtbarkeit */}
+                            <View>
+                                <Text className="text-sm font-semibold text-foreground mb-1">Sichtbarkeit</Text>
+                                <View className="flex-row gap-2">
+                                    {[
+                                        { key: "internal", label: "Intern", icon: "lock.fill", desc: "Nur Mitarbeitende" },
+                                        { key: "public", label: "Öffentlich", icon: "globe", desc: "Für alle sichtbar" },
+                                    ].map((opt) => (
+                                        <TouchableOpacity
+                                            key={opt.key}
+                                            className="flex-1 rounded-lg px-3 py-3"
+                                            style={{
+                                                backgroundColor: formData.visibility === opt.key
+                                                    ? (opt.key === "public" ? colors.success : colors.primary) + "20"
+                                                    : colors.surface,
+                                                borderWidth: 1,
+                                                borderColor: formData.visibility === opt.key
+                                                    ? (opt.key === "public" ? colors.success : colors.primary)
+                                                    : colors.border,
+                                            }}
+                                            onPress={() => setFormData({ ...formData, visibility: opt.key })}
+                                        >
+                                            <View className="flex-row items-center gap-2 mb-1">
+                                                <IconSymbol
+                                                    name={opt.icon as any}
+                                                    size={14}
+                                                    color={formData.visibility === opt.key
+                                                        ? (opt.key === "public" ? colors.success : colors.primary)
+                                                        : colors.muted}
+                                                />
+                                                <Text
+                                                    className="text-sm font-semibold"
+                                                    style={{
+                                                        color: formData.visibility === opt.key
+                                                            ? (opt.key === "public" ? colors.success : colors.primary)
+                                                            : colors.foreground,
+                                                    }}
+                                                >
+                                                    {opt.label}
+                                                </Text>
+                                            </View>
+                                            <Text className="text-[10px]" style={{ color: colors.muted }}>
+                                                {opt.desc}
                                             </Text>
                                         </TouchableOpacity>
                                     ))}
