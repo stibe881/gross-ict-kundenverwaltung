@@ -8,6 +8,7 @@ import {
   Modal,
   Linking,
   Image,
+  TextInput,
 } from "react-native";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { useLocalSearchParams, router } from "expo-router";
@@ -35,6 +36,8 @@ export default function CustomerDetailScreen() {
   const [editingContract, setEditingContract] = useState<any>(null);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContact, setNewContact] = useState({ first_name: "", last_name: "", email: "", phone: "", position: "" });
 
   // ── Data ──
   const { data: customer, isLoading: loading } = useQuery({
@@ -93,6 +96,26 @@ export default function CustomerDetailScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets", "customer", id] });
       showAlert("Erfolg", "Ticket gelöscht");
+    },
+    onError: (error: any) => showAlert("Fehler", error.message),
+  });
+
+  const createContactMutation = useMutation({
+    mutationFn: (contact: any) => Data.createCustomerContact({ customer_id: id, ...contact }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer-contacts", id] });
+      setShowAddContact(false);
+      setNewContact({ first_name: "", last_name: "", email: "", phone: "", position: "" });
+      showAlert("Erfolg", "Kontakt hinzugefügt");
+    },
+    onError: (error: any) => showAlert("Fehler", error.message),
+  });
+
+  const deleteContactMutation = useMutation({
+    mutationFn: (contactId: string) => Data.deleteCustomerContact(contactId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer-contacts", id] });
+      showAlert("Erfolg", "Kontakt gelöscht");
     },
     onError: (error: any) => showAlert("Fehler", error.message),
   });
@@ -384,7 +407,6 @@ export default function CustomerDetailScreen() {
 
       case "kontakte": {
         const allContacts = [
-          // Legacy contact from customer record
           ...(contactPerson ? [{
             id: "legacy",
             first_name: customer?.first_name || "",
@@ -394,68 +416,180 @@ export default function CustomerDetailScreen() {
             position: "Hauptkontakt",
             is_primary: true,
           }] : []),
-          // Contacts from customer_contacts table
           ...customerContacts,
         ];
-        if (allContacts.length === 0) return renderEmpty("Keine Kontakte erfasst", "person.2.fill");
+
+        const addContactForm = showAddContact ? (
+          <View className="bg-surface rounded-xl border border-primary/30 p-4 mb-3">
+            <Text className="text-sm font-bold text-foreground mb-3">Neuer Kontakt</Text>
+            <View className="gap-2">
+              <View className="flex-row gap-2">
+                <TextInput
+                  className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                  placeholder="Vorname" placeholderTextColor={colors.muted}
+                  value={newContact.first_name}
+                  onChangeText={(t) => setNewContact({ ...newContact, first_name: t })}
+                />
+                <TextInput
+                  className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                  placeholder="Nachname" placeholderTextColor={colors.muted}
+                  value={newContact.last_name}
+                  onChangeText={(t) => setNewContact({ ...newContact, last_name: t })}
+                />
+              </View>
+              <TextInput
+                className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                placeholder="Position (z.B. CEO)" placeholderTextColor={colors.muted}
+                value={newContact.position}
+                onChangeText={(t) => setNewContact({ ...newContact, position: t })}
+              />
+              <TextInput
+                className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                placeholder="E-Mail" placeholderTextColor={colors.muted}
+                keyboardType="email-address" autoCapitalize="none"
+                value={newContact.email}
+                onChangeText={(t) => setNewContact({ ...newContact, email: t })}
+              />
+              <TextInput
+                className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                placeholder="Telefon" placeholderTextColor={colors.muted}
+                keyboardType="phone-pad"
+                value={newContact.phone}
+                onChangeText={(t) => setNewContact({ ...newContact, phone: t })}
+              />
+              <View className="flex-row gap-2 mt-1">
+                <TouchableOpacity
+                  className="flex-1 bg-surface border border-border py-2 rounded-lg"
+                  onPress={() => { setShowAddContact(false); setNewContact({ first_name: "", last_name: "", email: "", phone: "", position: "" }); }}
+                >
+                  <Text className="text-foreground font-semibold text-center text-sm">Abbrechen</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-1 bg-primary py-2 rounded-lg"
+                  onPress={() => {
+                    if (!newContact.first_name && !newContact.last_name) {
+                      showAlert("Fehler", "Bitte mindestens einen Namen eingeben");
+                      return;
+                    }
+                    createContactMutation.mutate(newContact);
+                  }}
+                >
+                  {createContactMutation.isPending ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <Text className="font-semibold text-center text-sm" style={{ color: "#111" }}>Speichern</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : null;
+
+        const addButton = (
+          <TouchableOpacity
+            className="flex-row items-center justify-center gap-1.5 bg-primary/10 border border-primary/30 py-2.5 rounded-xl mb-3"
+            onPress={() => setShowAddContact(true)}
+            activeOpacity={0.7}
+          >
+            <IconSymbol name="plus.circle.fill" size={16} color={colors.primary} />
+            <Text className="text-sm font-semibold" style={{ color: colors.primary }}>Kontakt hinzufügen</Text>
+          </TouchableOpacity>
+        );
+
+        if (allContacts.length === 0 && !showAddContact) {
+          return (
+            <View>
+              {addButton}
+              {renderEmpty("Keine Kontakte erfasst", "person.2.fill")}
+            </View>
+          );
+        }
+
         if (!isWide) {
           return (
-            <View className="gap-3">
-              {allContacts.map((contact: any, idx: number) => (
-                <View key={contact.id || idx} className="bg-surface rounded-xl border border-border p-4">
-                  <View className="flex-row items-center gap-3 mb-2">
-                    <View className="w-10 h-10 rounded-full items-center justify-center" style={{ backgroundColor: colors.primary + "20" }}>
-                      <Text className="text-sm font-bold" style={{ color: colors.primary }}>
-                        {(contact.first_name || contact.last_name || "?").charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-base font-semibold text-foreground">
-                        {`${contact.first_name || ""} ${contact.last_name || ""}`.trim() || "—"}
-                      </Text>
-                      {contact.position && <Text className="text-xs text-muted">{contact.position}</Text>}
-                    </View>
-                    {contact.is_primary && (
-                      <View className="px-2 py-0.5 rounded" style={{ backgroundColor: colors.primary + "20" }}>
-                        <Text className="text-[10px] font-bold" style={{ color: colors.primary }}>PRIMÄR</Text>
+            <View>
+              {!showAddContact && addButton}
+              {addContactForm}
+              <View className="gap-3">
+                {allContacts.map((contact: any, idx: number) => (
+                  <View key={contact.id || idx} className="bg-surface rounded-xl border border-border p-4">
+                    <View className="flex-row items-center gap-3 mb-2">
+                      <View className="w-10 h-10 rounded-full items-center justify-center" style={{ backgroundColor: colors.primary + "20" }}>
+                        <Text className="text-sm font-bold" style={{ color: colors.primary }}>
+                          {(contact.first_name || contact.last_name || "?").charAt(0).toUpperCase()}
+                        </Text>
                       </View>
+                      <View className="flex-1">
+                        <Text className="text-base font-semibold text-foreground">
+                          {`${contact.first_name || ""} ${contact.last_name || ""}`.trim() || "—"}
+                        </Text>
+                        {contact.position && <Text className="text-xs text-muted">{contact.position}</Text>}
+                      </View>
+                      {contact.is_primary && (
+                        <View className="px-2 py-0.5 rounded" style={{ backgroundColor: colors.primary + "20" }}>
+                          <Text className="text-[10px] font-bold" style={{ color: colors.primary }}>PRIMÄR</Text>
+                        </View>
+                      )}
+                      {contact.id !== "legacy" && (
+                        <TouchableOpacity
+                          onPress={() => showConfirm("Kontakt löschen", "Diesen Kontakt wirklich löschen?", () => deleteContactMutation.mutate(contact.id), "Löschen")}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <IconSymbol name="trash.fill" size={14} color={colors.error} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    {contact.email && (
+                      <TouchableOpacity className="flex-row items-center gap-2 py-1.5" onPress={() => Linking.openURL(`mailto:${contact.email}`)}>
+                        <IconSymbol name="envelope.fill" size={14} color={colors.muted} />
+                        <Text className="text-sm text-foreground">{contact.email}</Text>
+                      </TouchableOpacity>
+                    )}
+                    {contact.phone && (
+                      <TouchableOpacity className="flex-row items-center gap-2 py-1.5" onPress={() => Linking.openURL(`tel:${contact.phone}`)}>
+                        <IconSymbol name="phone.fill" size={14} color={colors.muted} />
+                        <Text className="text-sm text-foreground">{contact.phone}</Text>
+                      </TouchableOpacity>
                     )}
                   </View>
-                  {contact.email && (
-                    <TouchableOpacity className="flex-row items-center gap-2 py-1.5" onPress={() => Linking.openURL(`mailto:${contact.email}`)}>
-                      <IconSymbol name="envelope.fill" size={14} color={colors.muted} />
-                      <Text className="text-sm text-foreground">{contact.email}</Text>
-                    </TouchableOpacity>
-                  )}
-                  {contact.phone && (
-                    <TouchableOpacity className="flex-row items-center gap-2 py-1.5" onPress={() => Linking.openURL(`tel:${contact.phone}`)}>
-                      <IconSymbol name="phone.fill" size={14} color={colors.muted} />
-                      <Text className="text-sm text-foreground">{contact.phone}</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
+                ))}
+              </View>
             </View>
           );
         }
         return (
-          <View className="bg-surface rounded-xl border border-border overflow-hidden">
-            <View className="flex-row px-4 py-3 border-b border-border">
-              <Text className="text-[10px] font-semibold text-muted uppercase flex-1">Name</Text>
-              <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 140 }}>E-Mail</Text>
-              <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 120 }}>Telefon</Text>
-              <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 120 }}>Position</Text>
-            </View>
-            {allContacts.map((contact: any, idx: number) => (
-              <View key={contact.id || idx} className="flex-row items-center px-4 py-3 border-b border-border">
-                <Text className="text-sm text-foreground flex-1">
-                  {`${contact.first_name || ""} ${contact.last_name || ""}`.trim() || "—"}
-                </Text>
-                <Text className="text-xs text-muted" style={{ width: 140 }} numberOfLines={1}>{contact.email || "—"}</Text>
-                <Text className="text-xs text-muted" style={{ width: 120 }}>{contact.phone || "—"}</Text>
-                <Text className="text-xs text-muted" style={{ width: 120 }}>{contact.position || "—"}</Text>
+          <View>
+            {!showAddContact && addButton}
+            {addContactForm}
+            <View className="bg-surface rounded-xl border border-border overflow-hidden">
+              <View className="flex-row px-4 py-3 border-b border-border">
+                <Text className="text-[10px] font-semibold text-muted uppercase flex-1">Name</Text>
+                <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 140 }}>E-Mail</Text>
+                <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 120 }}>Telefon</Text>
+                <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 120 }}>Position</Text>
+                <View style={{ width: 30 }} />
               </View>
-            ))}
+              {allContacts.map((contact: any, idx: number) => (
+                <View key={contact.id || idx} className="flex-row items-center px-4 py-3 border-b border-border">
+                  <Text className="text-sm text-foreground flex-1">
+                    {`${contact.first_name || ""} ${contact.last_name || ""}`.trim() || "—"}
+                  </Text>
+                  <Text className="text-xs text-muted" style={{ width: 140 }} numberOfLines={1}>{contact.email || "—"}</Text>
+                  <Text className="text-xs text-muted" style={{ width: 120 }}>{contact.phone || "—"}</Text>
+                  <Text className="text-xs text-muted" style={{ width: 120 }}>{contact.position || "—"}</Text>
+                  <View style={{ width: 30, alignItems: "center" }}>
+                    {contact.id !== "legacy" && (
+                      <TouchableOpacity
+                        onPress={() => showConfirm("Kontakt löschen", "Diesen Kontakt wirklich löschen?", () => deleteContactMutation.mutate(contact.id), "Löschen")}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <IconSymbol name="trash.fill" size={14} color={colors.error} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
         );
       }
@@ -500,6 +634,24 @@ export default function CustomerDetailScreen() {
 
               {/* ── Header Card ── */}
               <View className="bg-surface rounded-xl border border-border p-5 mb-4">
+                {/* Edit / Delete actions in top right */}
+                <View className="flex-row items-center justify-end gap-3 mb-3">
+                  <TouchableOpacity
+                    onPress={() => setShowEditModal(true)}
+                    activeOpacity={0.7}
+                    className="flex-row items-center gap-1.5 bg-primary/10 px-3 py-1.5 rounded-lg"
+                  >
+                    <IconSymbol name="pencil" size={14} color={colors.primary} />
+                    <Text className="text-xs font-semibold" style={{ color: colors.primary }}>Bearbeiten</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleDelete}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <IconSymbol name="trash.fill" size={16} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
                 <View style={{ flexDirection: isWide ? "row" : "column", alignItems: isWide ? "center" : "stretch" }}>
                   {/* Avatar + Info */}
                   <View className="flex-row items-center flex-1">
@@ -640,23 +792,6 @@ export default function CustomerDetailScreen() {
                   onPress={() => setEditingContract({ customer_id: id })}
                 >
                   <Text className="text-sm font-semibold text-foreground">+ Neuer Vertrag</Text>
-                </TouchableOpacity>
-
-                {isWide && <View className="flex-1" />}
-                <TouchableOpacity
-                  onPress={() => setShowEditModal(true)}
-                  activeOpacity={0.6}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  className="mr-3"
-                >
-                  <IconSymbol name="pencil" size={18} color={colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleDelete}
-                  activeOpacity={0.6}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <IconSymbol name="trash.fill" size={18} color={colors.error} />
                 </TouchableOpacity>
               </View>
 
