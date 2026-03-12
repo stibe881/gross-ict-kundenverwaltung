@@ -280,7 +280,7 @@ export function CustomerFormModal({
                     <Image
                       source={{ uri: logoUri }}
                       style={{ width: 64, height: 64, borderRadius: 12 }}
-                      resizeMode="cover"
+                      resizeMode="contain"
                     />
                   ) : (
                     <View

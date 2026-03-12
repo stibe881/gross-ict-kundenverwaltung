@@ -660,7 +660,7 @@ export default function CustomerDetailScreen() {
                       <Image
                         source={{ uri: customer.logo_url }}
                         style={{ width: 56, height: 56, borderRadius: 12, marginRight: 16 }}
-                        resizeMode="cover"
+                        resizeMode="contain"
                       />
                     ) : (
                       <View
