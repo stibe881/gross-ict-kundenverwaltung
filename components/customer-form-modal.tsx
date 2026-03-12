@@ -110,11 +110,20 @@ export function CustomerFormModal({
       }
 
       // Upload logo if changed
-      if (logoChanged && logoUri && result?.id) {
-        try {
-          await Data.uploadCustomerLogo(result.id, logoUri);
-        } catch (e: any) {
-          console.warn("Logo upload failed:", e.message);
+      if (logoChanged && result?.id) {
+        if (logoUri) {
+          try {
+            await Data.uploadCustomerLogo(result.id, logoUri);
+          } catch (e: any) {
+            showAlert("Logo-Fehler", `Logo konnte nicht hochgeladen werden: ${e.message}`);
+          }
+        } else {
+          // Logo was removed
+          try {
+            await Data.updateCustomer(result.id, { logo_url: null });
+          } catch (e: any) {
+            console.warn("Logo removal failed:", e.message);
+          }
         }
       }
 
