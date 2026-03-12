@@ -1784,3 +1784,265 @@ export async function getDocumentDownloadUrl(filePath: string) {
     const { data } = await supabase.storage.from("documents").createSignedUrl(filePath, 3600);
     return data?.signedUrl || "";
 }
+
+// ==================== KNOWLEDGE BASE ====================
+
+// ── Kategorien ──
+
+export async function getKbCategories() {
+    const { data, error } = await supabase
+        .from("kb_categories")
+        .select("*")
+        .order("sort_order", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createKbCategory(category: {
+    name: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    sort_order?: number;
+}) {
+    const { data, error } = await supabase
+        .from("kb_categories")
+        .insert([category])
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateKbCategory(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from("kb_categories")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteKbCategory(id: string) {
+    // Check if articles reference this category
+    const { count } = await supabase
+        .from("kb_articles")
+        .select("id", { count: "exact", head: true })
+        .eq("category_id", id);
+
+    if (count && count > 0) {
+        throw new Error(
+            `Diese Kategorie kann nicht gelöscht werden, da noch ${count} Artikel zugeordnet sind. Bitte verschieben oder löschen Sie zuerst die zugehörigen Artikel.`
+        );
+    }
+
+    const { error } = await supabase.from("kb_categories").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+// ── Artikel ──
+
+export async function getKbArticles(filters?: {
+    category_id?: string;
+    status?: string;
+    tag?: string;
+    search?: string;
+    sort?: "newest" | "popular" | "alphabetical";
+}) {
+    let query = supabase
+        .from("kb_articles")
+        .select("*, category:kb_categories(id, name, icon, color)");
+
+    if (filters?.category_id) {
+        query = query.eq("category_id", filters.category_id);
+    }
+    if (filters?.status) {
+        query = query.eq("status", filters.status);
+    }
+    if (filters?.tag) {
+        query = query.contains("tags", [filters.tag]);
+    }
+
+    // Sorting
+    if (filters?.sort === "popular") {
+        query = query.order("view_count", { ascending: false });
+    } else if (filters?.sort === "alphabetical") {
+        query = query.order("title", { ascending: true });
+    } else {
+        query = query.order("is_pinned", { ascending: false }).order("created_at", { ascending: false });
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    let results = data || [];
+
+    // Client-side text search (Supabase JS doesn't easily support plainto_tsquery)
+    if (filters?.search && filters.search.trim()) {
+        const term = filters.search.toLowerCase().trim();
+        results = results.filter(
+            (a: any) =>
+                a.title?.toLowerCase().includes(term) ||
+                a.content?.toLowerCase().includes(term) ||
+                (a.tags || []).some((t: string) => t.toLowerCase().includes(term))
+        );
+    }
+
+    return results;
+}
+
+export async function getKbArticleById(id: string) {
+    const { data, error } = await supabase
+        .from("kb_articles")
+        .select("*, category:kb_categories(id, name, icon, color), attachments:kb_article_attachments(*)")
+        .eq("id", id)
+        .single();
+
+    if (error) throw new Error(error.message);
+
+    // Increment view count (fire-and-forget)
+    supabase
+        .from("kb_articles")
+        .update({ view_count: (data.view_count || 0) + 1 })
+        .eq("id", id)
+        .then(() => {});
+
+    return data;
+}
+
+export async function createKbArticle(article: {
+    title: string;
+    content?: string;
+    category_id?: string;
+    status?: string;
+    tags?: string[];
+    is_pinned?: boolean;
+    author_name?: string;
+}) {
+    // Resolve author name if not provided
+    let authorName = article.author_name;
+    if (!authorName) {
+        try {
+            const { data: session } = await supabase.auth.getSession();
+            const user = session?.session?.user;
+            if (user) {
+                authorName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Admin";
+            }
+        } catch (_) { /* ignore */ }
+        if (!authorName) authorName = "Admin";
+    }
+
+    const { data, error } = await supabase
+        .from("kb_articles")
+        .insert([{ ...article, author_name: authorName }])
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateKbArticle(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from("kb_articles")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteKbArticle(id: string) {
+    const { error } = await supabase.from("kb_articles").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+export async function getPopularKbArticles(limit: number = 5) {
+    const { data, error } = await supabase
+        .from("kb_articles")
+        .select("*, category:kb_categories(id, name, icon, color)")
+        .eq("status", "published")
+        .order("view_count", { ascending: false })
+        .limit(limit);
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function getRelatedKbArticles(articleId: string, limit: number = 3) {
+    // Get the current article to find category + tags
+    const { data: article } = await supabase
+        .from("kb_articles")
+        .select("category_id, tags")
+        .eq("id", articleId)
+        .single();
+
+    if (!article) return [];
+
+    let query = supabase
+        .from("kb_articles")
+        .select("id, title, category_id, tags, view_count, created_at")
+        .neq("id", articleId)
+        .eq("status", "published")
+        .limit(limit);
+
+    if (article.category_id) {
+        query = query.eq("category_id", article.category_id);
+    }
+
+    const { data, error } = await query.order("view_count", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+// ── Anhänge ──
+
+export async function addKbArticleAttachment(articleId: string, uri: string, filename: string) {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+
+    const path = `kb/${articleId}/${Date.now()}_${filename}`;
+
+    const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(path, blob, {
+            contentType: blob.type || "application/octet-stream",
+            upsert: true,
+        });
+
+    if (uploadError) throw new Error(uploadError.message);
+
+    const { data: publicUrlData } = supabase.storage
+        .from("documents")
+        .getPublicUrl(path);
+
+    const { data, error: dbErr } = await supabase
+        .from("kb_article_attachments")
+        .insert({
+            article_id: articleId,
+            file_name: filename,
+            file_url: publicUrlData.publicUrl,
+            file_type: blob.type || "application/octet-stream",
+            file_size: blob.size || 0,
+        })
+        .select()
+        .single();
+
+    if (dbErr) throw new Error(dbErr.message);
+    return data;
+}
+
+export async function deleteKbArticleAttachment(id: string) {
+    const { error } = await supabase.from("kb_article_attachments").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}

@@ -154,6 +154,14 @@ export default function DashboardScreen() {
           route: "/tickets",
         },
         {
+          id: "knowledge-base",
+          title: "Wissensdatenbank",
+          subtitle: "Anleitungen & FAQs",
+          icon: "book.fill",
+          color: "#0EA5E9",
+          route: "/knowledge-base",
+        },
+        {
           id: "newsletter",
           title: "Newsletter",
           subtitle: "Bald verfügbar",
