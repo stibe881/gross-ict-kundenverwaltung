@@ -20,6 +20,7 @@ import * as Data from "@/lib/data";
 import { formatDate, formatCurrency, getInvoiceTotal } from "@/lib/format";
 import { CustomerPortalManagement } from "@/components/customer-portal-management";
 import { ContractFormModal } from "@/components/contract-form-modal";
+import { CustomerFormModal } from "@/components/customer-form-modal";
 
 type Tab = "tickets" | "rechnungen" | "vertraege" | "kontakte";
 
@@ -33,6 +34,7 @@ export default function CustomerDetailScreen() {
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [editingContract, setEditingContract] = useState<any>(null);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // ── Data ──
   const { data: customer, isLoading: loading } = useQuery({
@@ -642,6 +644,14 @@ export default function CustomerDetailScreen() {
 
                 {isWide && <View className="flex-1" />}
                 <TouchableOpacity
+                  onPress={() => setShowEditModal(true)}
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  className="mr-3"
+                >
+                  <IconSymbol name="pencil" size={18} color={colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
                   onPress={handleDelete}
                   activeOpacity={0.6}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -863,6 +873,19 @@ export default function CustomerDetailScreen() {
             </View>
           </View>
         </Modal>
+      )}
+
+      {showEditModal && customer && (
+        <CustomerFormModal
+          visible={showEditModal}
+          editCustomer={customer}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["customer", id] });
+            queryClient.invalidateQueries({ queryKey: ["customers"] });
+            queryClient.invalidateQueries({ queryKey: ["customer-contacts", id] });
+          }}
+        />
       )}
     </>
   );
