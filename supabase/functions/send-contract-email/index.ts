@@ -64,9 +64,8 @@ Deno.serve(async (req) => {
     const customerName = contract.customer?.company_name ||
       `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde";
 
-    // Signing-URL: nutze die Server/App URL
-    const baseUrl = Deno.env.get("APP_BASE_URL") || Deno.env.get("SUPABASE_URL")!.replace(".supabase.co", ".app");
-    const signUrl = `https://kundenverwaltung.gross-ict.ch/contract-view?token=${token}`;
+    // Signing-URL: Custom Subdomain on Hetzner
+    const signUrl = `https://vertrag.gross-ict.ch/?token=${token}`;
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {

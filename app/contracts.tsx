@@ -7,7 +7,12 @@ import {
   FlatList,
   Modal,
   ActivityIndicator,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Linking,
 } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -96,22 +101,20 @@ export default function ContractsScreen() {
     );
   };
 
-  const getStatusLabel = (status: ContractStatus) => {
-    const labels: Record<ContractStatus, string> = {
-      active: "Aktiv",
-      cancelled: "Gekündigt",
-      expired: "Abgelaufen",
-    };
-    return labels[status];
+  const getStatusLabel = (item: any) => {
+    if (item.status === "cancelled" || item.cancellation_date) return "Gekündigt";
+    if (item.signature_date) return "Unterzeichnet";
+    if (item.status === "pending_signature" || item.status === "active") return "Warten auf Unterschrift";
+    if (item.status === "expired") return "Abgelaufen";
+    return "Unbekannt";
   };
 
-  const getStatusColor = (status: ContractStatus) => {
-    const colorMap: Record<ContractStatus, string> = {
-      active: colors.success,
-      cancelled: colors.warning,
-      expired: colors.error,
-    };
-    return colorMap[status];
+  const getStatusColor = (item: any) => {
+    if (item.status === "cancelled" || item.cancellation_date) return colors.error;
+    if (item.signature_date) return colors.success;
+    if (item.status === "pending_signature" || item.status === "active") return "#f59e0b";
+    if (item.status === "expired") return colors.error;
+    return colors.muted;
   };
 
   const filteredContracts: any[] =
@@ -130,13 +133,13 @@ export default function ContractsScreen() {
         </View>
         <View
           className="px-3 py-1 rounded-full ml-2"
-          style={{ backgroundColor: getStatusColor(item.status) + "20" }}
+          style={{ backgroundColor: getStatusColor(item) + "20" }}
         >
           <Text
             className="text-xs font-semibold"
-            style={{ color: getStatusColor(item.status) }}
+            style={{ color: getStatusColor(item) }}
           >
-            {getStatusLabel(item.status)}
+            {getStatusLabel(item)}
           </Text>
         </View>
       </View>
@@ -497,11 +500,16 @@ function ContractDetailsModal({
   onClose: () => void;
   onEdit?: (contract: any) => void;
   onDelete?: (contract: any) => void;
-  getStatusLabel: (status: ContractStatus) => string;
-  getStatusColor: (status: ContractStatus) => string;
+  getStatusLabel: (item: any) => string;
+  getStatusColor: (item: any) => string;
 }) {
   const colors = useColors();
   const [sending, setSending] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelDate, setCancelDate] = useState("");
+  const [cancelDoc, setCancelDoc] = useState<any>(null);
+  const [cancelling, setCancelling] = useState(false);
+
   const queryClient = useQueryClient();
 
   const handleSendForSignature = async () => {
@@ -519,7 +527,13 @@ function ContractDetailsModal({
           const { data, error } = await supabase.functions.invoke("send-contract-email", {
             body: { contractId: contract.id },
           });
-          if (error) throw new Error(error.message);
+          if (error) {
+            const ctx = (error as any).context;
+            const detail = (ctx && typeof ctx === "object" && ctx.error) ? ctx.error
+              : (ctx && typeof ctx === "string") ? ctx
+                : error.message;
+            throw new Error(detail);
+          }
           if (data?.error) throw new Error(data.error);
           showAlert("Erfolg", "Vertrag wurde per E-Mail zur Unterschrift gesendet.");
           queryClient.invalidateQueries({ queryKey: ["contracts"] });
@@ -533,10 +547,59 @@ function ContractDetailsModal({
     );
   };
 
+  const handleCancelSubmit = async () => {
+    if (!cancelDate) {
+      showAlert("Fehler", "Bitte wählen Sie ein Kündigungsdatum (z.B. 31.12.2026)");
+      return;
+    }
+    setCancelling(true);
+    try {
+      let docUrl = undefined;
+      if (cancelDoc) {
+        docUrl = await Data.uploadCancellationDocument(contract.id, cancelDoc.uri, cancelDoc.name);
+      }
+
+      const parts = cancelDate.split(".");
+      const dbDate = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : cancelDate;
+
+      await Data.updateContract(contract.id, {
+        status: "cancelled",
+        cancellation_date: dbDate,
+        cancellation_document_url: docUrl || null,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      showAlert("Erfolg", "Vertrag wurde erfolgreich gekündigt");
+      setShowCancelModal(false);
+      onClose();
+    } catch (err: any) {
+      showAlert("Fehler", err.message);
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const pickCancelDoc = async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: "application/pdf",
+        copyToCacheDirectory: true,
+      });
+      if (!res.canceled && res.assets && res.assets.length > 0) {
+        setCancelDoc(res.assets[0]);
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+  };
+
   const isSigned = !!contract.signature_date;
-  const isPending = contract.status === "pending_signature";
-  const statusLabel = isSigned ? "Unterzeichnet" : isPending ? "Warte auf Unterschrift" : getStatusLabel(contract.status);
-  const statusColor = isSigned ? "#22c55e" : isPending ? "#f59e0b" : getStatusColor(contract.status);
+  const isPending = contract.status === "pending_signature" || (!isSigned && contract.status === "active");
+  const isCancelled = contract.status === "cancelled" || !!contract.cancellation_date;
+
+  const statusLabel = getStatusLabel(contract);
+  const statusColor = getStatusColor(contract);
 
   return (
     <Modal visible={true} animationType="slide" transparent onRequestClose={onClose}>
@@ -592,6 +655,23 @@ function ContractDetailsModal({
                       {contract.notice_period_months} {contract.notice_period_months === 1 ? "Monat" : "Monate"}
                     </Text>
                   </View>
+                  {contract.cancellation_date && (
+                    <View className="mt-2 p-3 bg-warning/10 rounded-lg border border-warning/20">
+                      <Text className="text-sm font-semibold text-warning mb-1">Kündigungsdatum</Text>
+                      <Text className="text-base text-warning">
+                        {new Date(contract.cancellation_date).toLocaleDateString("de-CH")}
+                      </Text>
+                      {contract.cancellation_document_url && (
+                        <TouchableOpacity
+                          onPress={() => Linking.openURL(contract.cancellation_document_url!)}
+                          className="flex-row items-center gap-2 mt-2 bg-background p-2 rounded border border-border"
+                        >
+                          <IconSymbol name="doc.text.fill" size={16} color={colors.primary} />
+                          <Text className="text-primary text-sm font-semibold">Kündigungsschreiben öffnen</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
                 </View>
               </View>
 
@@ -645,7 +725,7 @@ function ContractDetailsModal({
 
           {/* Footer */}
           <View className="p-4 border-t border-border gap-2">
-            {!isSigned && (
+            {!isSigned && !isCancelled && (
               <TouchableOpacity
                 className="bg-success py-3 rounded-lg flex-row items-center justify-center"
                 activeOpacity={0.8}
@@ -674,16 +754,93 @@ function ContractDetailsModal({
                 <Text className="text-background font-semibold text-center">Bearbeiten</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              className="bg-error/10 border border-error/30 py-3 rounded-lg"
-              activeOpacity={0.8}
-              onPress={() => onDelete?.(contract)}
-            >
-              <Text className="text-error font-semibold text-center">Vertrag löschen</Text>
-            </TouchableOpacity>
+            <View className="flex-row gap-3">
+              {!isCancelled && (
+                <TouchableOpacity
+                  className="flex-1 border border-warning/50 py-3 rounded-lg"
+                  activeOpacity={0.8}
+                  onPress={() => setShowCancelModal(true)}
+                >
+                  <Text className="text-warning font-semibold text-center">Kündigen</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                className="flex-1 bg-error/10 border border-error/30 py-3 rounded-lg"
+                activeOpacity={0.8}
+                onPress={() => onDelete?.(contract)}
+              >
+                <Text className="text-error font-semibold text-center">Löschen</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
+
+      {/* Kündigung Modal */}
+      <Modal visible={showCancelModal} animationType="slide" transparent onRequestClose={() => setShowCancelModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-black/60 justify-center p-4">
+          <View className="bg-background rounded-2xl p-6 shadow-lg border border-border mx-2">
+            <View className="mb-4">
+              <Text className="text-xl font-bold text-foreground">Vertrag kündigen</Text>
+              <Text className="text-sm text-muted mt-1">Geben Sie das Datum der Kündigung an und hängen Sie optional das Schreiben des Kunden an.</Text>
+            </View>
+
+            <View className="gap-4">
+              {/* Kündigungsdatum */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">Kündigungsdatum *</Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="TT.MM.JJJJ"
+                  placeholderTextColor={colors.muted}
+                  value={cancelDate}
+                  onChangeText={setCancelDate}
+                />
+              </View>
+
+              {/* Dokument */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">Kündigungsschreiben (optional)</Text>
+                <TouchableOpacity
+                  className="bg-surface border border-dashed border-border rounded-lg px-4 py-4 items-center justify-center flex-row gap-2"
+                  onPress={pickCancelDoc}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol name={cancelDoc ? "doc.text.fill" : "doc.badge.plus"} size={24} color={cancelDoc ? colors.success : colors.muted} />
+                  <Text className={cancelDoc ? "text-success font-semibold" : "text-muted"}>
+                    {cancelDoc ? cancelDoc.name : "Kündigungsschreiben auswählen (PDF)"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Aktionen */}
+            <View className="flex-row gap-3 mt-6">
+              <TouchableOpacity
+                className="flex-1 bg-surface border border-border py-3 rounded-lg"
+                activeOpacity={0.8}
+                onPress={() => {
+                  setShowCancelModal(false);
+                  setCancelDate("");
+                  setCancelDoc(null);
+                }}
+              >
+                <Text className="text-foreground font-semibold text-center">Abbrechen</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 bg-warning py-3 rounded-lg flex-row items-center justify-center"
+                activeOpacity={0.8}
+                onPress={handleCancelSubmit}
+                disabled={cancelling}
+              >
+                <Text className="text-background font-bold text-center">
+                  {cancelling ? "Speichern..." : "Kündigen"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </Modal>
   );
 }

@@ -48,6 +48,10 @@ export function ContractFormModal({
     startDate: toDisplay(contract?.start_date || contract?.startDate || ""),
     durationMonths: (contract?.duration_months || contract?.durationMonths)?.toString() || "12",
     noticePeriodMonths: (contract?.notice_period_months || contract?.noticePeriodMonths)?.toString() || "3",
+    contactPerson: contract?.contact_person || contract?.contactPerson || "",
+    paymentTerms: contract?.payment_terms || contract?.paymentTerms || "",
+    scopeOfServices: contract?.scope_of_services || contract?.scopeOfServices || "",
+    specialAgreements: contract?.special_agreements || contract?.specialAgreements || "",
   });
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
@@ -90,6 +94,9 @@ export function ContractFormModal({
       durationMonths: template.default_duration_months?.toString() || formData.durationMonths,
       noticePeriodMonths: template.default_notice_period_months?.toString() || formData.noticePeriodMonths,
       description: template.description || formData.description,
+      paymentTerms: template.default_payment_terms || formData.paymentTerms,
+      scopeOfServices: template.default_scope_of_services || formData.scopeOfServices,
+      specialAgreements: template.default_special_agreements || formData.specialAgreements,
     });
     setShowTemplatePicker(false);
   };
@@ -128,6 +135,10 @@ export function ContractFormModal({
         duration_months: parseInt(formData.durationMonths) || 12,
         notice_period_months: parseInt(formData.noticePeriodMonths) || 3,
         template_id: selectedTemplate?.id || undefined,
+        contact_person: formData.contactPerson || undefined,
+        payment_terms: formData.paymentTerms || undefined,
+        scope_of_services: formData.scopeOfServices || undefined,
+        special_agreements: formData.specialAgreements || undefined,
       };
 
       if (contract?.id) {
@@ -238,6 +249,22 @@ export function ContractFormModal({
                 />
               </View>
 
+              {/* Kontaktperson */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Kontaktperson
+                </Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="z.B. Vorname Nachname"
+                  placeholderTextColor={colors.muted}
+                  value={formData.contactPerson}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, contactPerson: text })
+                  }
+                />
+              </View>
+
               {/* Beschreibung */}
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
@@ -253,6 +280,63 @@ export function ContractFormModal({
                   value={formData.description}
                   onChangeText={(text) =>
                     setFormData({ ...formData, description: text })
+                  }
+                />
+              </View>
+
+              {/* Leistungsumfang */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Leistungsumfang
+                </Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="Detaillierte Beschreibung der Leistungen"
+                  placeholderTextColor={colors.muted}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  value={formData.scopeOfServices}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, scopeOfServices: text })
+                  }
+                />
+              </View>
+
+              {/* Zahlungsbedingungen */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Zahlungsbedingungen
+                </Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="z.B. 30 Tage netto"
+                  placeholderTextColor={colors.muted}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  value={formData.paymentTerms}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, paymentTerms: text })
+                  }
+                />
+              </View>
+
+              {/* Zusatzvereinbarungen */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Zusatzvereinbarungen
+                </Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="Optionale Zusatzvereinbarungen"
+                  placeholderTextColor={colors.muted}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  value={formData.specialAgreements}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, specialAgreements: text })
                   }
                 />
               </View>

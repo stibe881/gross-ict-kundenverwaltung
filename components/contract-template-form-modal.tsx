@@ -6,8 +6,8 @@ import {
     TouchableOpacity,
     ScrollView,
     Modal,
-  KeyboardAvoidingView,
-  Platform,
+    KeyboardAvoidingView,
+    Platform,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -32,6 +32,9 @@ export function ContractTemplateFormModal({
         default_amount: "",
         default_duration_months: "12",
         default_notice_period_months: "3",
+        default_payment_terms: "",
+        default_scope_of_services: "",
+        default_special_agreements: "",
     });
 
     useEffect(() => {
@@ -42,6 +45,9 @@ export function ContractTemplateFormModal({
                 default_amount: template.default_amount?.toString() || "",
                 default_duration_months: template.default_duration_months?.toString() || "12",
                 default_notice_period_months: template.default_notice_period_months?.toString() || "3",
+                default_payment_terms: template.default_payment_terms || "",
+                default_scope_of_services: template.default_scope_of_services || "",
+                default_special_agreements: template.default_special_agreements || "",
             });
         } else {
             setFormData({
@@ -50,6 +56,9 @@ export function ContractTemplateFormModal({
                 default_amount: "",
                 default_duration_months: "12",
                 default_notice_period_months: "3",
+                default_payment_terms: "",
+                default_scope_of_services: "",
+                default_special_agreements: "",
             });
         }
     }, [template, visible]);
@@ -66,6 +75,9 @@ export function ContractTemplateFormModal({
             default_amount: formData.default_amount ? parseFloat(formData.default_amount) : null,
             default_duration_months: parseInt(formData.default_duration_months) || 12,
             default_notice_period_months: parseInt(formData.default_notice_period_months) || 3,
+            default_payment_terms: formData.default_payment_terms.trim() || null,
+            default_scope_of_services: formData.default_scope_of_services.trim() || null,
+            default_special_agreements: formData.default_special_agreements.trim() || null,
         });
     };
 
@@ -168,6 +180,57 @@ export function ContractTemplateFormModal({
                                     onChangeText={(text) =>
                                         setFormData({ ...formData, default_notice_period_months: text })
                                     }
+                                />
+                            </View>
+
+                            {/* Standard-Leistungsumfang */}
+                            <View>
+                                <Text className="text-sm font-semibold text-foreground mb-2">
+                                    Standard-Leistungsumfang
+                                </Text>
+                                <TextInput
+                                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                    placeholder="Optionale Standard-Beschreibung der Leistungen"
+                                    placeholderTextColor={colors.muted}
+                                    multiline
+                                    numberOfLines={4}
+                                    textAlignVertical="top"
+                                    value={formData.default_scope_of_services}
+                                    onChangeText={(text) => setFormData({ ...formData, default_scope_of_services: text })}
+                                />
+                            </View>
+
+                            {/* Standard-Zahlungsbedingungen */}
+                            <View>
+                                <Text className="text-sm font-semibold text-foreground mb-2">
+                                    Standard-Zahlungsbedingungen
+                                </Text>
+                                <TextInput
+                                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                    placeholder="z.B. 30 Tage netto"
+                                    placeholderTextColor={colors.muted}
+                                    multiline
+                                    numberOfLines={3}
+                                    textAlignVertical="top"
+                                    value={formData.default_payment_terms}
+                                    onChangeText={(text) => setFormData({ ...formData, default_payment_terms: text })}
+                                />
+                            </View>
+
+                            {/* Standard-Zusatzvereinbarungen */}
+                            <View>
+                                <Text className="text-sm font-semibold text-foreground mb-2">
+                                    Standard-Zusatzvereinbarungen
+                                </Text>
+                                <TextInput
+                                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                    placeholder="Optionale Standard-Zusatzvereinbarungen"
+                                    placeholderTextColor={colors.muted}
+                                    multiline
+                                    numberOfLines={3}
+                                    textAlignVertical="top"
+                                    value={formData.default_special_agreements}
+                                    onChangeText={(text) => setFormData({ ...formData, default_special_agreements: text })}
                                 />
                             </View>
                         </View>

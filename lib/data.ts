@@ -724,6 +724,12 @@ export async function createContract(contract: {
     duration_months?: number;
     notice_period_months?: number;
     template_id?: string;
+    contact_person?: string;
+    payment_terms?: string;
+    scope_of_services?: string;
+    special_agreements?: string;
+    cancellation_date?: string;
+    cancellation_document_url?: string;
 }) {
     const { data, error } = await supabase
         .from("contracts")
@@ -753,6 +759,33 @@ export async function deleteContract(id: string) {
     return { success: true };
 }
 
+export async function uploadCancellationDocument(contractId: string, uri: string, filename: string): Promise<string> {
+    try {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+
+        const path = `${contractId}/${Date.now()}_${filename}`;
+
+        const { data, error } = await supabase.storage
+            .from("documents") // assuming generic documents bucket, or you could create 'cancellations'
+            .upload(path, blob, {
+                contentType: blob.type || "application/pdf",
+                upsert: true,
+            });
+
+        if (error) throw new Error(error.message);
+
+        // Get public URL
+        const { data: publicUrlData } = supabase.storage
+            .from("documents")
+            .getPublicUrl(path);
+
+        return publicUrlData.publicUrl;
+    } catch (err: any) {
+        throw new Error(err.message || "Fehler beim Hochladen des Kündigungsdokuments");
+    }
+}
+
 // ==================== VERTRAGSVORLAGEN ====================
 
 export async function getContractTemplates() {
@@ -771,6 +804,9 @@ export async function createContractTemplate(template: {
     default_amount?: number;
     default_duration_months?: number;
     default_notice_period_months?: number;
+    default_payment_terms?: string;
+    default_scope_of_services?: string;
+    default_special_agreements?: string;
 }) {
     const { data, error } = await supabase
         .from("contract_templates")
