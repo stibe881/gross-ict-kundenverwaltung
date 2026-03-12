@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Modal,
   Linking,
+  Image,
 } from "react-native";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { useLocalSearchParams, router } from "expo-router";
@@ -55,6 +56,12 @@ export default function CustomerDetailScreen() {
   const { data: tickets = [] } = useQuery({
     queryKey: ["tickets", "customer", id],
     queryFn: () => Data.getCustomerTickets(id as string),
+    enabled: !!id,
+  });
+
+  const { data: customerContacts = [] } = useQuery({
+    queryKey: ["customer-contacts", id],
+    queryFn: () => Data.getCustomerContacts(id as string),
     enabled: !!id,
   });
 
@@ -112,7 +119,7 @@ export default function CustomerDetailScreen() {
     { key: "tickets", label: "Tickets", icon: "ticket.fill", count: tickets.length },
     { key: "rechnungen", label: "Rechnungen", icon: "chart.bar.fill", count: invoices.length },
     { key: "vertraege", label: "Verträge", icon: "doc.text.fill", count: contracts.length },
-    { key: "kontakte", label: "Kontakte", icon: "person.2.fill", count: contactPerson ? 1 : 0 },
+    { key: "kontakte", label: "Kontakte", icon: "person.2.fill", count: (customerContacts.length || 0) + (contactPerson ? 1 : 0) },
   ];
 
   // ── Status / Priority Labels ──
@@ -373,35 +380,61 @@ export default function CustomerDetailScreen() {
           </View>
         );
 
-      case "kontakte":
+      case "kontakte": {
+        const allContacts = [
+          // Legacy contact from customer record
+          ...(contactPerson ? [{
+            id: "legacy",
+            first_name: customer?.first_name || "",
+            last_name: customer?.last_name || "",
+            email: customer?.email || "",
+            phone: customer?.phone || "",
+            position: "Hauptkontakt",
+            is_primary: true,
+          }] : []),
+          // Contacts from customer_contacts table
+          ...customerContacts,
+        ];
+        if (allContacts.length === 0) return renderEmpty("Keine Kontakte erfasst", "person.2.fill");
         if (!isWide) {
-          return contactPerson ? (
-            <View className="bg-surface rounded-xl border border-border p-4">
-              <View className="flex-row items-center gap-3 mb-3">
-                <View className="w-10 h-10 rounded-full items-center justify-center" style={{ backgroundColor: colors.primary + "20" }}>
-                  <Text className="text-sm font-bold" style={{ color: colors.primary }}>
-                    {contactPerson.charAt(0).toUpperCase()}
-                  </Text>
+          return (
+            <View className="gap-3">
+              {allContacts.map((contact: any, idx: number) => (
+                <View key={contact.id || idx} className="bg-surface rounded-xl border border-border p-4">
+                  <View className="flex-row items-center gap-3 mb-2">
+                    <View className="w-10 h-10 rounded-full items-center justify-center" style={{ backgroundColor: colors.primary + "20" }}>
+                      <Text className="text-sm font-bold" style={{ color: colors.primary }}>
+                        {(contact.first_name || contact.last_name || "?").charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-base font-semibold text-foreground">
+                        {`${contact.first_name || ""} ${contact.last_name || ""}`.trim() || "—"}
+                      </Text>
+                      {contact.position && <Text className="text-xs text-muted">{contact.position}</Text>}
+                    </View>
+                    {contact.is_primary && (
+                      <View className="px-2 py-0.5 rounded" style={{ backgroundColor: colors.primary + "20" }}>
+                        <Text className="text-[10px] font-bold" style={{ color: colors.primary }}>PRIMÄR</Text>
+                      </View>
+                    )}
+                  </View>
+                  {contact.email && (
+                    <TouchableOpacity className="flex-row items-center gap-2 py-1.5" onPress={() => Linking.openURL(`mailto:${contact.email}`)}>
+                      <IconSymbol name="envelope.fill" size={14} color={colors.muted} />
+                      <Text className="text-sm text-foreground">{contact.email}</Text>
+                    </TouchableOpacity>
+                  )}
+                  {contact.phone && (
+                    <TouchableOpacity className="flex-row items-center gap-2 py-1.5" onPress={() => Linking.openURL(`tel:${contact.phone}`)}>
+                      <IconSymbol name="phone.fill" size={14} color={colors.muted} />
+                      <Text className="text-sm text-foreground">{contact.phone}</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-                <View className="flex-1">
-                  <Text className="text-base font-semibold text-foreground">{contactPerson}</Text>
-                  <Text className="text-xs text-muted">Kontaktperson</Text>
-                </View>
-              </View>
-              {customer?.email && (
-                <TouchableOpacity className="flex-row items-center gap-2 py-2" onPress={() => Linking.openURL(`mailto:${customer.email}`)}>
-                  <IconSymbol name="envelope.fill" size={14} color={colors.muted} />
-                  <Text className="text-sm text-foreground">{customer.email}</Text>
-                </TouchableOpacity>
-              )}
-              {customer?.phone && (
-                <TouchableOpacity className="flex-row items-center gap-2 py-2" onPress={() => Linking.openURL(`tel:${customer.phone}`)}>
-                  <IconSymbol name="phone.fill" size={14} color={colors.muted} />
-                  <Text className="text-sm text-foreground">{customer.phone}</Text>
-                </TouchableOpacity>
-              )}
+              ))}
             </View>
-          ) : renderEmpty("Keine Kontakte erfasst", "person.2.fill");
+          );
         }
         return (
           <View className="bg-surface rounded-xl border border-border overflow-hidden">
@@ -409,22 +442,21 @@ export default function CustomerDetailScreen() {
               <Text className="text-[10px] font-semibold text-muted uppercase flex-1">Name</Text>
               <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 140 }}>E-Mail</Text>
               <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 120 }}>Telefon</Text>
-              <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 80 }}>Rolle</Text>
+              <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 120 }}>Position</Text>
             </View>
-            {contactPerson ? (
-              <View className="flex-row items-center px-4 py-3">
-                <Text className="text-sm text-foreground flex-1">{contactPerson}</Text>
-                <Text className="text-xs text-muted" style={{ width: 140 }} numberOfLines={1}>{customer?.email || "—"}</Text>
-                <Text className="text-xs text-muted" style={{ width: 120 }}>{customer?.phone || "—"}</Text>
-                <Text className="text-xs text-muted" style={{ width: 80 }}>Kontakt</Text>
+            {allContacts.map((contact: any, idx: number) => (
+              <View key={contact.id || idx} className="flex-row items-center px-4 py-3 border-b border-border">
+                <Text className="text-sm text-foreground flex-1">
+                  {`${contact.first_name || ""} ${contact.last_name || ""}`.trim() || "—"}
+                </Text>
+                <Text className="text-xs text-muted" style={{ width: 140 }} numberOfLines={1}>{contact.email || "—"}</Text>
+                <Text className="text-xs text-muted" style={{ width: 120 }}>{contact.phone || "—"}</Text>
+                <Text className="text-xs text-muted" style={{ width: 120 }}>{contact.position || "—"}</Text>
               </View>
-            ) : (
-              <View className="items-center py-8">
-                <Text className="text-sm text-muted">Keine Kontakte erfasst</Text>
-              </View>
-            )}
+            ))}
           </View>
         );
+      }
 
       default:
         return null;
@@ -469,15 +501,24 @@ export default function CustomerDetailScreen() {
                 <View style={{ flexDirection: isWide ? "row" : "column", alignItems: isWide ? "center" : "stretch" }}>
                   {/* Avatar + Info */}
                   <View className="flex-row items-center flex-1">
-                    {/* Avatar */}
-                    <View
-                      className="w-14 h-14 rounded-xl items-center justify-center mr-4"
-                      style={{ backgroundColor: colors.primary }}
-                    >
-                      <Text className="text-2xl font-bold" style={{ color: "#111" }}>
-                        {initial}
-                      </Text>
-                    </View>
+                    {/* Avatar / Logo */}
+                    {customer?.logo_url ? (
+                      <Image
+                        source={{ uri: customer.logo_url }}
+                        className="w-14 h-14 rounded-xl mr-4"
+                        style={{ backgroundColor: colors.border }}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <View
+                        className="w-14 h-14 rounded-xl items-center justify-center mr-4"
+                        style={{ backgroundColor: colors.primary }}
+                      >
+                        <Text className="text-2xl font-bold" style={{ color: "#111" }}>
+                          {initial}
+                        </Text>
+                      </View>
+                    )}
 
                     <View className="flex-1">
                       {/* Name + Badges */}
@@ -534,7 +575,7 @@ export default function CustomerDetailScreen() {
                           <View className="flex-row items-center gap-1">
                             <IconSymbol name="mappin.circle.fill" size={12} color={colors.muted} />
                             <Text className="text-xs text-muted">
-                              {customer?.city || customer?.address}{customer?.country ? `, ${customer.country}` : ""}
+                              {[customer?.address, [customer?.postal_code, customer?.city].filter(Boolean).join(" "), customer?.country].filter(Boolean).join(", ")}
                             </Text>
                           </View>
                         )}

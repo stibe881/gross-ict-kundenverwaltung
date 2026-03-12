@@ -140,6 +140,68 @@ export async function deleteCustomer(id: string) {
     return { success: true };
 }
 
+// ── Customer Logo ──
+
+export async function uploadCustomerLogo(customerId: string, uri: string): Promise<string> {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const ext = uri.split(".").pop()?.split("?")[0] || "png";
+    const path = `${customerId}/logo_${Date.now()}.${ext}`;
+
+    const { error } = await supabase.storage
+        .from("customer-logos")
+        .upload(path, blob, { contentType: blob.type || "image/png", upsert: true });
+    if (error) throw new Error(error.message);
+
+    const { data: publicUrlData } = supabase.storage
+        .from("customer-logos")
+        .getPublicUrl(path);
+
+    // Update the customer record
+    await updateCustomer(customerId, { logo_url: publicUrlData.publicUrl });
+    return publicUrlData.publicUrl;
+}
+
+// ── Customer Contacts ──
+
+export async function getCustomerContacts(customerId: string) {
+    const { data, error } = await supabase
+        .from("customer_contacts")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("is_primary", { ascending: false })
+        .order("last_name", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createCustomerContact(contact: any) {
+    const { data, error } = await supabase
+        .from("customer_contacts")
+        .insert([contact])
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateCustomerContact(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from("customer_contacts")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteCustomerContact(id: string) {
+    const { error } = await supabase.from("customer_contacts").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
 // ==================== PRODUKTE ====================
 
 export async function getAllProducts() {

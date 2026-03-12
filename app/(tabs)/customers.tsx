@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
+  Image,
 } from "react-native";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { useRouter } from "expo-router";
@@ -94,7 +95,26 @@ export default function CustomersScreen() {
         }}
       >
         <View className="flex-row items-center justify-between">
-          <View className="flex-1">
+          {/* Logo / Initial */}
+          <View className="flex-row items-center flex-1">
+            {item.logo_url ? (
+              <Image
+                source={{ uri: item.logo_url }}
+                className="w-10 h-10 rounded-lg mr-3"
+                style={{ backgroundColor: colors.border }}
+                resizeMode="contain"
+              />
+            ) : (
+              <View
+                className="w-10 h-10 rounded-lg items-center justify-center mr-3"
+                style={{ backgroundColor: colors.primary }}
+              >
+                <Text className="text-base font-bold" style={{ color: "#111" }}>
+                  {displayName.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <View className="flex-1">
             <Text className="text-lg font-semibold text-foreground mb-1">
               {displayName}
             </Text>
@@ -107,6 +127,7 @@ export default function CustomersScreen() {
                 <Text className="text-sm text-muted ml-1">{item.phone}</Text>
               </View>
             )}
+          </View>
           </View>
           <View className="flex-row items-center gap-3">
             <View
