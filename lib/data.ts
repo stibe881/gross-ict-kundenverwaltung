@@ -143,11 +143,11 @@ export async function deleteCustomer(id: string) {
 // ── Customer Logo ──
 
 export async function uploadCustomerLogo(customerId: string, uri: string): Promise<string> {
-    let body: Blob | ArrayBuffer;
+    let body: Blob;
     let contentType = "image/png";
 
     if (uri.startsWith("data:")) {
-        // Web: expo-image-picker returns data URIs — convert base64 to ArrayBuffer
+        // Web: expo-image-picker returns data URIs — convert base64 to Blob
         const [header, base64Data] = uri.split(",");
         const mimeMatch = header.match(/data:([^;]+)/);
         if (mimeMatch) contentType = mimeMatch[1];
@@ -157,12 +157,12 @@ export async function uploadCustomerLogo(customerId: string, uri: string): Promi
         for (let i = 0; i < binaryString.length; i++) {
             bytes[i] = binaryString.charCodeAt(i);
         }
-        body = bytes.buffer;
+        body = new Blob([bytes], { type: contentType });
     } else {
         // Native: normal file URI — fetch as blob
         const response = await fetch(uri);
         body = await response.blob();
-        contentType = (body as Blob).type || "image/png";
+        contentType = body.type || "image/png";
     }
 
     const ext = contentType.split("/")[1] || "png";
