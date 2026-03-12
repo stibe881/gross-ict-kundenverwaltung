@@ -143,30 +143,45 @@ export async function deleteCustomer(id: string) {
 // ── Customer Logo ──
 
 export async function uploadCustomerLogo(customerId: string, uri: string): Promise<string> {
-    let body: any;
-    let contentType = "image/png";
+    let fileData: FormData | Blob;
+    let contentType = "image/jpeg";
+    const ext = "jpeg";
+    const path = `${customerId}/logo_${Date.now()}.${ext}`;
 
     if (uri.startsWith("data:")) {
-        // Web: convert base64 data URI to File object
-        const [header, base64Data] = uri.split(",");
-        const mimeMatch = header.match(/data:([^;]+)/);
-        if (mimeMatch) contentType = mimeMatch[1];
+        // Web/Expo: data URI from image picker
+        // Use XMLHttpRequest which reliably converts data URIs to blobs
+        const blob = await new Promise<Blob>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.onload = () => resolve(xhr.response);
+            xhr.onerror = () => reject(new Error("Failed to convert image"));
+            xhr.responseType = "blob";
+            xhr.open("GET", uri, true);
+            xhr.send(null);
+        });
+        contentType = blob.type || "image/jpeg";
 
-        const response = await fetch(uri);
-        body = await response.blob();
+        const formData = new FormData();
+        formData.append("", blob, `logo.${ext}`);
+        fileData = formData;
     } else {
         // Native: file URI — fetch as blob (natively supported)
         const response = await fetch(uri);
-        body = await response.blob();
-        contentType = body.type || "image/png";
-    }
+        const blob = await response.blob();
+        contentType = blob.type || "image/jpeg";
 
-    const ext = contentType.split("/")[1] || "png";
-    const path = `${customerId}/logo_${Date.now()}.${ext}`;
+        const formData = new FormData();
+        formData.append("", {
+            uri: uri,
+            name: `logo.${ext}`,
+            type: contentType,
+        } as any);
+        fileData = formData;
+    }
 
     const { error } = await supabase.storage
         .from("customer-logos")
-        .upload(path, body, { contentType, upsert: true });
+        .upload(path, fileData, { contentType, upsert: true });
     if (error) throw new Error(error.message);
 
     const { data: publicUrlData } = supabase.storage
