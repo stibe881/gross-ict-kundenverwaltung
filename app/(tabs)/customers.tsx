@@ -100,9 +100,8 @@ export default function CustomersScreen() {
             {item.logo_url ? (
               <Image
                 source={{ uri: item.logo_url }}
-                className="w-10 h-10 rounded-lg mr-3"
-                style={{ backgroundColor: colors.border }}
-                resizeMode="contain"
+                style={{ width: 40, height: 40, borderRadius: 8, marginRight: 12 }}
+                resizeMode="cover"
               />
             ) : (
               <View

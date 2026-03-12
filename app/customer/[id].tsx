@@ -659,9 +659,8 @@ export default function CustomerDetailScreen() {
                     {customer?.logo_url ? (
                       <Image
                         source={{ uri: customer.logo_url }}
-                        className="w-14 h-14 rounded-xl mr-4"
-                        style={{ backgroundColor: colors.border }}
-                        resizeMode="contain"
+                        style={{ width: 56, height: 56, borderRadius: 12, marginRight: 16 }}
+                        resizeMode="cover"
                       />
                     ) : (
                       <View
