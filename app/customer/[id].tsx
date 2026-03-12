@@ -25,7 +25,7 @@ type Tab = "tickets" | "rechnungen" | "vertraege" | "kontakte";
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams();
   const colors = useColors();
-  const { containerStyle, contentPadding } = useResponsiveLayout();
+  const { containerStyle, contentPadding, isWide } = useResponsiveLayout();
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<Tab>("tickets");
@@ -161,9 +161,46 @@ export default function CustomerDetailScreen() {
     switch (activeTab) {
       case "tickets":
         if (tickets.length === 0) return renderEmpty("Keine Tickets", "ticket.fill");
+        if (!isWide) {
+          // Mobile: Card layout
+          return (
+            <View className="gap-3">
+              {tickets.map((ticket: any) => (
+                <TouchableOpacity
+                  key={ticket.id}
+                  className="bg-surface rounded-xl border border-border p-4"
+                  activeOpacity={0.7}
+                  onPress={() => setSelectedTicket(ticket)}
+                >
+                  <View className="flex-row items-start justify-between mb-2">
+                    <View className="flex-1 mr-3">
+                      <Text className="text-xs text-primary font-semibold mb-1">
+                        TKT-{ticket.id?.substring(0, 6).toUpperCase()}
+                      </Text>
+                      <Text className="text-base font-semibold text-foreground" numberOfLines={2}>
+                        {ticket.title}
+                      </Text>
+                    </View>
+                    <View className="px-2 py-0.5 rounded" style={{ backgroundColor: ticketStatusColor(ticket.status) + "20" }}>
+                      <Text className="text-[10px] font-bold" style={{ color: ticketStatusColor(ticket.status) }}>
+                        {ticketStatusLabel(ticket.status)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-[10px] font-bold" style={{ color: priorityColor(ticket.priority) }}>
+                      {priorityLabel(ticket.priority)}
+                    </Text>
+                    <Text className="text-xs text-muted">{formatDate(ticket.created_at)}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+        }
+        // Desktop: Table layout
         return (
           <View className="bg-surface rounded-xl border border-border overflow-hidden">
-            {/* Table Header */}
             <View className="flex-row px-4 py-3 border-b border-border">
               <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 100 }}>ID</Text>
               <Text className="text-[10px] font-semibold text-muted uppercase flex-1">Titel</Text>
@@ -171,7 +208,6 @@ export default function CustomerDetailScreen() {
               <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 80 }}>Priorität</Text>
               <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 80, textAlign: "right" }}>Erstellt</Text>
             </View>
-            {/* Table Rows */}
             {tickets.map((ticket: any, idx: number) => (
               <TouchableOpacity
                 key={ticket.id}
@@ -187,18 +223,12 @@ export default function CustomerDetailScreen() {
                   {ticket.title}
                 </Text>
                 <View style={{ width: 100 }}>
-                  <Text
-                    className="text-[10px] font-bold"
-                    style={{ color: ticketStatusColor(ticket.status) }}
-                  >
+                  <Text className="text-[10px] font-bold" style={{ color: ticketStatusColor(ticket.status) }}>
                     {ticketStatusLabel(ticket.status)}
                   </Text>
                 </View>
                 <View style={{ width: 80 }}>
-                  <Text
-                    className="text-[10px] font-bold"
-                    style={{ color: priorityColor(ticket.priority) }}
-                  >
+                  <Text className="text-[10px] font-bold" style={{ color: priorityColor(ticket.priority) }}>
                     {priorityLabel(ticket.priority)}
                   </Text>
                 </View>
@@ -212,6 +242,36 @@ export default function CustomerDetailScreen() {
 
       case "rechnungen":
         if (invoices.length === 0) return renderEmpty("Keine Rechnungen", "chart.bar.fill");
+        if (!isWide) {
+          return (
+            <View className="gap-3">
+              {invoices.map((inv: any) => (
+                <TouchableOpacity
+                  key={inv.id}
+                  className="bg-surface rounded-xl border border-border p-4"
+                  activeOpacity={0.7}
+                  onPress={() => router.push(`/invoice/${inv.id}`)}
+                >
+                  <View className="flex-row items-start justify-between mb-2">
+                    <View>
+                      <Text className="text-base font-semibold text-foreground">{inv.invoice_number}</Text>
+                      <Text className="text-xs text-muted">{formatDate(inv.invoice_date)}</Text>
+                    </View>
+                    <View className="px-2 py-0.5 rounded" style={{ backgroundColor: invoiceStatusColor(inv.status) + "20" }}>
+                      <Text className="text-[10px] font-bold" style={{ color: invoiceStatusColor(inv.status) }}>
+                        {invoiceStatusLabel(inv.status)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-xs text-muted">Fällig: {formatDate(inv.due_date)}</Text>
+                    <Text className="text-lg font-bold text-primary">{formatCurrency(getInvoiceTotal(inv))}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+        }
         return (
           <View className="bg-surface rounded-xl border border-border overflow-hidden">
             <View className="flex-row px-4 py-3 border-b border-border">
@@ -253,6 +313,33 @@ export default function CustomerDetailScreen() {
 
       case "vertraege":
         if (contracts.length === 0) return renderEmpty("Keine Verträge", "doc.text.fill");
+        if (!isWide) {
+          return (
+            <View className="gap-3">
+              {contracts.map((c: any) => (
+                <TouchableOpacity
+                  key={c.id}
+                  className="bg-surface rounded-xl border border-border p-4"
+                  activeOpacity={0.7}
+                  onPress={() => setSelectedContract(c)}
+                >
+                  <View className="flex-row items-start justify-between mb-2">
+                    <Text className="text-base font-semibold text-foreground flex-1" numberOfLines={1}>{c.title}</Text>
+                    <View className="px-2 py-0.5 rounded" style={{ backgroundColor: contractStatusColor(c.status) + "20" }}>
+                      <Text className="text-[10px] font-bold" style={{ color: contractStatusColor(c.status) }}>
+                        {contractStatusLabel(c.status)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-xs text-muted">{formatDate(c.start_date)} – {formatDate(c.end_date)}</Text>
+                    <Text className="text-lg font-bold text-primary">{formatCurrency(c.amount)}/Jahr</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+        }
         return (
           <View className="bg-surface rounded-xl border border-border overflow-hidden">
             <View className="flex-row px-4 py-3 border-b border-border">
@@ -287,6 +374,35 @@ export default function CustomerDetailScreen() {
         );
 
       case "kontakte":
+        if (!isWide) {
+          return contactPerson ? (
+            <View className="bg-surface rounded-xl border border-border p-4">
+              <View className="flex-row items-center gap-3 mb-3">
+                <View className="w-10 h-10 rounded-full items-center justify-center" style={{ backgroundColor: colors.primary + "20" }}>
+                  <Text className="text-sm font-bold" style={{ color: colors.primary }}>
+                    {contactPerson.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-semibold text-foreground">{contactPerson}</Text>
+                  <Text className="text-xs text-muted">Kontaktperson</Text>
+                </View>
+              </View>
+              {customer?.email && (
+                <TouchableOpacity className="flex-row items-center gap-2 py-2" onPress={() => Linking.openURL(`mailto:${customer.email}`)}>
+                  <IconSymbol name="envelope.fill" size={14} color={colors.muted} />
+                  <Text className="text-sm text-foreground">{customer.email}</Text>
+                </TouchableOpacity>
+              )}
+              {customer?.phone && (
+                <TouchableOpacity className="flex-row items-center gap-2 py-2" onPress={() => Linking.openURL(`tel:${customer.phone}`)}>
+                  <IconSymbol name="phone.fill" size={14} color={colors.muted} />
+                  <Text className="text-sm text-foreground">{customer.phone}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : renderEmpty("Keine Kontakte erfasst", "person.2.fill");
+        }
         return (
           <View className="bg-surface rounded-xl border border-border overflow-hidden">
             <View className="flex-row px-4 py-3 border-b border-border">
@@ -350,7 +466,7 @@ export default function CustomerDetailScreen() {
 
               {/* ── Header Card ── */}
               <View className="bg-surface rounded-xl border border-border p-5 mb-4">
-                <View className="flex-row items-center">
+                <View style={{ flexDirection: isWide ? "row" : "column", alignItems: isWide ? "center" : "stretch" }}>
                   {/* Avatar + Info */}
                   <View className="flex-row items-center flex-1">
                     {/* Avatar */}
@@ -393,7 +509,7 @@ export default function CustomerDetailScreen() {
                       </View>
 
                       {/* Contact Info Row */}
-                      <View className="flex-row items-center flex-wrap gap-4">
+                      <View className="flex-row items-center flex-wrap gap-3">
                         {customer?.website && (
                           <TouchableOpacity
                             className="flex-row items-center gap-1"
@@ -437,20 +553,20 @@ export default function CustomerDetailScreen() {
                   </View>
 
                   {/* KPI Cards */}
-                  <View className="flex-row gap-3 ml-4">
-                    <View className="bg-background rounded-lg border border-border px-5 py-3 items-center min-w-[80px]">
+                  <View className="flex-row gap-3" style={{ marginLeft: isWide ? 16 : 0, marginTop: isWide ? 0 : 16 }}>
+                    <View className="flex-1 bg-background rounded-lg border border-border px-3 py-3 items-center" style={isWide ? { minWidth: 80, flex: undefined } : {}}>
                       <Text className="text-2xl font-bold" style={{ color: colors.success }}>
                         {openTickets}
                       </Text>
                       <Text className="text-[9px] font-semibold text-muted uppercase mt-0.5">Offene Tickets</Text>
                     </View>
-                    <View className="bg-background rounded-lg border border-border px-5 py-3 items-center min-w-[80px]">
+                    <View className="flex-1 bg-background rounded-lg border border-border px-3 py-3 items-center" style={isWide ? { minWidth: 80, flex: undefined } : {}}>
                       <Text className="text-2xl font-bold" style={{ color: colors.warning }}>
                         {formatKPI(totalPaid)}
                       </Text>
                       <Text className="text-[9px] font-semibold text-muted uppercase mt-0.5">CHF Bezahlt</Text>
                     </View>
-                    <View className="bg-background rounded-lg border border-border px-5 py-3 items-center min-w-[80px]">
+                    <View className="flex-1 bg-background rounded-lg border border-border px-3 py-3 items-center" style={isWide ? { minWidth: 80, flex: undefined } : {}}>
                       <Text className="text-2xl font-bold text-foreground">
                         {contactPerson ? 1 : 0}
                       </Text>
@@ -461,7 +577,7 @@ export default function CustomerDetailScreen() {
               </View>
 
               {/* ── Quick Actions ── */}
-              <View className="flex-row items-center gap-2 mb-4">
+              <View className="flex-row items-center flex-wrap gap-2 mb-4">
                 <TouchableOpacity
                   className="flex-row items-center gap-1.5 bg-primary px-4 py-2 rounded-lg"
                   activeOpacity={0.8}
@@ -483,8 +599,7 @@ export default function CustomerDetailScreen() {
                   <Text className="text-sm font-semibold text-foreground">+ Neuer Vertrag</Text>
                 </TouchableOpacity>
 
-                {/* Spacer + Delete / More */}
-                <View className="flex-1" />
+                {isWide && <View className="flex-1" />}
                 <TouchableOpacity
                   onPress={handleDelete}
                   activeOpacity={0.6}
@@ -495,7 +610,8 @@ export default function CustomerDetailScreen() {
               </View>
 
               {/* ── Tab Navigation ── */}
-              <View className="flex-row items-center gap-4 mb-4 border-b border-border pb-2">
+              <ScrollView horizontal={!isWide} showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} className="mb-4 border-b border-border pb-2">
+              <View className="flex-row items-center gap-4">
                 {tabs.map((tab) => {
                   const isActive = activeTab === tab.key;
                   return (
@@ -531,6 +647,7 @@ export default function CustomerDetailScreen() {
                   );
                 })}
               </View>
+              </ScrollView>
 
               {/* ── Tab Content ── */}
               {renderTabContent()}
