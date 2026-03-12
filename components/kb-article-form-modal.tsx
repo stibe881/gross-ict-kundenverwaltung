@@ -106,20 +106,6 @@ export function KbArticleFormModal({ visible, onClose, onSuccess, article }: Pro
 
     const isValid = formData.title.trim().length > 0;
 
-    // Simple markdown-to-text renderer (strips markdown syntax for preview)
-    const renderMarkdownPreview = (text: string) => {
-        return text
-            .replace(/^### (.+)$/gm, "──── $1 ────")
-            .replace(/^## (.+)$/gm, "━━ $1 ━━")
-            .replace(/^# (.+)$/gm, "▌ $1")
-            .replace(/\*\*(.+?)\*\*/g, "$1")
-            .replace(/\*(.+?)\*/g, "$1")
-            .replace(/`(.+?)`/g, "$1")
-            .replace(/^- /gm, "  • ")
-            .replace(/^\d+\. /gm, "  ")
-            .replace(/^>/gm, "│ ");
-    };
-
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
             <View className="flex-1 bg-black/50 justify-end">
@@ -192,10 +178,10 @@ export function KbArticleFormModal({ visible, onClose, onSuccess, article }: Pro
                                 </ScrollView>
                             </View>
 
-                            {/* Inhalt mit Vorschau-Toggle */}
+                            {/* Inhalt mit Formatierungs-Toolbar */}
                             <View>
                                 <View className="flex-row items-center justify-between mb-1">
-                                    <Text className="text-sm font-semibold text-foreground">Inhalt (Markdown)</Text>
+                                    <Text className="text-sm font-semibold text-foreground">Inhalt</Text>
                                     <TouchableOpacity
                                         className="flex-row items-center gap-1 px-2 py-1 rounded-md"
                                         style={{ backgroundColor: showPreview ? colors.primary + "20" : colors.surface }}
@@ -221,22 +207,96 @@ export function KbArticleFormModal({ visible, onClose, onSuccess, article }: Pro
                                         className="bg-surface border border-border rounded-lg p-4"
                                         style={{ minHeight: 200 }}
                                     >
-                                        <Text className="text-foreground text-sm" style={{ lineHeight: 22 }}>
-                                            {formData.content ? renderMarkdownPreview(formData.content) : "Noch kein Inhalt..."}
-                                        </Text>
+                                        {formData.content ? (
+                                            formData.content.split("\n").map((line, i) => {
+                                                if (line.startsWith("### ")) return <Text key={i} className="text-foreground font-bold mb-1" style={{ fontSize: 15, lineHeight: 22 }}>{line.slice(4)}</Text>;
+                                                if (line.startsWith("## ")) return <Text key={i} className="text-foreground font-bold mb-1" style={{ fontSize: 17, lineHeight: 24 }}>{line.slice(3)}</Text>;
+                                                if (line.startsWith("# ")) return <Text key={i} className="text-foreground font-bold mb-2" style={{ fontSize: 20, lineHeight: 28 }}>{line.slice(2)}</Text>;
+                                                if (line.startsWith("> ")) return <View key={i} className="mb-1 pl-3" style={{ borderLeftWidth: 3, borderLeftColor: colors.primary }}><Text className="text-muted text-sm italic" style={{ lineHeight: 20 }}>{line.slice(2)}</Text></View>;
+                                                if (line.startsWith("- ")) return <Text key={i} className="text-foreground text-sm mb-0.5" style={{ lineHeight: 20 }}>  • {line.slice(2)}</Text>;
+                                                if (/^\d+\.\s/.test(line)) return <Text key={i} className="text-foreground text-sm mb-0.5" style={{ lineHeight: 20 }}>  {line}</Text>;
+                                                if (line.startsWith("---")) return <View key={i} className="my-2" style={{ height: 1, backgroundColor: colors.border }} />;
+                                                if (line.startsWith("```")) return null;
+                                                if (line.trim() === "") return <View key={i} style={{ height: 8 }} />;
+                                                return <Text key={i} className="text-foreground text-sm" style={{ lineHeight: 20 }}>{line}</Text>;
+                                            })
+                                        ) : (
+                                            <Text className="text-muted text-sm">Noch kein Inhalt...</Text>
+                                        )}
                                     </View>
                                 ) : (
-                                    <TextInput
-                                        className="bg-surface border border-border rounded-lg px-3 py-3 text-foreground text-sm"
-                                        placeholder="Artikel-Inhalt in Markdown schreiben..."
-                                        placeholderTextColor={colors.muted}
-                                        value={formData.content}
-                                        onChangeText={(text) => setFormData({ ...formData, content: text })}
-                                        multiline
-                                        numberOfLines={10}
-                                        textAlignVertical="top"
-                                        style={{ minHeight: 200 }}
-                                    />
+                                    <View>
+                                        {/* Formatting Toolbar */}
+                                        <ScrollView
+                                            horizontal
+                                            showsHorizontalScrollIndicator={false}
+                                            className="mb-1"
+                                            style={{ flexGrow: 0 }}
+                                        >
+                                            <View className="flex-row gap-1">
+                                                {[
+                                                    { label: "H1", insert: "# ", prefix: true },
+                                                    { label: "H2", insert: "## ", prefix: true },
+                                                    { label: "H3", insert: "### ", prefix: true },
+                                                    { label: "B", insert: "**", wrap: true, style: { fontWeight: "800" as const } },
+                                                    { label: "I", insert: "*", wrap: true, style: { fontStyle: "italic" as const } },
+                                                    { label: "•", insert: "- ", prefix: true },
+                                                    { label: "1.", insert: "1. ", prefix: true },
+                                                    { label: "</>", insert: "`", wrap: true },
+                                                    { label: "❝", insert: "> ", prefix: true },
+                                                    { label: "🔗", insert: "[Link](url)", replace: true },
+                                                    { label: "—", insert: "\n---\n", replace: true },
+                                                ].map((btn, idx) => (
+                                                    <TouchableOpacity
+                                                        key={idx}
+                                                        className="px-2.5 py-1.5 rounded-md items-center justify-center"
+                                                        style={{
+                                                            backgroundColor: colors.surface,
+                                                            borderWidth: 1,
+                                                            borderColor: colors.border,
+                                                            minWidth: 32,
+                                                        }}
+                                                        onPress={() => {
+                                                            const content = formData.content;
+                                                            if (btn.replace) {
+                                                                setFormData({ ...formData, content: content + btn.insert });
+                                                            } else if (btn.prefix) {
+                                                                // Add at start of current line or new line
+                                                                const newContent = content.endsWith("\n") || content === ""
+                                                                    ? content + btn.insert
+                                                                    : content + "\n" + btn.insert;
+                                                                setFormData({ ...formData, content: newContent });
+                                                            } else if (btn.wrap) {
+                                                                setFormData({ ...formData, content: content + btn.insert + "Text" + btn.insert });
+                                                            }
+                                                        }}
+                                                        activeOpacity={0.6}
+                                                    >
+                                                        <Text
+                                                            className="text-xs"
+                                                            style={{
+                                                                color: colors.foreground,
+                                                                ...(btn.style || {}),
+                                                            }}
+                                                        >
+                                                            {btn.label}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        </ScrollView>
+                                        <TextInput
+                                            className="bg-surface border border-border rounded-lg px-3 py-3 text-foreground text-sm"
+                                            placeholder="Artikel-Inhalt schreiben..."
+                                            placeholderTextColor={colors.muted}
+                                            value={formData.content}
+                                            onChangeText={(text) => setFormData({ ...formData, content: text })}
+                                            multiline
+                                            numberOfLines={10}
+                                            textAlignVertical="top"
+                                            style={{ minHeight: 200, fontFamily: "monospace" }}
+                                        />
+                                    </View>
                                 )}
                             </View>
 
