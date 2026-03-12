@@ -181,12 +181,13 @@ export function CustomerFormModal({
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-        base64: true,
+        base64: Platform.OS === "web", // Only request base64 on web
       });
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
-        // Prefer base64 data URI for reliable web upload
-        if (asset.base64) {
+        // Web: use base64 data URI for reliable upload
+        // Native: use file URI (fetch().blob() works natively)
+        if (Platform.OS === "web" && asset.base64) {
           const mimeType = asset.mimeType || "image/jpeg";
           setLogoUri(`data:${mimeType};base64,${asset.base64}`);
         } else {

@@ -143,23 +143,19 @@ export async function deleteCustomer(id: string) {
 // ── Customer Logo ──
 
 export async function uploadCustomerLogo(customerId: string, uri: string): Promise<string> {
-    let body: Blob;
+    let body: any;
     let contentType = "image/png";
 
     if (uri.startsWith("data:")) {
-        // Web: expo-image-picker returns data URIs — convert base64 to Blob
+        // Web: convert base64 data URI to File object
         const [header, base64Data] = uri.split(",");
         const mimeMatch = header.match(/data:([^;]+)/);
         if (mimeMatch) contentType = mimeMatch[1];
 
-        const binaryString = atob(base64Data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        body = new Blob([bytes], { type: contentType });
+        const response = await fetch(uri);
+        body = await response.blob();
     } else {
-        // Native: normal file URI — fetch as blob
+        // Native: file URI — fetch as blob (natively supported)
         const response = await fetch(uri);
         body = await response.blob();
         contentType = body.type || "image/png";
