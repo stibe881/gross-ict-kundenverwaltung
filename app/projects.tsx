@@ -209,9 +209,7 @@ export default function ProjectsScreen() {
                 key={column.key}
                 className="bg-background rounded-xl border border-border"
                 style={{
-                    width: isWide ? undefined : 280,
                     flex: isWide ? 1 : undefined,
-                    marginRight: isWide ? 0 : 12,
                 }}
             >
                 {/* Column Header */}
@@ -229,15 +227,27 @@ export default function ProjectsScreen() {
                 </View>
 
                 {/* Column Content */}
-                <ScrollView className="p-2" style={{ maxHeight: 500 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-                    {items.length === 0 ? (
-                        <View className="items-center py-6">
-                            <Text className="text-xs text-muted">Leer</Text>
-                        </View>
-                    ) : (
-                        items.map((project: any) => renderProjectCard(project))
-                    )}
-                </ScrollView>
+                {isWide ? (
+                    <ScrollView className="p-2" style={{ maxHeight: 500 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                        {items.length === 0 ? (
+                            <View className="items-center py-6">
+                                <Text className="text-xs text-muted">Leer</Text>
+                            </View>
+                        ) : (
+                            items.map((project: any) => renderProjectCard(project))
+                        )}
+                    </ScrollView>
+                ) : (
+                    <View className="p-2">
+                        {items.length === 0 ? (
+                            <View className="items-center py-4">
+                                <Text className="text-xs text-muted">Leer</Text>
+                            </View>
+                        ) : (
+                            items.map((project: any) => renderProjectCard(project))
+                        )}
+                    </View>
+                )}
             </View>
         );
     };
@@ -252,67 +262,96 @@ export default function ProjectsScreen() {
                 <View style={{ padding: contentPadding }}>
                     <View style={containerStyle}>
                         {/* ── Header ── */}
-                        <View className="flex-row items-center justify-between mb-4">
-                            <View className="flex-row items-center gap-3">
-                                <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-                                    <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-                                </TouchableOpacity>
-                                <View>
-                                    <Text className="text-3xl font-bold text-foreground">Projekte</Text>
-                                    <Text className="text-sm text-muted">Projekte verwalten und Fortschritte verfolgen.</Text>
+                        <View className="mb-4">
+                            {/* Row 1: Back + Title */}
+                            <View className="flex-row items-center justify-between mb-3">
+                                <View className="flex-row items-center gap-3">
+                                    <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                                        <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+                                    </TouchableOpacity>
+                                    <View>
+                                        <Text className="text-2xl font-bold text-foreground">Projekte</Text>
+                                        {isWide && <Text className="text-sm text-muted">Projekte verwalten und Fortschritte verfolgen.</Text>}
+                                    </View>
                                 </View>
-                            </View>
 
-                            <View className="flex-row items-center gap-2">
-                                {/* Search */}
+                                {/* Desktop: search inline */}
                                 {isWide && (
-                                    <View className="flex-row items-center bg-surface border border-border rounded-lg px-3 py-1.5 gap-2" style={{ width: 180 }}>
-                                        <IconSymbol name="magnifyingglass" size={14} color={colors.muted} />
-                                        <TextInput
-                                            className="flex-1 text-foreground text-sm"
-                                            placeholder="Suchen..."
-                                            placeholderTextColor={colors.muted}
-                                            value={search}
-                                            onChangeText={setSearch}
-                                        />
+                                    <View className="flex-row items-center gap-2">
+                                        <View className="flex-row items-center bg-surface border border-border rounded-lg px-3 py-1.5 gap-2" style={{ width: 180 }}>
+                                            <IconSymbol name="magnifyingglass" size={14} color={colors.muted} />
+                                            <TextInput
+                                                className="flex-1 text-foreground text-sm"
+                                                placeholder="Suchen..."
+                                                placeholderTextColor={colors.muted}
+                                                value={search}
+                                                onChangeText={setSearch}
+                                            />
+                                        </View>
+                                        <View className="flex-row bg-surface border border-border rounded-lg overflow-hidden">
+                                            <TouchableOpacity
+                                                className="flex-row items-center gap-1 px-3 py-1.5"
+                                                style={{ backgroundColor: viewMode === "kanban" ? colors.primary : "transparent" }}
+                                                onPress={() => setViewMode("kanban")}
+                                                activeOpacity={0.8}
+                                            >
+                                                <IconSymbol name="square.grid.2x2.fill" size={12} color={viewMode === "kanban" ? "#111" : colors.muted} />
+                                                <Text className="text-xs font-semibold" style={{ color: viewMode === "kanban" ? "#111" : colors.foreground }}>Kanban</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                className="flex-row items-center gap-1 px-3 py-1.5"
+                                                style={{ backgroundColor: viewMode === "list" ? colors.primary : "transparent" }}
+                                                onPress={() => setViewMode("list")}
+                                                activeOpacity={0.8}
+                                            >
+                                                <IconSymbol name="list.bullet" size={12} color={viewMode === "list" ? "#111" : colors.muted} />
+                                                <Text className="text-xs font-semibold" style={{ color: viewMode === "list" ? "#111" : colors.foreground }}>Liste</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                        <TouchableOpacity
+                                            className="flex-row items-center gap-1.5 bg-primary px-4 py-2 rounded-lg"
+                                            onPress={() => setShowCreateModal(true)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text className="text-sm font-semibold" style={{ color: "#111" }}>+ Neues Projekt</Text>
+                                        </TouchableOpacity>
                                     </View>
                                 )}
+                            </View>
 
-                                {/* Kanban / List Toggle */}
-                                <View className="flex-row bg-surface border border-border rounded-lg overflow-hidden">
+                            {/* Row 2 (mobile only): Controls */}
+                            {!isWide && (
+                                <View className="flex-row items-center gap-2">
+                                    <View className="flex-row bg-surface border border-border rounded-lg overflow-hidden">
+                                        <TouchableOpacity
+                                            className="flex-row items-center gap-1 px-3 py-2"
+                                            style={{ backgroundColor: viewMode === "kanban" ? colors.primary : "transparent" }}
+                                            onPress={() => setViewMode("kanban")}
+                                            activeOpacity={0.8}
+                                        >
+                                            <IconSymbol name="square.grid.2x2.fill" size={14} color={viewMode === "kanban" ? "#111" : colors.muted} />
+                                            <Text className="text-xs font-semibold" style={{ color: viewMode === "kanban" ? "#111" : colors.foreground }}>Kanban</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            className="flex-row items-center gap-1 px-3 py-2"
+                                            style={{ backgroundColor: viewMode === "list" ? colors.primary : "transparent" }}
+                                            onPress={() => setViewMode("list")}
+                                            activeOpacity={0.8}
+                                        >
+                                            <IconSymbol name="list.bullet" size={14} color={viewMode === "list" ? "#111" : colors.muted} />
+                                            <Text className="text-xs font-semibold" style={{ color: viewMode === "list" ? "#111" : colors.foreground }}>Liste</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                    <View className="flex-1" />
                                     <TouchableOpacity
-                                        className="flex-row items-center gap-1 px-3 py-1.5"
-                                        style={{ backgroundColor: viewMode === "kanban" ? colors.primary : "transparent" }}
-                                        onPress={() => setViewMode("kanban")}
+                                        className="flex-row items-center gap-1.5 bg-primary px-4 py-2 rounded-lg"
+                                        onPress={() => setShowCreateModal(true)}
                                         activeOpacity={0.8}
                                     >
-                                        <IconSymbol name="square.grid.2x2.fill" size={12} color={viewMode === "kanban" ? "#111" : colors.muted} />
-                                        <Text className="text-xs font-semibold" style={{ color: viewMode === "kanban" ? "#111" : colors.foreground }}>
-                                            Kanban
-                                        </Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        className="flex-row items-center gap-1 px-3 py-1.5"
-                                        style={{ backgroundColor: viewMode === "list" ? colors.primary : "transparent" }}
-                                        onPress={() => setViewMode("list")}
-                                        activeOpacity={0.8}
-                                    >
-                                        <IconSymbol name="list.bullet" size={12} color={viewMode === "list" ? "#111" : colors.muted} />
-                                        <Text className="text-xs font-semibold" style={{ color: viewMode === "list" ? "#111" : colors.foreground }}>
-                                            Liste
-                                        </Text>
+                                        <Text className="text-sm font-semibold" style={{ color: "#111" }}>+ Neues Projekt</Text>
                                     </TouchableOpacity>
                                 </View>
-
-                                {/* New Project Button */}
-                                <TouchableOpacity
-                                    className="flex-row items-center gap-1.5 bg-primary px-4 py-2 rounded-lg"
-                                    onPress={() => setShowCreateModal(true)}
-                                    activeOpacity={0.8}
-                                >
-                                    <Text className="text-sm font-semibold" style={{ color: "#111" }}>+ Neues Projekt</Text>
-                                </TouchableOpacity>
-                            </View>
+                            )}
                         </View>
 
                         {/* ── Mobile Search ── */}
@@ -362,13 +401,10 @@ export default function ProjectsScreen() {
                                     {KANBAN_COLUMNS.map(col => renderKanbanColumn(col))}
                                 </View>
                             ) : (
-                                <ScrollView
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    style={{ flexGrow: 0 }}
-                                >
+                                /* Mobile: stacked columns */
+                                <View className="gap-3">
                                     {KANBAN_COLUMNS.map(col => renderKanbanColumn(col))}
-                                </ScrollView>
+                                </View>
                             )
                         ) : (
                             /* List View */
