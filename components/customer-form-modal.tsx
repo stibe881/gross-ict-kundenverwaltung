@@ -177,13 +177,21 @@ export function CustomerFormModal({
   const pickLogo = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+        base64: true,
       });
       if (!result.canceled && result.assets[0]) {
-        setLogoUri(result.assets[0].uri);
+        const asset = result.assets[0];
+        // Prefer base64 data URI for reliable web upload
+        if (asset.base64) {
+          const mimeType = asset.mimeType || "image/jpeg";
+          setLogoUri(`data:${mimeType};base64,${asset.base64}`);
+        } else {
+          setLogoUri(asset.uri);
+        }
         setLogoChanged(true);
       }
     } catch (e) {
@@ -270,9 +278,8 @@ export function CustomerFormModal({
                   {logoUri ? (
                     <Image
                       source={{ uri: logoUri }}
-                      className="w-16 h-16 rounded-xl"
-                      style={{ backgroundColor: colors.border }}
-                      resizeMode="contain"
+                      style={{ width: 64, height: 64, borderRadius: 12 }}
+                      resizeMode="cover"
                     />
                   ) : (
                     <View
