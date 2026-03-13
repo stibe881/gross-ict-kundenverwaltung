@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   ScrollView,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   useWindowDimensions,
   Image,
+  TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -21,6 +22,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { QuoteFormModal } from "@/components/quote-form-modal";
 import { ProjectFormModal } from "@/components/project-form-modal";
 import { useQuery } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
 
 interface DashboardTile {
   id: string;
@@ -42,6 +44,10 @@ export default function DashboardScreen() {
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<any>(null);
 
   const { width } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
@@ -77,6 +83,13 @@ export default function DashboardScreen() {
     refetchInterval: 30000,
   });
 
+  // Load current user's roles for RBAC
+  const { data: userProfile } = useQuery({
+    queryKey: ["userProfile", user?.id],
+    queryFn: () => Data.getUserProfile(user?.id),
+    enabled: !!user?.id,
+  });
+
   if (loading) {
     return (
       <ScreenContainer className="items-center justify-center">
@@ -90,6 +103,91 @@ export default function DashboardScreen() {
     user?.user_metadata?.name ||
     user?.email?.split("@")[0] ||
     "Admin";
+
+  // Global search with debounce
+  const performSearch = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const results: any[] = [];
+    const q = `%${query}%`;
+    try {
+      // Customers
+      const { data: customers } = await supabase
+        .from("customers")
+        .select("id, company_name, first_name, last_name, email")
+        .or(`company_name.ilike.${q},first_name.ilike.${q},last_name.ilike.${q},email.ilike.${q}`)
+        .limit(5);
+      if (customers) {
+        results.push(...customers.map((c: any) => ({
+          id: c.id, type: "customer", icon: "person.2.fill", color: colors.primary,
+          title: c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unbekannt",
+          subtitle: c.email || "Kunde",
+          route: `/customer/${c.id}`,
+        })));
+      }
+      // Tickets
+      const { data: tickets } = await supabase
+        .from("tickets")
+        .select("id, title, status")
+        .ilike("title", q)
+        .limit(5);
+      if (tickets) {
+        results.push(...tickets.map((t: any) => ({
+          id: t.id, type: "ticket", icon: "ticket.fill", color: colors.warning,
+          title: t.title,
+          subtitle: `Ticket · ${t.status === "open" ? "Offen" : t.status === "in_progress" ? "In Bearbeitung" : t.status === "closed" ? "Geschlossen" : t.status}`,
+          route: "/tickets",
+        })));
+      }
+      // Invoices
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("id, invoice_number, status, total")
+        .ilike("invoice_number", q)
+        .limit(5);
+      if (invoices) {
+        results.push(...invoices.map((inv: any) => ({
+          id: inv.id, type: "invoice", icon: "doc.text.fill", color: colors.success,
+          title: inv.invoice_number,
+          subtitle: `Rechnung · CHF ${(inv.total || 0).toFixed(2)}`,
+          route: `/invoice/${inv.id}`,
+        })));
+      }
+      // Quotes
+      const { data: quotes } = await supabase
+        .from("quotes")
+        .select("id, quote_number, status, total")
+        .ilike("quote_number", q)
+        .limit(5);
+      if (quotes) {
+        results.push(...quotes.map((qa: any) => ({
+          id: qa.id, type: "quote", icon: "doc.text.fill", color: "#EC4899",
+          title: qa.quote_number,
+          subtitle: `Angebot · CHF ${(qa.total || 0).toFixed(2)}`,
+          route: `/quote/${qa.id}`,
+        })));
+      }
+    } catch (e) {
+      console.warn("[Search] Error:", e);
+    }
+    setSearchResults(results);
+    setSearching(false);
+  }, [colors]);
+
+  const handleSearchChange = (text: string) => {
+    setGlobalSearch(text);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!text || text.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    searchTimer.current = setTimeout(() => performSearch(text), 350);
+  };
 
   const tileCategories = [
     {
@@ -211,9 +309,29 @@ export default function DashboardScreen() {
           color: "#0EA5E9",
           route: "/business-card",
         },
+        {
+          id: "users",
+          title: "Benutzer & Rollen",
+          subtitle: "Mitarbeitende",
+          icon: "person.2.fill",
+          color: "#6366F1",
+          route: "/users",
+        },
       ],
     },
   ];
+
+  const allowedTileIds = Data.getAllowedTileIds(userProfile?.roles || []);
+
+  // Filter tiles by role
+  const filteredCategories = tileCategories
+    .map((cat) => ({
+      ...cat,
+      tiles: allowedTileIds
+        ? cat.tiles.filter((t) => allowedTileIds.includes(t.id))
+        : cat.tiles,
+    }))
+    .filter((cat) => cat.tiles.length > 0);
 
   // Tile column count based on screen width
   const tileColumns = isWide ? 4 : isMedium ? 3 : 2;
@@ -337,8 +455,96 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {/* Quick Actions Bar */}
-          <ScrollView
+          {/* Global Search */}
+          <View style={{ marginBottom: isWide ? 24 : 16, position: "relative", zIndex: 100 }}>
+            <View style={{
+              backgroundColor: colors.surface,
+              borderRadius: 14,
+              padding: 12,
+              flexDirection: "row",
+              alignItems: "center",
+              borderWidth: 1,
+              borderColor: globalSearch ? colors.primary + "60" : colors.border,
+            }}>
+              <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
+              <TextInput
+                style={{ flex: 1, marginLeft: 10, fontSize: 15, color: colors.foreground }}
+                placeholder="Kunden, Tickets, Rechnungen suchen..."
+                placeholderTextColor={colors.muted}
+                value={globalSearch}
+                onChangeText={handleSearchChange}
+              />
+              {globalSearch.length > 0 && (
+                <TouchableOpacity onPress={() => { setGlobalSearch(""); setSearchResults([]); }}>
+                  <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Search Results Dropdown */}
+            {(searchResults.length > 0 || (searching && globalSearch.length >= 2)) && (
+              <View style={{
+                position: "absolute", top: 56, left: 0, right: 0,
+                backgroundColor: colors.surface,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: colors.border,
+                overflow: "hidden",
+                ...(Platform.OS === "web" ? { boxShadow: "0 8px 32px rgba(0,0,0,0.18)" } as any : {
+                  shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
+                }),
+                maxHeight: 350,
+              }}>
+                {searching ? (
+                  <View style={{ padding: 20, alignItems: "center" }}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                ) : searchResults.length === 0 ? (
+                  <View style={{ padding: 20, alignItems: "center" }}>
+                    <Text style={{ color: colors.muted, fontSize: 14 }}>Keine Ergebnisse</Text>
+                  </View>
+                ) : (
+                  <ScrollView style={{ maxHeight: 340 }} nestedScrollEnabled>
+                    {searchResults.map((result, idx) => (
+                      <TouchableOpacity
+                        key={`${result.type}-${result.id}`}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          padding: 14,
+                          borderBottomWidth: idx < searchResults.length - 1 ? 1 : 0,
+                          borderBottomColor: colors.border,
+                          gap: 12,
+                        }}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          setGlobalSearch("");
+                          setSearchResults([]);
+                          router.push(result.route as any);
+                        }}
+                      >
+                        <View style={{
+                          width: 36, height: 36, borderRadius: 10,
+                          backgroundColor: result.color + "18",
+                          alignItems: "center", justifyContent: "center",
+                        }}>
+                          <IconSymbol name={result.icon} size={18} color={result.color} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{result.title}</Text>
+                          <Text style={{ fontSize: 12, color: colors.muted, marginTop: 1 }} numberOfLines={1}>{result.subtitle}</Text>
+                        </View>
+                        <IconSymbol name="chevron.right" size={14} color={colors.muted} />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* Quick Actions Bar - nur Web/Desktop, mobil hat FAB */}
+          {isWeb && <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={{ marginBottom: isWide ? 32 : 20 }}
@@ -403,10 +609,10 @@ export default function DashboardScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </ScrollView>}
 
           {/* Categorized Tiles */}
-          {tileCategories.map((category) => (
+          {filteredCategories.map((category) => (
             <View key={category.label} style={{ marginBottom: isWide ? 28 : 20 }}>
               <Text
                 style={{

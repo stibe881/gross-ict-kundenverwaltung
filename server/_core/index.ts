@@ -173,6 +173,164 @@ async function startServer() {
         });
       } catch (e) { /* ignore notification errors */ }
 
+      // Auto-create and send first invoice if recurring billing is enabled
+      if (contract.recurring_enabled) {
+        try {
+          console.log(`[sign-contract] Recurring enabled for "${contract.title}", creating first invoice...`);
+          const { createClient } = await import("@supabase/supabase-js");
+          const supabaseAdmin = createClient(
+            process.env.EXPO_PUBLIC_SUPABASE_URL || "",
+            process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || ""
+          );
+
+          // Get full contract with customer data
+          const { data: fullContract } = await supabaseAdmin
+            .from("contracts")
+            .select("*, customer:customers(*)")
+            .eq("id", contract.id)
+            .single();
+
+          if (fullContract) {
+            // Calculate amounts
+            const BILLING_CYCLES = [
+              { key: "monthly", months: 1, surcharge: 2, label: "Monatlich" },
+              { key: "quarterly", months: 3, surcharge: 2, label: "Quartal" },
+              { key: "semi_annual", months: 6, surcharge: 2, label: "Halbjährlich" },
+              { key: "yearly", months: 12, surcharge: 0, label: "Jährlich" },
+            ];
+            const cycle = BILLING_CYCLES.find(c => c.key === fullContract.billing_cycle) || BILLING_CYCLES[3];
+            const annualAmount = fullContract.annual_amount || fullContract.amount || 0;
+            const baseAmount = Math.round((annualAmount / 12 * cycle.months) * 100) / 100;
+            const totalAmount = baseAmount + cycle.surcharge;
+
+            // Get next invoice number
+            const { data: lastInvoice } = await supabaseAdmin
+              .from("invoices")
+              .select("invoice_number")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .single();
+
+            const year = new Date().getFullYear();
+            let nextNum = 1;
+            if (lastInvoice?.invoice_number) {
+              const match = lastInvoice.invoice_number.match(/(\d+)$/);
+              if (match) nextNum = parseInt(match[1]) + 1;
+            }
+            const invoiceNumber = `RE-${year}-${String(nextNum).padStart(3, "0")}`;
+
+            const today = new Date().toISOString().split("T")[0];
+            const ptMatch = (fullContract.payment_terms || "").match(/(\d+)/);
+            const paymentDays = ptMatch ? parseInt(ptMatch[1]) : 30;
+            const dueDate = new Date(Date.now() + paymentDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+            // Create invoice
+            const items: any[] = [
+              {
+                description: `${fullContract.title} — ${cycle.label}e Abrechnung`,
+                quantity: 1, unit: "Pauschale", unit_price: baseAmount, vat_rate: 8.1, total: baseAmount,
+              },
+            ];
+            if (cycle.surcharge > 0) {
+              items.push({
+                description: `Zuschlag ${cycle.label}e Abrechnung`,
+                quantity: 1, unit: "Pauschale", unit_price: cycle.surcharge, vat_rate: 8.1, total: cycle.surcharge,
+              });
+            }
+
+            const { data: invoiceData, error: invoiceError } = await supabaseAdmin
+              .from("invoices")
+              .insert([{
+                customer_id: fullContract.customer_id,
+                invoice_number: invoiceNumber,
+                invoice_date: today,
+                due_date: dueDate,
+                subtotal: totalAmount,
+                vat_amount: Math.round(totalAmount * 0.081 * 100) / 100,
+                total: Math.round(totalAmount * 1.081 * 100) / 100,
+                status: "open",
+                notes: `Automatische Rechnung aus Vertrag: ${fullContract.title}`,
+              }])
+              .select()
+              .single();
+
+            if (!invoiceError && invoiceData) {
+              // Insert items
+              const itemsWithId = items.map(item => ({ ...item, invoice_id: invoiceData.id }));
+              await supabaseAdmin.from("invoice_items").insert(itemsWithId);
+
+              // Update contract dates
+              const nextDate = new Date(today);
+              nextDate.setMonth(nextDate.getMonth() + cycle.months);
+              await supabaseAdmin.from("contracts").update({
+                last_invoice_date: today,
+                next_invoice_date: nextDate.toISOString().split("T")[0],
+                updated_at: new Date().toISOString(),
+              }).eq("id", fullContract.id);
+
+              console.log(`[sign-contract] Invoice ${invoiceNumber} created, sending email...`);
+
+              // Send invoice email
+              if (fullContract.customer?.email) {
+                try {
+                  const { getInvoiceById, addInvoiceActivity } = await import("../supabase-db");
+                  const { generateInvoicePDF } = await import("../pdf-generator");
+                  const { sendInvoiceEmail } = await import("../email");
+
+                  const invoice = await getInvoiceById(invoiceData.id);
+                  if (invoice) {
+                    const customerName = invoice.customer?.company_name ||
+                      `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "Unbekannt";
+                    const addressParts = [customerName, invoice.customer?.street,
+                      `${invoice.customer?.zip || ""} ${invoice.customer?.city || ""}`.trim()].filter(Boolean);
+
+                    const pdfBuffer = await generateInvoicePDF({
+                      invoiceNumber: invoice.invoice_number,
+                      customerNumber: invoice.customer?.customer_number,
+                      invoiceDate: invoice.invoice_date,
+                      dueDate: invoice.due_date,
+                      paymentMethod: "Überweisung",
+                      customerName,
+                      customerAddress: addressParts.join("\n"),
+                      items: (invoice.items || []).map((item: any) => ({
+                        description: item.description, quantity: item.quantity,
+                        unitPrice: item.unit_price, vatRate: item.vat_rate, total: item.total,
+                      })),
+                      subtotal: invoice.subtotal, totalVat: invoice.vat_amount, total: invoice.total,
+                    });
+
+                    const fmtDate = (d: string) => {
+                      const dt = new Date(d);
+                      return `${dt.getDate().toString().padStart(2, '0')}.${(dt.getMonth() + 1).toString().padStart(2, '0')}.${dt.getFullYear()}`;
+                    };
+                    const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || `http://localhost:3000`;
+
+                    await sendInvoiceEmail({
+                      to: invoice.customer.email,
+                      invoiceNumber: invoice.invoice_number,
+                      invoiceDate: fmtDate(invoice.invoice_date),
+                      dueDate: fmtDate(invoice.due_date),
+                      total: invoice.total.toFixed(2),
+                      pdfBuffer,
+                      trackingUrl: `${baseUrl}/api/track/${invoiceData.id}`,
+                    });
+
+                    await addInvoiceActivity(invoiceData.id, "sent", `Rechnung automatisch per E-Mail an ${invoice.customer.email} gesendet (Vertragsunterzeichnung)`);
+                    console.log(`[sign-contract] Invoice ${invoiceNumber} sent to ${invoice.customer.email}`);
+                  }
+                } catch (emailErr: any) {
+                  console.error("[sign-contract] Failed to send invoice email:", emailErr.message);
+                }
+              }
+            } else {
+              console.error("[sign-contract] Failed to create invoice:", invoiceError?.message);
+            }
+          }
+        } catch (recurringErr: any) {
+          console.error("[sign-contract] Error creating recurring invoice:", recurringErr.message);
+        }
+      }
+
       res.json({ success: true, signature_date: contract.signature_date });
     } catch (err: any) {
       console.error("[sign-contract] Error:", err);
@@ -287,6 +445,221 @@ async function startServer() {
       res.status(500).json({ error: err.message || "Internal server error" });
     }
   });
+
+  // ── Admin-Benutzer erstellen (für Benutzer & Rollen Seite) ──
+  app.post("/api/create-admin-user", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ error: "Missing Authorization header" });
+
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabaseAdmin = createClient(
+        process.env.EXPO_PUBLIC_SUPABASE_URL || "",
+        process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+      );
+
+      // Verify caller is authenticated
+      const userClient = createClient(
+        process.env.EXPO_PUBLIC_SUPABASE_URL || "",
+        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "",
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user }, error: authError } = await userClient.auth.getUser();
+      if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+
+      const { name, email, password, roles } = req.body;
+      if (!email || !password || !name) return res.status(400).json({ error: "Name, E-Mail und Passwort sind erforderlich" });
+
+      // 1. Create Auth User
+      const { data: authData, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
+        email: email.trim(),
+        password: password,
+        email_confirm: true,
+        user_metadata: { full_name: name }
+      });
+
+      if (createAuthError) return res.status(400).json({ error: createAuthError.message });
+      const authUser = authData.user;
+
+      // 2. Upsert public users table
+      const { error: dbError } = await supabaseAdmin
+        .from("users")
+        .upsert({
+          id: authUser.id,
+          name: name.trim(),
+          email: email.trim(),
+          roles: roles || [],
+          role: "admin",
+          provider: "local",
+          is_active: true,
+        }, { onConflict: "id" });
+
+      if (dbError) {
+        // Rollback: delete auth user if DB insert fails
+        await supabaseAdmin.auth.admin.deleteUser(authUser.id);
+        return res.status(400).json({ error: dbError.message });
+      }
+
+      res.json({ success: true, userId: authUser.id });
+    } catch (err: any) {
+      console.error("[create-admin-user] Error:", err);
+      res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
+  // ── Process Recurring Invoices (Cron-like) ──
+  async function processRecurringInvoices() {
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabase = createClient(
+        process.env.EXPO_PUBLIC_SUPABASE_URL || "",
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || ""
+      );
+
+      const today = new Date().toISOString().split("T")[0];
+      console.log(`[Recurring] Checking for due invoices (today: ${today})...`);
+
+      // Find contracts with recurring enabled and next_invoice_date <= today
+      const { data: dueContracts, error } = await supabase
+        .from("contracts")
+        .select("*")
+        .eq("recurring_enabled", true)
+        .eq("status", "active")
+        .lte("next_invoice_date", today);
+
+      if (error) {
+        console.error("[Recurring] Error fetching contracts:", error.message);
+        return { processed: 0, errors: [error.message] };
+      }
+
+      if (!dueContracts || dueContracts.length === 0) {
+        console.log("[Recurring] No due invoices found.");
+        return { processed: 0, errors: [] };
+      }
+
+      console.log(`[Recurring] Found ${dueContracts.length} contracts with due invoices.`);
+      const errors: string[] = [];
+      let processed = 0;
+
+      for (const contract of dueContracts) {
+        try {
+          // Calculate amounts
+          const BILLING_CYCLES = [
+            { key: "monthly", months: 1, surcharge: 2 },
+            { key: "quarterly", months: 3, surcharge: 2 },
+            { key: "semi_annual", months: 6, surcharge: 2 },
+            { key: "yearly", months: 12, surcharge: 0 },
+          ];
+          const cycle = BILLING_CYCLES.find(c => c.key === contract.billing_cycle) || BILLING_CYCLES[3];
+          const annualAmount = contract.annual_amount || contract.amount || 0;
+          const baseAmount = Math.round((annualAmount / 12 * cycle.months) * 100) / 100;
+          const totalAmount = baseAmount + cycle.surcharge;
+          const cycleName = ["Monatlich", "Quartal", "Halbjährlich", "Jährlich"][BILLING_CYCLES.indexOf(cycle)] || "Jährlich";
+
+          // Get next invoice number
+          const { data: lastInvoice } = await supabase
+            .from("invoices")
+            .select("invoice_number")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+
+          const year = new Date().getFullYear();
+          let nextNum = 1;
+          if (lastInvoice?.invoice_number) {
+            const match = lastInvoice.invoice_number.match(/(\d+)$/);
+            if (match) nextNum = parseInt(match[1]) + 1;
+          }
+          const invoiceNumber = `RE-${year}-${String(nextNum).padStart(3, "0")}`;
+
+          const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+          // Create invoice
+          const items: any[] = [
+            {
+              description: `${contract.title} — ${cycleName}e Abrechnung`,
+              quantity: 1,
+              unit: "Pauschale",
+              unit_price: baseAmount,
+              vat_rate: 8.1,
+              total: baseAmount,
+            },
+          ];
+          if (cycle.surcharge > 0) {
+            items.push({
+              description: `Zuschlag ${cycleName}e Abrechnung`,
+              quantity: 1,
+              unit: "Pauschale",
+              unit_price: cycle.surcharge,
+              vat_rate: 8.1,
+              total: cycle.surcharge,
+            });
+          }
+
+          const { data: invoiceData, error: invoiceError } = await supabase
+            .from("invoices")
+            .insert([{
+              customer_id: contract.customer_id,
+              invoice_number: invoiceNumber,
+              invoice_date: today,
+              due_date: dueDate,
+              subtotal: totalAmount,
+              vat_amount: Math.round(totalAmount * 0.081 * 100) / 100,
+              total: Math.round(totalAmount * 1.081 * 100) / 100,
+              status: "open",
+              notes: `Automatische Rechnung aus Vertrag: ${contract.title}`,
+            }])
+            .select()
+            .single();
+
+          if (invoiceError) throw new Error(invoiceError.message);
+
+          // Insert items
+          const itemsWithId = items.map(item => ({ ...item, invoice_id: invoiceData.id }));
+          const { error: itemsError } = await supabase.from("invoice_items").insert(itemsWithId);
+          if (itemsError) console.warn("[Recurring] Items error:", itemsError.message);
+
+          // Update contract next_invoice_date
+          const nextDate = new Date(contract.next_invoice_date);
+          nextDate.setMonth(nextDate.getMonth() + cycle.months);
+
+          await supabase.from("contracts").update({
+            last_invoice_date: today,
+            next_invoice_date: nextDate.toISOString().split("T")[0],
+            updated_at: new Date().toISOString(),
+          }).eq("id", contract.id);
+
+          processed++;
+          console.log(`[Recurring] Created invoice ${invoiceNumber} for contract "${contract.title}"`);
+        } catch (e: any) {
+          console.error(`[Recurring] Error processing contract ${contract.id}:`, e.message);
+          errors.push(`${contract.title}: ${e.message}`);
+        }
+      }
+
+      return { processed, errors };
+    } catch (err: any) {
+      console.error("[Recurring] Error:", err);
+      return { processed: 0, errors: [err.message] };
+    }
+  }
+
+  app.post("/api/process-recurring-invoices", async (req, res) => {
+    const result = await processRecurringInvoices();
+    res.json(result);
+  });
+
+  // Run recurring invoices check daily (every 24 hours)
+  setInterval(() => {
+    console.log("[Recurring] Daily check triggered");
+    processRecurringInvoices();
+  }, 24 * 60 * 60 * 1000);
+
+  // Also run on startup after a small delay
+  setTimeout(() => {
+    console.log("[Recurring] Startup check triggered");
+    processRecurringInvoices();
+  }, 10000);
 
   app.post("/api/send-invoice-email", async (req, res) => {
     try {

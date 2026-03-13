@@ -38,6 +38,7 @@ export function TicketFormModal({
     customerId: ticket?.customer_id || ticket?.customerId || null,
   });
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [showPriorityPicker, setShowPriorityPicker] = useState(false);
 
   // Kunden laden
   const { data: customers } = useQuery({
@@ -153,34 +154,61 @@ export function TicketFormModal({
                 <Text className="text-sm font-semibold text-foreground mb-2">
                   Priorität
                 </Text>
-                <View className="flex-row gap-2">
-                  {[
-                    { label: "Niedrig", value: "low", color: colors.success },
-                    { label: "Mittel", value: "medium", color: colors.warning },
-                    { label: "Hoch", value: "high", color: colors.error },
-                  ].map((priority) => (
-                    <TouchableOpacity
-                      key={priority.value}
-                      className={`flex-1 py-3 rounded-lg ${formData.priority === priority.value
-                        ? "bg-primary"
-                        : "bg-surface border border-border"
-                        }`}
-                      onPress={() =>
-                        setFormData({ ...formData, priority: priority.value })
-                      }
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        className={`text-center font-semibold ${formData.priority === priority.value
-                          ? "text-background"
-                          : "text-foreground"
-                          }`}
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderWidth: 1, borderColor: colors.border,
+                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+                    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+                  }}
+                  onPress={() => setShowPriorityPicker(!showPriorityPicker)}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <View style={{
+                      width: 10, height: 10, borderRadius: 5,
+                      backgroundColor: formData.priority === "low" ? colors.success : formData.priority === "high" ? colors.error : colors.warning,
+                    }} />
+                    <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "600" }}>
+                      {formData.priority === "low" ? "Niedrig" : formData.priority === "high" ? "Hoch" : "Mittel"}
+                    </Text>
+                  </View>
+                  <IconSymbol name="chevron.down" size={14} color={colors.muted} />
+                </TouchableOpacity>
+                {showPriorityPicker && (
+                  <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginTop: 4, overflow: "hidden" }}>
+                    {[
+                      { label: "Niedrig", value: "low", color: colors.success },
+                      { label: "Mittel", value: "medium", color: colors.warning },
+                      { label: "Hoch", value: "high", color: colors.error },
+                    ].map((priority) => (
+                      <TouchableOpacity
+                        key={priority.value}
+                        style={{
+                          paddingHorizontal: 14, paddingVertical: 12,
+                          borderBottomWidth: 1, borderBottomColor: colors.border,
+                          flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+                          backgroundColor: formData.priority === priority.value ? priority.color + "10" : "transparent",
+                        }}
+                        onPress={() => {
+                          setFormData({ ...formData, priority: priority.value });
+                          setShowPriorityPicker(false);
+                        }}
+                        activeOpacity={0.7}
                       >
-                        {priority.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: priority.color }} />
+                          <Text style={{ fontSize: 14, color: colors.foreground, fontWeight: formData.priority === priority.value ? "700" : "400" }}>
+                            {priority.label}
+                          </Text>
+                        </View>
+                        {formData.priority === priority.value && (
+                          <IconSymbol name="checkmark" size={14} color={priority.color} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
 
               {/* Kunde auswählen */}

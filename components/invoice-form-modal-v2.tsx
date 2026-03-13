@@ -92,6 +92,7 @@ export function InvoiceFormModal({
   const [newProductPrice, setNewProductPrice] = useState("");
   const [newProductVat, setNewProductVat] = useState<number>(VAT_RATES.normal);
   const [newProductForItem, setNewProductForItem] = useState<string | null>(null);
+  const [paymentTermsDays, setPaymentTermsDays] = useState(30);
 
   // Kunden laden
   const { data: customers } = useQuery({
@@ -324,7 +325,7 @@ export function InvoiceFormModal({
     }
 
     const today = new Date().toISOString().split("T")[0];
-    const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const dueDate = new Date(Date.now() + paymentTermsDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     const invoicePayload = {
       customerId: selectedCustomerId,
@@ -407,6 +408,36 @@ export function InvoiceFormModal({
                       : "Kunde auswählen..."}
                   </Text>
                 </TouchableOpacity>
+              </View>
+
+              {/* Zahlungsbedingungen */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Zahlungsbedingungen
+                </Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {Data.PAYMENT_TERMS_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.key}
+                      onPress={() => setPaymentTermsDays(opt.days)}
+                      activeOpacity={0.7}
+                      style={{
+                        flex: 1, paddingVertical: 10, borderRadius: 8,
+                        backgroundColor: paymentTermsDays === opt.days ? colors.primary : colors.surface,
+                        borderWidth: 1,
+                        borderColor: paymentTermsDays === opt.days ? colors.primary : colors.border,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 13, fontWeight: "600",
+                        color: paymentTermsDays === opt.days ? "#fff" : colors.foreground,
+                      }}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
 
               {/* Positionen */}

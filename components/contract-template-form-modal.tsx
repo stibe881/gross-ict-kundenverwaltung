@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import * as Data from "@/lib/data";
 
 interface ContractTemplateFormModalProps {
     visible: boolean;
@@ -205,16 +206,29 @@ export function ContractTemplateFormModal({
                                 <Text className="text-sm font-semibold text-foreground mb-2">
                                     Standard-Zahlungsbedingungen
                                 </Text>
-                                <TextInput
-                                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                                    placeholder="z.B. 30 Tage netto"
-                                    placeholderTextColor={colors.muted}
-                                    multiline
-                                    numberOfLines={3}
-                                    textAlignVertical="top"
-                                    value={formData.default_payment_terms}
-                                    onChangeText={(text) => setFormData({ ...formData, default_payment_terms: text })}
-                                />
+                                <View style={{ flexDirection: "row", gap: 8 }}>
+                                    {Data.PAYMENT_TERMS_OPTIONS.map((opt) => (
+                                        <TouchableOpacity
+                                            key={opt.key}
+                                            onPress={() => setFormData({ ...formData, default_payment_terms: opt.label })}
+                                            activeOpacity={0.7}
+                                            style={{
+                                                flex: 1, paddingVertical: 10, borderRadius: 8,
+                                                backgroundColor: formData.default_payment_terms === opt.label ? colors.primary : colors.surface,
+                                                borderWidth: 1,
+                                                borderColor: formData.default_payment_terms === opt.label ? colors.primary : colors.border,
+                                                alignItems: "center",
+                                            }}
+                                        >
+                                            <Text style={{
+                                                fontSize: 13, fontWeight: "600",
+                                                color: formData.default_payment_terms === opt.label ? "#fff" : colors.foreground,
+                                            }}>
+                                                {opt.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
                             </View>
 
                             {/* Standard-Zusatzvereinbarungen */}

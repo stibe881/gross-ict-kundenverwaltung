@@ -57,6 +57,7 @@ export function CustomerFormModal({
     firstName: editCustomer?.first_name || "",
     lastName: editCustomer?.last_name || "",
     companyName: editCustomer?.company_name || "",
+    position: editCustomer?.position || "",
     email: editCustomer?.email || "",
     phone: editCustomer?.phone || "",
     address: editCustomer?.address || "",
@@ -76,6 +77,7 @@ export function CustomerFormModal({
         firstName: editCustomer.first_name || "",
         lastName: editCustomer.last_name || "",
         companyName: editCustomer.company_name || "",
+        position: editCustomer.position || "",
         email: editCustomer.email || "",
         phone: editCustomer.phone || "",
         address: editCustomer.address || "",
@@ -94,6 +96,7 @@ export function CustomerFormModal({
         first_name: data.firstName,
         last_name: data.lastName,
         company_name: data.companyName,
+        position: data.position,
         email: data.email,
         phone: data.phone,
         address: data.address,
@@ -161,6 +164,7 @@ export function CustomerFormModal({
       firstName: "",
       lastName: "",
       companyName: "",
+      position: "",
       email: "",
       phone: "",
       address: "",
@@ -328,6 +332,12 @@ export function CustomerFormModal({
                   )}
                 </View>
               </View>
+
+              {/* Position */}
+              {renderInput("Position", formData.position,
+                (text) => setFormData({ ...formData, position: text }),
+                { placeholder: "z.B. Geschäftsführer, IT-Leiter" }
+              )}
 
               {/* E-Mail */}
               {renderInput("E-Mail *", formData.email,

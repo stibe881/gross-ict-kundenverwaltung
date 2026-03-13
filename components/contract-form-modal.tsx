@@ -52,6 +52,8 @@ export function ContractFormModal({
     paymentTerms: contract?.payment_terms || contract?.paymentTerms || "",
     scopeOfServices: contract?.scope_of_services || contract?.scopeOfServices || "",
     specialAgreements: contract?.special_agreements || contract?.specialAgreements || "",
+    recurringEnabled: contract?.recurring_enabled || false,
+    billingCycle: contract?.billing_cycle || "yearly",
   });
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
@@ -139,6 +141,8 @@ export function ContractFormModal({
         payment_terms: formData.paymentTerms || undefined,
         scope_of_services: formData.scopeOfServices || undefined,
         special_agreements: formData.specialAgreements || undefined,
+        recurring_enabled: formData.recurringEnabled,
+        billing_cycle: formData.recurringEnabled ? formData.billingCycle : undefined,
       };
 
       if (contract?.id) {
@@ -308,18 +312,29 @@ export function ContractFormModal({
                 <Text className="text-sm font-semibold text-foreground mb-2">
                   Zahlungsbedingungen
                 </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="z.B. 30 Tage netto"
-                  placeholderTextColor={colors.muted}
-                  multiline
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                  value={formData.paymentTerms}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, paymentTerms: text })
-                  }
-                />
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {Data.PAYMENT_TERMS_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.key}
+                      onPress={() => setFormData({ ...formData, paymentTerms: opt.label })}
+                      activeOpacity={0.7}
+                      style={{
+                        flex: 1, paddingVertical: 10, borderRadius: 8,
+                        backgroundColor: formData.paymentTerms === opt.label ? colors.primary : colors.surface,
+                        borderWidth: 1,
+                        borderColor: formData.paymentTerms === opt.label ? colors.primary : colors.border,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 13, fontWeight: "600",
+                        color: formData.paymentTerms === opt.label ? "#fff" : colors.foreground,
+                      }}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
 
               {/* Zusatzvereinbarungen */}
@@ -420,6 +435,89 @@ export function ContractFormModal({
                   </Text>
                 </View>
               )}
+
+              {/* Regelmässige Rechnungen */}
+              <View className="bg-surface rounded-lg p-4 border border-border">
+                <TouchableOpacity
+                  className="flex-row items-center justify-between"
+                  onPress={() => setFormData({ ...formData, recurringEnabled: !formData.recurringEnabled })}
+                  activeOpacity={0.7}
+                >
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-foreground">Regelmässige Rechnungen</Text>
+                    <Text className="text-xs text-muted mt-1">Automatisch wiederkehrende Rechnungen erstellen</Text>
+                  </View>
+                  <View style={{
+                    width: 48, height: 28, borderRadius: 14,
+                    backgroundColor: formData.recurringEnabled ? colors.primary : colors.border,
+                    justifyContent: "center",
+                    paddingHorizontal: 2,
+                  }}>
+                    <View style={{
+                      width: 24, height: 24, borderRadius: 12,
+                      backgroundColor: "#fff",
+                      alignSelf: formData.recurringEnabled ? "flex-end" : "flex-start",
+                    }} />
+                  </View>
+                </TouchableOpacity>
+
+                {formData.recurringEnabled && (
+                  <View className="mt-4">
+                    <Text className="text-sm font-semibold text-foreground mb-2">Abrechnungszyklus</Text>
+                    <View className="flex-row gap-2 flex-wrap">
+                      {Data.BILLING_CYCLES.map((cycle) => (
+                        <TouchableOpacity
+                          key={cycle.key}
+                          onPress={() => setFormData({ ...formData, billingCycle: cycle.key })}
+                          activeOpacity={0.7}
+                          style={{
+                            paddingHorizontal: 14, paddingVertical: 8,
+                            borderRadius: 8,
+                            backgroundColor: formData.billingCycle === cycle.key ? colors.primary : colors.background,
+                            borderWidth: 1,
+                            borderColor: formData.billingCycle === cycle.key ? colors.primary : colors.border,
+                          }}
+                        >
+                          <Text style={{
+                            fontSize: 13, fontWeight: "600",
+                            color: formData.billingCycle === cycle.key ? "#fff" : colors.foreground,
+                          }}>
+                            {cycle.label}
+                          </Text>
+                          {cycle.surcharge > 0 && (
+                            <Text style={{
+                              fontSize: 10,
+                              color: formData.billingCycle === cycle.key ? "rgba(255,255,255,0.7)" : colors.muted,
+                            }}>
+                              +{cycle.surcharge} CHF
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* Preisvorschau */}
+                    {formData.amount && (
+                      <View className="mt-3 bg-primary/10 rounded-lg p-3">
+                        <Text className="text-xs text-muted mb-1">Rechnungsbetrag pro Zyklus</Text>
+                        {(() => {
+                          const calc = Data.calculateCycleAmount(parseFloat(formData.amount), formData.billingCycle);
+                          return (
+                            <>
+                              <Text className="text-base font-bold text-primary">
+                                CHF {calc.totalAmount.toFixed(2)}
+                              </Text>
+                              {calc.surcharge > 0 && (
+                                <Text className="text-xs text-muted">({"CHF "}{calc.baseAmount.toFixed(2)} + {calc.surcharge.toFixed(2)} Zuschlag)</Text>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
             </View>
           </ScrollView>
 

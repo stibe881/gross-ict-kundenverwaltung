@@ -6,6 +6,7 @@ import {
     FlatList,
     ActivityIndicator,
     RefreshControl,
+    TextInput,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -32,6 +33,7 @@ export default function QuotesScreen() {
     const queryClient = useQueryClient();
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [filterStatus, setFilterStatus] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
 
     const {
         data: quotes,
@@ -49,9 +51,17 @@ export default function QuotesScreen() {
         }, [])
     );
 
-    const filteredQuotes = filterStatus
-        ? (quotes || []).filter((q: any) => q.status === filterStatus)
-        : quotes || [];
+    const filteredQuotes = (quotes || []).filter((q: any) => {
+        const matchesStatus = filterStatus ? q.status === filterStatus : true;
+        if (!matchesStatus) return false;
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        const customerName = (q.customer?.company_name || `${q.customer?.first_name || ""} ${q.customer?.last_name || ""}`.trim()).toLowerCase();
+        return (
+            q.quote_number?.toLowerCase().includes(query) ||
+            customerName.includes(query)
+        );
+    });
 
     const totalValue = filteredQuotes.reduce(
         (sum: number, q: any) => sum + (q.total || 0),
@@ -128,6 +138,18 @@ export default function QuotesScreen() {
                         >
                             <IconSymbol name="plus" size={20} color="#fff" />
                         </TouchableOpacity>
+                    </View>
+
+                    {/* Suchleiste */}
+                    <View className="bg-surface rounded-xl p-3 mb-4 flex-row items-center border border-border">
+                        <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
+                        <TextInput
+                            className="flex-1 ml-2 text-base text-foreground"
+                            placeholder="Angebot suchen..."
+                            placeholderTextColor={colors.muted}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
                     </View>
 
                     {/* Filter */}

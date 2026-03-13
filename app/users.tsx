@@ -1,250 +1,711 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   ScrollView,
   Text,
   View,
   TouchableOpacity,
-  FlatList,
+  ActivityIndicator,
+  Platform,
+  useWindowDimensions,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
-import { supabase } from "@/lib/supabase";
-
-type UserRole = "admin" | "manager" | "accounting" | "sales" | "support";
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: UserRole;
-  isActive: boolean;
-  createdAt: string;
-}
-
-const mockUsers: User[] = [
-  {
-    id: 1,
-    name: "Admin User",
-    email: "admin@example.com",
-    role: "admin",
-    isActive: true,
-    createdAt: "2024-01-01",
-  },
-  {
-    id: 2,
-    name: "Max Manager",
-    email: "max.manager@example.com",
-    role: "manager",
-    isActive: true,
-    createdAt: "2024-02-15",
-  },
-  {
-    id: 3,
-    name: "Anna Buchhalter",
-    email: "anna.buchhalter@example.com",
-    role: "accounting",
-    isActive: true,
-    createdAt: "2024-03-20",
-  },
-  {
-    id: 4,
-    name: "Peter Vertrieb",
-    email: "peter.vertrieb@example.com",
-    role: "sales",
-    isActive: false,
-    createdAt: "2024-04-10",
-  },
-];
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
+import { showAlert } from "@/lib/alert";
 
 export default function UsersScreen() {
   const colors = useColors();
   const { containerStyle, contentPadding } = useResponsiveLayout();
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [users] = useState<User[]>(mockUsers);
-  const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
+  const queryClient = useQueryClient();
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editRoles, setEditRoles] = useState<string[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserRoles, setNewUserRoles] = useState<string[]>([]);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-  }, []);
+  const createUserMutation = useMutation({
+    mutationFn: (user: { name: string; email: string; roles: string[]; password: string }) =>
+      Data.createUser(user),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      setShowCreateModal(false);
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setNewUserRoles([]);
+      showAlert("Erfolg", "Benutzer wurde erstellt.");
+    },
+    onError: (err: any) => {
+      showAlert("Fehler", err.message);
+    },
+  });
 
-  // Nur Admins dürfen diesen Screen sehen
-  if ((user as any)?.role !== "admin") {
-    return (
-      <ScreenContainer>
-        <View className="flex-1 items-center justify-center p-4">
-          <IconSymbol name="xmark.circle.fill" size={64} color={colors.error} />
-          <Text className="text-xl font-bold text-foreground mt-4">Zugriff verweigert</Text>
-          <Text className="text-base text-muted text-center mt-2">
-            Sie benötigen Administrator-Rechte, um auf die Benutzerverwaltung zuzugreifen.
-          </Text>
-          <TouchableOpacity
-            className="bg-primary px-6 py-3 rounded-lg mt-6"
-            onPress={() => router.back()}
-            activeOpacity={0.8}
-          >
-            <Text className="text-background font-semibold">Zurück</Text>
-          </TouchableOpacity>
-        </View>
-      </ScreenContainer>
+  const handleCreateUser = () => {
+    if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()) {
+      showAlert("Fehler", "Name, E-Mail und Passwort sind erforderlich.");
+      return;
+    }
+    if (newUserPassword.length < 6) {
+      showAlert("Fehler", "Passwort muss mindestens 6 Zeichen lang sein.");
+      return;
+    }
+    createUserMutation.mutate({ name: newUserName.trim(), email: newUserEmail.trim(), roles: newUserRoles, password: newUserPassword });
+  };
+
+  const toggleNewUserRole = (roleKey: string) => {
+    setNewUserRoles((prev) =>
+      prev.includes(roleKey) ? prev.filter((r) => r !== roleKey) : [...prev, roleKey]
     );
-  }
-
-  const getRoleLabel = (role: UserRole) => {
-    const labels: Record<UserRole, string> = {
-      admin: "Administrator",
-      manager: "Manager",
-      accounting: "Buchhalter",
-      sales: "Vertrieb",
-      support: "Support",
-    };
-    return labels[role];
   };
 
-  const getRoleColor = (role: UserRole) => {
-    const colorMap: Record<UserRole, string> = {
-      admin: colors.error,
-      manager: colors.primary,
-      accounting: colors.success,
-      sales: "#17A2B8",
-      support: colors.warning,
-    };
-    return colorMap[role];
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === "web" && width > 900;
+
+  const { data: users = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["users"],
+    queryFn: Data.getAllUsers,
+    retry: 3,
+    retryDelay: 1000,
+  });
+
+  const updateRolesMutation = useMutation({
+    mutationFn: ({ userId, roles }: { userId: string; roles: string[] }) =>
+      Data.updateUserRoles(userId, roles),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      setEditingUserId(null);
+      showAlert("Erfolg", "Rollen wurden aktualisiert.");
+    },
+    onError: (err: any) => {
+      showAlert("Fehler", err.message);
+    },
+  });
+
+  const startEditRoles = (user: any) => {
+    setEditingUserId(user.id);
+    setEditRoles(user.roles || []);
   };
 
-  const filteredUsers =
-    filter === "all"
-      ? users
-      : filter === "active"
-        ? users.filter((u) => u.isActive)
-        : users.filter((u) => !u.isActive);
+  const toggleRole = (roleKey: string) => {
+    setEditRoles((prev) =>
+      prev.includes(roleKey)
+        ? prev.filter((r) => r !== roleKey)
+        : [...prev, roleKey]
+    );
+  };
 
-  const renderUserItem = ({ item }: { item: User }) => (
-    <TouchableOpacity
-      className="bg-surface rounded-xl p-4 mb-3 border border-border"
-      activeOpacity={0.7}
+  const handleSaveRoles = () => {
+    if (!editingUserId) return;
+    updateRolesMutation.mutate({ userId: editingUserId, roles: editRoles });
+  };
+
+  const getUserRoles = (user: any): string[] => user.roles || [];
+
+  const getInitials = (name: string) => {
+    const parts = name.split(" ").filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return (name[0] || "?").toUpperCase();
+  };
+
+  // SSO/Local detection: use provider field, or fallback to checking email domain
+  const isSSO = (user: any) => {
+    if (user.provider && user.provider !== "local" && user.provider !== "email") return true;
+    // Fallback: if email is @gross-ict.ch and provider is not explicitly "local", assume SSO
+    return false;
+  };
+
+  const getProviderLabel = (user: any) => {
+    if (user.provider === "azure" || user.provider === "microsoft") return "Microsoft SSO";
+    if (user.provider === "google") return "Google SSO";
+    if (user.provider && user.provider !== "local" && user.provider !== "email") return "SSO";
+    return "Lokal";
+  };
+
+  const getProviderColor = (user: any) => {
+    return isSSO(user) ? "#0078D4" : "#6B7280";
+  };
+
+  const activeUsers = users.filter((u: any) => u.is_active !== false);
+  const ssoUsers = users.filter((u: any) => isSSO(u));
+
+  const renderRoleBadge = (roleKey: string, small = false) => {
+    const role = Data.ROLE_DEFINITIONS.find((r) => r.key === roleKey);
+    if (!role) return null;
+    return (
+      <View
+        key={roleKey}
+        style={{
+          backgroundColor: role.color + "18",
+          paddingHorizontal: small ? 6 : 10,
+          paddingVertical: small ? 2 : 3,
+          borderRadius: 8,
+        }}
+      >
+        <Text
+          style={{
+            color: role.color,
+            fontSize: small ? 10 : 11,
+            fontWeight: "700",
+            textTransform: "uppercase",
+          }}
+        >
+          {role.label}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderRoleEditor = (user: any) => (
+    <View
+      style={{
+        backgroundColor: colors.background,
+        borderRadius: 14,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: colors.primary + "40",
+        marginTop: 12,
+      }}
     >
-      <View className="flex-row items-start justify-between">
-        <View className="flex-1">
-          <View className="flex-row items-center gap-2 mb-1">
-            <Text className="text-lg font-semibold text-foreground">{item.name}</Text>
-            {!item.isActive && (
-              <View className="px-2 py-0.5 rounded bg-error/20">
-                <Text className="text-xs font-semibold text-error">Inaktiv</Text>
+      <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, marginBottom: 12 }}>
+        Rollen für {user.name || user.email}
+      </Text>
+      <View style={{ gap: 8 }}>
+        {Data.ROLE_DEFINITIONS.map((role) => {
+          const isSelected = editRoles.includes(role.key);
+          return (
+            <TouchableOpacity
+              key={role.key}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                padding: 12,
+                borderRadius: 10,
+                backgroundColor: isSelected ? role.color + "15" : colors.surface,
+                borderWidth: 1,
+                borderColor: isSelected ? role.color + "50" : colors.border,
+              }}
+              activeOpacity={0.7}
+              onPress={() => toggleRole(role.key)}
+            >
+              <View
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  borderWidth: 2,
+                  borderColor: isSelected ? role.color : colors.muted,
+                  backgroundColor: isSelected ? role.color : "transparent",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 12,
+                }}
+              >
+                {isSelected && (
+                  <IconSymbol name="checkmark" size={12} color="#FFF" />
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: "600", color: isSelected ? role.color : colors.foreground }}>
+                  {role.label}
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.muted, marginTop: 1 }}>
+                  {role.description}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+            paddingVertical: 10,
+            borderRadius: 10,
+            alignItems: "center",
+          }}
+          onPress={() => setEditingUserId(null)}
+        >
+          <Text style={{ fontWeight: "600", color: colors.foreground }}>Abbrechen</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: colors.primary,
+            paddingVertical: 10,
+            borderRadius: 10,
+            alignItems: "center",
+          }}
+          onPress={handleSaveRoles}
+        >
+          {updateRolesMutation.isPending ? (
+            <ActivityIndicator color="#111" size="small" />
+          ) : (
+            <Text style={{ fontWeight: "700", color: "#111" }}>Speichern</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderUserCard = (user: any) => {
+    const roles = getUserRoles(user);
+    const isEditing = editingUserId === user.id;
+
+    return (
+      <View
+        key={user.id}
+        style={{
+          backgroundColor: colors.surface,
+          borderRadius: 14,
+          padding: 16,
+          marginBottom: 12,
+          borderWidth: 1,
+          borderColor: isEditing ? colors.primary + "40" : colors.border,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          {/* Avatar */}
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: user.is_active !== false ? colors.primary : colors.muted,
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 14,
+            }}
+          >
+            <Text style={{ color: "#FFF", fontSize: 16, fontWeight: "700" }}>
+              {getInitials(user.name || user.email || "?")}
+            </Text>
+          </View>
+
+          {/* Info */}
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: colors.foreground }} numberOfLines={1}>
+                {user.name || "Kein Name"}
+              </Text>
+              {/* SSO/Local badge */}
+              <View style={{
+                backgroundColor: getProviderColor(user) + "18",
+                paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6,
+                flexDirection: "row", alignItems: "center", gap: 4,
+              }}>
+                <IconSymbol name={isSSO(user) ? "lock.fill" : "person.fill.badge.plus"} size={10} color={getProviderColor(user)} />
+                <Text style={{ fontSize: 9, fontWeight: "700", color: getProviderColor(user) }}>
+                  {getProviderLabel(user)}
+                </Text>
+              </View>
+              {user.is_active === false && (
+                <View style={{ backgroundColor: colors.error + "20", paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                  <Text style={{ fontSize: 10, fontWeight: "600", color: colors.error }}>INAKTIV</Text>
+                </View>
+              )}
+            </View>
+            <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2 }} numberOfLines={1}>
+              {user.email}
+            </Text>
+            {/* Role badges */}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+              {roles.length > 0 ? (
+                roles.map((r: string) => renderRoleBadge(r, true))
+              ) : (
+                <Text style={{ fontSize: 12, color: colors.muted, fontStyle: "italic" }}>Keine Rollen zugewiesen</Text>
+              )}
+            </View>
+          </View>
+
+          {/* Edit button */}
+          {!isEditing && (
+            <TouchableOpacity
+              style={{
+                backgroundColor: colors.primary + "15",
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 8,
+              }}
+              activeOpacity={0.7}
+              onPress={() => startEditRoles(user)}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.primary }}>Rollen</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Role editor */}
+        {isEditing && renderRoleEditor(user)}
+      </View>
+    );
+  };
+
+  const renderDesktopTable = () => (
+    <View style={{ backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+      {/* Header */}
+      <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.background + "80" }}>
+        <Text style={{ width: 240, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Benutzer</Text>
+        <Text style={{ width: 110, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Anmeldung</Text>
+        <Text style={{ flex: 1, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Rollen</Text>
+        <Text style={{ width: 80, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Status</Text>
+        <View style={{ width: 80 }} />
+      </View>
+      {/* Rows */}
+      {users.map((user: any) => {
+        const roles = getUserRoles(user);
+        const isEditing = editingUserId === user.id;
+
+        return (
+          <View key={user.id}>
+            <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              {/* User info */}
+              <View style={{ width: 240, flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View style={{
+                  width: 36, height: 36, borderRadius: 18,
+                  backgroundColor: user.is_active !== false ? colors.primary : colors.muted,
+                  alignItems: "center", justifyContent: "center",
+                }}>
+                  <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "700" }}>
+                    {getInitials(user.name || user.email || "?")}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>
+                    {user.name || "Kein Name"}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.muted }} numberOfLines={1}>{user.email}</Text>
+                </View>
+              </View>
+              {/* Provider / Anmeldung */}
+              <View style={{ width: 110 }}>
+                <View style={{
+                  backgroundColor: getProviderColor(user) + "15",
+                  paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
+                  alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4,
+                }}>
+                  <IconSymbol name={isSSO(user) ? "lock.fill" : "person.fill.badge.plus"} size={11} color={getProviderColor(user)} />
+                  <Text style={{
+                    color: getProviderColor(user), fontSize: 11, fontWeight: "600",
+                  }}>
+                    {getProviderLabel(user)}
+                  </Text>
+                </View>
+              </View>
+              {/* Roles */}
+              <View style={{ flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                {roles.length > 0 ? (
+                  roles.map((r: string) => renderRoleBadge(r))
+                ) : (
+                  <Text style={{ fontSize: 12, color: colors.muted, fontStyle: "italic" }}>Keine Rollen</Text>
+                )}
+              </View>
+              {/* Status */}
+              <View style={{ width: 80 }}>
+                <View style={{
+                  backgroundColor: user.is_active !== false ? "#22C55E18" : colors.error + "18",
+                  paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8, alignSelf: "flex-start",
+                }}>
+                  <Text style={{
+                    color: user.is_active !== false ? "#22C55E" : colors.error,
+                    fontSize: 11, fontWeight: "600",
+                  }}>
+                    {user.is_active !== false ? "Aktiv" : "Inaktiv"}
+                  </Text>
+                </View>
+              </View>
+              {/* Actions */}
+              <View style={{ width: 80, alignItems: "flex-end" }}>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: colors.primary + "15",
+                    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8,
+                  }}
+                  activeOpacity={0.7}
+                  onPress={() => isEditing ? setEditingUserId(null) : startEditRoles(user)}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: colors.primary }}>
+                    {isEditing ? "Schliessen" : "Rollen"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {/* Inline role editor */}
+            {isEditing && (
+              <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.background + "40" }}>
+                {renderRoleEditor(user)}
               </View>
             )}
           </View>
-          <Text className="text-sm text-muted mb-2">{item.email}</Text>
-          <View
-            className="px-3 py-1 rounded-full self-start"
-            style={{ backgroundColor: getRoleColor(item.role) + "20" }}
-          >
-            <Text
-              className="text-xs font-semibold"
-              style={{ color: getRoleColor(item.role) }}
-            >
-              {getRoleLabel(item.role)}
-            </Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          className="bg-primary/20 px-3 py-2 rounded-lg"
-          activeOpacity={0.7}
-        >
-          <Text className="text-primary text-xs font-semibold">Bearbeiten</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+        );
+      })}
+    </View>
   );
 
   return (
     <ScreenContainer>
-      <View className="flex-1" style={{ padding: contentPadding }}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: contentPadding }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={containerStyle}>
           {/* Header */}
-          <View className="flex-row items-center justify-between mb-4">
-            <View className="flex-row items-center gap-3">
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
               <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
                 <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
               </TouchableOpacity>
-              <Text className="text-3xl font-bold text-foreground">Benutzerverwaltung</Text>
+              <View>
+                <Text style={{ fontSize: 24, fontWeight: "800", color: colors.foreground }}>Benutzer & Rollen</Text>
+                <Text style={{ fontSize: 13, color: colors.muted }}>{users.length} Mitarbeitende</Text>
+              </View>
             </View>
             <TouchableOpacity
-              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+              style={{
+                backgroundColor: colors.primary,
+                width: 44, height: 44, borderRadius: 22,
+                alignItems: "center", justifyContent: "center",
+              }}
               activeOpacity={0.8}
+              onPress={() => setShowCreateModal(true)}
             >
-              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
+              <IconSymbol name="plus" size={22} color="#111" />
             </TouchableOpacity>
           </View>
 
-          {/* Statistik */}
-          <View className="flex-row gap-3 mb-4">
-            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-              <Text className="text-2xl font-bold text-primary">
-                {users.length}
-              </Text>
-              <Text className="text-sm text-muted">Gesamt</Text>
+          {/* Stats */}
+          <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
+            <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}>
+              <Text style={{ fontSize: 22, fontWeight: "800", color: colors.primary }}>{users.length}</Text>
+              <Text style={{ fontSize: 10, color: colors.muted, fontWeight: "600", textTransform: "uppercase" }}>Gesamt</Text>
             </View>
-            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-              <Text className="text-2xl font-bold text-success">
-                {users.filter((u) => u.isActive).length}
-              </Text>
-              <Text className="text-sm text-muted">Aktiv</Text>
+            <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}>
+              <Text style={{ fontSize: 22, fontWeight: "800", color: "#0078D4" }}>{ssoUsers.length}</Text>
+              <Text style={{ fontSize: 10, color: colors.muted, fontWeight: "600", textTransform: "uppercase" }}>SSO</Text>
             </View>
-            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-              <Text className="text-2xl font-bold text-error">
-                {users.filter((u) => !u.isActive).length}
-              </Text>
-              <Text className="text-sm text-muted">Inaktiv</Text>
+            <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}>
+              <Text style={{ fontSize: 22, fontWeight: "800", color: "#6B7280" }}>{users.length - ssoUsers.length}</Text>
+              <Text style={{ fontSize: 10, color: colors.muted, fontWeight: "600", textTransform: "uppercase" }}>Lokal</Text>
             </View>
           </View>
 
-          {/* Filter */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-            <View className="flex-row gap-2">
-              {[
-                { key: "all", label: "Alle" },
-                { key: "active", label: "Aktiv" },
-                { key: "inactive", label: "Inaktiv" },
-              ].map((status) => (
-                <TouchableOpacity
-                  key={status.key}
-                  className={`px-4 py-2 rounded-lg ${filter === status.key ? "bg-primary" : "bg-surface border border-border"
-                    }`}
-                  onPress={() => setFilter(status.key as any)}
-                >
-                  <Text
-                    className={`font-semibold ${filter === status.key ? "text-background" : "text-foreground"
-                      }`}
-                  >
-                    {status.label}
-                  </Text>
-                </TouchableOpacity>
+          {/* Role Legend */}
+          <View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 16 }}>
+            <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, marginBottom: 10 }}>Verfügbare Rollen</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {Data.ROLE_DEFINITIONS.map((role) => (
+                <View key={role.key} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: role.color }} />
+                  <Text style={{ fontSize: 12, color: colors.foreground, fontWeight: "500" }}>{role.label}</Text>
+                  <Text style={{ fontSize: 11, color: colors.muted }}>({role.description})</Text>
+                </View>
               ))}
             </View>
-          </ScrollView>
+          </View>
 
-          {/* Benutzerliste */}
-          {filteredUsers.length > 0 ? (
-            <FlatList
-              data={filteredUsers}
-              renderItem={renderUserItem}
-              keyExtractor={(item) => item.id.toString()}
-              showsVerticalScrollIndicator={false}
-            />
-          ) : (
-            <View className="flex-1 items-center justify-center">
-              <IconSymbol name="person.2.fill" size={48} color={colors.muted} />
-              <Text className="text-lg text-muted mt-4">Keine Benutzer</Text>
+          {/* Info hint */}
+          <View style={{ backgroundColor: "#0078D4" + "10", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#0078D4" + "25", marginBottom: 16, flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <IconSymbol name="lock.fill" size={16} color="#0078D4" />
+            <Text style={{ fontSize: 12, color: colors.foreground, flex: 1, lineHeight: 18 }}>
+              SSO-Benutzer werden automatisch bei der Anmeldung über Microsoft erstellt. Lokale Benutzer werden manuell verwaltet.
+            </Text>
+          </View>
+
+          {/* User List */}
+          {isLoading ? (
+            <View style={{ alignItems: "center", justifyContent: "center", paddingVertical: 40 }}>
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
+          ) : isError ? (
+            <View style={{ alignItems: "center", justifyContent: "center", paddingVertical: 40 }}>
+              <IconSymbol name="exclamationmark.triangle.fill" size={48} color={colors.error} />
+              <Text style={{ fontSize: 16, color: colors.error, marginTop: 12, fontWeight: "600" }}>Fehler beim Laden</Text>
+              <Text style={{ fontSize: 13, color: colors.muted, marginTop: 4, textAlign: "center" }}>
+                {(error as Error)?.message || "Unbekannter Fehler"}
+              </Text>
+              <TouchableOpacity
+                style={{ marginTop: 12, backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 }}
+                onPress={() => queryClient.invalidateQueries({ queryKey: ["users"] })}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: "#111", fontWeight: "600" }}>Erneut versuchen</Text>
+              </TouchableOpacity>
+            </View>
+          ) : users.length === 0 ? (
+            <View style={{ alignItems: "center", justifyContent: "center", paddingVertical: 40 }}>
+              <IconSymbol name="person.2.fill" size={48} color={colors.muted} />
+              <Text style={{ fontSize: 16, color: colors.muted, marginTop: 12 }}>Keine Benutzer gefunden</Text>
+              <Text style={{ fontSize: 13, color: colors.muted, marginTop: 4, textAlign: "center" }}>
+                Benutzer werden automatisch erstellt, wenn sich jemand anmeldet.
+              </Text>
+            </View>
+          ) : isDesktop ? (
+            renderDesktopTable()
+          ) : (
+            users.map((user: any) => renderUserCard(user))
           )}
         </View>
-      </View>
-    </ScreenContainer >
+      </ScrollView>
+      {/* Create User Modal */}
+      <Modal visible={showCreateModal} animationType="slide" transparent onRequestClose={() => setShowCreateModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1">
+          <View className="flex-1 bg-black/50 justify-end">
+            <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "90%" }}>
+              {/* Modal Header */}
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                <Text style={{ fontSize: 20, fontWeight: "800", color: colors.foreground }}>Neuer Benutzer</Text>
+                <TouchableOpacity onPress={() => setShowCreateModal(false)} activeOpacity={0.7}>
+                  <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+                <View style={{ gap: 16, paddingBottom: 20 }}>
+                  {/* Name */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground, marginBottom: 6 }}>Name *</Text>
+                    <TextInput
+                      style={{
+                        backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+                        borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+                        color: colors.foreground, fontSize: 15,
+                      }}
+                      placeholder="z.B. Max Muster"
+                      placeholderTextColor={colors.muted}
+                      value={newUserName}
+                      onChangeText={setNewUserName}
+                    />
+                  </View>
+
+                  {/* Email */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground, marginBottom: 6 }}>E-Mail *</Text>
+                    <TextInput
+                      style={{
+                        backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+                        borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+                        color: colors.foreground, fontSize: 15,
+                      }}
+                      placeholder="max.muster@gross-ict.ch"
+                      placeholderTextColor={colors.muted}
+                      value={newUserEmail}
+                      onChangeText={setNewUserEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+
+                  {/* Password */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground, marginBottom: 6 }}>Passwort *</Text>
+                    <TextInput
+                      style={{
+                        backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+                        borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+                        color: colors.foreground, fontSize: 15,
+                      }}
+                      placeholder="Mindestens 6 Zeichen"
+                      placeholderTextColor={colors.muted}
+                      value={newUserPassword}
+                      onChangeText={setNewUserPassword}
+                      secureTextEntry
+                      autoCapitalize="none"
+                    />
+                  </View>
+
+                  {/* Roles */}
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground, marginBottom: 8 }}>Rollen zuweisen</Text>
+                    <View style={{ gap: 8 }}>
+                      {Data.ROLE_DEFINITIONS.map((role) => {
+                        const isSelected = newUserRoles.includes(role.key);
+                        return (
+                          <TouchableOpacity
+                            key={role.key}
+                            style={{
+                              flexDirection: "row", alignItems: "center",
+                              padding: 12, borderRadius: 10,
+                              backgroundColor: isSelected ? role.color + "15" : colors.surface,
+                              borderWidth: 1, borderColor: isSelected ? role.color + "50" : colors.border,
+                            }}
+                            activeOpacity={0.7}
+                            onPress={() => toggleNewUserRole(role.key)}
+                          >
+                            <View style={{
+                              width: 22, height: 22, borderRadius: 6,
+                              borderWidth: 2, borderColor: isSelected ? role.color : colors.muted,
+                              backgroundColor: isSelected ? role.color : "transparent",
+                              alignItems: "center", justifyContent: "center", marginRight: 12,
+                            }}>
+                              {isSelected && <IconSymbol name="checkmark" size={12} color="#FFF" />}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 14, fontWeight: "600", color: isSelected ? role.color : colors.foreground }}>
+                                {role.label}
+                              </Text>
+                              <Text style={{ fontSize: 12, color: colors.muted, marginTop: 1 }}>{role.description}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  {/* Provider hint */}
+                  <View style={{ backgroundColor: "#6B728010", borderRadius: 10, padding: 12, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <IconSymbol name="person.fill.badge.plus" size={14} color="#6B7280" />
+                    <Text style={{ fontSize: 12, color: colors.muted, flex: 1 }}>Dieser Benutzer wird als lokaler Benutzer erstellt.</Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Footer */}
+              <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: colors.border, flexDirection: "row", gap: 10 }}>
+                <TouchableOpacity
+                  style={{
+                    flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+                    paddingVertical: 12, borderRadius: 12, alignItems: "center",
+                  }}
+                  onPress={() => setShowCreateModal(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontWeight: "600", color: colors.foreground, fontSize: 14 }}>Abbrechen</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    flex: 1, backgroundColor: colors.primary,
+                    paddingVertical: 12, borderRadius: 12, alignItems: "center",
+                    opacity: (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()) ? 0.5 : 1,
+                  }}
+                  onPress={handleCreateUser}
+                  activeOpacity={0.8}
+                  disabled={!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()}
+                >
+                  {createUserMutation.isPending ? (
+                    <ActivityIndicator color="#111" size="small" />
+                  ) : (
+                    <Text style={{ fontWeight: "700", color: "#111", fontSize: 14 }}>Erstellen</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </ScreenContainer>
   );
 }

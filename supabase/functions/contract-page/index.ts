@@ -670,6 +670,119 @@ Deno.serve(async (req) => {
         console.error("[contract-page] Push failed:", pushErr);
       }
 
+      // Auto-create and send first recurring invoice
+      if (contract.recurring_enabled) {
+        try {
+          console.log(`[contract-page] Recurring enabled for "${contract.title}", creating first invoice...`);
+
+          const BILLING_CYCLES = [
+            { key: "monthly", months: 1, surcharge: 2, label: "Monatlich" },
+            { key: "quarterly", months: 3, surcharge: 2, label: "Quartal" },
+            { key: "semi_annual", months: 6, surcharge: 2, label: "Halbjährlich" },
+            { key: "yearly", months: 12, surcharge: 0, label: "Jährlich" },
+          ];
+          const cycle = BILLING_CYCLES.find(c => c.key === contract.billing_cycle) || BILLING_CYCLES[3];
+          const annualAmount = contract.annual_amount || contract.amount || 0;
+          const baseAmount = Math.round((annualAmount / 12 * cycle.months) * 100) / 100;
+          const totalAmount = baseAmount + cycle.surcharge;
+
+          // Get next invoice number
+          const { data: lastInvoice } = await supabase
+            .from("invoices")
+            .select("invoice_number")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+
+          const year = new Date().getFullYear();
+          let nextNum = 1;
+          if (lastInvoice?.invoice_number) {
+            const match = lastInvoice.invoice_number.match(/(\d+)$/);
+            if (match) nextNum = parseInt(match[1]) + 1;
+          }
+          const invoiceNumber = `RE-${year}-${String(nextNum).padStart(3, "0")}`;
+
+          const today = new Date().toISOString().split("T")[0];
+          const ptMatch = (contract.payment_terms || "").match(/(\d+)/);
+          const paymentDays = ptMatch ? parseInt(ptMatch[1]) : 30;
+          const dueDate = new Date(Date.now() + paymentDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+          // Create invoice items
+          const invoiceItems: any[] = [
+            {
+              description: `${contract.title} — ${cycle.label}e Abrechnung`,
+              quantity: 1, unit: "Pauschale", unit_price: baseAmount, vat_rate: 8.1, total: baseAmount,
+            },
+          ];
+          if (cycle.surcharge > 0) {
+            invoiceItems.push({
+              description: `Zuschlag ${cycle.label}e Abrechnung`,
+              quantity: 1, unit: "Pauschale", unit_price: cycle.surcharge, vat_rate: 8.1, total: cycle.surcharge,
+            });
+          }
+
+          // Create invoice in DB
+          const { data: invoiceData, error: invoiceError } = await supabase
+            .from("invoices")
+            .insert([{
+              customer_id: contract.customer_id,
+              invoice_number: invoiceNumber,
+              invoice_date: today,
+              due_date: dueDate,
+              subtotal: totalAmount,
+              vat_amount: Math.round(totalAmount * 0.081 * 100) / 100,
+              total: Math.round(totalAmount * 1.081 * 100) / 100,
+              status: "open",
+              notes: `Automatische Rechnung aus Vertrag: ${contract.title}`,
+            }])
+            .select()
+            .single();
+
+          if (!invoiceError && invoiceData) {
+            // Insert items
+            const itemsWithId = invoiceItems.map(item => ({ ...item, invoice_id: invoiceData.id }));
+            await supabase.from("invoice_items").insert(itemsWithId);
+
+            // Update contract dates
+            const nextDate = new Date(today);
+            nextDate.setMonth(nextDate.getMonth() + cycle.months);
+            await supabase.from("contracts").update({
+              last_invoice_date: today,
+              next_invoice_date: nextDate.toISOString().split("T")[0],
+              updated_at: new Date().toISOString(),
+            }).eq("id", contract.id);
+
+            console.log(`[contract-page] Invoice ${invoiceNumber} created.`);
+
+            // Send invoice email via Supabase Edge Function
+            try {
+              const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+              const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+              const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-invoice-email`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${serviceRoleKey}`,
+                },
+                body: JSON.stringify({ id: invoiceData.id }),
+              });
+              if (emailRes.ok) {
+                console.log(`[contract-page] Invoice email sent successfully.`);
+              } else {
+                const errText = await emailRes.text();
+                console.error("[contract-page] Invoice email failed:", errText);
+              }
+            } catch (sendErr) {
+              console.error("[contract-page] Failed to send invoice email:", sendErr);
+            }
+          } else {
+            console.error("[contract-page] Failed to create invoice:", invoiceError);
+          }
+        } catch (recurringErr) {
+          console.error("[contract-page] Error creating recurring invoice:", recurringErr);
+        }
+      }
+
       return new Response(
         JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -90,7 +90,8 @@ export default function RootLayout() {
   useEffect(() => {
     responseListener.current = Notifications.addNotificationResponseReceivedListener(async (response) => {
       const { title, body } = response.notification.request.content;
-      const { url } = response.notification.request.content.data;
+      const notificationData = response.notification.request.content.data || {};
+      const url = notificationData.url;
 
       // Also save tapped notifications to DB (in case they arrived while app was closed)
       try {
@@ -122,7 +123,8 @@ export default function RootLayout() {
       }
 
       if (url) {
-        router.push(url as any);
+        // Small delay to ensure app is fully loaded before navigating
+        setTimeout(() => router.push(url as any), 300);
       }
     });
 
@@ -175,6 +177,25 @@ export default function RootLayout() {
               session.user.user_metadata?.name ||
               session.user.email || ""
             );
+
+            // Sync user profile with provider detection
+            const authProvider = session.user.app_metadata?.provider || "email";
+            const userName = session.user.user_metadata?.full_name ||
+              session.user.user_metadata?.name ||
+              session.user.email?.split("@")[0] || "";
+            try {
+              await supabase.from("users").upsert({
+                id: session.user.id,
+                email: session.user.email,
+                name: userName,
+                provider: authProvider,
+                is_active: true,
+                role: "admin",
+              }, { onConflict: "id" });
+              console.log("[Auth] User profile synced, provider:", authProvider);
+            } catch (e) {
+              console.warn("[Auth] Failed to sync user profile:", e);
+            }
 
             registerForPushNotificationsAsync("admin", session.user.id, session.user.email).catch(console.error);
             router.replace("/(tabs)");
@@ -253,6 +274,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="users" />
           <Stack.Screen name="oauth/callback" />
         </Stack>
         <StatusBar style="auto" />

@@ -807,6 +807,92 @@ export async function getContracts() {
     }));
 }
 
+// Payment terms options
+export const PAYMENT_TERMS_OPTIONS = [
+    { key: "7", label: "7 Tage netto", days: 7 },
+    { key: "14", label: "14 Tage netto", days: 14 },
+    { key: "30", label: "30 Tage netto", days: 30 },
+] as const;
+
+// Billing cycle configuration
+export const BILLING_CYCLES = [
+    { key: "monthly", label: "Monatlich", months: 1, surcharge: 2 },
+    { key: "quarterly", label: "Quartal", months: 3, surcharge: 2 },
+    { key: "semi_annual", label: "Halbjährlich", months: 6, surcharge: 2 },
+    { key: "yearly", label: "Jährlich", months: 12, surcharge: 0 },
+] as const;
+
+export function calculateCycleAmount(annualAmount: number, cycleKey: string): { baseAmount: number; surcharge: number; totalAmount: number } {
+    const cycle = BILLING_CYCLES.find(c => c.key === cycleKey) || BILLING_CYCLES[3];
+    const baseAmount = Math.round((annualAmount / 12 * cycle.months) * 100) / 100;
+    return { baseAmount, surcharge: cycle.surcharge, totalAmount: baseAmount + cycle.surcharge };
+}
+
+function calculateNextInvoiceDate(fromDate: string, cycleKey: string): string {
+    const date = new Date(fromDate);
+    const cycle = BILLING_CYCLES.find(c => c.key === cycleKey) || BILLING_CYCLES[3];
+    date.setMonth(date.getMonth() + cycle.months);
+    return date.toISOString().split("T")[0];
+}
+
+export async function createRecurringInvoiceFromContract(contract: any): Promise<any> {
+    const invoiceNumber = await getNextInvoiceNumber();
+    const { baseAmount, surcharge, totalAmount } = calculateCycleAmount(
+        contract.annual_amount || contract.amount || 0,
+        contract.billing_cycle || "yearly"
+    );
+    const cycleName = BILLING_CYCLES.find(c => c.key === contract.billing_cycle)?.label || "Jährlich";
+    const today = new Date().toISOString().split("T")[0];
+
+    // Parse payment terms days from contract (e.g. "30 Tage netto" → 30)
+    const ptMatch = (contract.payment_terms || "").match(/(\d+)/);
+    const paymentDays = ptMatch ? parseInt(ptMatch[1]) : 30;
+    const dueDate = new Date(Date.now() + paymentDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+    const items: any[] = [
+        {
+            description: `${contract.title} — ${cycleName}e Abrechnung`,
+            quantity: 1,
+            unit: "Pauschale",
+            unit_price: baseAmount,
+            vat_rate: 8.1,
+            total: baseAmount,
+        },
+    ];
+    if (surcharge > 0) {
+        items.push({
+            description: `Zuschlag ${cycleName}e Abrechnung`,
+            quantity: 1,
+            unit: "Pauschale",
+            unit_price: surcharge,
+            vat_rate: 8.1,
+            total: surcharge,
+        });
+    }
+
+    const invoice = await createInvoice({
+        customer_id: contract.customer_id,
+        invoice_number: invoiceNumber,
+        invoice_date: today,
+        due_date: dueDate,
+        subtotal: totalAmount,
+        vat_amount: Math.round(totalAmount * 0.081 * 100) / 100,
+        total: Math.round(totalAmount * 1.081 * 100) / 100,
+        status: "open",
+        notes: `Automatische Rechnung aus Vertrag: ${contract.title}`,
+    }, items);
+
+    // Update contract with last/next invoice date
+    const nextDate = calculateNextInvoiceDate(today, contract.billing_cycle || "yearly");
+    await supabase.from("contracts").update({
+        last_invoice_date: today,
+        next_invoice_date: nextDate,
+        updated_at: new Date().toISOString(),
+    }).eq("id", contract.id);
+
+    return invoice;
+}
+
 export async function createContract(contract: {
     customer_id: string;
     title: string;
@@ -823,10 +909,19 @@ export async function createContract(contract: {
     special_agreements?: string;
     cancellation_date?: string;
     cancellation_document_url?: string;
+    recurring_enabled?: boolean;
+    billing_cycle?: string;
+    next_invoice_date?: string;
 }) {
+    // Calculate next_invoice_date if recurring is enabled
+    const insertData: any = { ...contract, status: "active" };
+    if (contract.recurring_enabled && !contract.next_invoice_date) {
+        insertData.next_invoice_date = contract.start_date;
+    }
+
     const { data, error } = await supabase
         .from("contracts")
-        .insert([{ ...contract, status: "active" }])
+        .insert([insertData])
         .select()
         .single();
 
@@ -1396,7 +1491,10 @@ export async function getAllUsers() {
         .select("*")
         .order("name", { ascending: true });
 
-    if (error) throw new Error(error.message);
+    if (error) {
+        console.error("[getAllUsers] Error:", error.message);
+        return [];
+    }
     return data || [];
 }
 
@@ -1409,6 +1507,107 @@ export async function getUserProfile(id: string) {
 
     if (error && error.code !== "PGRST116") throw new Error(error.message);
     return data;
+}
+
+// ── Role Definitions ──
+export const ROLE_DEFINITIONS = [
+    { key: "admin", label: "Admin", color: "#EF4444", description: "Zugriff auf alles" },
+    { key: "administration", label: "Administration", color: "#8B5CF6", description: "Kunden, Akquise, Angebote, Verträge" },
+    { key: "akquise", label: "Akquise", color: "#0EA5E9", description: "Akquise und Angebote" },
+    { key: "finanzen", label: "Finanzen", color: "#22C55E", description: "Buchhaltung" },
+    { key: "technik", label: "Technik", color: "#F59E0B", description: "Tickets, Wissensdatenbank, Projekte, Verträge" },
+    { key: "projekte", label: "Projekte", color: "#14B8A6", description: "Projekte" },
+];
+
+// Role → allowed dashboard tile IDs
+export const ROLE_TILE_ACCESS: Record<string, string[]> = {
+    admin: [], // empty = everything
+    administration: ["customers", "leads", "quotes", "contracts"],
+    akquise: ["leads", "quotes"],
+    finanzen: ["accounting"],
+    technik: ["tickets", "knowledge-base", "projects", "contracts"],
+    projekte: ["projects"],
+};
+
+// Konfiguration tiles are always visible for all roles
+const ALWAYS_VISIBLE_TILES = ["products", "dunning", "business-card", "users", "newsletter"];
+
+export function getAllowedTileIds(userRoles: string[]): string[] | null {
+    // No roles or admin role = access to everything
+    if (!userRoles || userRoles.length === 0 || userRoles.includes("admin")) {
+        return null; // null = no filtering, show everything
+    }
+
+    const allowed = new Set<string>(ALWAYS_VISIBLE_TILES);
+    for (const role of userRoles) {
+        const tiles = ROLE_TILE_ACCESS[role];
+        if (tiles) {
+            for (const t of tiles) allowed.add(t);
+        }
+    }
+    return Array.from(allowed);
+}
+
+export async function updateUserRoles(userId: string, roles: string[]) {
+    const { error } = await supabase
+        .from("users")
+        .update({ roles })
+        .eq("id", userId);
+    if (error) throw new Error(error.message);
+}
+
+export async function createUser(user: { name: string; email: string; roles: string[]; password: string }) {
+    // Use a separate Supabase client for signUp to avoid disrupting the current admin session
+    const { createClient } = await import("@supabase/supabase-js");
+    const signUpClient = createClient(
+        process.env.EXPO_PUBLIC_SUPABASE_URL || "",
+        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "",
+        { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+
+    // 1. Try to create auth user
+    const { data: authData, error: authError } = await signUpClient.auth.signUp({
+        email: user.email,
+        password: user.password,
+        options: { data: { full_name: user.name } },
+    });
+
+    let userId = authData?.user?.id;
+
+    if (authError) {
+        // If user already exists in auth, try to sign in to get their ID
+        if (authError.message.includes("already registered") || authError.message.includes("already been registered")) {
+            const { data: signInData, error: signInError } = await signUpClient.auth.signInWithPassword({
+                email: user.email,
+                password: user.password,
+            });
+            if (signInError) {
+                // Can't sign in — just create public profile without auth link
+                // Generate a UUID for the user
+                userId = crypto.randomUUID();
+            } else {
+                userId = signInData.user?.id;
+            }
+        } else {
+            throw new Error(authError.message);
+        }
+    }
+
+    // 2. Insert/update public users table (RLS disabled)
+    if (userId) {
+        const { error } = await supabase
+            .from("users")
+            .upsert({
+                id: userId,
+                name: user.name,
+                email: user.email,
+                roles: user.roles,
+                role: "admin",
+                provider: "local",
+                is_active: true,
+            }, { onConflict: "id" });
+        if (error) throw new Error(error.message);
+    }
 }
 
 // ==================== LEADS / AKQUISE ====================
