@@ -224,17 +224,20 @@ async function startServer() {
             const paymentDays = ptMatch ? parseInt(ptMatch[1]) : 30;
             const dueDate = new Date(Date.now() + paymentDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+            const vatRate = fullContract.vat_rate ?? 0;
+            const vatMultiplier = vatRate / 100;
+
             // Create invoice
             const items: any[] = [
               {
                 description: `${fullContract.title} — ${cycle.label}e Abrechnung`,
-                quantity: 1, unit: "Pauschale", unit_price: baseAmount, vat_rate: 8.1, total: baseAmount,
+                quantity: 1, unit: "Pauschale", unit_price: baseAmount, vat_rate: vatRate, total: baseAmount,
               },
             ];
             if (cycle.surcharge > 0) {
               items.push({
                 description: `Zuschlag ${cycle.label}e Abrechnung`,
-                quantity: 1, unit: "Pauschale", unit_price: cycle.surcharge, vat_rate: 8.1, total: cycle.surcharge,
+                quantity: 1, unit: "Pauschale", unit_price: cycle.surcharge, vat_rate: vatRate, total: cycle.surcharge,
               });
             }
 
@@ -246,8 +249,8 @@ async function startServer() {
                 invoice_date: today,
                 due_date: dueDate,
                 subtotal: totalAmount,
-                vat_amount: Math.round(totalAmount * 0.081 * 100) / 100,
-                total: Math.round(totalAmount * 1.081 * 100) / 100,
+                vat_amount: Math.round(totalAmount * vatMultiplier * 100) / 100,
+                total: Math.round(totalAmount * (1 + vatMultiplier) * 100) / 100,
                 status: "open",
                 notes: `Automatische Rechnung aus Vertrag: ${fullContract.title}`,
               }])
@@ -574,6 +577,9 @@ async function startServer() {
 
           const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+          const vatRate = contract.vat_rate ?? 0;
+          const vatMultiplier = vatRate / 100;
+
           // Create invoice
           const items: any[] = [
             {
@@ -581,7 +587,7 @@ async function startServer() {
               quantity: 1,
               unit: "Pauschale",
               unit_price: baseAmount,
-              vat_rate: 8.1,
+              vat_rate: vatRate,
               total: baseAmount,
             },
           ];
@@ -591,7 +597,7 @@ async function startServer() {
               quantity: 1,
               unit: "Pauschale",
               unit_price: cycle.surcharge,
-              vat_rate: 8.1,
+              vat_rate: vatRate,
               total: cycle.surcharge,
             });
           }
@@ -604,8 +610,8 @@ async function startServer() {
               invoice_date: today,
               due_date: dueDate,
               subtotal: totalAmount,
-              vat_amount: Math.round(totalAmount * 0.081 * 100) / 100,
-              total: Math.round(totalAmount * 1.081 * 100) / 100,
+              vat_amount: Math.round(totalAmount * vatMultiplier * 100) / 100,
+              total: Math.round(totalAmount * (1 + vatMultiplier) * 100) / 100,
               status: "open",
               notes: `Automatische Rechnung aus Vertrag: ${contract.title}`,
             }])

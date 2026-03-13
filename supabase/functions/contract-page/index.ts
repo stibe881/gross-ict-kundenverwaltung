@@ -460,11 +460,41 @@ function renderPage(contract: any, supabaseUrl: string): string {
 
     ${signatureSection}
 
+    <div style="text-align:center;margin-bottom:16px;">
+      <button onclick="window.print()" style="
+        background:#27272a;color:#e5e5e5;border:1px solid #3f3f46;border-radius:10px;
+        padding:12px 24px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;
+        display:inline-flex;align-items:center;gap:8px;
+      ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Vertrag als PDF herunterladen
+      </button>
+    </div>
+
     <div class="footer">
       Gross ICT · Stefan Gross<br/>
       Dieser Vertrag wurde digital über die Gross ICT Plattform bereitgestellt.
     </div>
   </div>
+
+  <style>
+    @media print {
+      body { background: #fff !important; color: #000 !important; padding: 0; }
+      .container { max-width: 100%; }
+      .header, .title-card, .card, .terms-card, .signed-box, .sign-section { 
+        background: #fff !important; border-color: #ddd !important; color: #000 !important; 
+      }
+      .card-title, .detail-item .label, .terms-text .t-label { color: #666 !important; }
+      .detail-item .value, .terms-text .t-value, h1 { color: #000 !important; }
+      .detail-item .value.highlight { color: #16a34a !important; }
+      .customer-badge { background: #f0fdf4 !important; border-color: #bbf7d0 !important; color: #16a34a !important; }
+      .sign-section, .footer, button[onclick="window.print()"] { display: none !important; }
+      .signed-box { border-color: #22c55e !important; }
+      .signed-box h2 { color: #22c55e !important; }
+    }
+  </style>
 
   ${!isSigned ? `
   <script>
@@ -707,17 +737,20 @@ Deno.serve(async (req) => {
           const paymentDays = ptMatch ? parseInt(ptMatch[1]) : 30;
           const dueDate = new Date(Date.now() + paymentDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+          const vatRate = contract.vat_rate ?? 0;
+          const vatMultiplier = vatRate / 100;
+
           // Create invoice items
           const invoiceItems: any[] = [
             {
               description: `${contract.title} — ${cycle.label}e Abrechnung`,
-              quantity: 1, unit: "Pauschale", unit_price: baseAmount, vat_rate: 8.1, total: baseAmount,
+              quantity: 1, unit: "Pauschale", unit_price: baseAmount, vat_rate: vatRate, total: baseAmount,
             },
           ];
           if (cycle.surcharge > 0) {
             invoiceItems.push({
               description: `Zuschlag ${cycle.label}e Abrechnung`,
-              quantity: 1, unit: "Pauschale", unit_price: cycle.surcharge, vat_rate: 8.1, total: cycle.surcharge,
+              quantity: 1, unit: "Pauschale", unit_price: cycle.surcharge, vat_rate: vatRate, total: cycle.surcharge,
             });
           }
 
@@ -730,8 +763,8 @@ Deno.serve(async (req) => {
               invoice_date: today,
               due_date: dueDate,
               subtotal: totalAmount,
-              vat_amount: Math.round(totalAmount * 0.081 * 100) / 100,
-              total: Math.round(totalAmount * 1.081 * 100) / 100,
+              vat_amount: Math.round(totalAmount * vatMultiplier * 100) / 100,
+              total: Math.round(totalAmount * (1 + vatMultiplier) * 100) / 100,
               status: "open",
               notes: `Automatische Rechnung aus Vertrag: ${contract.title}`,
             }])
