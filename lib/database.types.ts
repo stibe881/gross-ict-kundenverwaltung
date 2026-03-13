@@ -335,6 +335,8 @@ export type Database = {
           expense_date: string
           id: string
           notes: string | null
+          receipt_path: string | null
+          receipt_url: string | null
           user_id: string | null
           vat_rate: number | null
         }
@@ -346,6 +348,8 @@ export type Database = {
           expense_date: string
           id?: string
           notes?: string | null
+          receipt_path?: string | null
+          receipt_url?: string | null
           user_id?: string | null
           vat_rate?: number | null
         }
@@ -357,6 +361,8 @@ export type Database = {
           expense_date?: string
           id?: string
           notes?: string | null
+          receipt_path?: string | null
+          receipt_url?: string | null
           user_id?: string | null
           vat_rate?: number | null
         }

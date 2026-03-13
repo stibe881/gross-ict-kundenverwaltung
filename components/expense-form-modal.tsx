@@ -13,6 +13,9 @@ import {
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import * as Data from "@/lib/data";
+import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+import * as Linking from "expo-linking";
 
 interface ExpenseFormModalProps {
     visible: boolean;
@@ -26,6 +29,11 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense }: Expen
     const [loading, setLoading] = useState(false);
     const [showCategoryPicker, setShowCategoryPicker] = useState(false);
     const [showPaymentPicker, setShowPaymentPicker] = useState(false);
+
+    // Receipt File State
+    const [receiptFile, setReceiptFile] = useState<{ uri: string; name: string; type: string; size?: number } | null>(null);
+    const [existingReceiptPath, setExistingReceiptPath] = useState<string | null>(null);
+    const [existingReceiptUrl, setExistingReceiptUrl] = useState<string | null>(null);
 
     const [form, setForm] = useState({
         date: new Date().toISOString().slice(0, 10),
@@ -42,7 +50,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense }: Expen
     useEffect(() => {
         if (expense) {
             setForm({
-                date: expense.date || new Date().toISOString().slice(0, 10),
+                date: expense.date || expense.expense_date || new Date().toISOString().slice(0, 10),
                 amount: expense.amount?.toString() || "",
                 description: expense.description || "",
                 category: expense.category || "other",
@@ -52,6 +60,9 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense }: Expen
                 is_deductible: expense.is_deductible ?? true,
                 notes: expense.notes || "",
             });
+            setExistingReceiptPath(expense.receipt_path || null);
+            setExistingReceiptUrl(expense.receipt_url || null);
+            setReceiptFile(null);
         } else {
             setForm({
                 date: new Date().toISOString().slice(0, 10),
@@ -64,6 +75,9 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense }: Expen
                 is_deductible: true,
                 notes: "",
             });
+            setExistingReceiptPath(null);
+            setExistingReceiptUrl(null);
+            setReceiptFile(null);
         }
     }, [expense, visible]);
 
@@ -72,6 +86,96 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense }: Expen
 
     const getPaymentLabel = (value: string) =>
         Data.PAYMENT_METHODS.find((p) => p.value === value)?.label || value;
+
+    const handleTakePhoto = async () => {
+        try {
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                quality: 0.8,
+            });
+            if (!result.canceled && result.assets && result.assets[0]) {
+                const asset = result.assets[0];
+                setReceiptFile({
+                    uri: asset.uri,
+                    name: asset.fileName || `Foto_${Date.now()}.jpg`,
+                    type: asset.mimeType || "image/jpeg",
+                    size: asset.fileSize,
+                });
+            }
+        } catch (_e) {
+            Alert.alert("Fehler", "Kamera konnte nicht gestartet werden.");
+        }
+    };
+
+    const handlePickImage = async () => {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                quality: 0.8,
+            });
+            if (!result.canceled && result.assets && result.assets[0]) {
+                const asset = result.assets[0];
+                setReceiptFile({
+                    uri: asset.uri,
+                    name: asset.fileName || `Bild_${Date.now()}.jpg`,
+                    type: asset.mimeType || "image/jpeg",
+                    size: asset.fileSize,
+                });
+            }
+        } catch (_e) {
+            Alert.alert("Fehler", "Bildergalerie konnte nicht geöffnet werden.");
+        }
+    };
+
+    const handlePickDocument = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: "*/*",
+                copyToCacheDirectory: true,
+            });
+            if (result.canceled) return;
+            if (result.assets && result.assets[0]) {
+                const doc = result.assets[0];
+                setReceiptFile({
+                    uri: doc.uri,
+                    name: doc.name,
+                    type: doc.mimeType || "application/octet-stream",
+                    size: doc.size,
+                });
+            }
+        } catch (_e) {
+            Alert.alert("Fehler", "Dokument konnte nicht ausgewählt werden.");
+        }
+    };
+
+    const handleRemoveReceipt = () => {
+        if (receiptFile) {
+            setReceiptFile(null);
+        } else if (existingReceiptPath) {
+            Alert.alert(
+                "Beleg löschen",
+                "Möchten Sie diesen Beleg unwiderruflich löschen?",
+                [
+                    { text: "Abbrechen", style: "cancel" },
+                    {
+                        text: "Löschen", style: "destructive", onPress: async () => {
+                            setLoading(true);
+                            try {
+                                await Data.deleteExpenseReceipt(existingReceiptPath, expense.id);
+                                setExistingReceiptPath(null);
+                                setExistingReceiptUrl(null);
+                                onSuccess(); // Refresh list to show without clip
+                            } catch (err: any) {
+                                Alert.alert("Fehler", err.message);
+                            } finally {
+                                setLoading(false);
+                            }
+                        }
+                    }
+                ]
+            );
+        }
+    };
 
     const handleSave = async () => {
         if (!form.description.trim()) {
@@ -85,6 +189,16 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense }: Expen
 
         setLoading(true);
         try {
+            let uploadedPath = existingReceiptPath;
+            let uploadedUrl = existingReceiptUrl;
+
+            // Upload new receipt if one was selected
+            if (receiptFile) {
+                const uploadRes = await Data.uploadExpenseReceipt(receiptFile);
+                uploadedPath = uploadRes.filePath;
+                uploadedUrl = uploadRes.publicUrl;
+            }
+
             const payload = {
                 date: form.date,
                 amount: parseFloat(form.amount),
@@ -95,6 +209,8 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense }: Expen
                 tax_rate: parseFloat(form.tax_rate) || 0,
                 is_deductible: form.is_deductible,
                 notes: form.notes.trim() || null,
+                receipt_path: uploadedPath,
+                receipt_url: uploadedUrl,
             };
 
             if (expense) {
@@ -319,6 +435,71 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense }: Expen
                             placeholderTextColor={colors.muted}
                             multiline
                         />
+                    </View>
+
+                    {/* Beleg Upload */}
+                    <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border }}>
+                        <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 12, fontWeight: "600" }}>Beleg (Optional)</Text>
+                        
+                        {(receiptFile || existingReceiptPath) ? (
+                            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.background, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+                                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}>
+                                    <View style={{ width: 40, height: 40, backgroundColor: colors.primary + "20", borderRadius: 8, alignItems: "center", justifyContent: "center" }}>
+                                        <IconSymbol name="doc.text.fill" size={20} color={colors.primary} />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 14, color: colors.foreground, fontWeight: "600" }} numberOfLines={1}>
+                                            {receiptFile ? receiptFile.name : `Beleg vorhanden`}
+                                        </Text>
+                                        <Text style={{ fontSize: 12, color: colors.muted }}>
+                                            {receiptFile ? "Noch nicht gespeichert" : "Bereits hochgeladen"}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={{ flexDirection: "row", gap: 8 }}>
+                                    {existingReceiptUrl && !receiptFile && (
+                                        <TouchableOpacity 
+                                            onPress={() => Linking.openURL(existingReceiptUrl)}
+                                            style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary + "20", alignItems: "center", justifyContent: "center" }}
+                                        >
+                                            <IconSymbol name="eye.fill" size={14} color={colors.primary} />
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity 
+                                        onPress={handleRemoveReceipt}
+                                        style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.error + "20", alignItems: "center", justifyContent: "center" }}
+                                    >
+                                        <IconSymbol name="trash.fill" size={14} color={colors.error} />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={{ flexDirection: "row", gap: 8 }}>
+                                <TouchableOpacity 
+                                    onPress={handleTakePhoto}
+                                    style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, alignItems: "center", gap: 6 }}
+                                >
+                                    <IconSymbol name="camera.fill" size={20} color={colors.primary} />
+                                    <Text style={{ fontSize: 12, color: colors.foreground, fontWeight: "500" }}>Kamera</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    onPress={handlePickImage}
+                                    style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, alignItems: "center", gap: 6 }}
+                                >
+                                    <IconSymbol name="photo.fill" size={20} color={colors.primary} />
+                                    <Text style={{ fontSize: 12, color: colors.foreground, fontWeight: "500" }}>Foto</Text>
+                                </TouchableOpacity>
+                                {Platform.OS !== "web" && (
+                                    <TouchableOpacity 
+                                        onPress={handlePickDocument}
+                                        style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, alignItems: "center", gap: 6 }}
+                                    >
+                                        <IconSymbol name="folder.fill" size={20} color={colors.primary} />
+                                        <Text style={{ fontSize: 12, color: colors.foreground, fontWeight: "500" }}>Datei</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        )}
                     </View>
 
                     <View style={{ height: 40 }} />

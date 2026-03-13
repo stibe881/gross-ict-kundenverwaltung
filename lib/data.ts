@@ -1794,13 +1794,18 @@ export async function createExpense(expense: any) {
         ? (expense.amount * expense.tax_rate) / 100
         : 0;
 
-    const { date, ...rest } = expense;
+    const { date, receipt_path, receipt_url, ...rest } = expense;
+    const { data: sessionData } = await supabase.auth.getSession();
+    
     const { data, error } = await supabase
         .from("expenses")
         .insert({
             ...rest,
+            user_id: sessionData.session?.user.id,
             expense_date: date,
             tax_amount: taxAmount,
+            receipt_path: receipt_path || null,
+            receipt_url: receipt_url || null,
         })
         .select()
         .single();
@@ -1814,15 +1819,23 @@ export async function updateExpense(id: string, expense: any) {
         ? (expense.amount * expense.tax_rate) / 100
         : 0;
 
-    const { date, ...rest } = expense;
+    const { date, receipt_path, receipt_url, ...rest } = expense;
+    
+    // Create update payload
+    const payload: any = {
+        ...rest,
+        expense_date: date,
+        tax_amount: taxAmount,
+        updated_at: new Date().toISOString(),
+    };
+    
+    // Only update receipt fields if they are explicitly provided in the object
+    if (expense.hasOwnProperty('receipt_path')) payload.receipt_path = receipt_path;
+    if (expense.hasOwnProperty('receipt_url')) payload.receipt_url = receipt_url;
+
     const { data, error } = await supabase
         .from("expenses")
-        .update({
-            ...rest,
-            expense_date: date,
-            tax_amount: taxAmount,
-            updated_at: new Date().toISOString(),
-        })
+        .update(payload)
         .eq("id", id)
         .select()
         .single();
@@ -1832,12 +1845,54 @@ export async function updateExpense(id: string, expense: any) {
 }
 
 export async function deleteExpense(id: string) {
+    // Delete receipt from storage first if it exists
+    const { data: expense } = await supabase.from("expenses").select("receipt_path").eq("id", id).single();
+    if (expense?.receipt_path) {
+        await supabase.storage.from("expense_receipts").remove([expense.receipt_path]);
+    }
+
     const { error } = await supabase
         .from("expenses")
         .delete()
         .eq("id", id);
 
     if (error) throw new Error(error.message);
+}
+
+export async function uploadExpenseReceipt(file: { name: string; type: string; uri: string; size?: number }, expenseId?: string) {
+    const timestamp = Date.now();
+    // Sanitize filename to avoid weird character issues in storage URLs
+    const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const filePath = `${timestamp}_${safeName}`;
+
+    // For web: fetch the file and upload as blob
+    const response = await fetch(file.uri);
+    const blob = await response.blob();
+
+    const { error: uploadErr } = await supabase.storage
+        .from("expense_receipts")
+        .upload(filePath, blob, { contentType: file.type });
+
+    if (uploadErr) throw new Error(uploadErr.message);
+
+    const { data: { publicUrl } } = supabase.storage
+        .from("expense_receipts")
+        .getPublicUrl(filePath);
+
+    if (expenseId) {
+        await updateExpense(expenseId, { receipt_path: filePath, receipt_url: publicUrl });
+    }
+
+    return { filePath, publicUrl };
+}
+
+export async function deleteExpenseReceipt(filePath: string, expenseId?: string) {
+    const { error } = await supabase.storage.from("expense_receipts").remove([filePath]);
+    if (error) throw new Error(error.message);
+
+    if (expenseId) {
+        await updateExpense(expenseId, { receipt_path: null, receipt_url: null });
+    }
 }
 
 // ==================== MAHNWESEN ====================

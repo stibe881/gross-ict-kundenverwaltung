@@ -365,9 +365,14 @@ export default function AccountingScreen() {
                         <IconSymbol name={getCategoryIcon(expense.category) as any} size={14} color={colors.error || "#ef4444"} />
                       </View>
                       <View className="flex-1">
-                        <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
-                          {expense.description}
-                        </Text>
+                        <View className="flex-row items-center gap-1">
+                          <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                            {expense.description}
+                          </Text>
+                          {expense.receipt_url && (
+                            <IconSymbol name="paperclip" size={14} color={colors.primary} />
+                          )}
+                        </View>
                         <Text className="text-xs text-muted">
                           {Data.EXPENSE_CATEGORIES.find((c) => c.value === expense.category)?.label || expense.category}
                           {expense.supplier ? ` · ${expense.supplier}` : ""}
