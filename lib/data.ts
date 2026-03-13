@@ -1757,18 +1757,19 @@ export async function addLeadActivity(activity: {
 // ==================== AUSGABEN ====================
 
 export const EXPENSE_CATEGORIES = [
-    { value: "material", label: "Material & Waren" },
-    { value: "software", label: "Lizenzen & Software" },
+    { value: "accounting", label: "Buchhaltung & Beratung" },
     { value: "office", label: "Büro & Miete" },
     { value: "vehicle", label: "Fahrzeug & Transport" },
-    { value: "insurance", label: "Versicherungen" },
-    { value: "telecom", label: "Telefon & Internet" },
+    { value: "equipment", label: "Geräte & Werkzeug" },
+    { value: "software", label: "Lizenzen & Software" },
+    { value: "salary", label: "Lohnzahlung" },
+    { value: "material", label: "Material & Waren" },
     { value: "travel", label: "Reisen & Spesen" },
+    { value: "other", label: "Sonstiges" },
+    { value: "telecom", label: "Telefon & Internet" },
+    { value: "insurance", label: "Versicherungen" },
     { value: "education", label: "Weiterbildung" },
     { value: "marketing", label: "Werbung & Marketing" },
-    { value: "accounting", label: "Buchhaltung & Beratung" },
-    { value: "equipment", label: "Geräte & Werkzeug" },
-    { value: "other", label: "Sonstiges" },
 ] as const;
 
 export const PAYMENT_METHODS = [

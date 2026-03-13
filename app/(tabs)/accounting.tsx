@@ -30,8 +30,8 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: "overview", label: "Übersicht", icon: "chart.pie.fill" },
   { key: "invoices", label: "Rechnungen", icon: "doc.text.fill" },
   { key: "expenses", label: "Ausgaben", icon: "cart.fill" },
-  { key: "vat", label: "MwSt", icon: "percent" },
   { key: "annual", label: "Jahresabschluss", icon: "calendar" },
+  { key: "vat", label: "MwSt", icon: "percent" },
   { key: "documents", label: "Dokumente", icon: "folder.fill" },
 ];
 
@@ -197,6 +197,7 @@ export default function AccountingScreen() {
       marketing: "megaphone.fill",
       accounting: "doc.text.fill",
       equipment: "wrench.and.screwdriver.fill",
+      salary: "dollarsign.circle.fill",
       other: "ellipsis.circle.fill",
     };
     return icons[cat] || "ellipsis.circle.fill";
