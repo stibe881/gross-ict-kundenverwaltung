@@ -126,8 +126,23 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
             });
 
             if (error) {
-                console.error("AI Error Response:", error);
-                throw new Error("Fehler bei der KI-Analyse");
+                console.warn("AI Error Response:", error);
+                
+                let detailedError = "Unbekannter Fehler von Supabase Edge Function";
+                if (error.context && typeof error.context.text === 'function') {
+                    try {
+                        // context is a standard Response object from fetch
+                        const cloned = error.context.clone();
+                        detailedError = await cloned.text();
+                    } catch (e) {
+                        detailedError = "Could not parse error response body";
+                    }
+                } else if (error.message) {
+                    detailedError = error.message;
+                }
+                
+                console.warn("DETAILED AI ERROR:", detailedError);
+                throw new Error(detailedError);
             }
 
             if (data) {
@@ -141,8 +156,8 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 }));
             }
         } catch (error: any) {
-            console.error("Analysis failed:", error);
-            Alert.alert("KI Fehler", "Der Beleg konnte nicht automatisch analysiert werden.");
+            console.warn("AI Analysis failed details:", error);
+            Alert.alert("KI-Fehler", error.message || "Beleg konnte nicht analysiert werden.");
         } finally {
             setIsAnalyzingAI(false);
         }
