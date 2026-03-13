@@ -4,7 +4,7 @@
  */
 import { supabase } from "./supabase";
 import { apiCall } from "./_core/api";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Buffer } from "buffer";
 export { supabase };
 
