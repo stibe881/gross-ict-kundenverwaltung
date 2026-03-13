@@ -51,6 +51,10 @@ export default function AccountingScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
+  // Scenario Calculator State
+  const [scenarioVolume, setScenarioVolume] = useState("10000");
+  const [scenarioExecutor, setScenarioExecutor] = useState<"inhaber" | "freelancer">("freelancer");
+
   const { data: invoices, isLoading: loadingInvoices, refetch: refetchInvoices } = useQuery({
     queryKey: ["invoices"],
     queryFn: Data.getAllInvoices,
@@ -514,6 +518,18 @@ export default function AccountingScreen() {
     const allRevenue = yearInvoices.reduce((s: number, i: any) => s + getInvoiceTotal(i), 0);
     const paidRevenue = totalRevenue;
 
+    // --- Lohn & Sachaufwand ---
+    const salaryExpense = yearExpenses.filter((e: any) => e.category === 'salary').reduce((s: number, e: any) => s + (e.amount || 0), 0);
+    const sachaufwand = totalExpenses - salaryExpense;
+    
+    const agBeitrage = salaryExpense * 0.064; // 6.4% AG-Beiträge
+    const uvgPremie = salaryExpense * 0.01;   // 1.0% UVG
+
+    const totalTrueExpenses = sachaufwand + salaryExpense + agBeitrage + uvgPremie;
+    const trueProfit = paidRevenue - totalTrueExpenses;
+    
+    const anBeitrageUndQuellensteuer = salaryExpense * 0.15; // ca 15% Einbehaltene Quellensteuer & AN-Beiträge
+
     const summaryText = [
       `JAHRESABSCHLUSS ${selectedYear}`,
       `Gross ICT — Einzelfirma, Kanton Luzern`,
@@ -523,13 +539,19 @@ export default function AccountingScreen() {
       `Davon bezahlt: ${formatCurrency(paidRevenue)}`,
       `Davon offen: ${formatCurrency(totalOpen)}`,
       ``,
-      `AUSGABEN`,
-      ...expensesByCategory.map((c) => `${c.label}: ${formatCurrency(c.amount)}`),
-      `Total Ausgaben: ${formatCurrency(totalExpenses)}`,
-      `Davon abzugsfähig: ${formatCurrency(deductibleExpenses)}`,
+      `AUSGABEN (SACHAUFWAND)`,
+      ...expensesByCategory.filter((c) => c.category !== 'salary').map((c) => `${c.label}: ${formatCurrency(c.amount)}`),
+      `Sachaufwand Total: ${formatCurrency(sachaufwand)}`,
+      ``,
+      `PERSONALAUFWAND`,
+      `Lohnaufwand (Brutto): ${formatCurrency(salaryExpense)}`,
+      `AG-Beiträge (ca. 6.4%): ${formatCurrency(agBeitrage)}`,
+      `UVG-Prämie (ca. 1.0%): ${formatCurrency(uvgPremie)}`,
+      `Personal Total: ${formatCurrency(salaryExpense + agBeitrage + uvgPremie)}`,
       ``,
       `ERGEBNIS`,
-      `Gewinn vor Steuern: ${formatCurrency(profit)}`,
+      `Total Ausgaben: ${formatCurrency(totalTrueExpenses)}`,
+      `Gewinn vor Steuern: ${formatCurrency(trueProfit)}`,
       ``,
       `MWST-STATUS: Befreit (Umsatz unter CHF 100'000)`,
     ].join("\n");
@@ -553,57 +575,196 @@ export default function AccountingScreen() {
             <Text className="text-sm text-warning">{formatCurrency(totalOpen)}</Text>
           </View>
 
-          {/* Ausgaben */}
-          <Text className="text-xs text-muted uppercase tracking-wider mb-2 mt-4">Ausgaben</Text>
-          {expensesByCategory.map((cat) => (
+          {/* Sachaufwand */}
+          <Text className="text-xs text-muted uppercase tracking-wider mb-2 mt-4">Sachaufwand</Text>
+          {expensesByCategory.filter((c) => c.category !== 'salary').map((cat) => (
             <View key={cat.category} className="flex-row justify-between py-2 border-b border-border">
               <Text className="text-sm text-foreground">{cat.label}</Text>
               <Text className="text-sm text-error">{formatCurrency(cat.amount)}</Text>
             </View>
           ))}
           <View className="flex-row justify-between py-2 border-b border-border">
-            <Text className="text-sm font-semibold text-foreground">Total Ausgaben</Text>
-            <Text className="text-sm font-semibold text-error">{formatCurrency(totalExpenses)}</Text>
+            <Text className="text-sm font-semibold text-foreground">Sachaufwand Total</Text>
+            <Text className="text-sm font-semibold text-error">{formatCurrency(sachaufwand)}</Text>
+          </View>
+
+          {/* Personalaufwand */}
+          <Text className="text-xs text-muted uppercase tracking-wider mb-2 mt-4">Personalaufwand</Text>
+          <View className="flex-row justify-between py-2 border-b border-border">
+             <Text className="text-sm text-foreground">Lohnaufwand (Brutto)</Text>
+             <Text className="text-sm text-error">{formatCurrency(salaryExpense)}</Text>
+          </View>
+          <View className="flex-row justify-between py-2 border-b border-border">
+             <Text className="text-sm text-foreground">AG-Beiträge Sozialvers. (ca. 6.4%)</Text>
+             <Text className="text-sm text-error">{formatCurrency(agBeitrage)}</Text>
+          </View>
+          <View className="flex-row justify-between py-2 border-b border-border">
+             <Text className="text-sm text-foreground">UVG-Prämie (ca. 1.0%)</Text>
+             <Text className="text-sm text-error">{formatCurrency(uvgPremie)}</Text>
+          </View>
+          <View className="flex-row justify-between py-2 border-b border-border">
+            <Text className="text-sm font-semibold text-foreground">Personalaufwand Total</Text>
+            <Text className="text-sm font-semibold text-error">{formatCurrency(salaryExpense + agBeitrage + uvgPremie)}</Text>
+          </View>
+          
+          <View className="flex-row justify-between py-2 border-b border-border mt-2">
+            <Text className="text-sm font-bold text-foreground">Total Ausgaben (Sach- & Personalaufwand)</Text>
+            <Text className="text-sm font-bold text-error">{formatCurrency(totalTrueExpenses)}</Text>
           </View>
 
           {/* Ergebnis */}
           <Text className="text-xs text-muted uppercase tracking-wider mb-2 mt-4">Ergebnis</Text>
           <View className="flex-row justify-between py-3 border-b border-border">
-            <Text className="text-base font-bold text-foreground">Gewinn vor Steuern</Text>
+            <Text className="text-base font-bold text-foreground">Gewinn vor Steuern / Marge</Text>
             <Text
               className="text-base font-bold"
-              style={{ color: profit >= 0 ? "#22c55e" : "#ef4444" }}
+              style={{ color: trueProfit >= 0 ? "#22c55e" : "#ef4444" }}
             >
-              {formatCurrency(profit)}
+              {formatCurrency(trueProfit)}
             </Text>
           </View>
 
           {/* Sozialabgaben & Steuern */}
-          {profit > 0 && (
+          {trueProfit > 0 && (
             <>
               <Text className="text-xs text-muted uppercase tracking-wider mb-2 mt-4">Abzüge & Rücklagen</Text>
+              
+              {salaryExpense > 0 && (
+                <View className="flex-row justify-between py-2 border-b border-border bg-error/10 px-2 rounded-sm -mx-2 mb-2">
+                  <View>
+                     <Text className="text-sm text-foreground font-semibold">Einbehalt: Quellensteuer & AN-Beiträge</Text>
+                     <Text className="text-xs text-error mt-0.5 font-medium">Betrag zwingend an Ausgleichskasse überweisen!</Text>
+                  </View>
+                  <Text className="text-sm font-bold text-error">{formatCurrency(anBeitrageUndQuellensteuer)}</Text>
+                </View>
+              )}
+
               <View className="flex-row justify-between py-2 border-b border-border">
-                <Text className="text-sm text-foreground">AHV/IV/EO (10.6%)</Text>
-                <Text className="text-sm text-error">{formatCurrency(profit * 0.106)}</Text>
+                <Text className="text-sm text-foreground">AHV/IV/EO Inhaber (10.6%)</Text>
+                <Text className="text-sm text-error">{formatCurrency(trueProfit * 0.106)}</Text>
               </View>
               <View className="flex-row justify-between py-2 border-b border-border">
-                <Text className="text-sm text-foreground">FAK Luzern (1.4%)</Text>
-                <Text className="text-sm text-error">{formatCurrency(profit * 0.014)}</Text>
+                <Text className="text-sm text-foreground">FAK Luzern Inhaber (1.4%)</Text>
+                <Text className="text-sm text-error">{formatCurrency(trueProfit * 0.014)}</Text>
               </View>
               <View className="flex-row justify-between py-2 border-b border-border">
                 <Text className="text-sm text-foreground">Einkommenssteuer (ca. 15%)</Text>
-                <Text className="text-sm text-error">{formatCurrency(profit * 0.15)}</Text>
+                <Text className="text-sm text-error">{formatCurrency(trueProfit * 0.15)}</Text>
               </View>
               <View className="flex-row justify-between py-2 border-b border-border">
-                <Text className="text-sm font-semibold text-foreground">Total Abzüge (ca. 27%)</Text>
-                <Text className="text-sm font-semibold text-error">{formatCurrency(profit * 0.27)}</Text>
+                <Text className="text-sm font-semibold text-foreground">Total Abzüge Inhaber (ca. 27%)</Text>
+                <Text className="text-sm font-semibold text-error">{formatCurrency(trueProfit * 0.27)}</Text>
               </View>
               <View className="flex-row justify-between py-3 mt-1" style={{ backgroundColor: "rgba(34,197,94,0.05)", borderRadius: 8, paddingHorizontal: 8 }}>
-                <Text className="text-base font-bold text-foreground">Nettoeinkommen (ca.)</Text>
-                <Text className="text-base font-bold text-success">{formatCurrency(profit * 0.73)}</Text>
+                <Text className="text-base font-bold text-foreground">Nettoeinkommen Inhaber (ca.)</Text>
+                <Text className="text-base font-bold text-success">{formatCurrency(trueProfit * 0.73)}</Text>
               </View>
             </>
           )}
+        </View>
+
+        {/* Szenario Calculator */}
+        <View className="bg-surface rounded-xl p-5 border border-border">
+          <View className="flex-row items-center gap-2 mb-4">
+             <IconSymbol name="plus.forwardslash.minus" size={20} color={colors.primary} />
+             <Text className="text-base font-bold text-foreground">Szenario-Modell: Projekt-Marge</Text>
+          </View>
+          
+          <Text className="text-sm text-muted mb-4">
+            Berechnen Sie die verbleibende Marge für Gross ICT, wenn Aufträge an Freelancer bzw. externe Personen ausgelagert werden.
+          </Text>
+
+          <View className="mb-4">
+            <Text className="text-xs font-semibold text-foreground mb-2">AUFTRAGSVOLUMEN (CHF)</Text>
+            <TextInput
+              value={scenarioVolume}
+              onChangeText={setScenarioVolume}
+              keyboardType="numeric"
+              className="bg-background border border-border rounded-lg p-3 text-foreground"
+              placeholder="10000"
+              placeholderTextColor={colors.muted}
+            />
+          </View>
+
+          <View className="mb-4">
+            <Text className="text-xs font-semibold text-foreground mb-2">AUSFÜHRENDE PERSON</Text>
+            <View className="flex-row gap-2">
+              <TouchableOpacity
+                className={`flex-1 py-3 px-4 rounded-lg items-center justify-center border ${scenarioExecutor === "inhaber" ? "bg-primary border-primary" : "bg-background border-border"}`}
+                onPress={() => setScenarioExecutor("inhaber")}
+              >
+                <Text className={`font-semibold ${scenarioExecutor === "inhaber" ? "text-background" : "text-foreground"}`}>Inhaber</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className={`flex-1 py-3 px-4 rounded-lg items-center justify-center border ${scenarioExecutor === "freelancer" ? "bg-primary border-primary" : "bg-background border-border"}`}
+                onPress={() => setScenarioExecutor("freelancer")}
+              >
+                <Text className={`font-semibold ${scenarioExecutor === "freelancer" ? "text-background" : "text-foreground"}`}>Privatperson</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Scenario Result */}
+          <View className="bg-background border border-border rounded-lg p-4 mt-2">
+            {(() => {
+              const vol = parseFloat(scenarioVolume) || 0;
+              const isFreelancer = scenarioExecutor === "freelancer";
+              
+              const lohn = isFreelancer ? vol * 0.70 : 0;
+              const agBeitrag = isFreelancer ? lohn * 0.064 : 0;
+              const uvg = isFreelancer ? lohn * 0.01 : 0;
+              
+              const totalMarge = vol - (lohn + agBeitrag + uvg);
+              const vermittlung = isFreelancer ? vol * 0.10 : 0;
+              const restMarge = isFreelancer ? totalMarge - vermittlung : 0;
+
+              return (
+                <View className="gap-2">
+                  {isFreelancer && (
+                    <>
+                      <View className="flex-row justify-between mb-2">
+                        <Text className="text-sm text-foreground font-semibold">Projekt-Volumen</Text>
+                        <Text className="text-sm font-semibold">{formatCurrency(vol)}</Text>
+                      </View>
+                      <View className="flex-row justify-between">
+                        <Text className="text-sm text-muted">Ausführung (70% Lohn)</Text>
+                        <Text className="text-sm text-error">-{formatCurrency(lohn)}</Text>
+                      </View>
+                      <View className="flex-row justify-between">
+                        <Text className="text-sm text-muted">AG-Beiträge & UVG (versteckt)</Text>
+                        <Text className="text-sm text-error">-{formatCurrency(agBeitrag + uvg)}</Text>
+                      </View>
+                      <View className="flex-row justify-between mt-2 pt-2 border-t border-border border-dashed">
+                        <Text className="text-sm text-foreground">Bleibt bei Gross ICT</Text>
+                        <Text className="text-sm text-success font-semibold">{formatCurrency(totalMarge)}</Text>
+                      </View>
+                      <View className="flex-row justify-between mt-1">
+                        <Text className="text-xs text-muted ml-2">↳ Davon Vermittlungs-Fee (10%)</Text>
+                        <Text className="text-xs text-muted">{formatCurrency(vermittlung)}</Text>
+                      </View>
+                      <View className="flex-row justify-between mt-1">
+                        <Text className="text-xs text-muted ml-2">↳ Davon Unternehmens-Reserve</Text>
+                        <Text className="text-xs text-muted">{formatCurrency(restMarge)}</Text>
+                      </View>
+                    </>
+                  )}
+                  {!isFreelancer && (
+                    <>
+                      <View className="flex-row justify-between">
+                         <Text className="text-sm text-muted">Lohnkosten</Text>
+                         <Text className="text-sm text-muted">0.00 CHF</Text>
+                      </View>
+                      <View className="flex-row justify-between mt-2 pt-2 border-t border-border border-dashed">
+                        <Text className="text-sm font-bold text-foreground">Volle Marge (100%)</Text>
+                        <Text className="text-sm font-bold text-success">{formatCurrency(vol)}</Text>
+                      </View>
+                      <Text className="text-xs text-muted mt-1 text-center">Inhaber führt aus. Gesamte Summe ist Unternehmensgewinn (wird anschliessend nach Jahresabschluss-Logik versteuert).</Text>
+                    </>
+                  )}
+                </View>
+              );
+            })()}
+          </View>
         </View>
 
         {/* Export */}
