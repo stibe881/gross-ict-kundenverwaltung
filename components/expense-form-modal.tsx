@@ -9,12 +9,15 @@ import {
     Switch,
     Alert,
     Platform,
+    ActivityIndicator,
 } from "react-native";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import * as Data from "@/lib/data";
+import { supabase } from "@/lib/supabase";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
 import * as Linking from "expo-linking";
 
 interface ExpenseFormModalProps {
@@ -22,13 +25,15 @@ interface ExpenseFormModalProps {
     onClose: () => void;
     onSuccess: () => void;
     expense?: any; // Für Bearbeitung
+    initialScanReceipt?: { uri: string; name: string; type: string } | null;
 }
 
-export function ExpenseFormModal({ visible, onClose, onSuccess, expense }: ExpenseFormModalProps) {
+export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initialScanReceipt }: ExpenseFormModalProps) {
     const colors = useColors();
     const [loading, setLoading] = useState(false);
     const [showCategoryPicker, setShowCategoryPicker] = useState(false);
     const [showPaymentPicker, setShowPaymentPicker] = useState(false);
+    const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
 
     // Receipt File State
     const [receiptFile, setReceiptFile] = useState<{ uri: string; name: string; type: string; size?: number } | null>(null);
@@ -77,9 +82,71 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense }: Expen
             });
             setExistingReceiptPath(null);
             setExistingReceiptUrl(null);
-            setReceiptFile(null);
+            
+            if (initialScanReceipt) {
+                setReceiptFile(initialScanReceipt);
+                // Trigger AI analysis here if needed
+                handleAnalyzeReceipt(initialScanReceipt);
+            } else {
+                setReceiptFile(null);
+            }
         }
-    }, [expense, visible]);
+    }, [expense, visible, initialScanReceipt]);
+
+    const handleAnalyzeReceipt = async (file: { uri: string; name: string; type: string }) => {
+        setIsAnalyzingAI(true);
+        try {
+            console.log("Analyzing with AI...", file);
+            let base64Data = "";
+            let mimeType = file.type;
+
+            if (Platform.OS === "web") {
+                // Fetch blob and convert to base64
+                const response = await fetch(file.uri);
+                const blob = await response.blob();
+                mimeType = blob.type || "image/jpeg";
+                base64Data = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const b64 = reader.result as string;
+                        // Strip data prefix (e.g. data:image/jpeg;base64,)
+                        resolve(b64.split(",")[1]);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            } else {
+                base64Data = await FileSystem.readAsStringAsync(file.uri, {
+                    encoding: 'base64',
+                });
+            }
+
+            const { data, error } = await supabase.functions.invoke("analyze-receipt", {
+                body: { fileBase64: base64Data, mimeType },
+            });
+
+            if (error) {
+                console.error("AI Error Response:", error);
+                throw new Error("Fehler bei der KI-Analyse");
+            }
+
+            if (data) {
+                setForm((prev) => ({
+                    ...prev,
+                    amount: data.amount ? String(data.amount) : prev.amount,
+                    date: data.date ? data.date : prev.date,
+                    supplier: data.supplier ? data.supplier : prev.supplier,
+                    description: data.description ? data.description : prev.description,
+                    tax_rate: (data.tax_rate !== null && data.tax_rate !== undefined) ? String(data.tax_rate) : prev.tax_rate,
+                }));
+            }
+        } catch (error: any) {
+            console.error("Analysis failed:", error);
+            Alert.alert("KI Fehler", "Der Beleg konnte nicht automatisch analysiert werden.");
+        } finally {
+            setIsAnalyzingAI(false);
+        }
+    };
 
     const getCategoryLabel = (value: string) =>
         Data.EXPENSE_CATEGORIES.find((c) => c.value === value)?.label || value;
@@ -232,6 +299,15 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense }: Expen
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
             <View style={{ flex: 1, backgroundColor: colors.background }}>
+                {isAnalyzingAI && (
+                    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 999, justifyContent: 'center', alignItems: 'center' }}>
+                        <ActivityIndicator size="large" color="#D4A432" />
+                        <Text style={{ color: "white", marginTop: 16, fontSize: 16, fontWeight: "600" }}>KI analysiert Beleg...</Text>
+                        <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: 8, fontSize: 13, textAlign: 'center', paddingHorizontal: 40 }}>
+                            Bitte warten Sie einen Moment. Daten wie Betrag, Datum und Lieferant werden automatisch extrahiert.
+                        </Text>
+                    </View>
+                )}
                 {/* Header */}
                 <View
                     style={{

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import {
   ScrollView,
   Text,
@@ -11,7 +11,7 @@ import {
   Platform,
   Linking,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -37,6 +37,7 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
 
 export default function AccountingScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const colors = useColors();
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const queryClient = useQueryClient();
@@ -44,6 +45,9 @@ export default function AccountingScreen() {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any>(null);
+  
+  // Scanned Receipt Data
+  const [scannedReceipt, setScannedReceipt] = useState<{uri: string, name: string, type: string} | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
@@ -56,6 +60,24 @@ export default function AccountingScreen() {
     queryKey: ["expenses"],
     queryFn: Data.getAllExpenses,
   });
+
+  // Handle incoming AI scan intent
+  useEffect(() => {
+    if (params.action === "scan" && params.uri) {
+      // Decode URI params
+      const uri = Array.isArray(params.uri) ? params.uri[0] : params.uri;
+      const name = Array.isArray(params.name) ? params.name[0] : (params.name || `Beleg_${Date.now()}.jpg`);
+      const type = Array.isArray(params.type) ? params.type[0] : (params.type || "image/jpeg");
+      
+      setScannedReceipt({ uri: decodeURIComponent(uri), name: decodeURIComponent(name), type: decodeURIComponent(type) });
+      setActiveTab("expenses");
+      setEditingExpense(null);
+      setShowExpenseModal(true);
+      
+      // Clear the url params so it doesn't re-trigger on unmount/remount
+      router.setParams({ action: undefined, uri: undefined, name: undefined, type: undefined });
+    }
+  }, [params]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -688,9 +710,10 @@ export default function AccountingScreen() {
       />
       <ExpenseFormModal
         visible={showExpenseModal}
-        onClose={() => { setShowExpenseModal(false); setEditingExpense(null); }}
+        onClose={() => { setShowExpenseModal(false); setEditingExpense(null); setScannedReceipt(null); }}
         onSuccess={() => refetchExpenses()}
         expense={editingExpense}
+        initialScanReceipt={scannedReceipt}
       />
     </ScreenContainer>
   );

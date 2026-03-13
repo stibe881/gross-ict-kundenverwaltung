@@ -133,6 +133,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="cube.box.fill" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="scanner"
+        options={{
+          title: "Scanner",
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="camera.fill" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
