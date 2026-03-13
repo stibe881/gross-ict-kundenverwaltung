@@ -27,9 +27,7 @@ import * as Notifications from 'expo-notifications';
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
-export const unstable_settings = {
-  anchor: "(tabs)",
-};
+
 
 export default function RootLayout() {
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
@@ -145,8 +143,10 @@ export default function RootLayout() {
 
           // Only navigate if we're actually on the login/oauth screen
           const currentSegment = segmentsRef.current[0];
-          if (currentSegment === "(tabs)" && !isCustomerPortalUser) {
-            // Already on main app (and allowed) — just store session, don't navigate
+          const isAuthScreen = currentSegment === "login" || currentSegment === "oauth";
+          
+          if (!isAuthScreen && !isCustomerPortalUser) {
+            // Already on main app, or hydrating, or somewhere else — just store session, don't navigate
             await AsyncStorage.setItem("isLoggedIn", "true");
             await AsyncStorage.setItem("userEmail", session.user.email || "");
             // Still register push token even when not navigating

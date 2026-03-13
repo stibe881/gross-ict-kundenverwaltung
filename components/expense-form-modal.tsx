@@ -50,10 +50,33 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
         tax_rate: "0",
         is_deductible: true,
         notes: "",
+        iban: "",
+        customerName: "",
+        projectName: "",
     });
 
     useEffect(() => {
         if (expense) {
+            let cleanNotes = expense.notes || "";
+            let iban = "";
+            let customerName = "";
+            let projectName = "";
+
+            if (expense.category === "salary" && cleanNotes) {
+                const ibanMatch = cleanNotes.match(/IBAN:\s*([^\n]*)/);
+                const kundeMatch = cleanNotes.match(/Kunde:\s*([^\n]*)/);
+                const projektMatch = cleanNotes.match(/Projekt:\s*([^\n]*)/);
+                
+                if (ibanMatch) iban = ibanMatch[1].trim();
+                if (kundeMatch) customerName = kundeMatch[1].trim();
+                if (projektMatch) projectName = projektMatch[1].trim();
+                
+                cleanNotes = cleanNotes.replace(/IBAN:\s*[^\n]*\n?/, '');
+                cleanNotes = cleanNotes.replace(/Kunde:\s*[^\n]*\n?/, '');
+                cleanNotes = cleanNotes.replace(/Projekt:\s*[^\n]*\n?/, '');
+                cleanNotes = cleanNotes.replace(/Automatische Verbuchung aus Szenario-Modell\.?\n?/, '');
+            }
+
             setForm({
                 date: expense.date || expense.expense_date || new Date().toISOString().slice(0, 10),
                 amount: expense.amount?.toString() || "",
@@ -63,7 +86,10 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 payment_method: expense.payment_method || "bank",
                 tax_rate: expense.tax_rate?.toString() || "0",
                 is_deductible: expense.is_deductible ?? true,
-                notes: expense.notes || "",
+                notes: cleanNotes.trim(),
+                iban,
+                customerName,
+                projectName,
             });
             setExistingReceiptPath(expense.receipt_path || null);
             setExistingReceiptUrl(expense.receipt_url || null);
@@ -79,6 +105,9 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 tax_rate: "0",
                 is_deductible: true,
                 notes: "",
+                iban: "",
+                customerName: "",
+                projectName: "",
             });
             setExistingReceiptPath(null);
             setExistingReceiptUrl(null);
@@ -281,6 +310,17 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 uploadedUrl = uploadRes.publicUrl;
             }
 
+            let finalNotes = form.notes.trim();
+            if (form.category === "salary") {
+                const parts = [];
+                if (form.iban) parts.push(`IBAN: ${form.iban}`);
+                if (form.customerName) parts.push(`Kunde: ${form.customerName}`);
+                if (form.projectName) parts.push(`Projekt: ${form.projectName}`);
+                if (parts.length > 0) {
+                    finalNotes = finalNotes ? `${finalNotes}\n\n${parts.join("\n")}` : parts.join("\n");
+                }
+            }
+
             const payload = {
                 date: form.date,
                 amount: parseFloat(form.amount),
@@ -290,7 +330,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 payment_method: form.payment_method,
                 tax_rate: parseFloat(form.tax_rate) || 0,
                 is_deductible: form.is_deductible,
-                notes: form.notes.trim() || null,
+                notes: finalNotes || null,
                 receipt_path: uploadedPath,
                 receipt_url: uploadedUrl,
             };
@@ -435,6 +475,42 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                                     {form.category === cat.value && <IconSymbol name="checkmark" size={16} color={colors.primary} />}
                                 </TouchableOpacity>
                             ))}
+                        </View>
+                    )}
+
+                    {form.category === "salary" && (
+                        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border, gap: 12 }}>
+                            <Text style={{ fontSize: 13, color: colors.foreground, fontWeight: "600", marginBottom: 4 }}>Zusatzangaben für Lohn / Fremdleistung</Text>
+                            <View>
+                                <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 6, fontWeight: "600" }}>Kunde</Text>
+                                <TextInput
+                                    style={{ fontSize: 15, color: colors.foreground, padding: 0 }}
+                                    value={form.customerName}
+                                    onChangeText={(v) => setForm({ ...form, customerName: v })}
+                                    placeholder="Zugehöriger Kunde"
+                                    placeholderTextColor={colors.muted}
+                                />
+                            </View>
+                            <View>
+                                <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 6, fontWeight: "600" }}>Projekt</Text>
+                                <TextInput
+                                    style={{ fontSize: 15, color: colors.foreground, padding: 0 }}
+                                    value={form.projectName}
+                                    onChangeText={(v) => setForm({ ...form, projectName: v })}
+                                    placeholder="Zugehöriges Projekt"
+                                    placeholderTextColor={colors.muted}
+                                />
+                            </View>
+                            <View>
+                                <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 6, fontWeight: "600" }}>IBAN</Text>
+                                <TextInput
+                                    style={{ fontSize: 15, color: colors.foreground, padding: 0 }}
+                                    value={form.iban}
+                                    onChangeText={(v) => setForm({ ...form, iban: v })}
+                                    placeholder="CHXX XXXX XXXX XXXX XXXX X"
+                                    placeholderTextColor={colors.muted}
+                                />
+                            </View>
                         </View>
                     )}
 
@@ -599,27 +675,39 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                     {expense && (
                         <TouchableOpacity
                             onPress={() => {
-                                Alert.alert(
-                                    "Ausgabe löschen",
-                                    "Möchten Sie diese Ausgabe wirklich löschen?",
-                                    [
-                                        { text: "Abbrechen", style: "cancel" },
-                                        {
-                                            text: "Löschen", style: "destructive", onPress: async () => {
-                                                try {
-                                                    setLoading(true);
-                                                    await Data.deleteExpense(expense.id);
-                                                    onSuccess();
-                                                    onClose();
-                                                } catch (err: any) {
-                                                    Alert.alert("Fehler", err.message);
-                                                } finally {
-                                                    setLoading(false);
+                                if (Platform.OS === 'web') {
+                                    if (window.confirm("Möchten Sie diese Ausgabe wirklich löschen?")) {
+                                        setLoading(true);
+                                        Data.deleteExpense(expense.id).then(() => {
+                                            onSuccess();
+                                            onClose();
+                                        }).catch(err => {
+                                            Alert.alert("Fehler", err.message);
+                                        }).finally(() => setLoading(false));
+                                    }
+                                } else {
+                                    Alert.alert(
+                                        "Ausgabe löschen",
+                                        "Möchten Sie diese Ausgabe wirklich löschen?",
+                                        [
+                                            { text: "Abbrechen", style: "cancel" },
+                                            {
+                                                text: "Löschen", style: "destructive", onPress: async () => {
+                                                    try {
+                                                        setLoading(true);
+                                                        await Data.deleteExpense(expense.id);
+                                                        onSuccess();
+                                                        onClose();
+                                                    } catch (err: any) {
+                                                        Alert.alert("Fehler", err.message);
+                                                    } finally {
+                                                        setLoading(false);
+                                                    }
                                                 }
                                             }
-                                        }
-                                    ]
-                                );
+                                        ]
+                                    );
+                                }
                             }}
                             style={{ backgroundColor: colors.error + "15", borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.error + "30", alignItems: "center" }}
                         >

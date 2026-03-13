@@ -510,6 +510,49 @@ async function startServer() {
     }
   });
 
+  // ── Admin-Benutzer löschen ──
+  app.post("/api/delete-admin-user", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ error: "Missing Authorization header" });
+
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabaseAdmin = createClient(
+        process.env.EXPO_PUBLIC_SUPABASE_URL || "",
+        process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+      );
+
+      // Verify caller is authenticated
+      const userClient = createClient(
+        process.env.EXPO_PUBLIC_SUPABASE_URL || "",
+        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "",
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user }, error: authError } = await userClient.auth.getUser();
+      if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ error: "userId ist erforderlich" });
+
+      // Delete auth user (cascades or we manual delete public user)
+      const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (deleteAuthError) {
+        console.error("Auth delete error:", deleteAuthError.message);
+        // Continue to try deleting public user anyway
+      }
+
+      const { error: dbError } = await supabaseAdmin.from("users").delete().eq("id", userId);
+      if (dbError) {
+         return res.status(400).json({ error: dbError.message });
+      }
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[delete-admin-user] Error:", err);
+      res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
   // ── Process Recurring Invoices (Cron-like) ──
   async function processRecurringInvoices() {
     try {

@@ -8,6 +8,7 @@ import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Platform } from "react-native";
 import { useColors } from "@/hooks/use-colors";
+import { supabase } from "@/lib/supabase";
 
 export default function TabLayout() {
   const colors = useColors();
@@ -35,7 +36,6 @@ export default function TabLayout() {
       // and strips them before our code runs. We must always check the
       // Supabase session before redirecting to /login.
       if (Platform.OS === "web") {
-        const { supabase } = await import("@/lib/supabase");
         // Give Supabase time to process any URL tokens
         await new Promise(resolve => setTimeout(resolve, 1000));
         const { data: { session } } = await supabase.auth.getSession();

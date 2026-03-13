@@ -27,6 +27,8 @@ export default function UsersScreen() {
   const queryClient = useQueryClient();
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editRoles, setEditRoles] = useState<string[]>([]);
+  const [editAddress, setEditAddress] = useState("");
+  const [editIban, setEditIban] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
@@ -79,8 +81,8 @@ export default function UsersScreen() {
   });
 
   const updateRolesMutation = useMutation({
-    mutationFn: ({ userId, roles }: { userId: string; roles: string[] }) =>
-      Data.updateUserRoles(userId, roles),
+    mutationFn: ({ userId, roles, address, iban }: { userId: string; roles: string[]; address: string; iban: string }) =>
+      Data.updateUserProfileAndRoles(userId, { roles, address, iban }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setEditingUserId(null);
@@ -91,9 +93,22 @@ export default function UsersScreen() {
     },
   });
 
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: string) => Data.deleteUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      showAlert("Erfolg", "Benutzer wurde gelöscht.");
+    },
+    onError: (err: any) => {
+      showAlert("Fehler", err.message);
+    },
+  });
+
   const startEditRoles = (user: any) => {
     setEditingUserId(user.id);
     setEditRoles(user.roles || []);
+    setEditAddress(user.address || "");
+    setEditIban(user.iban || "");
   };
 
   const toggleRole = (roleKey: string) => {
@@ -104,9 +119,13 @@ export default function UsersScreen() {
     );
   };
 
-  const handleSaveRoles = () => {
+  const handleSaveRoles = async () => {
     if (!editingUserId) return;
-    updateRolesMutation.mutate({ userId: editingUserId, roles: editRoles });
+    try {
+      updateRolesMutation.mutate({ userId: editingUserId, roles: editRoles, address: editAddress, iban: editIban });
+    } catch (err: any) {
+      showAlert("Fehler", err.message || "Fehler beim Speichern der Benutzerdaten");
+    }
   };
 
   const getUserRoles = (user: any): string[] => user.roles || [];
@@ -177,7 +196,7 @@ export default function UsersScreen() {
       }}
     >
       <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, marginBottom: 12 }}>
-        Rollen für {user.name || user.email}
+        {user.name || user.email} bearbeiten
       </Text>
       <View style={{ gap: 8 }}>
         {Data.ROLE_DEFINITIONS.map((role) => {
@@ -226,7 +245,53 @@ export default function UsersScreen() {
           );
         })}
       </View>
-      <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+
+      <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, marginTop: 24, marginBottom: 8 }}>
+        Persönliche Daten (Abrechnung)
+      </Text>
+      <View style={{ gap: 12 }}>
+        <View>
+          <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 4, fontWeight: "600" }}>Vollständige Adresse</Text>
+          <TextInput
+            style={{
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              color: colors.foreground,
+              minHeight: 60,
+              textAlignVertical: "top",
+            }}
+            placeholder="Musterstrasse 1&#10;8000 Zürich"
+            placeholderTextColor={colors.muted}
+            value={editAddress}
+            onChangeText={setEditAddress}
+            multiline
+          />
+        </View>
+        <View>
+          <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 4, fontWeight: "600" }}>IBAN für Auszahlung</Text>
+          <TextInput
+            style={{
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              color: colors.foreground,
+            }}
+            placeholder="CHXX XXXX XXXX XXXX XXXX X"
+            placeholderTextColor={colors.muted}
+            value={editIban}
+            onChangeText={setEditIban}
+          />
+        </View>
+      </View>
+
+      <View style={{ flexDirection: "row", gap: 10, marginTop: 24 }}>
         <TouchableOpacity
           style={{
             flex: 1,
@@ -331,20 +396,49 @@ export default function UsersScreen() {
             </View>
           </View>
 
-          {/* Edit button */}
+          {/* Edit/Delete buttons */}
           {!isEditing && (
-            <TouchableOpacity
-              style={{
-                backgroundColor: colors.primary + "15",
-                paddingHorizontal: 14,
-                paddingVertical: 8,
-                borderRadius: 8,
-              }}
-              activeOpacity={0.7}
-              onPress={() => startEditRoles(user)}
-            >
-              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.primary }}>Rollen</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: colors.primary + "15",
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6
+                }}
+                activeOpacity={0.7}
+                onPress={() => startEditRoles(user)}
+              >
+                <IconSymbol name="pencil" size={14} color={colors.primary} />
+                <Text style={{ fontSize: 13, fontWeight: "600", color: colors.primary }}>Bearbeiten</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: colors.error + "15",
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                  justifyContent: "center",
+                  alignItems: "center"
+                }}
+                activeOpacity={0.7}
+                onPress={() => {
+                  if (Platform.OS === 'web') {
+                    if (window.confirm("Bist du sicher, dass du diesen Benutzer löschen möchtest?")) {
+                      deleteUserMutation.mutate(user.id);
+                    }
+                  } else {
+                     // Non-web confirm not possible here without Alert component, just mutating for now
+                     deleteUserMutation.mutate(user.id);
+                  }
+                }}
+              >
+                <IconSymbol name="trash.fill" size={14} color={colors.error} />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -359,10 +453,10 @@ export default function UsersScreen() {
       {/* Header */}
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.background + "80" }}>
         <Text style={{ width: 240, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Benutzer</Text>
-        <Text style={{ width: 110, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Anmeldung</Text>
+        <Text style={{ width: 130, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Anmeldung</Text>
         <Text style={{ flex: 1, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Rollen</Text>
-        <Text style={{ width: 80, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Status</Text>
-        <View style={{ width: 80 }} />
+        <Text style={{ width: 90, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Status</Text>
+        <View style={{ width: 100 }} />
       </View>
       {/* Rows */}
       {users.map((user: any) => {
@@ -391,7 +485,7 @@ export default function UsersScreen() {
                 </View>
               </View>
               {/* Provider / Anmeldung */}
-              <View style={{ width: 110 }}>
+              <View style={{ width: 130 }}>
                 <View style={{
                   backgroundColor: getProviderColor(user) + "15",
                   paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
@@ -414,7 +508,7 @@ export default function UsersScreen() {
                 )}
               </View>
               {/* Status */}
-              <View style={{ width: 80 }}>
+              <View style={{ width: 90 }}>
                 <View style={{
                   backgroundColor: user.is_active !== false ? "#22C55E18" : colors.error + "18",
                   paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8, alignSelf: "flex-start",
@@ -428,19 +522,41 @@ export default function UsersScreen() {
                 </View>
               </View>
               {/* Actions */}
-              <View style={{ width: 80, alignItems: "flex-end" }}>
+              <View style={{ width: 100, flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
                 <TouchableOpacity
                   style={{
                     backgroundColor: colors.primary + "15",
-                    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8,
+                    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
+                    flexDirection: "row", alignItems: "center", gap: 4
                   }}
                   activeOpacity={0.7}
                   onPress={() => isEditing ? setEditingUserId(null) : startEditRoles(user)}
                 >
+                  <IconSymbol name={isEditing ? "xmark" : "pencil"} size={14} color={colors.primary} />
                   <Text style={{ fontSize: 12, fontWeight: "600", color: colors.primary }}>
-                    {isEditing ? "Schliessen" : "Rollen"}
+                    {isEditing ? "Schliessen" : "Bearbeiten"}
                   </Text>
                 </TouchableOpacity>
+                {!isEditing && (
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: colors.error + "15",
+                      paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8,
+                    }}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (Platform.OS === 'web') {
+                        if (window.confirm("Bist du sicher, dass du diesen Benutzer löschen möchtest?")) {
+                          deleteUserMutation.mutate(user.id);
+                        }
+                      } else {
+                         deleteUserMutation.mutate(user.id);
+                      }
+                    }}
+                  >
+                    <IconSymbol name="trash.fill" size={14} color={colors.error} />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
             {/* Inline role editor */}

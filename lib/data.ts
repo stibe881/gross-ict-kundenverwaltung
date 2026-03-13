@@ -6,6 +6,7 @@ import { supabase } from "./supabase";
 import { apiCall } from "./_core/api";
 import * as FileSystem from "expo-file-system/legacy";
 import { Buffer } from "buffer";
+import { Platform } from "react-native";
 export { supabase };
 
 export async function triggerPushNotification(
@@ -960,8 +961,14 @@ export async function uploadDocument(customerId: string, uri: string, filename: 
 
         // NATIVE FIX: Use Expo FileSystem and Buffer to read file as base64.
         // fetch().blob() produces 0-byte corrupt files in React Native Supabase uploads.
-        const base64Str = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-        const buffer = Buffer.from(base64Str, 'base64');
+        let fileBody: any;
+        if (Platform.OS === 'web') {
+            const res = await fetch(uri);
+            fileBody = await res.blob();
+        } else {
+            const base64Str = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+            fileBody = Buffer.from(base64Str, 'base64');
+        }
 
         const ext = filename.split(".").pop()?.toLowerCase();
         let mimeType = "application/octet-stream";
@@ -971,7 +978,7 @@ export async function uploadDocument(customerId: string, uri: string, filename: 
 
         const { data, error } = await supabase.storage
             .from("customer_documents")
-            .upload(path, buffer, {
+            .upload(path, fileBody, {
                 contentType: mimeType,
                 upsert: true,
             });
@@ -1330,6 +1337,58 @@ export async function deleteProjectTask(id: string) {
     if (error) throw new Error(error.message);
 }
 
+// ==================== JAHRESABSCHLUSS / ARCHIVIERUNG ====================
+
+export async function getAccountingYear(year: number) {
+    const { data, error } = await supabase
+        .from("accounting_years")
+        .select("*")
+        .eq("year", year)
+        .single();
+
+    if (error && error.code !== "PGRST116") {
+        console.error("[getAccountingYear] Error:", error.message);
+        return null;
+    }
+    return data;
+}
+
+export async function closeAccountingYear(year: number) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id;
+
+    // First try to update
+    let { data, error: updateError } = await supabase
+        .from("accounting_years")
+        .update({
+            is_closed: true,
+            closed_at: new Date().toISOString(),
+            closed_by: userId,
+        })
+        .eq("year", year)
+        .select()
+        .single();
+
+    // If it doesn't exist, insert it
+    if (updateError || !data) {
+        const { data: insertData, error: insertError } = await supabase
+            .from("accounting_years")
+            .insert({
+                year,
+                is_closed: true,
+                closed_at: new Date().toISOString(),
+                closed_by: userId,
+            })
+            .select()
+            .single();
+
+        if (insertError) throw new Error(insertError.message);
+        data = insertData;
+    }
+
+    return data;
+}
+
 // ==================== PROJEKT-VERKNÜPFUNGEN ====================
 
 export async function getProjectQuotes(projectId: string) {
@@ -1558,7 +1617,13 @@ export async function getAllUsers() {
         console.error("[getAllUsers] Error:", error.message);
         return [];
     }
-    return data || [];
+    
+    // Filter out dummy or auto-created portal users that shouldn't appear in the employee list
+    return (data || []).filter(u => {
+        // App User without roles is typically from Apple TestFlight SSO
+        if (u.name === "App User" && (!u.roles || u.roles.length === 0)) return false;
+        return true;
+    });
 }
 
 export async function getUserProfile(id: string) {
@@ -1619,6 +1684,28 @@ export async function updateUserRoles(userId: string, roles: string[]) {
     if (error) throw new Error(error.message);
 }
 
+export async function updateUserProfileAndRoles(userId: string, updates: { roles: string[]; address: string; iban: string }) {
+    const { data, error } = await supabase
+        .from("users")
+        .update(updates)
+        .eq("id", userId)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateUserProfile(userId: string, updates: any) {
+    const { data, error } = await supabase
+        .from("users")
+        .update(updates)
+        .eq("id", userId)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
 export async function createUser(user: { name: string; email: string; roles: string[]; password: string }) {
     // Use a separate Supabase client for signUp to avoid disrupting the current admin session
     const { createClient } = await import("@supabase/supabase-js");
@@ -1670,6 +1757,27 @@ export async function createUser(user: { name: string; email: string; roles: str
                 is_active: true,
             }, { onConflict: "id" });
         if (error) throw new Error(error.message);
+    }
+}
+
+export async function deleteUser(id: string) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    
+    try {
+        const data = await apiCall<{ success: boolean; error?: string }>("/api/delete-admin-user", {
+            method: "POST",
+            headers: {
+                "Authorization": token ? `Bearer ${token}` : ""
+            },
+            body: JSON.stringify({ userId: id })
+        });
+        
+        if (!data || !data.success) {
+            throw new Error(data?.error || "Fehler beim Löschen des Benutzers");
+        }
+    } catch (err: any) {
+        throw new Error(err.message || "Fehler beim Löschen des Benutzers");
     }
 }
 
@@ -1925,8 +2033,14 @@ export async function uploadExpenseReceipt(file: { name: string; type: string; u
     const filePath = `${timestamp}_${safeName}`;
 
     // NATIVE FIX: Use Expo FileSystem and Buffer to read file as base64.
-    const base64Str = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
-    const buffer = Buffer.from(base64Str, 'base64');
+    let fileBody: any;
+    if (Platform.OS === 'web') {
+        const res = await fetch(file.uri);
+        fileBody = await res.blob();
+    } else {
+        const base64Str = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
+        fileBody = Buffer.from(base64Str, 'base64');
+    }
 
     const ext = safeName.split(".").pop()?.toLowerCase();
     let mimeType = file.type || "application/octet-stream";
@@ -1936,7 +2050,7 @@ export async function uploadExpenseReceipt(file: { name: string; type: string; u
 
     const { error: uploadErr } = await supabase.storage
         .from("expense_receipts")
-        .upload(filePath, buffer, { contentType: mimeType, upsert: true });
+        .upload(filePath, fileBody, { contentType: mimeType, upsert: true });
 
     if (uploadErr) throw new Error(uploadErr.message);
 

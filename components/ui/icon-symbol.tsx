@@ -66,6 +66,8 @@ const MAPPING = {
   "doc.on.doc.fill": "content-copy",
   "lock.fill": "lock",
   "chevron.down": "expand-more",
+  "dollarsign.circle.fill": "monetization-on",
+  "eye.fill": "visibility",
 } as IconMapping;
 
 /**

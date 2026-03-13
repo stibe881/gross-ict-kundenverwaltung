@@ -24,17 +24,21 @@ async function run() {
   // Glücklicherweise können wir einfache Alternativen probieren:
   
   console.log("Adding push_token to users...");
-  await supabase.rpc('exec_sql', { query: `ALTER TABLE users ADD COLUMN IF NOT EXISTS push_token TEXT;` }).catch(console.error);
+  const { error: e1 } = await supabase.rpc('exec_sql', { query: `ALTER TABLE users ADD COLUMN IF NOT EXISTS push_token TEXT;` });
+  if (e1) console.error(e1);
 
   console.log("Adding push_token to customer_portal_users...");
-  await supabase.rpc('exec_sql', { query: `ALTER TABLE customer_portal_users ADD COLUMN IF NOT EXISTS push_token TEXT;` }).catch(console.error);
+  const { error: e2 } = await supabase.rpc('exec_sql', { query: `ALTER TABLE customer_portal_users ADD COLUMN IF NOT EXISTS push_token TEXT;` });
+  if (e2) console.error(e2);
 
   console.log("Modifying notifications table...");
-  await supabase.rpc('exec_sql', { query: `ALTER TABLE notifications ALTER COLUMN user_id DROP NOT NULL;` }).catch(console.error);
-  await supabase.rpc('exec_sql', { query: `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS customer_portal_user_id UUID REFERENCES customer_portal_users(id) ON DELETE CASCADE;` }).catch(console.error);
+  const { error: e3 } = await supabase.rpc('exec_sql', { query: `ALTER TABLE notifications ALTER COLUMN user_id DROP NOT NULL;` });
+  if (e3) console.error(e3);
+  const { error: e4 } = await supabase.rpc('exec_sql', { query: `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS customer_portal_user_id UUID REFERENCES customer_portal_users(id) ON DELETE CASCADE;` });
+  if (e4) console.error(e4);
 
   console.log("Creating RLS Policy...");
-  await supabase.rpc('exec_sql', { query: `
+  const { error: e5 } = await supabase.rpc('exec_sql', { query: `
     CREATE POLICY "Customers can see their own notifications" ON notifications
       FOR SELECT USING (
         auth.role() = 'authenticated' AND 
@@ -42,10 +46,12 @@ async function run() {
           SELECT id FROM customer_portal_users WHERE id = auth.uid() OR email = (auth.jwt() ->> 'email')
         )
       );
-  ` }).catch(console.error);
+  ` });
+  if (e5) console.error(e5);
 
   console.log("Creating Index...");
-  await supabase.rpc('exec_sql', { query: `CREATE INDEX IF NOT EXISTS idx_notifications_customer_portal_user ON notifications(customer_portal_user_id);` }).catch(console.error);
+  const { error: e6 } = await supabase.rpc('exec_sql', { query: `CREATE INDEX IF NOT EXISTS idx_notifications_customer_portal_user ON notifications(customer_portal_user_id);` });
+  if (e6) console.error(e6);
   
   console.log("Done. If this failed, the user needs to paste the sql file into their Supabase SQL editor.");
 }

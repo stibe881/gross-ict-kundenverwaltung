@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { generateInvoicePDF, InvoiceData } from './supabase/functions/send-invoice-email/pdf-generator.ts';
+import { generateInvoicePDF, InvoiceData } from '../supabase/functions/send-invoice-email/pdf-generator.js';
 
 const data: InvoiceData = {
   invoiceNumber: 'RE-2026-001',

@@ -1,7 +1,7 @@
 import { LOGO_BASE64 } from "./logo-base64";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import { Paths, File as FSFile } from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Platform } from "react-native";
 
 function fmtCHF(amount: number | null | undefined): string {
@@ -481,9 +481,11 @@ export async function downloadQuotePDF(quote: QuoteForPDF): Promise<void> {
 
   // Fallback: HTML-Datei direkt teilen
   try {
-    const file = new FSFile(Paths.cache, `angebot-${quote.quote_number}.html`);
-    file.write(html);
-    await Sharing.shareAsync(file.uri, {
+    const fileUri = FileSystem.cacheDirectory + `angebot-${quote.quote_number}.html`;
+    await FileSystem.writeAsStringAsync(fileUri, html, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    await Sharing.shareAsync(fileUri, {
       mimeType: "text/html",
     });
   } catch (e2: any) {
@@ -797,9 +799,11 @@ export async function downloadInvoicePDF(invoice: InvoiceForPDF, settings?: Invo
 
   // Fallback: HTML-Datei direkt teilen
   try {
-    const file = new FSFile(Paths.cache, `rechnung-${invoice.invoice_number}.html`);
-    file.write(html);
-    await Sharing.shareAsync(file.uri, {
+    const fileUri = FileSystem.cacheDirectory + `rechnung-${invoice.invoice_number}.html`;
+    await FileSystem.writeAsStringAsync(fileUri, html, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    await Sharing.shareAsync(fileUri, {
       mimeType: "text/html",
     });
   } catch (e2: any) {
