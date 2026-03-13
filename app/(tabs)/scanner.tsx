@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, ActivityIndicator, Platform } from "react-native";
+import { View, Text, ActivityIndicator, Platform, Alert } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import DocumentScanner from "react-native-document-scanner-plugin";
 import { useColors } from "@/hooks/use-colors";
 
 export default function ScannerScreen() {
@@ -22,6 +21,19 @@ export default function ScannerScreen() {
                     // Web Fallback: Document scanner doesn't work on Web
                     if (Platform.OS === 'web') {
                         router.replace("/accounting");
+                        return;
+                    }
+
+                    // Load dynamically to prevent crashes if native module is not built
+                    let DocumentScanner;
+                    try {
+                        const plugin = require("react-native-document-scanner-plugin");
+                        DocumentScanner = plugin.default || plugin;
+                    } catch (e) {
+                        if (isActive) {
+                            Alert.alert("Fehlendes Modul", "Der Beleg-Scanner erfordert ein App-Update (nativer Code). Bitte App neu kompilieren.");
+                            router.replace("/accounting");
+                        }
                         return;
                     }
 
