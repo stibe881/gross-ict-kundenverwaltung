@@ -849,13 +849,16 @@ export async function createRecurringInvoiceFromContract(contract: any): Promise
     const paymentDays = ptMatch ? parseInt(ptMatch[1]) : 30;
     const dueDate = new Date(Date.now() + paymentDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+    const vatRate = contract.vat_rate ?? 0;
+    const vatMultiplier = vatRate / 100;
+
     const items: any[] = [
         {
             description: `${contract.title} — ${cycleName}e Abrechnung`,
             quantity: 1,
             unit: "Pauschale",
             unit_price: baseAmount,
-            vat_rate: 8.1,
+            vat_rate: vatRate,
             total: baseAmount,
         },
     ];
@@ -865,7 +868,7 @@ export async function createRecurringInvoiceFromContract(contract: any): Promise
             quantity: 1,
             unit: "Pauschale",
             unit_price: surcharge,
-            vat_rate: 8.1,
+            vat_rate: vatRate,
             total: surcharge,
         });
     }
@@ -876,8 +879,8 @@ export async function createRecurringInvoiceFromContract(contract: any): Promise
         invoice_date: today,
         due_date: dueDate,
         subtotal: totalAmount,
-        vat_amount: Math.round(totalAmount * 0.081 * 100) / 100,
-        total: Math.round(totalAmount * 1.081 * 100) / 100,
+        vat_amount: Math.round(totalAmount * vatMultiplier * 100) / 100,
+        total: Math.round(totalAmount * (1 + vatMultiplier) * 100) / 100,
         status: "open",
         notes: `Automatische Rechnung aus Vertrag: ${contract.title}`,
     }, items);

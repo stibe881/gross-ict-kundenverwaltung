@@ -55,6 +55,7 @@ export function ContractFormModal({
     recurringEnabled: contract?.recurring_enabled || false,
     billingCycle: contract?.billing_cycle || "yearly",
     autoRenewal: contract?.auto_renewal !== false,
+    vatRate: (contract?.vat_rate ?? 0).toString(),
   });
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
@@ -145,6 +146,7 @@ export function ContractFormModal({
         recurring_enabled: formData.recurringEnabled,
         billing_cycle: formData.recurringEnabled ? formData.billingCycle : undefined,
         auto_renewal: formData.autoRenewal,
+        vat_rate: parseFloat(formData.vatRate) || 0,
       };
 
       if (contract?.id) {
@@ -392,6 +394,36 @@ export function ContractFormModal({
                 <Text className="text-xs text-muted mt-1">
                   Format: TT.MM.JJJJ (z.B. 15.01.2026)
                 </Text>
+              </View>
+
+              {/* MWST-Satz */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  MWST-Satz
+                </Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {[{ key: "0", label: "Keine MWST" }, { key: "2.6", label: "2.6%" }, { key: "8.1", label: "8.1%" }].map((opt) => (
+                    <TouchableOpacity
+                      key={opt.key}
+                      onPress={() => setFormData({ ...formData, vatRate: opt.key })}
+                      activeOpacity={0.7}
+                      style={{
+                        flex: 1, paddingVertical: 10, borderRadius: 8,
+                        backgroundColor: formData.vatRate === opt.key ? colors.primary : colors.surface,
+                        borderWidth: 1,
+                        borderColor: formData.vatRate === opt.key ? colors.primary : colors.border,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 13, fontWeight: "600",
+                        color: formData.vatRate === opt.key ? "#fff" : colors.foreground,
+                      }}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
 
               {/* Laufzeit */}
