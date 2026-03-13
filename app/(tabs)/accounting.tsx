@@ -20,6 +20,7 @@ import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { ExpenseFormModal } from "@/components/expense-form-modal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
+import { ImageViewerModal } from "@/components/image-viewer-modal";
 import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
 import { router as expoRouter } from "expo-router";
 import { showConfirm, showAlert } from "@/lib/alert";
@@ -882,8 +883,9 @@ export default function AccountingScreen() {
 }
 
 // ── Dokumente Tab ──
-function DocumentsTab({ colors }: { colors: any }) {
+const renderDocuments = () => {
   const queryClient = useQueryClient();
+  const [viewerData, setViewerData] = useState<{ url: string | null; title: string }>({ url: null, title: "" });
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderPath, setFolderPath] = useState<{ id: string | null; name: string }[]>([{ id: null, name: "Dokumente" }]);
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -1015,7 +1017,9 @@ function DocumentsTab({ colors }: { colors: any }) {
   const handleOpenDocument = async (doc: any) => {
     try {
       const url = await Data.getDocumentDownloadUrl(doc.file_path);
-      if (url) Linking.openURL(url);
+      if (url) {
+        setViewerData({ url, title: doc.file_name });
+      }
     } catch (_e) { showAlert("Fehler", "Datei konnte nicht geöffnet werden."); }
   };
 
@@ -1142,8 +1146,14 @@ function DocumentsTab({ colors }: { colors: any }) {
               <Text className="text-sm text-muted mt-1">{isWeb ? "Dateien hierher ziehen oder \"Datei wählen\"" : "\"Mediathek\" oder \"Foto\" antippen"}</Text>
             </View>
           )}
-        </>
-      )}
+      
+      {/* Fullscreen Document Viewer */}
+      <ImageViewerModal
+        visible={!!viewerData.url}
+        url={viewerData.url}
+        title={viewerData.title}
+        onClose={() => setViewerData({ url: null, title: "" })}
+      />
     </View>
   );
 }
