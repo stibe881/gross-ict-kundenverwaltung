@@ -883,7 +883,8 @@ export default function AccountingScreen() {
 }
 
 // ── Dokumente Tab ──
-const renderDocuments = () => {
+function DocumentsTab({ colors }: { colors: any }) {
+  const isWeb = Platform.OS === "web";
   const queryClient = useQueryClient();
   const [viewerData, setViewerData] = useState<{ url: string | null; title: string }>({ url: null, title: "" });
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -1024,7 +1025,6 @@ const renderDocuments = () => {
   };
 
   const fmtSize = (b: number) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`;
-  const isWeb = Platform.OS === "web";
 
   return (
     <View className="gap-3">
@@ -1139,6 +1139,7 @@ const renderDocuments = () => {
               <Text className="text-sm text-muted text-center mt-2">Erstellen Sie Ordner um Belege und Dokumente zu organisieren.</Text>
             </View>
           )}
+
           {currentFolderId && documents.length === 0 && folders.length === 0 && (
             <View className="items-center justify-center py-8">
               <IconSymbol name="doc.fill" size={36} color={colors.muted} />
@@ -1146,7 +1147,9 @@ const renderDocuments = () => {
               <Text className="text-sm text-muted mt-1">{isWeb ? "Dateien hierher ziehen oder \"Datei wählen\"" : "\"Mediathek\" oder \"Foto\" antippen"}</Text>
             </View>
           )}
-      
+        </>
+      )}
+
       {/* Fullscreen Document Viewer */}
       <ImageViewerModal
         visible={!!viewerData.url}
