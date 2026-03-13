@@ -137,6 +137,7 @@ export default function TabLayout() {
         name="scanner"
         options={{
           title: "Scanner",
+          href: Platform.OS === "web" ? null : undefined, // Hide entirely on web
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="camera.fill" color={color} />,
         }}
       />

@@ -115,6 +115,7 @@ const config: ExpoConfig = {
         },
       },
     ],
+    "react-native-document-scanner-plugin"
   ],
   experiments: {
     typedRoutes: true,
