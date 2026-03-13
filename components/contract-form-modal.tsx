@@ -54,6 +54,7 @@ export function ContractFormModal({
     specialAgreements: contract?.special_agreements || contract?.specialAgreements || "",
     recurringEnabled: contract?.recurring_enabled || false,
     billingCycle: contract?.billing_cycle || "yearly",
+    autoRenewal: contract?.auto_renewal !== false,
   });
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
@@ -143,6 +144,7 @@ export function ContractFormModal({
         special_agreements: formData.specialAgreements || undefined,
         recurring_enabled: formData.recurringEnabled,
         billing_cycle: formData.recurringEnabled ? formData.billingCycle : undefined,
+        auto_renewal: formData.autoRenewal,
       };
 
       if (contract?.id) {
@@ -435,6 +437,32 @@ export function ContractFormModal({
                   </Text>
                 </View>
               )}
+
+              {/* Automatische Verlängerung */}
+              <View className="bg-surface rounded-lg p-4 border border-border">
+                <TouchableOpacity
+                  className="flex-row items-center justify-between"
+                  onPress={() => setFormData({ ...formData, autoRenewal: !formData.autoRenewal })}
+                  activeOpacity={0.7}
+                >
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-foreground">Automatische Verlängerung</Text>
+                    <Text className="text-xs text-muted mt-1">Vertrag verlängert sich automatisch um die gleiche Laufzeit</Text>
+                  </View>
+                  <View style={{
+                    width: 48, height: 28, borderRadius: 14,
+                    backgroundColor: formData.autoRenewal ? colors.primary : colors.border,
+                    justifyContent: "center",
+                    paddingHorizontal: 2,
+                  }}>
+                    <View style={{
+                      width: 24, height: 24, borderRadius: 12,
+                      backgroundColor: "#fff",
+                      alignSelf: formData.autoRenewal ? "flex-end" : "flex-start",
+                    }} />
+                  </View>
+                </TouchableOpacity>
+              </View>
 
               {/* Regelmässige Rechnungen */}
               <View className="bg-surface rounded-lg p-4 border border-border">
