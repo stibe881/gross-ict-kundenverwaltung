@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { generateInvoicePDF, InvoiceData } from "./pdf-generator.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -86,9 +87,44 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Kunde hat keine E-Mail-Adresse" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // PDF: Client-seitig generiert (bevorzugt) oder ohne Anhang
-    if (!pdfBase64) {
-      console.warn("[send-invoice-email] Kein PDF vom Client erhalten, sende ohne Anhang");
+    // PDF: Client-seitig generiert (bevorzugt) oder serverseitig als Fallback
+    let finalPdfBase64 = pdfBase64;
+    if (!finalPdfBase64) {
+      console.log("[send-invoice-email] Kein PDF vom Client erhalten, generiere serverseitig...");
+      const customerName = invoice.customer?.company_name || 
+        `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "Unbekannt";
+      const addressParts = [
+        customerName, 
+        invoice.customer?.street || invoice.customer?.address, 
+        `${invoice.customer?.zip || invoice.customer?.postal_code || ""} ${invoice.customer?.city || ""}`.trim()
+      ].filter(Boolean);
+
+      const invoiceData: InvoiceData = {
+        invoiceNumber: invoice.invoice_number,
+        customerNumber: invoice.customer?.customer_number,
+        invoiceDate: invoice.invoice_date,
+        dueDate: invoice.due_date,
+        paymentMethod: "Überweisung",
+        customerName,
+        customerAddress: addressParts.join("\n"),
+        items: (invoice.items || []).map((item: any) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+          vatRate: item.vat_rate,
+          total: item.total,
+        })),
+        subtotal: invoice.subtotal,
+        totalVat: invoice.vat_amount,
+        total: invoice.total,
+      };
+
+      try {
+        finalPdfBase64 = generateInvoicePDF(invoiceData);
+        console.log("[send-invoice-email] Serverseitiges PDF erfolgreich generiert");
+      } catch (pdfErr) {
+        console.error("[send-invoice-email] Fehler bei der PDF-Generierung:", pdfErr);
+      }
     }
 
     // Tracking-URL
@@ -108,8 +144,8 @@ Deno.serve(async (req) => {
       html: buildInvoiceEmailHTML(invoice, trackingUrl),
     };
 
-    if (pdfBase64) {
-      emailPayload.attachments = [{ filename: `Rechnung_${invoice.invoice_number}.pdf`, content: pdfBase64 }];
+    if (finalPdfBase64) {
+      emailPayload.attachments = [{ filename: `Rechnung_${invoice.invoice_number}.pdf`, content: finalPdfBase64 }];
     }
 
     const emailRes = await fetch("https://api.resend.com/emails", {

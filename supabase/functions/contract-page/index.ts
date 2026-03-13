@@ -909,18 +909,20 @@ Deno.serve(async (req) => {
 
             console.log(`[contract-page] Invoice ${invoiceNumber} created.`);
 
-            // Send invoice email via Node Backend (which generates the PDF)
+            // Send invoice email via Supabase Edge Function (which now natively generates the PDF if missing)
             try {
-              const apiBaseUrl = Deno.env.get("EXPO_PUBLIC_API_BASE_URL") || "https://kundenverwaltung.gross-ict.ch";
-              const emailRes = await fetch(`${apiBaseUrl}/api/send-invoice-email`, {
+              const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+              const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+              const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-invoice-email`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
+                  "Authorization": `Bearer ${serviceRoleKey}`,
                 },
                 body: JSON.stringify({ id: invoiceData.id }),
               });
               if (emailRes.ok) {
-                console.log(`[contract-page] Invoice email sent successfully via backend.`);
+                console.log(`[contract-page] Invoice email sent successfully via edge function.`);
               } else {
                 const errText = await emailRes.text();
                 console.error("[contract-page] Invoice email failed:", errText);
