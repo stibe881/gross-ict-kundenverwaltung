@@ -915,6 +915,8 @@ export async function createContract(contract: {
     recurring_enabled?: boolean;
     billing_cycle?: string;
     next_invoice_date?: string;
+    auto_renewal?: boolean;
+    vat_rate?: number;
 }) {
     // Calculate next_invoice_date if recurring is enabled
     const insertData: any = { ...contract, status: "active" };

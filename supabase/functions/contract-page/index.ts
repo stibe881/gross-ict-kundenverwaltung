@@ -461,7 +461,7 @@ function renderPage(contract: any, supabaseUrl: string): string {
     ${signatureSection}
 
     <div style="text-align:center;margin-bottom:16px;">
-      <button onclick="window.print()" style="
+      <button onclick="window.print()" class="pdf-btn" style="
         background:#27272a;color:#e5e5e5;border:1px solid #3f3f46;border-radius:10px;
         padding:12px 24px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;
         display:inline-flex;align-items:center;gap:8px;
@@ -479,20 +479,142 @@ function renderPage(contract: any, supabaseUrl: string): string {
     </div>
   </div>
 
+  <!-- Professional Print-Only Contract Document (matching invoice/quote design) -->
+  <div class="print-contract">
+    <div class="pc-accent-bar"></div>
+    <div class="pc-page">
+      <table class="pc-header-table"><tr>
+        <td><img src="${LOGO_BASE64}" class="pc-logo-img" alt="Gross ICT" /></td>
+        <td><div class="pc-doc-type">Vertrag</div></td>
+      </tr></table>
+
+      <div class="pc-company-bar">
+        <strong>Gross ICT</strong> · Neuhushof 3 · 6144 Zell LU · Schweiz<br>
+        Stefan Gross · +41 79 414 06 16 · info@gross-ict.ch
+      </div>
+
+      <table class="pc-addr-meta"><tr>
+        <td style="width:55%;">
+          <div class="pc-cust-label">Vertragspartner</div>
+          <div class="pc-cust-addr">${customerName}</div>
+        </td>
+        <td style="width:45%;">
+          <div class="pc-meta-box">
+            <table class="pc-meta-table">
+              <tr><td>Vertragstitel</td><td>${escHtml(contract.title || "")}</td></tr>
+              <tr><td>Beginn</td><td>${fmtDate(contract.start_date)}</td></tr>
+              <tr><td>Ende</td><td>${fmtDate(contract.end_date)}</td></tr>
+              ${durationText ? `<tr><td>Laufzeit</td><td>${durationText}</td></tr>` : ""}
+              ${(contract.annual_amount || contract.amount) ? `<tr><td>Betrag p.a.</td><td>CHF ${fmtCHF(Number(contract.annual_amount || contract.amount))}</td></tr>` : ""}
+              <tr><td>Zahlung</td><td>${contract.payment_terms ? escHtml(contract.payment_terms) : "30 Tage netto"}</td></tr>
+            </table>
+          </div>
+        </td>
+      </tr></table>
+
+      ${contract.description ? `
+      <div class="pc-section">
+        <table class="pc-section-header"><tr><th>Beschreibung</th></tr></table>
+        <div class="pc-section-body">${escHtml(contract.description)}</div>
+      </div>
+      ` : ""}
+
+      ${contract.scope_of_services ? `
+      <div class="pc-section">
+        <table class="pc-section-header"><tr><th>Leistungsumfang</th></tr></table>
+        <div class="pc-section-body">${escHtml(contract.scope_of_services)}</div>
+      </div>
+      ` : ""}
+
+      <div class="pc-section">
+        <table class="pc-section-header"><tr><th>Vertragsbedingungen</th></tr></table>
+        <table class="pc-terms-table">
+          <tr><td>Kündigungsfrist</td><td>${contract.notice_period_months || 3} ${(contract.notice_period_months || 3) === 1 ? "Monat" : "Monate"} zum Vertragsende</td></tr>
+          <tr><td>Zahlungsbedingungen</td><td>${contract.payment_terms ? escHtml(contract.payment_terms) : "Jährliche Abrechnung, zahlbar innert 30 Tagen"}</td></tr>
+          <tr><td>Automatische Verlängerung</td><td>Bei Nichtkündigung verlängert sich der Vertrag automatisch um die gleiche Laufzeit</td></tr>
+          ${contract.special_agreements ? `<tr><td>Zusatzvereinbarungen</td><td>${escHtml(contract.special_agreements)}</td></tr>` : ""}
+        </table>
+      </div>
+
+      ${isSigned ? `
+      <div class="pc-section pc-sig-section">
+        <table class="pc-section-header"><tr><th>Digitale Signatur</th></tr></table>
+        <table class="pc-terms-table">
+          <tr><td>Unterzeichnet von</td><td><strong>${escHtml(contract.signature_name || "")}</strong></td></tr>
+          <tr><td>Datum</td><td>${signDate}</td></tr>
+          ${contract.signature_ip ? `<tr><td>IP-Adresse</td><td>${escHtml(contract.signature_ip)}</td></tr>` : ""}
+        </table>
+        <div class="pc-sig-note">Diese digitale Signatur dient als rechtsgültiger Nachweis der Unterzeichnung.</div>
+      </div>
+      ` : `
+      <div class="pc-section pc-sig-section">
+        <table class="pc-section-header"><tr><th>Unterschrift</th></tr></table>
+        <div class="pc-sig-line">
+          <div class="pc-sig-field"><div class="pc-sig-dash"></div><span>Ort, Datum</span></div>
+          <div class="pc-sig-field"><div class="pc-sig-dash"></div><span>Unterschrift</span></div>
+        </div>
+      </div>
+      `}
+    </div>
+
+    <div class="pc-footer">
+      <table class="pc-footer-table"><tr>
+        <td style="width:33%;"><div class="pc-ft-label">Kontakt</div><span class="pc-ft-val">Stefan Gross</span><br>info@gross-ict.ch</td>
+        <td style="width:33%;"><div class="pc-ft-label">Bankverbindung</div><span class="pc-ft-val">Bank Cler AG</span><br>Konto: 2610.4165.2001</td>
+        <td style="width:34%;"><div class="pc-ft-label">IBAN / SWIFT</div><span class="pc-ft-val">CH39 0644 0261 0416 5200 1</span><br>SWIFT: BCLRCHBB</td>
+      </tr></table>
+    </div>
+  </div>
+
   <style>
+    .print-contract { display: none; }
+
     @media print {
-      body { background: #fff !important; color: #000 !important; padding: 0; }
-      .container { max-width: 100%; }
-      .header, .title-card, .card, .terms-card, .signed-box, .sign-section { 
-        background: #fff !important; border-color: #ddd !important; color: #000 !important; 
+      .container, .pdf-btn { display: none !important; }
+      body { background: #fff !important; color: #1a1a2e !important; padding: 0 !important; margin: 0 !important; min-height: auto !important; display: flex !important; flex-direction: column; }
+
+      .print-contract {
+        display: flex !important; flex-direction: column; min-height: 100vh;
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        font-size: 9.5pt; color: #1a1a2e; line-height: 1.5;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
       }
-      .card-title, .detail-item .label, .terms-text .t-label { color: #666 !important; }
-      .detail-item .value, .terms-text .t-value, h1 { color: #000 !important; }
-      .detail-item .value.highlight { color: #16a34a !important; }
-      .customer-badge { background: #f0fdf4 !important; border-color: #bbf7d0 !important; color: #16a34a !important; }
-      .sign-section, .footer, button[onclick="window.print()"] { display: none !important; }
-      .signed-box { border-color: #22c55e !important; }
-      .signed-box h2 { color: #22c55e !important; }
+      .pc-accent-bar { height: 6px; background: linear-gradient(90deg, #D4A432, #E8B84A); }
+      .pc-page { padding: 30px 40px 30px 40px; flex: 1; }
+      .pc-header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+      .pc-header-table td { border: none; padding: 0; vertical-align: bottom; }
+      .pc-logo-img { height: 45px; width: auto; }
+      .pc-doc-type { text-align: right; font-size: 22pt; font-weight: 700; color: #D4A432; letter-spacing: 3px; text-transform: uppercase; }
+      .pc-company-bar { text-align: right; font-size: 8pt; color: #64748b; padding: 6px 0 20px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 24px; line-height: 1.7; }
+      .pc-addr-meta { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+      .pc-addr-meta td { border: none; padding: 0; vertical-align: top; }
+      .pc-cust-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-bottom: 6px; font-weight: 600; }
+      .pc-cust-addr { font-size: 11pt; font-weight: 600; line-height: 1.3; color: #1a1a2e; }
+      .pc-meta-box { background: #f8fafb; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; float: right; }
+      .pc-meta-table { border-collapse: collapse; font-size: 9pt; }
+      .pc-meta-table td { padding: 3px 0; border: none; }
+      .pc-meta-table td:first-child { color: #64748b; padding-right: 24px; }
+      .pc-meta-table td:last-child { font-weight: 600; text-align: right; color: #1a1a2e; }
+      .pc-section { margin-bottom: 16px; }
+      .pc-section-header { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+      .pc-section-header th { background: #D4A432; color: #fff; padding: 8px 12px; font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; text-align: left; border-radius: 4px 4px 0 0; }
+      .pc-section-body { font-size: 9.5pt; color: #475569; line-height: 1.7; white-space: pre-wrap; padding: 10px 12px; }
+      .pc-terms-table { width: 100%; border-collapse: collapse; }
+      .pc-terms-table td { padding: 8px 12px; font-size: 9pt; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+      .pc-terms-table td:first-child { width: 180px; color: #64748b; font-weight: 500; }
+      .pc-terms-table td:last-child { color: #1a1a2e; }
+      .pc-sig-section { margin-top: 20px; }
+      .pc-sig-note { font-size: 8pt; color: #94a3b8; font-style: italic; margin-top: 8px; padding: 4px 12px; }
+      .pc-sig-line { display: flex; justify-content: space-between; margin-top: 40px; padding: 0 12px; }
+      .pc-sig-field { width: 45%; }
+      .pc-sig-dash { border-bottom: 1px solid #1a1a2e; height: 30px; margin-bottom: 4px; }
+      .pc-sig-field span { font-size: 8pt; color: #94a3b8; }
+      .pc-footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; margin-top: auto; page-break-inside: avoid; }
+      .pc-footer-table { width: 100%; border-collapse: collapse; }
+      .pc-footer-table td { border: none; padding: 0; vertical-align: top; color: #cbd5e1; }
+      .pc-ft-label { font-weight: 700; color: #D4A432; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
+      .pc-ft-val { font-weight: 600; color: #fff; }
+      @page { size: A4; margin: 0; }
     }
   </style>
 
@@ -787,20 +909,18 @@ Deno.serve(async (req) => {
 
             console.log(`[contract-page] Invoice ${invoiceNumber} created.`);
 
-            // Send invoice email via Supabase Edge Function
+            // Send invoice email via Node Backend (which generates the PDF)
             try {
-              const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-              const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-              const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-invoice-email`, {
+              const apiBaseUrl = Deno.env.get("EXPO_PUBLIC_API_BASE_URL") || "https://kundenverwaltung.gross-ict.ch";
+              const emailRes = await fetch(`${apiBaseUrl}/api/send-invoice-email`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
-                  "Authorization": `Bearer ${serviceRoleKey}`,
                 },
                 body: JSON.stringify({ id: invoiceData.id }),
               });
               if (emailRes.ok) {
-                console.log(`[contract-page] Invoice email sent successfully.`);
+                console.log(`[contract-page] Invoice email sent successfully via backend.`);
               } else {
                 const errText = await emailRes.text();
                 console.error("[contract-page] Invoice email failed:", errText);
