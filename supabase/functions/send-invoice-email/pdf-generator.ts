@@ -24,6 +24,7 @@ export interface InvoiceData {
   subtotal: number;
   totalVat: number;
   total: number;
+  notes?: string;
 }
 
 function fmtCHF(amount: number): string {
@@ -43,217 +44,285 @@ function fmtDate(dateString: string): string {
 
 export function generateInvoicePDF(data: InvoiceData): string {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const pageWidth = 210;
-  const marginLeft = 20;
-  const marginRight = 20;
-  const contentWidth = pageWidth - marginLeft - marginRight;
-  let y = 20;
+  
+  // Colors
+  const cGold = [212, 164, 50] as [number, number, number]; // #D4A432
+  const cDarkBg = [26, 26, 46] as [number, number, number]; // #1a1a2e
+  const cTextDark = [26, 26, 46] as [number, number, number]; // #1a1a2e
+  const cTextMuted = [100, 116, 139] as [number, number, number]; // #64748b
+  const cTextLight = [148, 163, 184] as [number, number, number]; // #94a3b8
+  const cBoxBg = [248, 250, 251] as [number, number, number]; // #f8fafb
+  const cBorder = [226, 232, 240] as [number, number, number]; // #e2e8f0
 
-  // ─── Header: Logo + RECHNUNG ───
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const marginX = 25;
+  let y = 0;
+
+  // 1. Accent Bar Type
+  doc.setFillColor(...cGold);
+  doc.rect(0, 0, pageWidth, 5, "F");
+  
+  y = 25;
+
+  // 2. Header (Logo + RECHNUNG)
   if (LOGO_BASE64) {
     try {
-      doc.addImage(LOGO_BASE64, "PNG", marginLeft, y, 18, 18);
+      doc.addImage(LOGO_BASE64, "PNG", marginX, y, 40, 15);
     } catch {
-      doc.setFontSize(16);
-      doc.setFont("helvetica", "normal");
-      doc.text("Gross · ICT", marginLeft, y + 10);
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...cDarkBg);
+      doc.text("Gross · ICT", marginX, y + 10);
     }
   } else {
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(85, 85, 85);
-    doc.text("Gross · ICT", marginLeft, y + 10);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...cDarkBg);
+    doc.text("Gross · ICT", marginX, y + 10);
   }
 
-  doc.setFontSize(18);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(51, 51, 51);
-  doc.text("RECHNUNG", pageWidth - marginRight, y + 10, { align: "right" });
-  // Underline
-  const titleWidth = doc.getTextWidth("RECHNUNG");
-  doc.setDrawColor(51, 51, 51);
-  doc.setLineWidth(0.3);
-  doc.line(pageWidth - marginRight - titleWidth, y + 12, pageWidth - marginRight, y + 12);
-
-  y += 22;
-
-  // ─── Firmeninfo (rechtsbündig) ───
-  doc.setFontSize(9);
-  doc.setTextColor(51, 51, 51);
-  const companyRightX = pageWidth - marginRight;
-
+  doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
-  doc.text("Gross ICT", companyRightX, y, { align: "right" });
-  y += 4;
+  doc.setTextColor(...cGold);
+  doc.text("RECHNUNG", pageWidth - marginX, y + 12, { align: "right" });
+
+  y += 20;
+
+  // 3. Company Bar
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text("Neuhushof 3", companyRightX, y, { align: "right" });
-  y += 4;
-  doc.text("6144 Zell LU", companyRightX, y, { align: "right" });
-  y += 4;
-  doc.text("Schweiz", companyRightX, y, { align: "right" });
-  y += 6;
+  doc.setTextColor(...cTextMuted);
+  
   doc.setFont("helvetica", "bold");
-  doc.text("Stefan Gross", companyRightX, y, { align: "right" });
-  y += 4;
+  const compText1 = "Gross ICT  ·  Neuhushof 3  ·  6144 Zell LU  ·  Schweiz";
+  doc.text(compText1, pageWidth - marginX, y, { align: "right" });
+  
   doc.setFont("helvetica", "normal");
-  doc.text("+41794140616", companyRightX, y, { align: "right" });
-  y += 4;
-  doc.text("stefan.gross@hotmail.ch", companyRightX, y, { align: "right" });
+  const compText2 = "Stefan Gross  ·  +41 79 414 06 16  ·  info@gross-ict.ch";
+  doc.text(compText2, pageWidth - marginX, y + 5, { align: "right" });
 
   y += 10;
+  doc.setDrawColor(...cBorder);
+  doc.setLineWidth(0.5);
+  doc.line(pageWidth - marginX - 100, y, pageWidth - marginX, y); // Short right-aligned line
+  
+  y += 15;
 
-  // ─── Kundenadresse (links) + Rechnungsdaten (rechts) ───
-  const sectionStartY = y;
-
-  function stripHtml(html: string) {
-    return html.replace(/<[^>]*>?/gm, '\n');
-  }
-
-  // Kundenadresse
+  // 4. Customer Address (Left) & Meta Box (Right)
+  const metaBoxW = 75;
+  const metaBoxX = pageWidth - marginX - metaBoxW;
+  
+  // -- Left: Customer
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...cTextLight);
+  doc.text("EMPFÄNGER", marginX, y);
+  
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(51, 51, 51);
-  // Address is HTML-formatted sometimes in edge functions, strip it if necessary or split by \n
+  doc.setTextColor(...cTextDark);
+  
   const rawAddress = data.customerAddress || "";
   const addressLines = rawAddress.split(/\r?\n|<br\s*\/?>/i).map(l => l.trim()).filter(Boolean);
-  let addrY = sectionStartY;
+  let addrY = y + 5;
   for (const line of addressLines) {
-    doc.text(line, marginLeft, addrY);
+    doc.text(line, marginX, addrY);
     addrY += 5;
   }
 
-  // Rechnungsdaten (rechts als Tabelle)
+  // -- Right: Meta Box
+  // Background & Border
+  doc.setFillColor(...cBoxBg);
+  doc.setDrawColor(...cBorder);
+  doc.roundedRect(metaBoxX, y - 4, metaBoxW, 30, 2, 2, "FD");
+
   doc.setFontSize(9);
-  const metaLabelX = pageWidth - marginRight - 75;
-  const metaValueX = pageWidth - marginRight;
-  let metaY = sectionStartY;
+  let metaY = y + 2;
+  const mLabelX = metaBoxX + 5;
+  const mValueX = metaBoxX + metaBoxW - 5;
+  const ls = 6;
 
-  const metaRows: [string, string][] = [
-    ["Rechnungsnummer", data.invoiceNumber],
-  ];
-  if (data.customerNumber) metaRows.push(["Kundennummer", data.customerNumber]);
-  metaRows.push(["Ausstellungsdatum", fmtDate(data.invoiceDate)]);
-  metaRows.push(["Zahlungsziel", fmtDate(data.dueDate)]);
-  if (data.serviceDate) metaRows.push(["Leistungsdatum", fmtDate(data.serviceDate)]);
-  metaRows.push(["Zahlungsform", data.paymentMethod || "Überweisung"]);
+  doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
+  doc.text("Rechnungsnr.", mLabelX, metaY);
+  doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
+  doc.text(data.invoiceNumber, mValueX, metaY, { align: "right" });
+  metaY += ls;
 
-  for (const [label, value] of metaRows) {
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(85, 85, 85);
-    doc.text(label, metaLabelX, metaY);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(51, 51, 51);
-    doc.text(value, metaValueX, metaY, { align: "right" });
-    metaY += 5;
+  if (data.customerNumber) {
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
+    doc.text("Kundennr.", mLabelX, metaY);
+    doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
+    doc.text(data.customerNumber, mValueX, metaY, { align: "right" });
+    metaY += ls;
   }
 
-  y = Math.max(addrY, metaY) + 8;
+  doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
+  doc.text("Datum", mLabelX, metaY);
+  doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
+  doc.text(fmtDate(data.invoiceDate), mValueX, metaY, { align: "right" });
+  metaY += ls;
 
-  // ─── Intro ───
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "italic");
-  doc.setTextColor(85, 85, 85);
-  doc.text("Wir bedanken uns für Ihren Auftrag und stellen folgende Positionen in Rechnung:", marginLeft, y);
-  y += 8;
+  doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
+  doc.text("Zahlungsziel", mLabelX, metaY);
+  doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
+  doc.text(fmtDate(data.dueDate), mValueX, metaY, { align: "right" });
+  metaY += ls;
 
-  // ─── Tabelle: Header ───
-  const colX = {
-    desc: marginLeft,
-    qty: marginLeft + contentWidth * 0.48,
-    price: marginLeft + contentWidth * 0.62,
-    discount: marginLeft + contentWidth * 0.78,
-    total: marginLeft + contentWidth - 1,
-  };
+  doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
+  doc.text("Zahlungsform", mLabelX, metaY);
+  doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
+  doc.text(data.paymentMethod || "Überweisung", mValueX, metaY, { align: "right" });
 
-  doc.setFillColor(240, 240, 240);
-  doc.rect(marginLeft, y - 4, contentWidth, 8, "F");
-  doc.setDrawColor(153, 153, 153);
-  doc.setLineWidth(0.3);
-  doc.line(marginLeft, y - 4, marginLeft + contentWidth, y - 4);
-  doc.line(marginLeft, y + 4, marginLeft + contentWidth, y + 4);
+  y = Math.max(addrY, y + 35) + 8;
+
+  // 5. Intro
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105); // #475569
+  doc.text("Guten Tag", marginX, y);
+  y += 10;
+  doc.text("Wir bedanken uns für Ihren Auftrag und stellen folgende Positionen in Rechnung:", marginX, y);
+  y += 10;
+
+  // 6. Items Table Header
+  doc.setFillColor(...cGold);
+  doc.rect(marginX, y, pageWidth - marginX * 2, 8, "F");
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(51, 51, 51);
-  doc.text("BESCHREIBUNG", colX.desc + 2, y);
-  doc.text("MENGE", colX.qty, y, { align: "right" });
-  doc.text("PREIS (CHF)", colX.price, y, { align: "right" });
-  doc.text("RABATT %", colX.discount, y, { align: "right" });
-  doc.text("BETRAG (CHF)", colX.total, y, { align: "right" });
+  doc.setTextColor(255, 255, 255);
+
+  const colPos = marginX + 2;
+  const colDesc = marginX + 15;
+  const colQty = marginX + 85;
+  const colPrice = marginX + 115;
+  const colTotal = pageWidth - marginX - 3;
+
+  doc.text("POS.", colPos, y + 5);
+  doc.text("BESCHREIBUNG", colDesc, y + 5);
+  doc.text("MENGE", colQty, y + 5, { align: "right" });
+  doc.text("EINZELPREIS", colPrice, y + 5, { align: "right" });
+  doc.text("BETRAG (CHF)", colTotal, y + 5, { align: "right" });
 
   y += 8;
 
-  // ─── Tabelle: Zeilen ───
+  // 7. Items Rows
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(51, 51, 51);
 
-  for (const item of data.items) {
-    // Beschreibung (ggf. mehrzeilig)
-    const descLines = doc.splitTextToSize(item.description, contentWidth * 0.45);
-    for (let i = 0; i < descLines.length; i++) {
-      doc.text(descLines[i], colX.desc + 2, y + i * 4);
+  for (let i = 0; i < data.items.length; i++) {
+    const item = data.items[i];
+    const isOdd = i % 2 !== 0;
+
+    // description wrapping
+    const descLines = doc.splitTextToSize(item.description, 65);
+    const rowHeight = Math.max(8, descLines.length * 5 + 4);
+
+    if (isOdd) {
+      doc.setFillColor(...cBoxBg);
+      doc.rect(marginX, y, pageWidth - marginX * 2, rowHeight, "F");
     }
 
-    doc.text(`${item.quantity} ${item.unit || "Stk."}`, colX.qty, y, { align: "right" });
-    doc.text(fmtCHF(item.unitPrice), colX.price, y, { align: "right" });
-    doc.text(fmtCHF(item.discount ?? 0), colX.discount, y, { align: "right" });
-    doc.text(fmtCHF(item.total), colX.total, y, { align: "right" });
+    doc.setTextColor(...cTextLight);
+    doc.setFont("helvetica", "bold");
+    doc.text((i + 1).toString(), colPos + 2, y + 6);
 
-    const rowHeight = Math.max(descLines.length * 4, 4) + 4;
+    doc.setTextColor(...cTextDark);
+    doc.setFont("helvetica", "normal");
+
+    for (let l = 0; l < descLines.length; l++) {
+      doc.text(descLines[l], colDesc, y + 6 + (l * 5));
+    }
+
+    doc.text(`${item.quantity} ${item.unit || "Stk."}`, colQty, y + 6, { align: "right" });
+    doc.text(fmtCHF(item.unitPrice), colPrice, y + 6, { align: "right" });
+    doc.text(fmtCHF(item.total), colTotal, y + 6, { align: "right" });
+
     y += rowHeight;
 
-    // Trennlinie
-    doc.setDrawColor(224, 224, 224);
-    doc.setLineWidth(0.2);
-    doc.line(marginLeft, y - 2, marginLeft + contentWidth, y - 2);
+    doc.setDrawColor(241, 245, 249); // #f1f5f9
+    doc.setLineWidth(0.25);
+    doc.line(marginX, y, pageWidth - marginX, y);
   }
 
-  y += 4;
+  y += 5;
 
-  // ─── Totals ───
-  doc.setFontSize(9);
+  // 8. Totals
+  const totalBoxW = 80;
+  const totalBoxX = pageWidth - marginX - totalBoxW;
+
+  doc.setFillColor(...cGold);
+  doc.roundedRect(totalBoxX, y, totalBoxW, 10, 2, 2, "F");
+
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(85, 85, 85);
-  doc.text("GESAMTBETRAG", colX.discount - 10, y, { align: "right" });
-  doc.setTextColor(51, 51, 51);
-  doc.text(`${fmtCHF(data.total)} CHF`, colX.total, y, { align: "right" });
+  doc.setTextColor(255, 255, 255);
+  doc.text("Zu bezahlen", totalBoxX + 5, y + 7);
+  doc.text(`${fmtCHF(data.total)} CHF`, totalBoxX + totalBoxW - 5, y + 7, { align: "right" });
 
-  y += 8;
+  y += 20;
 
-  // Zu bezahlen Box
-  doc.setFillColor(245, 245, 240);
-  doc.rect(marginLeft, y - 5, contentWidth, 14, "F");
-  doc.setDrawColor(153, 153, 153);
-  doc.setLineWidth(0.5);
-  doc.line(marginLeft, y - 5, marginLeft + contentWidth, y - 5);
-  doc.line(marginLeft, y + 9, marginLeft + contentWidth, y + 9);
+  // 9. Notes Section (if any)
+  if (data.notes) {
+    if (y > pageHeight - 60) {
+      doc.addPage();
+      y = 20;
+    }
+    const safeNotes = data.notes.replace(/<[^>]*>?/gm, '\n');
+    const noteLines = doc.splitTextToSize(safeNotes, pageWidth - marginX * 2 - 10);
+    const noteH = noteLines.length * 5 + 10;
+    
+    doc.setFillColor(...cBoxBg);
+    doc.rect(marginX, y, pageWidth - marginX * 2, noteH, "F");
+    doc.setFillColor(...cGold);
+    doc.rect(marginX, y, 1.5, noteH, "F"); // Left border
 
-  doc.setFontSize(14);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...cGold);
+    doc.text("ANMERKUNGEN", marginX + 5, y + 6);
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(71, 85, 105);
+    for (let n = 0; n < noteLines.length; n++) {
+      doc.text(noteLines[n], marginX + 5, y + 11 + (n * 5));
+    }
+    y += noteH + 10;
+  }
+
+  // 10. Footer (Fixed at bottom)
+  const fh = 30; // approx height of footer
+  const fy = pageHeight - fh;
+  
+  doc.setFillColor(...cDarkBg); // #1a1a2e
+  doc.rect(0, fy, pageWidth, fh, "F");
+
+  doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(51, 51, 51);
-  doc.text("ZU BEZAHLEN", colX.discount - 10, y + 4, { align: "right" });
-  doc.text(`${fmtCHF(data.total)} CHF`, colX.total, y + 4, { align: "right" });
+  doc.setTextColor(...cGold);
+  
+  const col1X = marginX;
+  const col2X = marginX + 55;
+  const col3X = marginX + 110;
 
-  // ─── Footer: Bankverbindung ───
-  const footerY = 272;
-  doc.setDrawColor(204, 204, 204);
-  doc.setLineWidth(0.3);
-  doc.line(marginLeft, footerY, pageWidth - marginRight, footerY);
-
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(85, 85, 85);
-  doc.text("BANKVERBINDUNG:", marginLeft, footerY + 5);
+  doc.text("ZAHLUNGSEMPFÄNGER", col1X, fy + 10);
+  doc.text("BANKVERBINDUNG", col2X, fy + 10);
+  doc.text("IBAN / SWIFT", col3X, fy + 10);
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  const bankLine1 = "Zahlungsempfänger: Stefan Gross  ·  Bankname: Bank Cler AG  ·  Kontonr.: 2610.4165.2001";
-  const bankLine2 = "IBAN: CH3906440261041652001    SWIFT/BIC: BCLRCHBB";
-  doc.text(bankLine1, marginLeft, footerY + 10);
-  doc.text(bankLine2, marginLeft, footerY + 14);
+  doc.setTextColor(255, 255, 255); // #fff
 
-  // Return base64 string
+  doc.text("Stefan Gross", col1X, fy + 15);
+  doc.text("Bank Cler AG", col2X, fy + 15);
+  doc.text("Konto: 2610.4169.200", col2X, fy + 20);
+  
+  doc.text("CH39 0844 0261 0416 9200 1", col3X, fy + 15);
+  doc.text("SWIFT: BCLRCHBB", col3X, fy + 20);
+
+  // Buffer and Base64 return
   const dataUri = doc.output("datauristring");
   return dataUri.split("base64,")[1];
 }
