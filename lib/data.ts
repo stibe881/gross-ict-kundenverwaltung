@@ -4,6 +4,8 @@
  */
 import { supabase } from "./supabase";
 import { apiCall } from "./_core/api";
+import * as FileSystem from "expo-file-system";
+import { Buffer } from "buffer";
 export { supabase };
 
 export async function triggerPushNotification(
@@ -952,6 +954,62 @@ export async function deleteContract(id: string) {
     return { success: true };
 }
 
+export async function uploadDocument(customerId: string, uri: string, filename: string): Promise<string> {
+    try {
+        const path = `${customerId}/${Date.now()}_${filename.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
+
+        // NATIVE FIX: Use Expo FileSystem and Buffer to read file as base64.
+        // fetch().blob() produces 0-byte corrupt files in React Native Supabase uploads.
+        const base64Str = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+        const buffer = Buffer.from(base64Str, 'base64');
+
+        const ext = filename.split(".").pop()?.toLowerCase();
+        let mimeType = "application/octet-stream";
+        if (ext === "pdf") mimeType = "application/pdf";
+        else if (ext === "png") mimeType = "image/png";
+        else if (ext === "jpg" || ext === "jpeg") mimeType = "image/jpeg";
+
+        const { data, error } = await supabase.storage
+            .from("customer_documents")
+            .upload(path, buffer, {
+                contentType: mimeType,
+                upsert: true,
+            });
+
+        if (error) throw new Error(error.message);
+
+        // Get public URL
+        const { data: publicUrlData } = supabase.storage
+            .from("customer_documents")
+            .getPublicUrl(path);
+
+        return publicUrlData.publicUrl;
+    } catch (err: any) {
+        throw new Error(err.message || "Fehler beim Hochladen des Dokuments");
+    }
+}
+
+export async function deleteCustomerDocument(fileUrl: string) {
+    // Determine the path from the URL
+    // e.g. .../storage/v1/object/public/customer_documents/c43fb3f5/12345_test.pdf
+    try {
+        const urlObj = new URL(fileUrl);
+        const pathParts = urlObj.pathname.split("customer_documents/");
+        if (pathParts.length === 2) {
+            const filePath = decodeURIComponent(pathParts[1]);
+            const { error } = await supabase.storage.from("customer_documents").remove([filePath]);
+            if (error) console.error("Storage delete fail:", error);
+        }
+    } catch(e) { console.error("Could not parse Document URL for deletion:", e); }
+
+    const { error } = await supabase
+        .from("customer_documents")
+        .delete()
+        .eq("file_url", fileUrl);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
 export async function uploadCancellationDocument(contractId: string, uri: string, filename: string): Promise<string> {
     try {
         const response = await fetch(uri);
@@ -1866,13 +1924,19 @@ export async function uploadExpenseReceipt(file: { name: string; type: string; u
     const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
     const filePath = `${timestamp}_${safeName}`;
 
-    // For web: fetch the file and upload as blob
-    const response = await fetch(file.uri);
-    const blob = await response.blob();
+    // NATIVE FIX: Use Expo FileSystem and Buffer to read file as base64.
+    const base64Str = await FileSystem.readAsStringAsync(file.uri, { encoding: 'base64' });
+    const buffer = Buffer.from(base64Str, 'base64');
+
+    const ext = safeName.split(".").pop()?.toLowerCase();
+    let mimeType = file.type || "application/octet-stream";
+    if (ext === "pdf") mimeType = "application/pdf";
+    else if (ext === "png") mimeType = "image/png";
+    else if (ext === "jpg" || ext === "jpeg") mimeType = "image/jpeg";
 
     const { error: uploadErr } = await supabase.storage
         .from("expense_receipts")
-        .upload(filePath, blob, { contentType: file.type });
+        .upload(filePath, buffer, { contentType: mimeType, upsert: true });
 
     if (uploadErr) throw new Error(uploadErr.message);
 
@@ -2098,34 +2162,7 @@ export async function getDocuments(folderId: string) {
     return data || [];
 }
 
-export async function uploadDocument(folderId: string, file: { name: string; type: string; uri: string; size?: number }) {
-    const filePath = `${folderId}/${Date.now()}_${file.name}`;
 
-    // For web: fetch the file and upload as blob
-    const response = await fetch(file.uri);
-    const blob = await response.blob();
-
-    const { error: uploadErr } = await supabase.storage
-        .from("documents")
-        .upload(filePath, blob, { contentType: file.type });
-
-    if (uploadErr) throw new Error(uploadErr.message);
-
-    const { data, error: dbErr } = await supabase
-        .from("documents")
-        .insert({
-            folder_id: folderId,
-            file_name: file.name,
-            file_path: filePath,
-            file_size: file.size || 0,
-            mime_type: file.type,
-        })
-        .select()
-        .single();
-
-    if (dbErr) throw new Error(dbErr.message);
-    return data;
-}
 
 export async function deleteDocument(id: string, filePath: string) {
     await supabase.storage.from("documents").remove([filePath]);
