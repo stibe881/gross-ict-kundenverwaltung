@@ -593,6 +593,40 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                         )}
                     </View>
 
+                    <View style={{ height: 20 }} />
+
+                    {/* Delete Button (nur wenn man bearbeitet) */}
+                    {expense && (
+                        <TouchableOpacity
+                            onPress={() => {
+                                Alert.alert(
+                                    "Ausgabe löschen",
+                                    "Möchten Sie diese Ausgabe wirklich löschen?",
+                                    [
+                                        { text: "Abbrechen", style: "cancel" },
+                                        {
+                                            text: "Löschen", style: "destructive", onPress: async () => {
+                                                try {
+                                                    setLoading(true);
+                                                    await Data.deleteExpense(expense.id);
+                                                    onSuccess();
+                                                    onClose();
+                                                } catch (err: any) {
+                                                    Alert.alert("Fehler", err.message);
+                                                } finally {
+                                                    setLoading(false);
+                                                }
+                                            }
+                                        }
+                                    ]
+                                );
+                            }}
+                            style={{ backgroundColor: colors.error + "15", borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.error + "30", alignItems: "center" }}
+                        >
+                            <Text style={{ fontSize: 15, color: colors.error, fontWeight: "600" }}>Ausgabe löschen</Text>
+                        </TouchableOpacity>
+                    )}
+
                     <View style={{ height: 40 }} />
                 </ScrollView>
             </View>
