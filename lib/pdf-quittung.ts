@@ -1,4 +1,4 @@
-import { jsPDF } from "jspdf";
+import { jsPDF } from "./jspdf-import";
 import { LOGO_BASE64 } from "./logo-base64";
 
 export interface QuittungData {
