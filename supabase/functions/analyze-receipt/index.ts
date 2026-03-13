@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GoogleGenerativeAI, Part } from "https://esm.sh/@google/generative-ai@0.1.2";
+import { GoogleGenerativeAI, Part } from "https://esm.sh/@google/generative-ai@0.21.0";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -26,8 +26,8 @@ serve(async (req) => {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        // Use flash model for fast multi-modal tasks
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // Use gemini-2.5-flash since it is supported by the user's Gemini API key
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const prompt = `
             Please analyze this receipt/invoice and extract the following information.
