@@ -502,12 +502,15 @@ interface InvoiceForPDF {
   subtotal: number;
   vat_amount: number;
   total: number;
+  paid_amount?: number | null;
+  dunning_level?: number | null;
   notes?: string | null;
   customer?: any;
   items?: Array<{
     description: string;
     quantity: number;
     unit_price: number;
+    discount_percentage?: number | null;
     vat_rate: number;
     total: number;
   }>;
@@ -535,7 +538,10 @@ export function generateInvoiceHTML(invoice: InvoiceForPDF, settings?: InvoiceSe
 
   const itemsHTML = (invoice.items || [])
     .map((item, idx) => {
-      const descHTML = (item.description || "").replace(/\n/g, "<br>");
+      let descHTML = (item.description || "").replace(/\n/g, "<br>");
+      if (item.discount_percentage && item.discount_percentage > 0) {
+        descHTML += `<br><small style="color:#64748b;">Rabatt: ${item.discount_percentage}%</small>`;
+      }
       const rowBg = idx % 2 === 1 ? ' style="background:#f8fafb;"' : "";
       return `
       <tr${rowBg}>
@@ -548,12 +554,21 @@ export function generateInvoiceHTML(invoice: InvoiceForPDF, settings?: InvoiceSe
     })
     .join("");
 
+  // Dokumententyp bestimmen
+  let docType = "Rechnung";
+  if (invoice.dunning_level === 0) docType = "Zahlungserinnerung";
+  else if (invoice.dunning_level === 1) docType = "1. Mahnung";
+  else if (invoice.dunning_level === 2) docType = "2. Mahnung";
+  else if (invoice.dunning_level === 3) docType = "Betreibungsandrohung";
+
+  const remainingAmount = calculatedTotal - (invoice.paid_amount || 0);
+
   return `<!DOCTYPE html>
 <html lang="de-CH">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rechnung ${invoice.invoice_number}</title>
+  <title>${docType} ${invoice.invoice_number}</title>
   <style>
     @page { size: A4; margin: 0; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -574,7 +589,7 @@ export function generateInvoiceHTML(invoice: InvoiceForPDF, settings?: InvoiceSe
     .header-table td { border: none; padding: 0; vertical-align: bottom; }
     .logo { font-size: 26pt; font-weight: 300; color: #1a1a2e; letter-spacing: 2px; }
     .logo span { color: #D4A432; font-weight: 600; }
-    .doc-type { text-align: right; font-size: 22pt; font-weight: 700; color: #D4A432; letter-spacing: 3px; text-transform: uppercase; }
+    .doc-type { text-align: right; font-size: 20pt; font-weight: 700; color: #D4A432; letter-spacing: 2px; text-transform: uppercase; }
     .company-bar { text-align: right; font-size: 8pt; color: #64748b; padding: 6px 0 20px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 24px; line-height: 1.7; }
     .addr-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
     .addr-meta-table td { border: none; padding: 0; vertical-align: top; }
@@ -620,7 +635,7 @@ export function generateInvoiceHTML(invoice: InvoiceForPDF, settings?: InvoiceSe
     <table class="header-table">
       <tr>
         <td><img src="${LOGO_BASE64}" style="height:45px;width:auto;" alt="Gross ICT" /></td>
-        <td><div class="doc-type">Rechnung</div></td>
+        <td><div class="doc-type">${docType}</div></td>
       </tr>
     </table>
 
@@ -671,9 +686,19 @@ export function generateInvoiceHTML(invoice: InvoiceForPDF, settings?: InvoiceSe
 
     <div class="totals-wrap" style="margin-bottom:60px;">
       <table class="totals-table">
+        ${(invoice.paid_amount && invoice.paid_amount > 0) ? `
+        <tr>
+          <td class="totals-label">Totalbetrag</td>
+          <td class="totals-value">${fmtCHF(calculatedTotal)} CHF</td>
+        </tr>
+        <tr>
+          <td class="totals-label" style="color:#10b981 !important;">Bereits bezahlt</td>
+          <td class="totals-value" style="color:#10b981 !important;">-${fmtCHF(invoice.paid_amount)} CHF</td>
+        </tr>
+        ` : ""}
         <tr class="total-row">
           <td class="totals-label" style="color:#fff !important;">Zu bezahlen</td>
-          <td class="totals-value">${fmtCHF(calculatedTotal)} CHF</td>
+          <td class="totals-value">${fmtCHF(remainingAmount > 0 ? remainingAmount : 0)} CHF</td>
         </tr>
       </table>
     </div>

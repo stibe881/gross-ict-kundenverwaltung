@@ -25,6 +25,7 @@ interface InvoiceItem {
   quantity: string;
   unit: string;
   unitPrice: string;
+  discountPercentage: string;
   vatRate: number;
 }
 
@@ -70,6 +71,7 @@ export function InvoiceFormModal({
             quantity: String(item.quantity || 1),
             unit: item.unit || "Stk.",
             unitPrice: String(item.unit_price || ""),
+            discountPercentage: String(item.discount_percentage || "0"),
             vatRate: item.vat_rate || VAT_RATES.normal,
           }))
         );
@@ -80,7 +82,7 @@ export function InvoiceFormModal({
   }, [visible, editInvoice, nextNumber]);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", vatRate: VAT_RATES.normal },
+    { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", discountPercentage: "0", vatRate: VAT_RATES.normal },
   ]);
   const [showProductPicker, setShowProductPicker] = useState<string | null>(null);
   const [showNewProductForm, setShowNewProductForm] = useState(false);
@@ -118,6 +120,7 @@ export function InvoiceFormModal({
         quantity: "1",
         unit: "Stk.",
         unitPrice: "",
+        discountPercentage: "0",
         vatRate: VAT_RATES.normal,
       },
     ]);
@@ -158,6 +161,7 @@ export function InvoiceFormModal({
               description: product.description || "",
               unit: product.unit || "Stk.",
               unitPrice: String(product.price),
+              discountPercentage: "0",
               vatRate: product.vat_rate != null ? parseFloat(String(product.vat_rate)) : VAT_RATES.normal,
             }
             : item
@@ -173,7 +177,9 @@ export function InvoiceFormModal({
   const calculateItemTotal = (item: InvoiceItem) => {
     const qty = parseFloat(item.quantity) || 0;
     const price = parseFloat(item.unitPrice) || 0;
-    const net = qty * price;
+    const discount = parseFloat(item.discountPercentage) || 0;
+    const rawNet = qty * price;
+    const net = rawNet * (1 - discount / 100);
     const vat = calculateVAT(net, item.vatRate);
     return { net, vat, gross: net + vat };
   };
@@ -214,6 +220,7 @@ export function InvoiceFormModal({
         quantity: i.quantity,
         unit: i.unit || "Stk.",
         unit_price: i.unitPrice,
+        discount_percentage: parseFloat(i.discountPercentage) || 0,
         vat_rate: i.vatRate,
         total: i.total,
         product_id: i.productId || null,
@@ -247,6 +254,7 @@ export function InvoiceFormModal({
         quantity: i.quantity,
         unit: i.unit || "Stk.",
         unit_price: i.unitPrice,
+        discount_percentage: parseFloat(i.discountPercentage) || 0,
         vat_rate: i.vatRate,
         total: i.total,
         product_id: i.productId || null,
@@ -266,7 +274,7 @@ export function InvoiceFormModal({
   const resetForm = () => {
     setInvoiceNumber("");
     setSelectedCustomerId(null);
-    setItems([{ id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", vatRate: VAT_RATES.normal }]);
+    setItems([{ id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", discountPercentage: "0", vatRate: VAT_RATES.normal }]);
   };
 
   // Produkt erstellen
@@ -338,8 +346,9 @@ export function InvoiceFormModal({
         quantity: parseFloat(item.quantity) || 1,
         unit: item.unit || "Stk.",
         unitPrice: parseFloat(item.unitPrice) || 0,
+        discountPercentage: item.discountPercentage,
         vatRate: item.vatRate,
-        total: (parseFloat(item.quantity) || 1) * (parseFloat(item.unitPrice) || 0),
+        total: calculateItemTotal(item).net, // Total should be net for items, or gross? Actually, total here matches calculateItemTotal.net usually. Wait, previously it was qty * unitPrice, which is net.
       })),
     };
 
@@ -537,7 +546,7 @@ export function InvoiceFormModal({
                       />
                     </View>
 
-                    {/* Menge & Preis */}
+                    {/* Menge, Preis, Rabatt */}
                     <View className="flex-row gap-2 mb-2">
                       <View className="flex-1">
                         <Text className="text-xs text-muted mb-1">Menge</Text>
@@ -552,7 +561,7 @@ export function InvoiceFormModal({
                           }
                         />
                       </View>
-                      <View className="flex-1">
+                      <View className="flex-[1.2]">
                         <Text className="text-xs text-muted mb-1">
                           Preis (CHF)
                         </Text>
@@ -567,49 +576,66 @@ export function InvoiceFormModal({
                           }
                         />
                       </View>
+                      <View className="flex-1">
+                        <Text className="text-xs text-muted mb-1">Rabatt (%)</Text>
+                        <TextInput
+                          className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                          placeholder="0"
+                          placeholderTextColor={colors.muted}
+                          keyboardType="decimal-pad"
+                          value={item.discountPercentage}
+                          onChangeText={(text) =>
+                            updateItem(item.id, "discountPercentage", text)
+                          }
+                        />
+                      </View>
                     </View>
 
-                    {/* MwSt-Satz */}
-                    <View>
-                      <Text className="text-xs text-muted mb-1">MwSt-Satz</Text>
-                      <View className="flex-row gap-2">
-                        {[
-                          { label: "8.1%", value: VAT_RATES.normal },
-                          { label: "2.6%", value: VAT_RATES.reduced },
-                          { label: "0%", value: VAT_RATES.none },
-                        ].map((rate) => (
-                          <TouchableOpacity
-                            key={rate.value}
-                            className={`flex-1 py-2 rounded-lg ${item.vatRate === rate.value
-                              ? "bg-primary"
-                              : "bg-background border border-border"
-                              }`}
-                            onPress={() =>
-                              updateItem(item.id, "vatRate", rate.value)
-                            }
-                            activeOpacity={0.7}
-                          >
-                            <Text
-                              className={`text-center text-xs font-semibold ${item.vatRate === rate.value
-                                ? "text-background"
-                                : "text-foreground"
+                    {/* MwSt-Satz und Positionstotal */}
+                    <View className="flex-row items-end gap-3 mb-2">
+                      <View className="flex-1">
+                        <Text className="text-xs text-muted mb-1">MwSt-Satz</Text>
+                        <View className="flex-row gap-2">
+                          {[
+                            { label: "8.1%", value: VAT_RATES.normal },
+                            { label: "2.6%", value: VAT_RATES.reduced },
+                            { label: "0%", value: VAT_RATES.none },
+                          ].map((rate) => (
+                            <TouchableOpacity
+                              key={rate.value}
+                              className={`flex-1 py-2 rounded-lg ${item.vatRate === rate.value
+                                ? "bg-primary"
+                                : "bg-background border border-border"
                                 }`}
+                              onPress={() =>
+                                updateItem(item.id, "vatRate", rate.value)
+                              }
+                              activeOpacity={0.7}
                             >
-                              {rate.label}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
+                              <Text
+                                className={`text-center text-xs font-semibold ${item.vatRate === rate.value
+                                  ? "text-background"
+                                  : "text-foreground"
+                                  }`}
+                              >
+                                {rate.label}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
                       </View>
-                    </View>
 
-                    {/* Zwischensumme */}
-                    {item.unitPrice && (
-                      <View className="mt-2 pt-2 border-t border-border">
-                        <Text className="text-xs text-muted text-right">
-                          Total: {formatCurrency(calculateItemTotal(item).gross)}
-                        </Text>
-                      </View>
-                    )}
+                      {/* Zwischensumme */}
+                      {item.unitPrice ? (
+                        <View className="flex-1 justify-center rounded-lg py-2 border border-transparent">
+                          <Text className="text-sm font-semibold text-foreground text-right">
+                            Total: {formatCurrency(calculateItemTotal(item).gross)}
+                          </Text>
+                        </View>
+                      ) : (
+                        <View className="flex-1" />
+                      )}
+                    </View>
 
                     {/* Produkt-Picker für diese Position */}
                     {showProductPicker === item.id && (

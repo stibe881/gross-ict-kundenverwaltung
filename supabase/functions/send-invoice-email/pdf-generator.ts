@@ -6,7 +6,7 @@ export interface InvoiceItem {
   quantity: number;
   unit?: string;
   unitPrice: number;
-  discount?: number;
+  discountPercentage?: number;
   vatRate: number;
   total: number;
 }
@@ -25,6 +25,8 @@ export interface InvoiceData {
   totalVat: number;
   total: number;
   notes?: string;
+  paidAmount?: number;
+  dunningLevel?: number;
 }
 
 function fmtCHF(amount: number): string {
@@ -65,7 +67,12 @@ export function generateInvoicePDF(data: InvoiceData): string {
   
   y = 25;
 
-  // 2. Header (Logo + RECHNUNG)
+  let docType = "Rechnung";
+  if (data.dunningLevel === 0) docType = "Zahlungserinnerung";
+  else if (data.dunningLevel === 1) docType = "1. Mahnung";
+  else if (data.dunningLevel === 2) docType = "2. Mahnung";
+  else if (data.dunningLevel === 3) docType = "Betreibungsandrohung";
+
   if (LOGO_BASE64) {
     try {
       doc.addImage(LOGO_BASE64, "PNG", marginX, y, 40, 15);
@@ -85,7 +92,7 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...cGold);
-  doc.text("RECHNUNG", pageWidth - marginX, y + 12, { align: "right" });
+  doc.text(docType.toUpperCase(), pageWidth - marginX, y + 12, { align: "right" });
 
   y += 20;
 
@@ -216,7 +223,12 @@ export function generateInvoicePDF(data: InvoiceData): string {
     const isOdd = i % 2 !== 0;
 
     // description wrapping
-    const descLines = doc.splitTextToSize(item.description, 65);
+    let descLines = doc.splitTextToSize(item.description, 65);
+    
+    if (item.discountPercentage && item.discountPercentage > 0) {
+        descLines.push(`Rabatt: ${item.discountPercentage}%`);
+    }
+
     const rowHeight = Math.max(8, descLines.length * 5 + 4);
 
     if (isOdd) {
@@ -232,8 +244,15 @@ export function generateInvoicePDF(data: InvoiceData): string {
     doc.setFont("helvetica", "normal");
 
     for (let l = 0; l < descLines.length; l++) {
+      if (l === descLines.length - 1 && item.discountPercentage && item.discountPercentage > 0) {
+        doc.setTextColor(...cTextMuted); // Darker gray for discount
+      } else {
+        doc.setTextColor(...cTextDark);
+      }
       doc.text(descLines[l], colDesc, y + 6 + (l * 5));
     }
+
+    doc.setTextColor(...cTextDark);
 
     doc.text(`${item.quantity} ${item.unit || "Stk."}`, colQty, y + 6, { align: "right" });
     doc.text(fmtCHF(item.unitPrice), colPrice, y + 6, { align: "right" });
@@ -252,6 +271,23 @@ export function generateInvoicePDF(data: InvoiceData): string {
   const totalBoxW = 80;
   const totalBoxX = pageWidth - marginX - totalBoxW;
 
+  const remainingAmount = data.total - (data.paidAmount || 0);
+
+  if (data.paidAmount && data.paidAmount > 0) {
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...cTextDark);
+    doc.text("Totalbetrag", totalBoxX + 5, y + 5);
+    doc.text(`${fmtCHF(data.total)} CHF`, totalBoxX + totalBoxW - 5, y + 5, { align: "right" });
+
+    y += 8;
+    doc.setTextColor(16, 185, 129); // #10b981 (success green)
+    doc.text("Bereits bezahlt", totalBoxX + 5, y + 5);
+    doc.text(`-${fmtCHF(data.paidAmount)} CHF`, totalBoxX + totalBoxW - 5, y + 5, { align: "right" });
+
+    y += 10;
+  }
+
   doc.setFillColor(...cGold);
   doc.roundedRect(totalBoxX, y, totalBoxW, 10, 2, 2, "F");
 
@@ -259,7 +295,7 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
   doc.text("Zu bezahlen", totalBoxX + 5, y + 7);
-  doc.text(`${fmtCHF(data.total)} CHF`, totalBoxX + totalBoxW - 5, y + 7, { align: "right" });
+  doc.text(`${fmtCHF(remainingAmount > 0 ? remainingAmount : 0)} CHF`, totalBoxX + totalBoxW - 5, y + 7, { align: "right" });
 
   y += 20;
 

@@ -111,12 +111,15 @@ Deno.serve(async (req) => {
           description: item.description,
           quantity: item.quantity,
           unitPrice: item.unit_price,
+          discountPercentage: item.discount_percentage,
           vatRate: item.vat_rate,
           total: item.total,
         })),
         subtotal: invoice.subtotal,
         totalVat: invoice.vat_amount,
         total: invoice.total,
+        paidAmount: invoice.paid_amount,
+        dunningLevel: invoice.dunning_level,
       };
 
       try {

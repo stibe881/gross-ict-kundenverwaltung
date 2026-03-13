@@ -75,9 +75,19 @@ export default function AccountingScreen() {
   );
 
   // Stats
-  const totalRevenue = yearInvoices.filter((i: any) => i.status === "paid").reduce((s: number, i: any) => s + getInvoiceTotal(i), 0);
-  const totalOpen = yearInvoices.filter((i: any) => i.status === "open").reduce((s: number, i: any) => s + getInvoiceTotal(i), 0);
-  const totalOverdue = yearInvoices.filter((i: any) => i.status === "overdue").reduce((s: number, i: any) => s + getInvoiceTotal(i), 0);
+  const totalRevenue = yearInvoices.reduce((s: number, i: any) => {
+    if (i.paid_amount && i.paid_amount > 0) return s + i.paid_amount;
+    if (i.status === "paid") return s + getInvoiceTotal(i);
+    return s;
+  }, 0);
+  
+  const totalOpen = yearInvoices.filter((i: any) => i.status === "open").reduce((s: number, i: any) => {
+    return s + Math.max(0, getInvoiceTotal(i) - (i.paid_amount || 0));
+  }, 0);
+  
+  const totalOverdue = yearInvoices.filter((i: any) => i.status === "overdue").reduce((s: number, i: any) => {
+    return s + Math.max(0, getInvoiceTotal(i) - (i.paid_amount || 0));
+  }, 0);
   const totalExpenses = yearExpenses.reduce((s: number, e: any) => s + (e.amount || 0), 0);
   const deductibleExpenses = yearExpenses.filter((e: any) => e.is_deductible).reduce((s: number, e: any) => s + (e.amount || 0), 0);
   const profit = totalRevenue - totalExpenses;
