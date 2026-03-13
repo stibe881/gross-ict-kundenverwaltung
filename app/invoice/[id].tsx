@@ -11,6 +11,7 @@ import {
     Linking,
     Switch,
     useWindowDimensions,
+    KeyboardAvoidingView,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -545,60 +546,69 @@ export default function InvoiceDetailScreen() {
                 transparent
                 onRequestClose={() => setShowPaymentModal(false)}
             >
-                <View className="flex-1 bg-black/50 justify-end">
-                    <View className="bg-background rounded-t-3xl p-6">
-                        <View className="flex-row items-center justify-between mb-4">
-                            <Text className="text-xl font-bold text-foreground">
-                                Zahlung erfassen
-                            </Text>
-                            <TouchableOpacity
-                                onPress={() => setShowPaymentModal(false)}
-                                activeOpacity={0.7}
-                            >
-                                <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View className="mb-4">
-                            <Text className="text-sm text-muted mb-2">
-                                Offener Betrag: {formatCurrency(remainingAmount)}
-                            </Text>
-                            <Text className="text-sm font-semibold text-foreground mb-2">Zahlungsbetrag (CHF)</Text>
-                            <TextInput
-                                className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground text-lg"
-                                placeholder={String(remainingAmount.toFixed(2))}
-                                placeholderTextColor={colors.muted}
-                                keyboardType="decimal-pad"
-                                value={paymentAmount}
-                                onChangeText={setPaymentAmount}
-                                autoFocus
-                            />
-                        </View>
-
-                        <View className="flex-row gap-3">
-                            <TouchableOpacity
-                                className="flex-1 bg-surface border border-border py-3 rounded-lg"
-                                onPress={() => {
-                                    setPaymentAmount(String(remainingAmount.toFixed(2)));
-                                }}
-                                activeOpacity={0.7}
-                            >
-                                <Text className="text-foreground font-semibold text-center text-sm">
-                                    Gesamtbetrag
+                <KeyboardAvoidingView
+                    style={{ flex: 1 }}
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                >
+                    <View className="flex-1 bg-black/50 justify-end">
+                        <View className="bg-background rounded-t-3xl p-6 pb-10">
+                            <View className="flex-row items-center justify-between mb-4">
+                                <Text className="text-xl font-bold text-foreground">
+                                    Zahlung erfassen
                                 </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                className="flex-1 bg-success py-3 rounded-lg"
-                                onPress={handleAddPayment}
-                                activeOpacity={0.8}
-                            >
-                                <Text className="text-white font-semibold text-center">
-                                    Zahlung buchen
+                                <TouchableOpacity
+                                    onPress={() => setShowPaymentModal(false)}
+                                    activeOpacity={0.7}
+                                >
+                                    <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View className="mb-4">
+                                <Text className="text-sm text-muted mb-2">
+                                    Offener Betrag: {formatCurrency(remainingAmount)}
                                 </Text>
-                            </TouchableOpacity>
+                                <Text className="text-sm font-semibold text-foreground mb-2">Zahlungsbetrag (CHF)</Text>
+                                <TextInput
+                                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground text-lg"
+                                    placeholder={String(remainingAmount.toFixed(2))}
+                                    placeholderTextColor={colors.muted}
+                                    keyboardType="decimal-pad"
+                                    value={paymentAmount}
+                                    onChangeText={setPaymentAmount}
+                                    autoFocus
+                                />
+                            </View>
+
+                            <View className="flex-row gap-3">
+                                <TouchableOpacity
+                                    className="flex-1 bg-surface border border-border py-3 rounded-lg"
+                                    onPress={() => {
+                                        setPaymentAmount(String(remainingAmount.toFixed(2)));
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text className="text-foreground font-semibold text-center text-sm">
+                                        Gesamtbetrag
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    className="flex-1 bg-success py-3 rounded-lg flex-row justify-center items-center"
+                                    onPress={handleAddPayment}
+                                    activeOpacity={0.8}
+                                >
+                                    {addPaymentMut.isPending ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : (
+                                        <Text className="text-white font-semibold text-center">
+                                            Zahlung buchen
+                                        </Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
         </ScreenContainer>
     );
