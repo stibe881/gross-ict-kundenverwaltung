@@ -106,7 +106,6 @@
     "eslint-config-expo": "~10.0.0",
     "patch-package": "^8.0.1",
     "pg": "^8.20.0",
-    "postinstall-postinstall": "^2.1.0",
     "prettier": "^3.7.4",
     "qrcode": "^1.5.4",
     "tailwindcss": "^3.4.17",
