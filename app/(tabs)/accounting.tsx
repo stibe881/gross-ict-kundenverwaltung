@@ -53,7 +53,7 @@ export default function AccountingScreen() {
 
   // Scenario Calculator State
   const [scenarioVolume, setScenarioVolume] = useState("10000");
-  const [scenarioExecutor, setScenarioExecutor] = useState<"inhaber" | "freelancer">("freelancer");
+  const [scenarioExecutor, setScenarioExecutor] = useState<"inhaber" | "angestellter">("angestellter");
 
   const { data: invoices, isLoading: loadingInvoices, refetch: refetchInvoices } = useQuery({
     queryKey: ["invoices"],
@@ -696,10 +696,10 @@ export default function AccountingScreen() {
                 <Text className={`font-semibold ${scenarioExecutor === "inhaber" ? "text-background" : "text-foreground"}`}>Inhaber</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className={`flex-1 py-3 px-4 rounded-lg items-center justify-center border ${scenarioExecutor === "freelancer" ? "bg-primary border-primary" : "bg-background border-border"}`}
-                onPress={() => setScenarioExecutor("freelancer")}
+                className={`flex-1 py-3 px-4 rounded-lg items-center justify-center border ${scenarioExecutor === "angestellter" ? "bg-primary border-primary" : "bg-background border-border"}`}
+                onPress={() => setScenarioExecutor("angestellter")}
               >
-                <Text className={`font-semibold ${scenarioExecutor === "freelancer" ? "text-background" : "text-foreground"}`}>Privatperson</Text>
+                <Text className={`font-semibold ${scenarioExecutor === "angestellter" ? "text-background" : "text-foreground"}`}>Angestellter</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -708,26 +708,26 @@ export default function AccountingScreen() {
           <View className="bg-background border border-border rounded-lg p-4 mt-2">
             {(() => {
               const vol = parseFloat(scenarioVolume) || 0;
-              const isFreelancer = scenarioExecutor === "freelancer";
+              const isEmployee = scenarioExecutor === "angestellter";
               
-              const lohn = isFreelancer ? vol * 0.70 : 0;
-              const agBeitrag = isFreelancer ? lohn * 0.064 : 0;
-              const uvg = isFreelancer ? lohn * 0.01 : 0;
+              const lohn = isEmployee ? vol * 0.70 : 0;
+              const agBeitrag = isEmployee ? lohn * 0.064 : 0;
+              const uvg = isEmployee ? lohn * 0.01 : 0;
               
-              const totalMarge = vol - (lohn + agBeitrag + uvg);
-              const vermittlung = isFreelancer ? vol * 0.10 : 0;
-              const restMarge = isFreelancer ? totalMarge - vermittlung : 0;
+              const totalMarge = vol - lohn - agBeitrag - uvg;
+              const vermittlung = isEmployee ? vol * 0.10 : 0;
+              const restMarge = isEmployee ? totalMarge - vermittlung : 0;
 
               return (
                 <View className="gap-2">
-                  {isFreelancer && (
+                  {isEmployee && (
                     <>
                       <View className="flex-row justify-between mb-2">
                         <Text className="text-sm text-foreground font-semibold">Projekt-Volumen</Text>
                         <Text className="text-sm font-semibold">{formatCurrency(vol)}</Text>
                       </View>
                       <View className="flex-row justify-between">
-                        <Text className="text-sm text-muted">Ausführung (70% Lohn)</Text>
+                        <Text className="text-sm text-muted">Auszahlung Angestellter (70%)</Text>
                         <Text className="text-sm text-error">-{formatCurrency(lohn)}</Text>
                       </View>
                       <View className="flex-row justify-between">
@@ -748,7 +748,7 @@ export default function AccountingScreen() {
                       </View>
                     </>
                   )}
-                  {!isFreelancer && (
+                  {!isEmployee && (
                     <>
                       <View className="flex-row justify-between">
                          <Text className="text-sm text-muted">Lohnkosten</Text>
