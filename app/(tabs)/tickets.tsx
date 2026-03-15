@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ScrollView,
   Text,
@@ -40,6 +40,8 @@ export default function TicketsScreen() {
 
   const { ticketId } = useLocalSearchParams();
   const [currentUserName, setCurrentUserName] = useState("Admin");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const hasInitializedFilter = React.useRef(false);
 
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === "web" && width > 900;
@@ -54,6 +56,7 @@ export default function TicketsScreen() {
   useEffect(() => {
     Data.supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
+        setCurrentUserId(session.user.id);
         const name = session.user.user_metadata?.full_name
           || session.user.user_metadata?.name
           || `${session.user.user_metadata?.first_name || ''} ${session.user.user_metadata?.last_name || ''}`.trim()
@@ -77,6 +80,23 @@ export default function TicketsScreen() {
       }
     }
   }, [ticketId, tickets]);
+
+  // Smart Default Filter Logic
+  useEffect(() => {
+    if (!hasInitializedFilter.current && tickets.length > 0 && currentUserId) {
+      const myTickets = tickets.filter((t: any) => t.assigned_to === currentUserId && t.status !== "closed");
+      const unassignedTickets = tickets.filter((t: any) => !t.assigned_to && t.status !== "closed");
+
+      if (myTickets.length > 0) {
+        setAssigneeFilter(currentUserId);
+      } else if (unassignedTickets.length > 0) {
+        setAssigneeFilter("unassigned");
+      } else {
+        setAssigneeFilter("all");
+      }
+      hasInitializedFilter.current = true;
+    }
+  }, [tickets, currentUserId]);
 
   const deleteTicketMutation = useMutation({
     mutationFn: (ticketId: string) => Data.deleteTicket(ticketId),
@@ -691,11 +711,6 @@ function TicketDetailsModal({
                   <View style={{ backgroundColor: pCfg.color + "18", paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 4 }}>
                     <Text style={{ color: pCfg.color, fontSize: 11, fontWeight: "700" }}>{pCfg.label}</Text>
                   </View>
-                  {ticket.id && (
-                    <View style={{ backgroundColor: colors.muted + "18", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                      <Text style={{ color: colors.muted, fontSize: 10, fontWeight: "600" }}>#{String(ticket.id).slice(0, 8)}</Text>
-                    </View>
-                  )}
                 </View>
                 <Text style={{ fontSize: 20, fontWeight: "800", color: colors.foreground, lineHeight: 26 }}>
                   {ticket.title}
