@@ -58,6 +58,10 @@ export default function AccountingScreen() {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any>(null);
 
+  // Invoice Filters & Sorting
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<"all" | "open" | "paid" | "overdue" | "cancelled">("all");
+  const [invoiceSort, setInvoiceSort] = useState<"date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "number_desc">("date_desc");
+
   // Scanned Receipt Data
   const [scannedReceipt, setScannedReceipt] = useState<{
     uri: string;
@@ -138,7 +142,6 @@ export default function AccountingScreen() {
     setRefreshing(false);
   }, [refetchInvoices, refetchExpenses]);
 
-  // Filter by year
   const yearInvoices = useMemo(
     () =>
       invoices?.filter(
@@ -146,6 +149,33 @@ export default function AccountingScreen() {
       ) || [],
     [invoices, selectedYear],
   );
+
+  const processedInvoices = useMemo(() => {
+    let result = [...yearInvoices];
+
+    // Filter
+    if (invoiceStatusFilter !== "all") {
+      result = result.filter(i => i.status === invoiceStatusFilter);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      if (invoiceSort === "date_desc") {
+        return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
+      } else if (invoiceSort === "date_asc") {
+        return new Date(a.invoice_date).getTime() - new Date(b.invoice_date).getTime();
+      } else if (invoiceSort === "amount_desc") {
+        return getInvoiceTotal(b) - getInvoiceTotal(a);
+      } else if (invoiceSort === "amount_asc") {
+        return getInvoiceTotal(a) - getInvoiceTotal(b);
+      } else if (invoiceSort === "number_desc") {
+        return (b.invoice_number || "").localeCompare(a.invoice_number || "");
+      }
+      return 0;
+    });
+
+    return result;
+  }, [yearInvoices, invoiceStatusFilter, invoiceSort]);
 
   const yearExpenses = useMemo(
     () =>
@@ -534,7 +564,61 @@ export default function AccountingScreen() {
             </Text>
           </TouchableOpacity>
 
-          {invoices.map((invoice: any) => {
+          {/* Filters & Sorting UI */}
+          <View className="bg-surface rounded-xl p-3 border border-border mb-2 gap-3">
+            {/* Horizontal Filter Chips */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
+              {[
+                { label: "Alle", value: "all" },
+                { label: "Offen", value: "open" },
+                { label: "Bezahlt", value: "paid" },
+                { label: "Überfällig", value: "overdue" },
+                { label: "Storniert", value: "cancelled" },
+              ].map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  onPress={() => setInvoiceStatusFilter(opt.value as any)}
+                  activeOpacity={0.7}
+                  className={`px-4 py-2 rounded-full border ${invoiceStatusFilter === opt.value ? 'bg-primary border-primary' : 'bg-background border-border'}`}
+                >
+                  <Text className={`text-sm font-semibold ${invoiceStatusFilter === opt.value ? 'text-background' : 'text-foreground'}`}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Sort Order Toggles */}
+            <View className="flex-row items-center border-t border-border pt-3 gap-2 flex-wrap">
+              <Text className="text-sm font-semibold text-muted mr-1">Sortieren nach:</Text>
+              {[
+                { label: "Datum ↓", value: "date_desc" },
+                { label: "Datum ↑", value: "date_asc" },
+                { label: "Betrag ↓", value: "amount_desc" },
+                { label: "Betrag ↑", value: "amount_asc" },
+                { label: "Nummer ↓", value: "number_desc" },
+              ].map((sort) => (
+                <TouchableOpacity
+                  key={sort.value}
+                  onPress={() => setInvoiceSort(sort.value as any)}
+                  activeOpacity={0.7}
+                  className={`px-3 py-1.5 rounded-md ${invoiceSort === sort.value ? 'bg-primary/10 border border-primary/30' : 'bg-transparent border border-transparent'}`}
+                >
+                  <Text className={`text-xs font-semibold ${invoiceSort === sort.value ? 'text-primary' : 'text-muted'}`}>
+                    {sort.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {processedInvoices.length === 0 && (
+             <View className="items-center py-8">
+               <Text className="text-muted">Keine Rechnungen in dieser Ansicht.</Text>
+             </View>
+          )}
+
+          {processedInvoices.map((invoice: any) => {
             const customerName =
               invoice.customer?.company_name ||
               `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() ||
