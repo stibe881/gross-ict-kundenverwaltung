@@ -11,8 +11,9 @@ import {
   ActivityIndicator,
   Platform,
   useWindowDimensions,
+  KeyboardAvoidingView,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -32,10 +33,12 @@ export default function TicketsScreen() {
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"all" | TicketStatus>("all");
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("unassigned");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+
+  const { ticketId } = useLocalSearchParams();
   const [currentUserName, setCurrentUserName] = useState("Admin");
 
   const { width } = useWindowDimensions();
@@ -65,6 +68,15 @@ export default function TicketsScreen() {
     queryKey: ["tickets"],
     queryFn: Data.getAllTickets,
   });
+
+  useEffect(() => {
+    if (ticketId && tickets.length > 0) {
+      const foundTicket = tickets.find((t: any) => t.id === ticketId);
+      if (foundTicket && selectedTicket?.id !== foundTicket.id) {
+        setSelectedTicket(foundTicket);
+      }
+    }
+  }, [ticketId, tickets]);
 
   const deleteTicketMutation = useMutation({
     mutationFn: (ticketId: string) => Data.deleteTicket(ticketId),
@@ -137,7 +149,11 @@ export default function TicketsScreen() {
 
   const filteredTickets = tickets
     .filter((t) => filter === "all" || t.status === filter)
-    .filter((t) => assigneeFilter === "all" || t.assigned_to === assigneeFilter)
+    .filter((t) => {
+      if (assigneeFilter === "all") return true;
+      if (assigneeFilter === "unassigned") return !t.assigned_to;
+      return t.assigned_to === assigneeFilter;
+    })
     .filter((t) => {
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
@@ -368,6 +384,16 @@ export default function TicketsScreen() {
                 <TouchableOpacity
                   style={{
                     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
+                    backgroundColor: assigneeFilter === "unassigned" ? colors.primary : colors.surface,
+                    borderWidth: 1, borderColor: assigneeFilter === "unassigned" ? colors.primary : colors.border,
+                  }}
+                  onPress={() => setAssigneeFilter("unassigned")}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: assigneeFilter === "unassigned" ? "#111" : colors.foreground }}>Nicht zugewiesen</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
                     backgroundColor: assigneeFilter === "all" ? colors.primary : colors.surface,
                     borderWidth: 1, borderColor: assigneeFilter === "all" ? colors.primary : colors.border,
                   }}
@@ -457,6 +483,7 @@ function TicketDetailsModal({
   onClose: () => void;
   currentUserName: string;
 }) {
+  const router = useRouter();
   const colors = useColors();
   const queryClient = useQueryClient();
   const [currentStatus, setCurrentStatus] = useState<TicketStatus>(ticket.status || "open");
@@ -547,7 +574,7 @@ function TicketDetailsModal({
           "admin",
           "Ticket zugewiesen",
           `Dir wurde das Ticket "${ticket.title}" zugewiesen.`,
-          { type: "ticket_assigned", ticketId: ticket.id }
+          { type: "ticket_assigned", ticketId: ticket.id, url: `/tickets?ticketId=${ticket.id}` }
         );
       }
     } catch (err: any) {
@@ -587,6 +614,37 @@ function TicketDetailsModal({
     );
   };
 
+  const handleCreateInvoice = async () => {
+    try {
+      if (!ticket.customer_id) {
+        showAlert("Fehler", "Diesem Ticket ist kein Kunde zugewiesen. Bitte weisen Sie zuerst einen Kunden zu.");
+        return;
+      }
+      
+      const draftInvoice = {
+        number: "ENTWURF",
+        status: "draft",
+        customer_id: ticket.customer_id,
+        date: new Date().toISOString().split("T")[0],
+        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        discount_rate: 0,
+        tax_rate: 8.1,
+        total_amount: 0,
+      };
+      
+      const newInvoice = await Data.createInvoice(draftInvoice, [{
+        description: `Leistungen gemäss Ticket #${ticket.id}: ${ticket.title}`,
+        quantity: 1,
+        unit_price: 0,
+      }]);
+      
+      onClose();
+      router.push(`/invoice/${newInvoice.id}` as any);
+    } catch (err: any) {
+      showAlert("Fehler", err.message);
+    }
+  };
+
   const assignedUser = users.find((u: any) => u.id === assignedTo);
 
   const priorityConfig = {
@@ -614,8 +672,13 @@ function TicketDetailsModal({
 
   return (
     <Modal visible={true} animationType="slide" transparent onRequestClose={onClose}>
-      <View className="flex-1 bg-black/50 justify-end">
-        <View className="bg-background rounded-t-3xl" style={{ maxHeight: "92%" }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={0}
+      >
+        <View className="flex-1 bg-black/50 justify-end">
+          <View className="bg-background rounded-t-3xl" style={{ maxHeight: "92%", flex: 1 }}>
           {/* ── Hero Header ── */}
           <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -963,6 +1026,21 @@ function TicketDetailsModal({
 
           {/* ── Footer Actions ── */}
           <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: colors.border, flexDirection: "row", gap: 10 }}>
+            {currentStatus === "closed" && (
+              <TouchableOpacity
+                style={{
+                  flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+                  backgroundColor: colors.primary + "10", borderWidth: 1, borderColor: colors.primary + "25",
+                  paddingVertical: 12, borderRadius: 12,
+                }}
+                onPress={handleCreateInvoice}
+                activeOpacity={0.8}
+              >
+                <IconSymbol name="doc.text.fill" size={14} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 13 }}>Rechnung</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={{
                 flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
@@ -975,6 +1053,7 @@ function TicketDetailsModal({
               <IconSymbol name="trash.fill" size={14} color={colors.error} />
               <Text style={{ color: colors.error, fontWeight: "600", fontSize: 14 }}>Löschen</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity
               style={{
                 flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
@@ -988,7 +1067,8 @@ function TicketDetailsModal({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

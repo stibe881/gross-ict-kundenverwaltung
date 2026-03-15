@@ -260,11 +260,19 @@ export default function DashboardScreen() {
           route: "/knowledge-base",
         },
         {
+          id: "links",
+          title: "Nützliche Links",
+          subtitle: "Firmen-Ressourcen",
+          icon: "link",
+          color: "#8B5CF6",
+          route: "/links",
+        },
+        {
           id: "newsletter",
           title: "Newsletter",
           subtitle: "Bald verfügbar",
           icon: "envelope.fill",
-          color: "#8B5CF6",
+          color: "#A855F7",
           route: "/newsletter",
         },
       ],
@@ -279,6 +287,14 @@ export default function DashboardScreen() {
           icon: "folder.fill",
           color: "#14B8A6",
           route: "/projects",
+        },
+        {
+          id: "tasks",
+          title: "Aufgaben",
+          subtitle: "Interne To-Dos",
+          icon: "checklist",
+          color: "#8B5CF6",
+          route: "/tasks",
         },
       ],
     },
@@ -321,7 +337,9 @@ export default function DashboardScreen() {
     },
   ];
 
-  const allowedTileIds = Data.getAllowedTileIds(userProfile?.roles || []);
+  const allowedTileIds = Data.getAllowedTileIds(
+    userProfile?.roles || []
+  );
 
   // Filter tiles by role
   const filteredCategories = tileCategories

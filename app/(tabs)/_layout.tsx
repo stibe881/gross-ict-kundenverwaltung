@@ -9,6 +9,8 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Platform } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
+import * as Data from "@/lib/data";
 
 export default function TabLayout() {
   const colors = useColors();
@@ -22,6 +24,28 @@ export default function TabLayout() {
   useEffect(() => {
     checkLoginStatus();
   }, []);
+
+  // Fetch session and user roles dynamically for Tab visibility
+  const { data: sessionData } = useQuery({
+    queryKey: ["currentSession"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      return data.session;
+    }
+  });
+
+  const { data: userProfile } = useQuery({
+    queryKey: ["userProfile", sessionData?.user?.id],
+    queryFn: () => Data.getUserProfile(sessionData?.user?.id as string),
+    enabled: !!sessionData?.user?.id,
+  });
+
+  const roles = userProfile?.roles || [];
+  const isAdmin = roles.includes("admin");
+  const showCustomers = isAdmin || roles.includes("administration");
+  const showAccounting = isAdmin || roles.includes("finanzen");
+  const showTickets = isAdmin || roles.includes("technik");
+  const showProductsScanner = isAdmin;
 
   const checkLoginStatus = async () => {
     try {
@@ -107,6 +131,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="customers"
         options={{
+          href: showCustomers ? undefined : null,
           title: "Kunden",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
         }}
@@ -114,6 +139,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="accounting"
         options={{
+          href: showAccounting ? undefined : null,
           title: "Buchhaltung",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
         }}
@@ -121,6 +147,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="tickets"
         options={{
+          href: showTickets ? undefined : null,
           title: "Tickets",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="ticket.fill" color={color} />,
         }}
@@ -128,8 +155,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="products"
         options={{
+          href: showProductsScanner ? undefined : null,
           title: "Produkte",
-          href: null,
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="cube.box.fill" color={color} />,
         }}
       />
@@ -137,7 +164,7 @@ export default function TabLayout() {
         name="scanner"
         options={{
           title: "Scanner",
-          href: Platform.OS === "web" ? null : undefined, // Hide entirely on web
+          href: Platform.OS === "web" ? null : showProductsScanner ? undefined : null,
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="camera.fill" color={color} />,
         }}
       />

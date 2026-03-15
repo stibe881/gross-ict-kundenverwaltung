@@ -55,12 +55,15 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
         projectName: "",
     });
 
+    const [isIncome, setIsIncome] = useState(false);
+
     useEffect(() => {
         if (expense) {
             let cleanNotes = expense.notes || "";
             let iban = "";
             let customerName = "";
             let projectName = "";
+
 
             if (expense.category === "salary" && cleanNotes) {
                 const ibanMatch = cleanNotes.match(/IBAN:\s*([^\n]*)/);
@@ -79,7 +82,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
 
             setForm({
                 date: expense.date || expense.expense_date || new Date().toISOString().slice(0, 10),
-                amount: expense.amount?.toString() || "",
+                amount: expense.amount ? Math.abs(expense.amount).toString() : "",
                 description: expense.description || "",
                 category: expense.category || "other",
                 supplier: expense.supplier || "",
@@ -91,6 +94,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 customerName,
                 projectName,
             });
+            setIsIncome(expense.amount && expense.amount < 0 ? true : false);
             setExistingReceiptPath(expense.receipt_path || null);
             setExistingReceiptUrl(expense.receipt_url || null);
             setReceiptFile(null);
@@ -109,6 +113,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 customerName: "",
                 projectName: "",
             });
+            setIsIncome(false);
             setExistingReceiptPath(null);
             setExistingReceiptUrl(null);
             
@@ -321,9 +326,12 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 }
             }
 
+            const rawAmount = parseFloat(form.amount);
+            const finalAmount = isIncome ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+
             const payload = {
                 date: form.date,
-                amount: parseFloat(form.amount),
+                amount: finalAmount,
                 description: form.description.trim(),
                 category: form.category,
                 supplier: form.supplier.trim() || null,
@@ -378,7 +386,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                         <Text style={{ color: colors.primary, fontSize: 16 }}>Abbrechen</Text>
                     </TouchableOpacity>
                     <Text style={{ color: colors.foreground, fontSize: 17, fontWeight: "700" }}>
-                        {expense ? "Ausgabe bearbeiten" : "Neue Ausgabe"}
+                        {expense ? "Eintrag bearbeiten" : "Neuer Eintrag"}
                     </Text>
                     <TouchableOpacity onPress={handleSave} disabled={loading} activeOpacity={0.7}>
                         <Text style={{ color: loading ? colors.muted : colors.primary, fontSize: 16, fontWeight: "600" }}>
@@ -388,6 +396,24 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 </View>
 
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 16 }}>
+                    {/* Art: Ausgabe oder Einnahme */}
+                    <View style={{ flexDirection: "row", backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+                        <TouchableOpacity
+                            style={{ flex: 1, paddingVertical: 12, alignItems: "center", backgroundColor: !isIncome ? colors.primary : "transparent" }}
+                            onPress={() => setIsIncome(false)}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={{ fontSize: 14, fontWeight: "600", color: !isIncome ? "#fff" : colors.foreground }}>Ausgabe</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ flex: 1, paddingVertical: 12, alignItems: "center", backgroundColor: isIncome ? "#22c55e" : "transparent" }}
+                            onPress={() => setIsIncome(true)}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={{ fontSize: 14, fontWeight: "600", color: isIncome ? "#fff" : colors.foreground }}>Einnahme</Text>
+                        </TouchableOpacity>
+                    </View>
+
                     {/* Betrag */}
                     <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 20, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}>
                         <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Betrag (CHF)</Text>
@@ -574,22 +600,24 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                         </View>
                     </View>
 
-                    {/* Abzugsfähig */}
-                    <View style={{
-                        backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border,
-                        flexDirection: "row", justifyContent: "space-between", alignItems: "center"
-                    }}>
-                        <View>
-                            <Text style={{ fontSize: 15, color: colors.foreground, fontWeight: "600" }}>Geschäftsausgabe</Text>
-                            <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>Steuerlich absetzbar</Text>
+                    {/* Abzugsfähig (nur für Ausgaben) */}
+                    {!isIncome && (
+                        <View style={{
+                            backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border,
+                            flexDirection: "row", justifyContent: "space-between", alignItems: "center"
+                        }}>
+                            <View>
+                                <Text style={{ fontSize: 15, color: colors.foreground, fontWeight: "600" }}>Geschäftsausgabe</Text>
+                                <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>Steuerlich absetzbar</Text>
+                            </View>
+                            <Switch
+                                value={form.is_deductible}
+                                onValueChange={(v) => setForm({ ...form, is_deductible: v })}
+                                trackColor={{ false: colors.border, true: colors.primary }}
+                                thumbColor="#fff"
+                            />
                         </View>
-                        <Switch
-                            value={form.is_deductible}
-                            onValueChange={(v) => setForm({ ...form, is_deductible: v })}
-                            trackColor={{ false: colors.border, true: colors.primary }}
-                            thumbColor="#fff"
-                        />
-                    </View>
+                    )}
 
                     {/* Notizen */}
                     <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border }}>
@@ -676,7 +704,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                         <TouchableOpacity
                             onPress={() => {
                                 if (Platform.OS === 'web') {
-                                    if (window.confirm("Möchten Sie diese Ausgabe wirklich löschen?")) {
+                                    if (window.confirm("Möchten Sie diesen Eintrag wirklich löschen?")) {
                                         setLoading(true);
                                         Data.deleteExpense(expense.id).then(() => {
                                             onSuccess();
@@ -687,8 +715,8 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                                     }
                                 } else {
                                     Alert.alert(
-                                        "Ausgabe löschen",
-                                        "Möchten Sie diese Ausgabe wirklich löschen?",
+                                        "Eintrag löschen",
+                                        "Möchten Sie diesen Eintrag wirklich löschen?",
                                         [
                                             { text: "Abbrechen", style: "cancel" },
                                             {
@@ -711,7 +739,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                             }}
                             style={{ backgroundColor: colors.error + "15", borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.error + "30", alignItems: "center" }}
                         >
-                            <Text style={{ fontSize: 15, color: colors.error, fontWeight: "600" }}>Ausgabe löschen</Text>
+                            <Text style={{ fontSize: 15, color: colors.error, fontWeight: "600" }}>Beleg löschen / Eintrag löschen</Text>
                         </TouchableOpacity>
                     )}
 

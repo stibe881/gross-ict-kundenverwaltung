@@ -68,6 +68,7 @@ const MAPPING = {
   "chevron.down": "expand-more",
   "dollarsign.circle.fill": "monetization-on",
   "eye.fill": "visibility",
+  "link": "link",
 } as IconMapping;
 
 /**

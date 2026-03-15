@@ -224,6 +224,12 @@ export default function RootLayout() {
           await AsyncStorage.removeItem("isCustomerLoggedIn");
           await AsyncStorage.removeItem("customerEmail");
           await AsyncStorage.removeItem("customer_portal_user");
+          
+          if (Platform.OS === "web" && typeof window !== "undefined") {
+            window.location.reload();
+          } else {
+            router.replace("/login");
+          }
         }
       }
     );
@@ -275,6 +281,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="users" />
+          <Stack.Screen name="links" />
           <Stack.Screen name="oauth/callback" />
         </Stack>
         <StatusBar style="auto" />

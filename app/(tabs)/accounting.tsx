@@ -41,7 +41,7 @@ type TabKey =
 const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: "overview", label: "Übersicht", icon: "chart.pie.fill" },
   { key: "invoices", label: "Rechnungen", icon: "doc.text.fill" },
-  { key: "expenses", label: "Ausgaben", icon: "cart.fill" },
+  { key: "expenses", label: "Ein-/Ausgaben", icon: "cart.fill" },
   { key: "annual", label: "Jahresabschluss", icon: "calendar" },
   { key: "vat", label: "MwSt", icon: "percent" },
   { key: "documents", label: "Dokumente", icon: "folder.fill" },
@@ -156,11 +156,17 @@ export default function AccountingScreen() {
   );
 
   // Stats
-  const totalRevenue = yearInvoices.reduce((s: number, i: any) => {
+  const invoicesRevenue = yearInvoices.reduce((s: number, i: any) => {
     if (i.paid_amount && i.paid_amount > 0) return s + i.paid_amount;
     if (i.status === "paid") return s + getInvoiceTotal(i);
     return s;
   }, 0);
+
+  const extraIncomes = yearExpenses
+    .filter((e: any) => (e.amount || 0) < 0)
+    .reduce((s: number, e: any) => s + Math.abs(e.amount || 0), 0);
+
+  const totalRevenue = invoicesRevenue + extraIncomes;
 
   const totalOpen = yearInvoices
     .filter((i: any) => i.status === "open")
@@ -173,12 +179,11 @@ export default function AccountingScreen() {
     .reduce((s: number, i: any) => {
       return s + Math.max(0, getInvoiceTotal(i) - (i.paid_amount || 0));
     }, 0);
-  const totalExpenses = yearExpenses.reduce(
-    (s: number, e: any) => s + (e.amount || 0),
-    0,
-  );
+  const totalExpenses = yearExpenses
+    .filter((e: any) => (e.amount || 0) > 0)
+    .reduce((s: number, e: any) => s + (e.amount || 0), 0);
   const deductibleExpenses = yearExpenses
-    .filter((e: any) => e.is_deductible)
+    .filter((e: any) => e.is_deductible && (e.amount || 0) > 0)
     .reduce((s: number, e: any) => s + (e.amount || 0), 0);
   const profit = totalRevenue - totalExpenses;
 
@@ -231,9 +236,13 @@ export default function AccountingScreen() {
           (i: any) =>
             i.status === "paid" && new Date(i.invoice_date).getMonth() === idx,
         )
-        .reduce((s: number, i: any) => s + getInvoiceTotal(i), 0);
+        .reduce((s: number, i: any) => s + getInvoiceTotal(i), 0) +
+        yearExpenses
+          .filter((e: any) => new Date(e.expense_date).getMonth() === idx && (e.amount || 0) < 0)
+          .reduce((s: number, e: any) => s + Math.abs(e.amount || 0), 0);
+          
       const exp = yearExpenses
-        .filter((e: any) => new Date(e.expense_date).getMonth() === idx)
+        .filter((e: any) => new Date(e.expense_date).getMonth() === idx && (e.amount || 0) > 0)
         .reduce((s: number, e: any) => s + (e.amount || 0), 0);
       return { label, revenue: rev, expenses: exp };
     });
@@ -612,7 +621,7 @@ export default function AccountingScreen() {
           >
             <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
             <Text className="text-background font-semibold ml-2">
-              Neue Ausgabe
+              Neue Ein-/Ausgabe
             </Text>
           </TouchableOpacity>
 
@@ -647,11 +656,11 @@ export default function AccountingScreen() {
                 >
                   <View className="flex-row items-center justify-between mb-2">
                     <View className="flex-row items-center gap-2 flex-1">
-                      <View className="w-8 h-8 rounded-lg bg-error/20 items-center justify-center">
+                      <View className={`w-8 h-8 rounded-lg ${expense.amount < 0 ? 'bg-success/20' : 'bg-error/20'} items-center justify-center`}>
                         <IconSymbol
                           name={getCategoryIcon(expense.category) as any}
                           size={14}
-                          color={colors.error || "#ef4444"}
+                          color={expense.amount < 0 ? "#22c55e" : (colors.error || "#ef4444")}
                         />
                       </View>
                       <View className="flex-1">
@@ -679,19 +688,19 @@ export default function AccountingScreen() {
                       </View>
                     </View>
                     <View className="items-end">
-                      <Text className="text-base font-bold text-error">
-                        -{formatCurrency(expense.amount)}
+                      <Text className={`text-base font-bold ${expense.amount < 0 ? 'text-success' : 'text-error'}`}>
+                        {expense.amount < 0 ? '+' : '-'}{formatCurrency(Math.abs(expense.amount || 0))}
                       </Text>
                       <Text className="text-xs text-muted">
                         {formatDate(expense.expense_date)}
                       </Text>
                     </View>
                   </View>
-                  {expense.tax_amount > 0 && (
+                  {Math.abs(expense.tax_amount || 0) > 0 && (
                     <Text className="text-xs text-muted mt-1">
-                      Vorsteuer: {formatCurrency(expense.tax_amount)} (
+                      {expense.amount < 0 ? "Umsatzsteuer" : "Vorsteuer"}: {formatCurrency(Math.abs(expense.tax_amount))} (
                       {expense.tax_rate}%)
-                      {expense.is_deductible ? " · Abzugsfähig" : ""}
+                      {expense.is_deductible && expense.amount > 0 ? " · Abzugsfähig" : ""}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -701,10 +710,10 @@ export default function AccountingScreen() {
             <View className="items-center justify-center py-12">
               <IconSymbol name="cart.fill" size={48} color={colors.muted} />
               <Text className="text-lg text-muted mt-4 mb-2">
-                Keine Ausgaben
+                Keine Ein-/Ausgaben
               </Text>
               <Text className="text-sm text-muted text-center mb-4">
-                Erfassen Sie Geschäftsausgaben für die Steuererklärung
+                Erfassen Sie Geschäftsausgaben und Einnahmen für die Steuerabrechnung
               </Text>
             </View>
           )}

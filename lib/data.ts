@@ -1639,11 +1639,11 @@ export async function getUserProfile(id: string) {
 
 // ── Role Definitions ──
 export const ROLE_DEFINITIONS = [
-    { key: "admin", label: "Admin", color: "#EF4444", description: "Zugriff auf alles" },
+    { key: "admin", label: "Admin", color: "#EF4444", description: "Vollzugriff, inkl. Konfiguration (Produkte, Benutzer etc.)" },
     { key: "administration", label: "Administration", color: "#8B5CF6", description: "Kunden, Akquise, Angebote, Verträge" },
     { key: "akquise", label: "Akquise", color: "#0EA5E9", description: "Akquise und Angebote" },
     { key: "finanzen", label: "Finanzen", color: "#22C55E", description: "Buchhaltung" },
-    { key: "technik", label: "Technik", color: "#F59E0B", description: "Tickets, Wissensdatenbank, Projekte, Verträge" },
+    { key: "technik", label: "Technik", color: "#F59E0B", description: "Tickets, Wissensdatenbank, Projekte, Verträge, Links" },
     { key: "projekte", label: "Projekte", color: "#14B8A6", description: "Projekte" },
 ];
 
@@ -1653,16 +1653,16 @@ export const ROLE_TILE_ACCESS: Record<string, string[]> = {
     administration: ["customers", "leads", "quotes", "contracts"],
     akquise: ["leads", "quotes"],
     finanzen: ["accounting"],
-    technik: ["tickets", "knowledge-base", "projects", "contracts"],
+    technik: ["tickets", "knowledge-base", "projects", "contracts", "links", "tasks"],
     projekte: ["projects"],
 };
 
-// Konfiguration tiles are always visible for all roles
-const ALWAYS_VISIBLE_TILES = ["products", "dunning", "business-card", "users", "newsletter"];
+// Konfiguration tiles are always visible for all roles (except restricted ones)
+const ALWAYS_VISIBLE_TILES = ["business-card", "newsletter"];
 
 export function getAllowedTileIds(userRoles: string[]): string[] | null {
-    // No roles or admin role = access to everything
-    if (!userRoles || userRoles.length === 0 || userRoles.includes("admin")) {
+    // Admin role = access to everything
+    if (userRoles?.includes("admin")) {
         return null; // null = no filtering, show everything
     }
 
@@ -1752,7 +1752,6 @@ export async function createUser(user: { name: string; email: string; roles: str
                 name: user.name,
                 email: user.email,
                 roles: user.roles,
-                role: "admin",
                 provider: "local",
                 is_active: true,
             }, { onConflict: "id" });
@@ -2552,6 +2551,229 @@ export async function addKbArticleAttachment(articleId: string, uri: string, fil
 
 export async function deleteKbArticleAttachment(id: string) {
     const { error } = await supabase.from("kb_article_attachments").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+// ==================== USEFUL LINKS ====================
+
+export async function uploadLinkLogo(linkId: string, uri: string): Promise<string> {
+    let fileData: FormData | Blob;
+    let contentType = "image/jpeg";
+    const ext = "jpeg";
+    const path = `${linkId}/logo_${Date.now()}.${ext}`;
+
+    if (uri.startsWith("data:")) {
+        // Web/Expo: data URI from image picker
+        // Use XMLHttpRequest which reliably converts data URIs to blobs
+        const blob = await new Promise<Blob>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.onload = () => resolve(xhr.response);
+            xhr.onerror = () => reject(new Error("Failed to convert image"));
+            xhr.responseType = "blob";
+            xhr.open("GET", uri, true);
+            xhr.send(null);
+        });
+        contentType = blob.type || "image/jpeg";
+
+        const formData = new FormData();
+        formData.append("", blob, `logo.${ext}`);
+        fileData = formData;
+    } else {
+        // Native: file URI — fetch as blob (natively supported)
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        contentType = blob.type || "image/jpeg";
+
+        const formData = new FormData();
+        formData.append("", {
+            uri: uri,
+            name: `logo.${ext}`,
+            type: contentType,
+        } as any);
+        fileData = formData;
+    }
+
+    const { error } = await supabase.storage
+        .from("link-logos")
+        .upload(path, fileData, { contentType, upsert: true });
+    if (error) throw new Error(error.message);
+
+    const { data: publicUrlData } = supabase.storage
+        .from("link-logos")
+        .getPublicUrl(path);
+
+    // Update the link record
+    await updateUsefulLink(linkId, { logo_url: publicUrlData.publicUrl });
+    return publicUrlData.publicUrl;
+}
+
+export async function getUsefulLinks() {
+    const { data: session } = await supabase.auth.getSession();
+    const user = session?.session?.user;
+    
+    // Default fallback if not logged in (e.g. public only)
+    if (!user) {
+        const { data, error } = await supabase
+            .from("useful_links")
+            .select("*")
+            .eq("visibility", "public")
+            .order("sort_order", { ascending: true })
+            .order("created_at", { ascending: false });
+        if (error) throw new Error(error.message);
+        return data || [];
+    }
+
+    // Get user roles
+    const { data: userProfile } = await supabase
+        .from("users")
+        .select("roles")
+        .eq("id", user.id)
+        .single();
+    
+    const roles = userProfile?.roles || [];
+    const isAdmin = roles.includes("admin");
+
+    const { data, error } = await supabase
+        .from("useful_links")
+        .select("*")
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    
+    const allLinks = data || [];
+    
+    // Admins see everything
+    if (isAdmin) {
+        return allLinks;
+    }
+
+    // Filter based on visibility
+    return allLinks.filter(link => {
+        // Own links are always visible
+        if (link.user_id === user.id) return true;
+        
+        // Public links are visible to everyone
+        if (!link.visibility || link.visibility === "public") return true;
+        
+        // Private links where user is not owner (handled above) are hidden
+        if (link.visibility === "private") return false;
+        
+        // Role-based visibility
+        if (link.visibility === "roles" && link.allowed_roles) {
+            return roles.some((role: string) => link.allowed_roles.includes(role));
+        }
+
+        return false;
+    });
+}
+
+export async function createUsefulLink(link: {
+    title: string;
+    url: string;
+    description?: string;
+    icon?: string;
+    sort_order?: number;
+    visibility?: string;
+    allowed_roles?: string[];
+}) {
+    const { data: session } = await supabase.auth.getSession();
+    const user = session?.session?.user;
+
+    const { data, error } = await supabase
+        .from("useful_links")
+        .insert([{
+            ...link,
+            icon: link.icon || 'link.circle.fill',
+            sort_order: link.sort_order || 0,
+            user_id: user?.id,
+        }])
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateUsefulLink(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from("useful_links")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteUsefulLink(id: string) {
+    const { error } = await supabase
+        .from("useful_links")
+        .delete()
+        .eq("id", id);
+
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+// ==================== TASKS / AUFGABEN ====================
+
+export async function getTasks() {
+    const { data, error } = await supabase
+        .from("tasks")
+        .select("*, assigned_user:users!tasks_assigned_to_fkey(name)")
+        .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function getTaskById(id: string) {
+    const { data, error } = await supabase
+        .from("tasks")
+        .select("*, assigned_user:users!tasks_assigned_to_fkey(name)")
+        .eq("id", id)
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function createTask(task: any) {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    const { data, error } = await supabase
+        .from("tasks")
+        .insert([{
+            ...task,
+            created_by: session?.user?.id || null
+        }])
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateTask(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from("tasks")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteTask(id: string) {
+    const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", id);
+
     if (error) throw new Error(error.message);
     return { success: true };
 }

@@ -127,6 +127,48 @@ export type Database = {
         }
         Relationships: []
       }
+      useful_links: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          sort_order: number | null
+          title: string
+          url: string
+          user_id: string | null
+          visibility: string | null
+          allowed_roles: string[] | null
+          logo_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          sort_order?: number | null
+          title: string
+          url: string
+          user_id?: string | null
+          visibility?: string | null
+          allowed_roles?: string[] | null
+          logo_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          sort_order?: number | null
+          title?: string
+          url?: string
+          user_id?: string | null
+          visibility?: string | null
+          allowed_roles?: string[] | null
+          logo_url?: string | null
+        }
+        Relationships: []
+      }
       contracts: {
         Row: {
           amount: number | null

@@ -50,7 +50,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
-    buildNumber: "56",
+    buildNumber: "80",
     "infoPlist": {
       "ITSAppUsesNonExemptEncryption": false,
       "NSFaceIDUsageDescription": "Wir nutzen Face ID für den schnellen Login."
@@ -83,7 +83,7 @@ const config: ExpoConfig = {
   },
   web: {
     bundler: "metro",
-    output: "static",
+    output: process.env.NODE_ENV === "production" ? "static" : "single",
     favicon: "./assets/images/favicon.png",
   },
   plugins: [
