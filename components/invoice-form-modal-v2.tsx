@@ -533,7 +533,7 @@ export function InvoiceFormModal({
 
                     {/* Beschreibung */}
                     <View className="mb-2">
-                      <Text className="text-xs text-muted mb-1">Beschreibung</Text>
+                      <Text className="text-xs text-muted mb-1">Beschreibung / Bemerkung</Text>
                       <TextInput
                         className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
                         placeholder="Optionale Beschreibung"

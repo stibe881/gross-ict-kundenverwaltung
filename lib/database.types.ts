@@ -1184,6 +1184,54 @@ export type Database = {
           },
         ]
       }
+      ticket_items: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          product_id: string | null
+          quantity: number
+          ticket_id: string
+          unit_price: number
+          vat_rate: number
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          ticket_id: string
+          unit_price?: number
+          vat_rate?: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          ticket_id?: string
+          unit_price?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_items_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
           assigned_to: string | null

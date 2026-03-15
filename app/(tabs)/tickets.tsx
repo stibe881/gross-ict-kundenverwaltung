@@ -37,6 +37,7 @@ export default function TicketsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
   const { ticketId } = useLocalSearchParams();
   const [currentUserName, setCurrentUserName] = useState("Admin");
@@ -184,6 +185,65 @@ export default function TicketsScreen() {
       );
     });
 
+  // Apply sorting
+  if (sortConfig !== null) {
+    filteredTickets.sort((a, b) => {
+      let valA: string | number = "";
+      let valB: string | number = "";
+
+      switch (sortConfig.key) {
+        case "prio":
+          // map priorities for sorting
+          const mapPrio = { low: 1, medium: 2, high: 3 } as any;
+          valA = mapPrio[a.priority] || 0;
+          valB = mapPrio[b.priority] || 0;
+          break;
+        case "titel":
+          valA = a.title?.toLowerCase() || "";
+          valB = b.title?.toLowerCase() || "";
+          break;
+        case "kunde":
+          valA = getCustomerName(a).toLowerCase();
+          valB = getCustomerName(b).toLowerCase();
+          break;
+        case "status":
+          // map status for sorting
+          const mapStatus = { open: 1, in_progress: 2, waiting: 3, closed: 4 } as any;
+          valA = mapStatus[a.status] || 0;
+          valB = mapStatus[b.status] || 0;
+          break;
+        case "zugewiesen":
+          valA = getAssigneeName(a)?.toLowerCase() || "";
+          valB = getAssigneeName(b)?.toLowerCase() || "";
+          break;
+        case "datum":
+          valA = new Date(a.created_at).getTime();
+          valB = new Date(b.created_at).getTime();
+          break;
+      }
+
+      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  } else {
+    // Standard-Sortierung: Zuerst nach Status (Offen -> Geschlossen), dann nach Datum (Neueste zuerst)
+    filteredTickets.sort((a, b) => {
+      const mapStatus = { open: 1, in_progress: 2, waiting: 3, closed: 4 } as any;
+      const statA = mapStatus[a.status] || 0;
+      const statB = mapStatus[b.status] || 0;
+
+      if (statA !== statB) {
+        return statA - statB; // Aufsteigend nach Status (1=offen, 4=geschlossen)
+      }
+
+      // Bei gleichem Status nach Datum absteigend (neueste zuerst)
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return dateB - dateA;
+    });
+  }
+
   // Stats
   const openCount = tickets.filter((t) => t.status === "open").length;
   const inProgressCount = tickets.filter((t) => t.status === "in_progress").length;
@@ -259,16 +319,47 @@ export default function TicketsScreen() {
     );
   };
 
+  const handleSort = (key: string) => {
+    let direction: "asc" | "desc" = "asc";
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIcon = (key: string) => {
+    if (!sortConfig || sortConfig.key !== key) return null;
+    return <IconSymbol name={sortConfig.direction === "asc" ? "chevron.up" : "chevron.down"} size={10} color={colors.primary} />;
+  };
+
   const renderDesktopTable = () => (
     <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
       {/* Table Header */}
       <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.background }}>
-        <Text style={{ width: 50, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Prio</Text>
-        <Text style={{ flex: 2, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Titel</Text>
-        <Text style={{ flex: 1, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Kunde</Text>
-        <Text style={{ width: 120, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Status</Text>
-        <Text style={{ width: 120, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Zugewiesen</Text>
-        <Text style={{ width: 90, fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>Datum</Text>
+        <TouchableOpacity style={{ width: 50, flexDirection: "row", alignItems: "center", gap: 4 }} onPress={() => handleSort("prio")}>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: sortConfig?.key === "prio" ? colors.primary : colors.muted, textTransform: "uppercase" }}>Prio</Text>
+          {getSortIcon("prio")}
+        </TouchableOpacity>
+        <TouchableOpacity style={{ flex: 2, flexDirection: "row", alignItems: "center", gap: 4 }} onPress={() => handleSort("titel")}>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: sortConfig?.key === "titel" ? colors.primary : colors.muted, textTransform: "uppercase" }}>Titel</Text>
+          {getSortIcon("titel")}
+        </TouchableOpacity>
+        <TouchableOpacity style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 4 }} onPress={() => handleSort("kunde")}>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: sortConfig?.key === "kunde" ? colors.primary : colors.muted, textTransform: "uppercase" }}>Kunde</Text>
+          {getSortIcon("kunde")}
+        </TouchableOpacity>
+        <TouchableOpacity style={{ width: 120, flexDirection: "row", alignItems: "center", gap: 4 }} onPress={() => handleSort("status")}>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: sortConfig?.key === "status" ? colors.primary : colors.muted, textTransform: "uppercase" }}>Status</Text>
+          {getSortIcon("status")}
+        </TouchableOpacity>
+        <TouchableOpacity style={{ width: 120, flexDirection: "row", alignItems: "center", gap: 4 }} onPress={() => handleSort("zugewiesen")}>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: sortConfig?.key === "zugewiesen" ? colors.primary : colors.muted, textTransform: "uppercase" }}>Zugewiesen</Text>
+          {getSortIcon("zugewiesen")}
+        </TouchableOpacity>
+        <TouchableOpacity style={{ width: 90, flexDirection: "row", alignItems: "center", gap: 4 }} onPress={() => handleSort("datum")}>
+          <Text style={{ fontSize: 10, fontWeight: "700", color: sortConfig?.key === "datum" ? colors.primary : colors.muted, textTransform: "uppercase" }}>Datum</Text>
+          {getSortIcon("datum")}
+        </TouchableOpacity>
         <View style={{ width: 40 }} />
       </View>
       {/* Table Rows */}
@@ -478,7 +569,11 @@ export default function TicketsScreen() {
       <TicketFormModal
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSuccess={() => { }}
+        onSuccess={(newTicket) => {
+          if (newTicket) {
+             setSelectedTicket(newTicket);
+          }
+        }}
       />
 
       {/* Ticket-Details Modal */}
@@ -527,6 +622,30 @@ function TicketDetailsModal({
     queryKey: ["users"],
     queryFn: Data.getAllUsers,
   });
+
+  // Positionen (Aufwände/Artikel) laden
+  const { data: ticketItems = [], refetch: refetchTicketItems } = useQuery({
+    queryKey: ["ticket-items", ticket.id],
+    queryFn: () => Data.getTicketItems(ticket.id),
+  });
+
+  // Katalog laden (falls Katalog-Tab gewählt)
+  const { data: products = [] } = useQuery({
+    queryKey: ["products"],
+    queryFn: Data.getProducts,
+  });
+
+  const [activeTab, setActiveTab] = useState<"comments" | "items">("comments");
+  const [showItemTypePicker, setShowItemTypePicker] = useState<"time" | "product" | null>(null);
+
+  // Form State für neuen Zeitaufwand
+  const [newItemDesc, setNewItemDesc] = useState("");
+  const [newItemQty, setNewItemQty] = useState("1");
+  const [newItemPrice, setNewItemPrice] = useState("150"); // Std. Ansatz
+
+  // Form State für Katalogprodukt
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [addingItem, setAddingItem] = useState(false);
 
   const statusOptions: { key: TicketStatus; label: string; color: string }[] = [
     { key: "open", label: "Offen", color: colors.error },
@@ -641,22 +760,39 @@ function TicketDetailsModal({
         return;
       }
       
+      let invoiceItems = ticketItems.map((item: any) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        vat_rate: item.vat_rate || 8.1,
+        total: item.quantity * item.unit_price
+      }));
+
+      if (invoiceItems.length === 0) {
+        invoiceItems = [{
+          description: `Leistungen gemäss Ticket #${ticket.id}: ${ticket.title}`,
+          quantity: 1,
+          unit_price: 0,
+          vat_rate: 8.1,
+          total: 0
+        }];
+      }
+
+      const rawSubtotal = invoiceItems.reduce((sum: number, i: any) => sum + i.total, 0);
+      const rawVatAmount = invoiceItems.reduce((sum: number, i: any) => sum + (i.total * (i.vat_rate / 100)), 0);
+
       const draftInvoice = {
-        number: "ENTWURF",
+        invoice_number: `ENTWURF-${Date.now().toString().slice(-6)}`,
         status: "draft",
         customer_id: ticket.customer_id,
-        date: new Date().toISOString().split("T")[0],
+        invoice_date: new Date().toISOString().split("T")[0],
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        discount_rate: 0,
-        tax_rate: 8.1,
-        total_amount: 0,
+        subtotal: rawSubtotal,
+        vat_amount: rawVatAmount,
+        total: rawSubtotal + rawVatAmount,
       };
       
-      const newInvoice = await Data.createInvoice(draftInvoice, [{
-        description: `Leistungen gemäss Ticket #${ticket.id}: ${ticket.title}`,
-        quantity: 1,
-        unit_price: 0,
-      }]);
+      const newInvoice = await Data.createInvoice(draftInvoice, invoiceItems);
       
       onClose();
       router.push(`/invoice/${newInvoice.id}` as any);
@@ -929,113 +1065,138 @@ function TicketDetailsModal({
                 )}
               </View>
 
-              {/* ── Kommentare & Historie ── */}
-              <View>
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                  <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>Kommentare & Historie</Text>
-                  <Text style={{ fontSize: 11, color: colors.muted }}>{comments?.length || 0} Einträge</Text>
-                </View>
-
-                {comments && comments.length > 0 ? (
-                  <View style={{ gap: 8, marginBottom: 12 }}>
-                    {comments.map((c: any) => (
-                      <View key={c.id} style={{
-                        backgroundColor: colors.surface, borderRadius: 12,
-                        padding: 14, borderWidth: 1, borderColor: colors.border,
-                        borderLeftWidth: 3, borderLeftColor: c.is_internal ? colors.warning : colors.success,
-                      }}>
-                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                            <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary + "20", alignItems: "center", justifyContent: "center" }}>
-                              <Text style={{ fontSize: 10, fontWeight: "700", color: colors.primary }}>
-                                {(c.user_name || "S")[0].toUpperCase()}
-                              </Text>
-                            </View>
-                            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.primary }}>
-                              {c.user_name || "System"}
-                            </Text>
-                            <View style={{
-                              paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
-                              backgroundColor: c.is_internal ? colors.warning + "18" : colors.success + "18",
-                            }}>
-                              <Text style={{ fontSize: 9, fontWeight: "700", color: c.is_internal ? colors.warning : colors.success }}>
-                                {c.is_internal ? "INTERN" : "EXTERN"}
-                              </Text>
-                            </View>
-                          </View>
-                          <Text style={{ fontSize: 11, color: colors.muted }}>
-                            {formatDateTime(c.created_at)}
-                          </Text>
-                        </View>
-                        <Text style={{ fontSize: 14, color: colors.foreground, lineHeight: 20 }}>{c.comment}</Text>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 20, alignItems: "center", marginBottom: 12, borderWidth: 1, borderColor: colors.border }}>
-                    <IconSymbol name="doc.text.fill" size={28} color={colors.muted} />
-                    <Text style={{ fontSize: 13, color: colors.muted, marginTop: 6 }}>Noch keine Kommentare</Text>
-                  </View>
-                )}
-
-                {/* Sichtbarkeit Toggle */}
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <TouchableOpacity
-                    style={{
-                      flexDirection: "row", alignItems: "center", gap: 6,
-                      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-                      backgroundColor: isInternalComment ? colors.warning + "15" : colors.success + "15",
-                      borderWidth: 1, borderColor: isInternalComment ? colors.warning + "30" : colors.success + "30",
-                    }}
-                    onPress={() => setIsInternalComment(!isInternalComment)}
-                    activeOpacity={0.7}
-                  >
-                    <IconSymbol
-                      name={isInternalComment ? "lock.fill" : "globe"}
-                      size={12}
-                      color={isInternalComment ? colors.warning : colors.success}
-                    />
-                    <Text style={{ fontSize: 12, fontWeight: "600", color: isInternalComment ? colors.warning : colors.success }}>
-                      {isInternalComment ? "Nur intern" : "Kunde sichtbar"}
-                    </Text>
-                  </TouchableOpacity>
-                  <Text style={{ fontSize: 11, color: colors.muted }}>Tippen um zu wechseln</Text>
-                </View>
-
-                {/* Neuer Kommentar */}
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <TextInput
-                    style={{
-                      flex: 1, backgroundColor: colors.surface,
-                      borderWidth: 1, borderColor: colors.border,
-                      borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-                      color: colors.foreground, fontSize: 14,
-                    }}
-                    placeholder="Kommentar schreiben..."
-                    placeholderTextColor={colors.muted}
-                    value={newComment}
-                    onChangeText={setNewComment}
-                    multiline
-                  />
-                  <TouchableOpacity
-                    style={{
-                      backgroundColor: colors.primary, borderRadius: 12,
-                      paddingHorizontal: 16, justifyContent: "center",
-                      opacity: addingComment || !newComment.trim() ? 0.5 : 1,
-                    }}
-                    onPress={handleAddComment}
-                    activeOpacity={0.7}
-                    disabled={addingComment || !newComment.trim()}
-                  >
-                    {addingComment ? (
-                      <ActivityIndicator color="#FFF" size="small" />
-                    ) : (
-                      <IconSymbol name="paperplane.fill" size={18} color="#FFF" />
-                    )}
-                  </TouchableOpacity>
-                </View>
+              {/* ── Tabs (Kommentare vs. Aufwände) ── */}
+              <View style={{ flexDirection: "row", backgroundColor: colors.surface, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border, marginBottom: 8 }}>
+                <TouchableOpacity
+                  style={{ flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8, backgroundColor: activeTab === "comments" ? colors.primary + "20" : "transparent" }}
+                  onPress={() => setActiveTab("comments")}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: activeTab === "comments" ? "700" : "500", color: activeTab === "comments" ? colors.primary : colors.muted }}>Kommentare</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8, backgroundColor: activeTab === "items" ? colors.primary + "20" : "transparent" }}
+                  onPress={() => setActiveTab("items")}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: activeTab === "items" ? "700" : "500", color: activeTab === "items" ? colors.primary : colors.muted }}>Aufwände & Positionen</Text>
+                </TouchableOpacity>
               </View>
 
+              {activeTab === "comments" ? (
+                /* ── Kommentare & Historie ── */
+                <View>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>Kommentare & Historie</Text>
+                    <Text style={{ fontSize: 11, color: colors.muted }}>{comments?.length || 0} Einträge</Text>
+                  </View>
+
+                  {comments && comments.length > 0 ? (
+                    <View style={{ gap: 8, marginBottom: 12 }}>
+                      {comments.map((c: any) => (
+                        <View key={c.id} style={{
+                          backgroundColor: colors.surface, borderRadius: 12,
+                          padding: 14, borderWidth: 1, borderColor: colors.border,
+                          borderLeftWidth: 3, borderLeftColor: c.is_internal ? colors.warning : colors.success,
+                        }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary + "20", alignItems: "center", justifyContent: "center" }}>
+                                <Text style={{ fontSize: 10, fontWeight: "700", color: colors.primary }}>
+                                  {(c.user_name || "S")[0].toUpperCase()}
+                                </Text>
+                              </View>
+                              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.primary }}>
+                                {c.user_name || "System"}
+                              </Text>
+                              <View style={{
+                                paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+                                backgroundColor: c.is_internal ? colors.warning + "18" : colors.success + "18",
+                              }}>
+                                <Text style={{ fontSize: 9, fontWeight: "700", color: c.is_internal ? colors.warning : colors.success }}>
+                                  {c.is_internal ? "INTERN" : "EXTERN"}
+                                </Text>
+                              </View>
+                            </View>
+                            <Text style={{ fontSize: 11, color: colors.muted }}>
+                              {formatDateTime(c.created_at)}
+                            </Text>
+                          </View>
+                          <Text style={{ fontSize: 14, color: colors.foreground, lineHeight: 20 }}>{c.comment}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 20, alignItems: "center", marginBottom: 12, borderWidth: 1, borderColor: colors.border }}>
+                      <IconSymbol name="doc.text.fill" size={28} color={colors.muted} />
+                      <Text style={{ fontSize: 13, color: colors.muted, marginTop: 6 }}>Noch keine Kommentare</Text>
+                    </View>
+                  )}
+
+                  {/* Sichtbarkeit Toggle */}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <TouchableOpacity
+                      style={{
+                        flexDirection: "row", alignItems: "center", gap: 6,
+                        paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+                        backgroundColor: isInternalComment ? colors.warning + "15" : colors.success + "15",
+                        borderWidth: 1, borderColor: isInternalComment ? colors.warning + "30" : colors.success + "30",
+                      }}
+                      onPress={() => setIsInternalComment(!isInternalComment)}
+                      activeOpacity={0.7}
+                    >
+                      <IconSymbol
+                        name={isInternalComment ? "lock.fill" : "globe"}
+                        size={12}
+                        color={isInternalComment ? colors.warning : colors.success}
+                      />
+                      <Text style={{ fontSize: 12, fontWeight: "600", color: isInternalComment ? colors.warning : colors.success }}>
+                        {isInternalComment ? "Nur intern" : "Kunde sichtbar"}
+                      </Text>
+                    </TouchableOpacity>
+                    <Text style={{ fontSize: 11, color: colors.muted }}>Tippen um zu wechseln</Text>
+                  </View>
+
+                  {/* Neuer Kommentar */}
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TextInput
+                      style={{
+                        flex: 1, backgroundColor: colors.surface,
+                        borderWidth: 1, borderColor: colors.border,
+                        borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+                        color: colors.foreground, fontSize: 14,
+                      }}
+                      placeholder="Kommentar schreiben..."
+                      placeholderTextColor={colors.muted}
+                      value={newComment}
+                      onChangeText={setNewComment}
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: colors.primary, borderRadius: 12,
+                        paddingHorizontal: 16, justifyContent: "center",
+                        opacity: addingComment || !newComment.trim() ? 0.5 : 1,
+                      }}
+                      onPress={handleAddComment}
+                      activeOpacity={0.7}
+                      disabled={addingComment || !newComment.trim()}
+                    >
+                      {addingComment ? (
+                        <ActivityIndicator color="#FFF" size="small" />
+                      ) : (
+                        <IconSymbol name="paperplane.fill" size={18} color="#FFF" />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TicketItemsList
+                  ticketId={ticket.id}
+                  ticketItems={ticketItems}
+                  products={products}
+                  colors={colors}
+                  onRefresh={refetchTicketItems}
+                />
+              )}
             </View>
           </ScrollView>
 
@@ -1087,3 +1248,207 @@ function TicketDetailsModal({
     </Modal>
   );
 }
+
+function TicketItemsList({ ticketId, ticketItems, products, colors, onRefresh }: any) {
+  const [adding, setAdding] = useState(false);
+  const [type, setType] = useState<"time" | "product">("time");
+  const [desc, setDesc] = useState("");
+  const [qty, setQty] = useState("1");
+  const [price, setPrice] = useState("150");
+  const [prodId, setProdId] = useState("");
+  const [showTypePicker, setShowTypePicker] = useState(false);
+  const [showProductPicker, setShowProductPicker] = useState(false);
+
+  const handleAdd = async () => {
+    try {
+      setAdding(true);
+      if (type === "time") {
+        if (!desc.trim()) throw new Error("Beschreibung fehlt");
+        await Data.addTicketItem({
+          ticket_id: ticketId,
+          description: desc,
+          quantity: parseFloat(qty) || 1,
+          unit_price: parseFloat(price) || 0,
+          vat_rate: 8.1,
+          is_time_tracking: true
+        });
+      } else {
+        const p = products.find((x: any) => x.id === prodId);
+        if (!p) throw new Error("Produkt nicht gewählt");
+        await Data.addTicketItem({
+          ticket_id: ticketId,
+          product_id: p.id,
+          description: p.name + (desc.trim() ? `\n${desc.trim()}` : ""),
+          quantity: parseFloat(qty) || 1,
+          unit_price: p.price || 0,
+          vat_rate: p.vat_rate || 8.1,
+          is_time_tracking: false
+        });
+      }
+      setDesc("");
+      setQty("1");
+      setProdId("");
+      onRefresh();
+    } catch(err: any) {
+      showConfirm("Fehler", err.message, () => {}, "OK");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    showConfirm("Wirklich löschen?", "Diese Position wird entfernt.", async () => {
+      await Data.deleteTicketItem(id);
+      onRefresh();
+    }, "Löschen");
+  };
+
+  const totalAmount = ticketItems.reduce((acc: number, item: any) => acc + (item.quantity * item.unit_price), 0);
+
+  return (
+    <View>
+      {/* List */}
+      <View style={{ marginBottom: 16 }}>
+        {ticketItems.length === 0 ? (
+          <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 20, alignItems: "center", borderWidth: 1, borderColor: colors.border }}>
+            <IconSymbol name="clock.arrow.circlepath" size={28} color={colors.muted} />
+            <Text style={{ fontSize: 13, color: colors.muted, marginTop: 6 }}>Noch keine Aufwände erfasst</Text>
+          </View>
+        ) : (
+          <View style={{ gap: 8 }}>
+            {ticketItems.map((item: any) => (
+              <View key={item.id} style={{
+                backgroundColor: colors.surface, borderRadius: 12, padding: 12,
+                borderWidth: 1, borderColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center"
+              }}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <IconSymbol name={item.is_time_tracking ? "clock.fill" : "shippingbox.fill"} size={12} color={colors.primary} />
+                    <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }}>{item.description}</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: colors.muted }}>
+                    {item.quantity} {item.is_time_tracking ? "Std." : "Stk."} à CHF {item.unit_price.toFixed(2)}
+                  </Text>
+                </View>
+                <View style={{ alignItems: "flex-end", gap: 6 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground }}>CHF {(item.quantity * item.unit_price).toFixed(2)}</Text>
+                  <TouchableOpacity onPress={() => handleDelete(item.id)}>
+                    <IconSymbol name="trash.fill" size={14} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+            <View style={{ marginTop: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8, flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground }}>Total</Text>
+              <Text style={{ fontSize: 14, fontWeight: "800", color: colors.primary }}>CHF {totalAmount.toFixed(2)}</Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Add Form */}
+      <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
+        <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, marginBottom: 12 }}>Neuen Eintrag erfassen</Text>
+
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+          <TouchableOpacity
+            style={{ flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8, backgroundColor: type === "time" ? colors.primary + "20" : "transparent" }}
+            onPress={() => setType("time")}
+          >
+             <Text style={{ fontSize: 13, fontWeight: type === "time" ? "700" : "500", color: type === "time" ? colors.primary : colors.muted }}>Zeit erfassen</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8, backgroundColor: type === "product" ? colors.primary + "20" : "transparent" }}
+            onPress={() => setType("product")}
+          >
+             <Text style={{ fontSize: 13, fontWeight: type === "product" ? "700" : "500", color: type === "product" ? colors.primary : colors.muted }}>Katalog-Artikel</Text>
+          </TouchableOpacity>
+        </View>
+
+        {type === "time" ? (
+          <View style={{ gap: 8 }}>
+            <TextInput
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: colors.foreground }}
+              placeholder="Beschreibung (z.B. Fehleranalyse Server)"
+              placeholderTextColor={colors.muted}
+              value={desc}
+              onChangeText={setDesc}
+            />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TextInput
+                style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: colors.foreground }}
+                placeholder="Stunden"
+                placeholderTextColor={colors.muted}
+                keyboardType="decimal-pad"
+                value={qty}
+                onChangeText={setQty}
+              />
+              <TextInput
+                style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: colors.foreground }}
+                placeholder="Std-Ansatz CHF"
+                placeholderTextColor={colors.muted}
+                keyboardType="decimal-pad"
+                value={price}
+                onChangeText={setPrice}
+              />
+            </View>
+          </View>
+        ) : (
+          <View style={{ gap: 8 }}>
+            <TouchableOpacity
+              style={{ paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8 }}
+              onPress={() => setShowProductPicker(!showProductPicker)}
+            >
+              <Text style={{ color: prodId ? colors.foreground : colors.muted }}>
+                {prodId ? products.find((p:any) => p.id === prodId)?.name : "Produkt auswählen..."}
+              </Text>
+            </TouchableOpacity>
+            {showProductPicker && (
+              <View style={{ maxHeight: 150, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.background }}>
+                <ScrollView nestedScrollEnabled>
+                  {products.map((p: any) => (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={{ padding: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}
+                      onPress={() => { setProdId(p.id); setShowProductPicker(false); setPrice(p.price.toString()); }}
+                    >
+                      <Text style={{ color: colors.foreground }}>{p.name}</Text>
+                      <Text style={{ color: colors.muted, fontSize: 11 }}>CHF {p.price.toFixed(2)} / {p.unit}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+            <TextInput
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: colors.foreground }}
+              placeholder="Bemerkung (optional, erscheint auf Rechnung)"
+              placeholderTextColor={colors.muted}
+              value={desc}
+              onChangeText={setDesc}
+            />
+            <TextInput
+              style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: colors.foreground }}
+              placeholder="Anzahl"
+              placeholderTextColor={colors.muted}
+              keyboardType="decimal-pad"
+              value={qty}
+              onChangeText={setQty}
+            />
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={{
+            backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10, alignItems: "center", marginTop: 12,
+            opacity: adding || (type === 'time' && !desc) || (type === 'product' && !prodId) ? 0.5 : 1
+          }}
+          onPress={handleAdd}
+          disabled={adding || (type === 'time' && !desc.trim()) || (type === 'product' && !prodId)}
+        >
+          {adding ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={{ color: "#FFF", fontWeight: "600" }}>Hinzufügen</Text>}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+

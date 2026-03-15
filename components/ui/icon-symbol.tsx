@@ -69,6 +69,7 @@ const MAPPING = {
   "dollarsign.circle.fill": "monetization-on",
   "eye.fill": "visibility",
   "link": "link",
+  "checklist": "checklist",
 } as IconMapping;
 
 /**

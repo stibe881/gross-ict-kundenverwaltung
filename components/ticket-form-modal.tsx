@@ -20,7 +20,7 @@ interface TicketFormModalProps {
   visible: boolean;
   ticket?: any;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (newTicket?: any) => void;
 }
 
 export function TicketFormModal({
@@ -65,10 +65,11 @@ export function TicketFormModal({
         status: "open",
       };
 
+      let newTicket = null;
       if (ticket?.id) {
         await Data.updateTicket(ticket.id, ticketData);
       } else {
-        await Data.createTicket(ticketData);
+        newTicket = await Data.createTicket(ticketData);
       }
 
       // Invalidate queries to refresh
@@ -82,7 +83,7 @@ export function TicketFormModal({
         ).catch(console.error);
       }
 
-      onSuccess?.();
+      onSuccess?.(newTicket);
       onClose();
     } catch (error: any) {
       alert("Fehler: " + error.message);
