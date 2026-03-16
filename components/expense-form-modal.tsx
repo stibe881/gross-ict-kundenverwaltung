@@ -148,6 +148,53 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
         }
     }, [expense, visible, initialScanReceipt]);
 
+    // Global Drag & Drop Handler (Web only)
+    useEffect(() => {
+        if (Platform.OS !== 'web' || !visible) return;
+
+        const handleDragOver = (e: any) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragActive(true);
+        };
+
+        const handleDragLeave = (e: any) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragActive(false);
+        };
+
+        const handleDrop = (e: any) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragActive(false);
+            // Native DOM events have e.dataTransfer directly
+            const files = e.dataTransfer?.files;
+            if (files && files.length > 0) {
+                const file = files[0];
+                const url = URL.createObjectURL(file);
+                setReceiptFile({
+                    uri: url,
+                    name: file.name,
+                    type: file.type || "application/octet-stream",
+                    size: file.size,
+                });
+            }
+        };
+
+        window.addEventListener('dragenter', handleDragOver);
+        window.addEventListener('dragover', handleDragOver);
+        window.addEventListener('dragleave', handleDragLeave);
+        window.addEventListener('drop', handleDrop);
+
+        return () => {
+            window.removeEventListener('dragenter', handleDragOver);
+            window.removeEventListener('dragover', handleDragOver);
+            window.removeEventListener('dragleave', handleDragLeave);
+            window.removeEventListener('drop', handleDrop);
+        };
+    }, [visible]);
+
     const handleAnalyzeReceipt = async (file: { uri: string; name: string; type: string }) => {
         setIsAnalyzingAI(true);
         try {
@@ -282,24 +329,6 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
             }
         } catch (_e) {
             Alert.alert("Fehler", "Dokument konnte nicht ausgewählt werden.");
-        }
-    };
-
-    const handleWebFileDrop = (e: any) => {
-        if (Platform.OS !== 'web') return;
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragActive(false);
-        const files = e.dataTransfer?.files || e.nativeEvent?.dataTransfer?.files;
-        if (files && files.length > 0) {
-            const file = files[0];
-            const url = URL.createObjectURL(file);
-            setReceiptFile({
-                uri: url,
-                name: file.name,
-                type: file.type || "application/octet-stream",
-                size: file.size,
-            });
         }
     };
 
@@ -771,12 +800,6 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                                         borderRadius: 10,
                                         padding: isDragActive ? 4 : 0
                                     }}
-                                    {...(Platform.OS === 'web' ? {
-                                        onDragEnter: (e: any) => { e.preventDefault(); e.stopPropagation(); setIsDragActive(true); },
-                                        onDragOver: (e: any) => { e.preventDefault(); e.stopPropagation(); setIsDragActive(true); },
-                                        onDragLeave: (e: any) => { e.preventDefault(); e.stopPropagation(); setIsDragActive(false); },
-                                        onDrop: handleWebFileDrop
-                                    } : {})}
                                 >
                                     <TouchableOpacity 
                                         onPress={handleTakePhoto}
