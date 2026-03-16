@@ -72,6 +72,7 @@ export default function TicketsScreen() {
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ["tickets"],
     queryFn: Data.getAllTickets,
+    refetchInterval: 5000, // Automatischer Refresh alle 5 Sekunden
   });
 
   useEffect(() => {

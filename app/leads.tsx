@@ -38,6 +38,7 @@ export default function LeadsScreen() {
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads"],
     queryFn: Data.getLeads,
+    refetchInterval: 5000, // Automatischer Refresh alle 5 Sekunden
   });
 
   const deleteLead = useMutation({
