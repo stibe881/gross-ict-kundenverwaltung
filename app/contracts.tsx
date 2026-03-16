@@ -24,6 +24,7 @@ import { ContractTemplateFormModal } from "@/components/contract-template-form-m
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
+import { downloadContractPDF } from "@/lib/pdf-utils";
 
 type ContractStatus = "active" | "cancelled" | "expired";
 
@@ -595,7 +596,7 @@ function ContractDetailsModal({
   };
 
   const isSigned = !!contract.signature_date;
-  const isPending = contract.status === "pending_signature" || (!isSigned && contract.status === "active");
+  const isPending = contract.status === "pending_signature";
   const isCancelled = contract.status === "cancelled" || !!contract.cancellation_date;
 
   const statusLabel = getStatusLabel(contract);
@@ -738,6 +739,14 @@ function ContractDetailsModal({
                 </Text>
               </TouchableOpacity>
             )}
+            <TouchableOpacity
+              className="bg-primary/20 border border-primary/30 py-3 rounded-lg flex-row items-center justify-center"
+              activeOpacity={0.8}
+              onPress={() => downloadContractPDF(contract)}
+            >
+              <IconSymbol name="arrow.down.doc.fill" size={18} color={colors.primary} />
+              <Text className="text-primary font-semibold ml-2">PDF herunterladen</Text>
+            </TouchableOpacity>
             <View className="flex-row gap-3">
               <TouchableOpacity
                 className="flex-1 bg-surface border border-border py-3 rounded-lg"
