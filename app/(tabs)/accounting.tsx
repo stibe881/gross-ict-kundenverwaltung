@@ -228,6 +228,7 @@ export default function AccountingScreen() {
     .filter((e: any) => e.is_deductible && (e.amount || 0) > 0)
     .reduce((s: number, e: any) => s + (e.amount || 0), 0);
   const profit = totalRevenue - totalExpenses;
+  const netIncome = totalRevenue - deductibleExpenses;
 
   // Umsatz-Schwelle MwSt (CHF 100'000)
   const MWST_THRESHOLD = 100000;
@@ -487,6 +488,28 @@ export default function AccountingScreen() {
             </Text>
           </View>
         </View>
+      </View>
+
+      {/* Reingewinn / Nettoeinkommen Inhaber */}
+      <View
+        className="rounded-xl p-5 border border-border"
+        style={{
+          backgroundColor:
+            netIncome >= 0 ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+        }}
+      >
+        <Text className="text-sm text-muted mb-1">
+          Reingewinn (Nettoeinkommen Inhaber)
+        </Text>
+        <Text
+          className="text-3xl font-bold"
+          style={{ color: netIncome >= 0 ? "#16a34a" : "#dc2626" }}
+        >
+          {formatCurrency(netIncome)}
+        </Text>
+        <Text className="text-xs text-muted mt-2">
+          Alle Einnahmen abzüglich geschäftsrelevanter (abzugsfähiger) Ausgaben
+        </Text>
       </View>
 
       {/* Quick Stats */}
