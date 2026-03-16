@@ -12,6 +12,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
+import { showToast } from "@/components/toast-provider";
 import { formatDate } from "@/lib/format";
 import { KbArticleFormModal } from "./kb-article-form-modal";
 
@@ -42,7 +43,7 @@ export function KbArticleDetailModal({ article: initialArticle, onClose, onNavig
         mutationFn: () => Data.deleteKbArticle(article.id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["kb_articles"] });
-            showAlert("Erfolg", "Artikel gelöscht");
+            showToast("Artikel gelöscht");
             onClose();
         },
         onError: (err: any) => showAlert("Fehler", err.message),

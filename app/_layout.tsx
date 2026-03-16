@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-context";
+import { ToastProvider } from "@/components/toast-provider";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -278,13 +279,15 @@ export default function RootLayout() {
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="users" />
-          <Stack.Screen name="links" />
-          <Stack.Screen name="oauth/callback" />
-        </Stack>
-        <StatusBar style="auto" />
+        <ToastProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="users" />
+            <Stack.Screen name="links" />
+            <Stack.Screen name="oauth/callback" />
+          </Stack>
+          <StatusBar style="auto" />
+        </ToastProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

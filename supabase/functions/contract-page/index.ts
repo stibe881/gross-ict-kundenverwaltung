@@ -48,12 +48,16 @@ function renderPage(contract: any, supabaseUrl: string): string {
         <h2>Vertrag digital unterzeichnen</h2>
         <p class="sign-info">
           Mit Ihrer Unterzeichnung bestätigen Sie, dass Sie die oben aufgeführten Vertragsbedingungen
-          gelesen haben und diesen verbindlich zustimmen. Ihre digitale Signatur (Name, IP-Adresse und
+          gelesen haben und diesen verbindlich zustimmen. Ihre digitale Signatur (Name, Ort, Datum, IP-Adresse und
           Zeitstempel) wird als rechtsgültiger Nachweis der Unterzeichnung gespeichert.
         </p>
         <div class="sign-form">
           <label for="signName">Vollständiger Name *</label>
           <input type="text" id="signName" placeholder="Vor- und Nachname" autocomplete="name" />
+          <label for="signLocation">Ort *</label>
+          <input type="text" id="signLocation" placeholder="z.B. Zürich" autocomplete="address-level2" />
+          <label for="signDate">Datum *</label>
+          <input type="text" id="signDate" value="${new Date().toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })}" />
           <button id="signBtn" onclick="handleSign()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:middle;margin-right:8px;"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
             Verbindlich unterzeichnen
@@ -555,6 +559,17 @@ function renderPage(contract: any, supabaseUrl: string): string {
         </div>
       </div>
       `}
+
+    ${isSigned ? `
+    <div class="pc-section pc-sig-section">
+      <table class="pc-section-header"><tr><th>Digitale Signatur</th></tr></table>
+      <table class="pc-terms-table">
+        <tr><td>Unterzeichnet von</td><td><strong>${escHtml(contract.signature_name || "")}</strong></td></tr>
+        <tr><td>Ort, Datum</td><td>${contract.signature_location ? escHtml(contract.signature_location) + ', ' : ''}${signDate}</td></tr>
+        ${contract.signature_ip ? `<tr><td>IP-Adresse</td><td>${escHtml(contract.signature_ip)}</td></tr>` : ""}
+      </table>
+      <div class="pc-sig-note">Dieser Vertrag wurde digital unterzeichnet und signiert. Die digitale Signatur dient als rechtsgültiger Nachweis der Unterzeichnung.</div>
+    </div>` : ''}
     </div>
 
     <div class="pc-footer">
@@ -624,12 +639,26 @@ function renderPage(contract: any, supabaseUrl: string): string {
 
     async function handleSign() {
       const nameInput = document.getElementById("signName");
+      const locationInput = document.getElementById("signLocation");
+      const dateInput = document.getElementById("signDate");
       const btn = document.getElementById("signBtn");
       const errorDiv = document.getElementById("signError");
       const name = nameInput.value.trim();
+      const location = locationInput.value.trim();
+      const signDate = dateInput.value.trim();
 
       if (!name) {
         errorDiv.textContent = "Bitte geben Sie Ihren vollständigen Namen ein.";
+        errorDiv.style.display = "block";
+        return;
+      }
+      if (!location) {
+        errorDiv.textContent = "Bitte geben Sie den Ort ein.";
+        errorDiv.style.display = "block";
+        return;
+      }
+      if (!signDate) {
+        errorDiv.textContent = "Bitte geben Sie das Datum ein.";
         errorDiv.style.display = "block";
         return;
       }
@@ -642,18 +671,18 @@ function renderPage(contract: any, supabaseUrl: string): string {
         const res = await fetch(SIGN_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, location, date: signDate }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Fehler beim Unterzeichnen");
 
-        const now = new Date().toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
         document.querySelector(".sign-section").outerHTML = \`
           <div class="signed-box">
             <svg class="signed-check" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <h2>Vertrag unterzeichnet</h2>
             <p>Unterzeichnet von <strong>\${name}</strong></p>
-            <p class="sign-date">am \${now}</p>
+            <p class="sign-date">\${location}, \${signDate}</p>
+            <p style="font-size:13px;color:#71717a;margin-top:8px;">Eine Bestätigung wurde an Ihre E-Mail-Adresse gesendet.</p>
           </div>
         \`;
       } catch (err) {
@@ -728,6 +757,8 @@ Deno.serve(async (req) => {
       }
 
       const sigName = (body.name || "").trim();
+      const sigLocation = (body.location || "").trim();
+      const sigDate = (body.date || "").trim();
       if (!sigName) {
         return new Response(
           JSON.stringify({ error: "Name ist erforderlich" }),
@@ -744,6 +775,7 @@ Deno.serve(async (req) => {
           signature_name: sigName,
           signature_date: new Date().toISOString(),
           signature_ip: clientIP,
+          signature_location: sigLocation || null,
           status: "active",
         })
         .eq("id", contract.id);
@@ -820,6 +852,55 @@ Deno.serve(async (req) => {
         }
       } catch (pushErr) {
         console.error("[contract-page] Push failed:", pushErr);
+      }
+
+      // Send signed contract confirmation email to customer
+      try {
+        const customerEmail = contract.customer?.email;
+        if (customerEmail && resendApiKey) {
+          const signDateDisplay = sigDate || new Date().toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+          const locationDisplay = sigLocation ? `${sigLocation}, ` : "";
+
+          const confirmEmailHtml = `
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+              <div style="background:#1a1a2e;color:white;padding:24px;border-radius:8px 8px 0 0;">
+                <h1 style="margin:0;font-size:20px;">Gross ICT</h1>
+                <p style="margin:4px 0 0;opacity:0.8;font-size:14px;">Vertragsbestätigung</p>
+              </div>
+              <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
+                <p>Guten Tag ${customerName},</p>
+                <p>vielen Dank für Ihre Unterzeichnung des Vertrags <strong>"${contract.title}"</strong>.</p>
+                <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:16px 0;">
+                  <p style="margin:0 0 8px;font-weight:bold;color:#16a34a;">✓ Digital unterzeichnet und signiert</p>
+                  <table style="border-collapse:collapse;width:100%;">
+                    <tr><td style="padding:4px 0;color:#666;">Unterzeichnet von:</td><td style="padding:4px 0;font-weight:600;">${sigName}</td></tr>
+                    <tr><td style="padding:4px 0;color:#666;">Ort, Datum:</td><td style="padding:4px 0;font-weight:600;">${locationDisplay}${signDateDisplay}</td></tr>
+                    <tr><td style="padding:4px 0;color:#666;">Vertragsbeginn:</td><td style="padding:4px 0;font-weight:600;">${fmtDate(contract.start_date)}</td></tr>
+                    <tr><td style="padding:4px 0;color:#666;">Vertragsende:</td><td style="padding:4px 0;font-weight:600;">${fmtDate(contract.end_date)}</td></tr>
+                    <tr><td style="padding:4px 0;color:#666;">Jahresbetrag:</td><td style="padding:4px 0;font-weight:600;">CHF ${fmtCHF(Number(contract.annual_amount || contract.amount || 0))}</td></tr>
+                  </table>
+                </div>
+                <p>Bitte bewahren Sie diese E-Mail als Bestätigung auf.</p>
+                <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
+                <p>Freundliche Grüsse<br/><strong>Gross ICT</strong></p>
+              </div>
+            </div>
+          `;
+
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              from: "Gross ICT <info@gross-ict.ch>",
+              to: [customerEmail],
+              subject: `Vertragsbestätigung: ${contract.title} – Gross ICT`,
+              html: confirmEmailHtml,
+            }),
+          });
+          console.log(`[contract-page] Confirmation email sent to ${customerEmail}`);
+        }
+      } catch (emailErr) {
+        console.error("[contract-page] Confirmation email failed:", emailErr);
       }
 
       // Auto-create and send first recurring invoice
@@ -944,7 +1025,45 @@ Deno.serve(async (req) => {
       );
     }
 
-    // GET: Render page
+    // GET: Render page + track view + push notification
+    // Non-blocking: track that contract was viewed
+    const customerName2 = contract.customer?.company_name ||
+      `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde";
+    try {
+      const { data: admins } = await supabase
+        .from("users")
+        .select("id, push_token")
+        .not("push_token", "is", null);
+
+      if (admins && admins.length > 0) {
+        const pushMessages: any[] = [];
+        for (const a of admins) {
+          if (!a.push_token) continue;
+          const tokens = a.push_token.split(",").map((t: string) => t.trim()).filter(Boolean);
+          for (const t of tokens) {
+            if (t.startsWith("ExponentPushToken")) {
+              pushMessages.push({
+                to: t,
+                sound: "default",
+                title: "📄 Vertrag geöffnet",
+                body: `${customerName2} hat den Vertrag "${contract.title}" geöffnet.`,
+                data: { url: "/contracts" },
+              });
+            }
+          }
+        }
+        if (pushMessages.length > 0) {
+          fetch("https://exp.host/--/api/v2/push/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(pushMessages),
+          }).catch(e => console.warn("[contract-page] View push failed:", e));
+        }
+      }
+    } catch (pushErr) {
+      console.warn("[contract-page] View tracking push error:", pushErr);
+    }
+
     const html = renderPage(contract, supabaseUrl);
     return new Response(html, {
       headers: {

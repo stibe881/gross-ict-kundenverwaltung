@@ -23,6 +23,7 @@ import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { downloadInvoicePDF, generateInvoicePDFBase64 } from "@/lib/pdf-utils";
 import { showAlert, showConfirm } from "@/lib/alert";
+import { showToast } from "@/components/toast-provider";
 import { supabase } from "@/lib/supabase";
 
 export default function InvoiceDetailScreen() {
@@ -56,7 +57,7 @@ export default function InvoiceDetailScreen() {
         mutationFn: (invoiceId: string) => Data.deleteInvoice(invoiceId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["invoices"] });
-            showAlert("Erfolg", "Rechnung wurde gelöscht");
+            showToast("Rechnung wurde gelöscht");
             router.back();
         },
         onError: (error: any) => {

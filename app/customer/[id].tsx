@@ -11,6 +11,7 @@ import {
   TextInput,
 } from "react-native";
 import { showAlert, showConfirm } from "@/lib/alert";
+import { showToast } from "@/components/toast-provider";
 import { useLocalSearchParams, router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -76,7 +77,7 @@ export default function CustomerDetailScreen() {
   const deleteCustomer = useMutation({
     mutationFn: (custId: string) => Data.deleteCustomer(custId),
     onSuccess: () => {
-      showAlert("Erfolg", "Kunde wurde erfolgreich gelöscht");
+      showToast("Kunde wurde gelöscht");
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       router.back();
     },
@@ -97,7 +98,7 @@ export default function CustomerDetailScreen() {
     mutationFn: (ticketId: string) => Data.deleteTicket(ticketId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets", "customer", id] });
-      showAlert("Erfolg", "Ticket gelöscht");
+      showToast("Ticket gelöscht");
     },
     onError: (error: any) => showAlert("Fehler", error.message),
   });
@@ -117,7 +118,7 @@ export default function CustomerDetailScreen() {
     mutationFn: (contactId: string) => Data.deleteCustomerContact(contactId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer-contacts", id] });
-      showAlert("Erfolg", "Kontakt gelöscht");
+      showToast("Kontakt gelöscht");
     },
     onError: (error: any) => showAlert("Fehler", error.message),
   });

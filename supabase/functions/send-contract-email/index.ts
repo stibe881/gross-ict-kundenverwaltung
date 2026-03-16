@@ -124,6 +124,7 @@ Deno.serve(async (req) => {
         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
         <p style="color: #333; font-size: 14px;">Freundliche Grüsse<br/><strong>Gross ICT</strong></p>
       </div>
+      <img src="${Deno.env.get("SUPABASE_URL")}/functions/v1/track-email?type=contract&id=${contractId}" width="1" height="1" style="display:none" alt="" />
     </div>`;
 
     const emailRes = await fetch("https://api.resend.com/emails", {

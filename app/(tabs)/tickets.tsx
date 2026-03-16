@@ -23,6 +23,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
+import { showToast } from "@/components/toast-provider";
 
 type TicketStatus = "open" | "in_progress" | "waiting" | "closed";
 type TicketPriority = "low" | "medium" | "high";
@@ -89,7 +90,7 @@ export default function TicketsScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["customer"] });
-      showAlert("Erfolg", "Ticket erfolgreich gelöscht");
+      showToast("Ticket erfolgreich gelöscht");
     },
     onError: (error: any) => {
       showAlert("Fehler", `Ticket konnte nicht gelöscht werden: ${error.message}`);

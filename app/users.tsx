@@ -19,6 +19,7 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert } from "@/lib/alert";
+import { showToast } from "@/components/toast-provider";
 
 export default function UsersScreen() {
   const colors = useColors();
@@ -97,7 +98,7 @@ export default function UsersScreen() {
     mutationFn: (userId: string) => Data.deleteUser(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      showAlert("Erfolg", "Benutzer wurde gelöscht.");
+      showToast("Benutzer wurde gelöscht.");
     },
     onError: (err: any) => {
       showAlert("Fehler", err.message);

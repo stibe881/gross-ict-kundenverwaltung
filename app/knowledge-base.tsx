@@ -17,6 +17,7 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
+import { showToast } from "@/components/toast-provider";
 import { formatDate } from "@/lib/format";
 import { KbArticleFormModal } from "@/components/kb-article-form-modal";
 import { KbArticleDetailModal } from "@/components/kb-article-detail-modal";
@@ -409,7 +410,7 @@ function CategoryManagementModal({ onClose }: { onClose: () => void }) {
         mutationFn: (id: string) => Data.deleteKbCategory(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["kb_categories"] });
-            showAlert("Erfolg", "Kategorie gelöscht");
+            showToast("Kategorie gelöscht");
         },
         onError: (err: any) => showAlert("Fehler", err.message),
     });

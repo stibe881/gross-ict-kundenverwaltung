@@ -17,6 +17,7 @@ import { IconSymbol } from "./ui/icon-symbol";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
+import { showToast } from "@/components/toast-provider";
 
 interface CustomerPortalUser {
   id: string;
@@ -84,7 +85,7 @@ export function CustomerPortalManagement({
     mutationFn: (id: string) => Data.deleteCustomerPortalUser(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customerPortalUsers", customerId] });
-      showAlert("Erfolg", "Benutzer wurde gelöscht");
+      showToast("Benutzer wurde gelöscht");
     },
     onError: (error: any) => {
       showAlert("Fehler", error.message);

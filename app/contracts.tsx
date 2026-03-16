@@ -24,6 +24,7 @@ import { ContractTemplateFormModal } from "@/components/contract-template-form-m
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
+import { showToast } from "@/components/toast-provider";
 import { downloadContractPDF } from "@/lib/pdf-utils";
 
 type ContractStatus = "active" | "cancelled" | "expired";
@@ -458,7 +459,7 @@ export default function ContractsScreen() {
                   await Data.deleteContract(c.id);
                   setSelectedContract(null);
                   queryClient.invalidateQueries({ queryKey: ["contracts"] });
-                  showAlert("Erfolg", "Vertrag wurde gelöscht");
+                  showToast("Vertrag wurde gelöscht");
                 } catch (e: any) {
                   showAlert("Fehler", e.message);
                 }

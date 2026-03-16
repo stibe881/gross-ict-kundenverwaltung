@@ -11,6 +11,7 @@ import {
   Image,
 } from "react-native";
 import { showAlert, showConfirm } from "@/lib/alert";
+import { showToast } from "@/components/toast-provider";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -44,7 +45,7 @@ export default function CustomersScreen() {
   const deleteCustomer = useMutation({
     mutationFn: (id: string) => Data.deleteCustomer(id),
     onSuccess: () => {
-      showAlert("Erfolg", "Kunde wurde erfolgreich gelöscht");
+      showToast("Kunde wurde gelöscht");
       refetch();
     },
     onError: (error: any) => {

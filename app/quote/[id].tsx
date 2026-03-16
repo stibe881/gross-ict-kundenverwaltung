@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { showAlert, showConfirm } from "@/lib/alert";
+import { showToast } from "@/components/toast-provider";
 import { QuoteFormModal } from "@/components/quote-form-modal";
 import { downloadQuotePDF, generateQuoteHTML } from "@/lib/pdf-utils";
 import { Platform, Linking } from "react-native";
@@ -46,7 +47,7 @@ export default function QuoteDetailScreen() {
         mutationFn: (quoteId: string) => Data.deleteQuote(quoteId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["quotes"] });
-            showAlert("Erfolg", "Angebot wurde gelöscht");
+            showToast("Angebot wurde gelöscht");
             router.back();
         },
         onError: (error: any) => {
