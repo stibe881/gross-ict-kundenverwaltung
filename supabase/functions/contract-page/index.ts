@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LOGO_BASE64 } from "./logo.ts";
+import { generateContractPDF } from "./pdf-generator.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -792,6 +793,19 @@ Deno.serve(async (req) => {
       const customerName = contract.customer?.company_name ||
         `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde";
 
+      // Log activity: signed
+      try {
+        const locationNote = sigLocation ? ` in ${sigLocation}` : "";
+        await supabase.from("contract_activities").insert({
+          contract_id: contract.id,
+          type: "signed",
+          description: `Vertrag digital unterzeichnet von ${sigName}${locationNote}`,
+          user_name: customerName,
+        });
+      } catch (actErr) {
+        console.error("[contract-page] Activity log failed:", actErr);
+      }
+
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (resendApiKey) {
         try {
@@ -896,15 +910,50 @@ Deno.serve(async (req) => {
             </div>
           `;
 
+          // Generate signed contract PDF
+          let pdfBase64: string | null = null;
+          try {
+            const addressParts = [
+              customerName,
+              contract.customer?.street || contract.customer?.address,
+              `${contract.customer?.zip || contract.customer?.postal_code || ""} ${contract.customer?.city || ""}`.trim()
+            ].filter(Boolean);
+
+            pdfBase64 = generateContractPDF({
+              title: contract.title,
+              customerName,
+              customerAddress: addressParts.join("\n"),
+              startDate: contract.start_date,
+              endDate: contract.end_date,
+              amount: Number(contract.annual_amount || contract.amount || 0),
+              noticePeriodMonths: contract.notice_period_months || 3,
+              description: contract.description || "",
+              signatureName: sigName,
+              signatureDate: new Date().toISOString().split("T")[0],
+              signatureLocation: sigLocation || undefined,
+              signatureIp: clientIP !== "unknown" ? clientIP : undefined,
+            });
+            console.log("[contract-page] Signed contract PDF generated successfully");
+          } catch (pdfErr) {
+            console.error("[contract-page] PDF generation failed:", pdfErr);
+          }
+
+          const emailPayload: any = {
+            from: "Gross ICT <info@gross-ict.ch>",
+            to: [customerEmail],
+            subject: `Ihr unterzeichneter Vertrag: ${contract.title} – Gross ICT`,
+            html: confirmEmailHtml,
+          };
+
+          if (pdfBase64) {
+            const safeTitle = contract.title.replace(/[^a-zA-Z0-9äöüÄÖÜ_\- ]/g, "").replace(/\s+/g, "_");
+            emailPayload.attachments = [{ filename: `Vertrag_${safeTitle}.pdf`, content: pdfBase64 }];
+          }
+
           await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              from: "Gross ICT <info@gross-ict.ch>",
-              to: [customerEmail],
-              subject: `Ihr unterzeichneter Vertrag: ${contract.title} – Gross ICT`,
-              html: confirmEmailHtml,
-            }),
+            body: JSON.stringify(emailPayload),
           });
           console.log(`[contract-page] Confirmation email sent to ${customerEmail}`);
         }

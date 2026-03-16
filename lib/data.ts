@@ -955,6 +955,44 @@ export async function deleteContract(id: string) {
     return { success: true };
 }
 
+export async function getContractActivities(contractId: string) {
+    const { data, error } = await supabase
+        .from("contract_activities")
+        .select("*")
+        .eq("contract_id", contractId)
+        .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function logContractActivity(
+    contractId: string,
+    type: string,
+    description: string,
+    userName?: string
+) {
+    let resolvedName = userName || "System";
+    if (!userName) {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            resolvedName = session?.user?.user_metadata?.full_name ||
+                session?.user?.user_metadata?.name ||
+                `${session?.user?.user_metadata?.first_name || ""} ${session?.user?.user_metadata?.last_name || ""}`.trim() ||
+                session?.user?.email || "System";
+        } catch { /* keep default */ }
+    }
+    const { error } = await supabase
+        .from("contract_activities")
+        .insert({
+            contract_id: contractId,
+            type,
+            description,
+            user_name: resolvedName,
+        });
+    if (error) console.error("Failed to log contract activity:", error.message);
+}
+
 export async function uploadDocument(customerId: string, uri: string, filename: string): Promise<string> {
     try {
         const path = `${customerId}/${Date.now()}_${filename.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;

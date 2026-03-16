@@ -456,6 +456,7 @@ export default function ContractsScreen() {
               `Möchten Sie den Vertrag "${c.title}" wirklich löschen?`,
               async () => {
                 try {
+                  await Data.logContractActivity(c.id, "deleted", `Vertrag "${c.title}" wurde gelöscht`);
                   await Data.deleteContract(c.id);
                   setSelectedContract(null);
                   queryClient.invalidateQueries({ queryKey: ["contracts"] });
@@ -514,6 +515,11 @@ function ContractDetailsModal({
 
   const queryClient = useQueryClient();
 
+  const { data: activities = [] } = useQuery({
+    queryKey: ["contract_activities", contract.id],
+    queryFn: () => Data.getContractActivities(contract.id),
+  });
+
   const handleSendForSignature = async () => {
     if (!contract.customer_id) {
       showAlert("Fehler", "Kein Kunde zugewiesen.");
@@ -537,8 +543,10 @@ function ContractDetailsModal({
             throw new Error(detail);
           }
           if (data?.error) throw new Error(data.error);
-          showAlert("Erfolg", "Vertrag wurde per E-Mail zur Unterschrift gesendet.");
+          showToast("Vertrag wurde per E-Mail zur Unterschrift gesendet.");
           queryClient.invalidateQueries({ queryKey: ["contracts"] });
+          queryClient.invalidateQueries({ queryKey: ["contract_activities", contract.id] });
+          await Data.logContractActivity(contract.id, "sent", `Vertrag per E-Mail an den Kunden gesendet`);
         } catch (err: any) {
           showAlert("Fehler", err.message || "E-Mail konnte nicht gesendet werden");
         } finally {
@@ -572,7 +580,8 @@ function ContractDetailsModal({
 
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
-      showAlert("Erfolg", "Vertrag wurde erfolgreich gekündigt");
+      await Data.logContractActivity(contract.id, "cancelled", `Vertrag gekündigt zum ${cancelDate}`);
+      showToast("Vertrag wurde erfolgreich gekündigt");
       setShowCancelModal(false);
       onClose();
     } catch (err: any) {
@@ -722,6 +731,47 @@ function ContractDetailsModal({
                     <Text className="text-xs text-muted mt-1">
                       Dieser Vertrag wurde noch nicht zur Unterschrift an den Kunden gesendet.
                     </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Aktivitätsverlauf */}
+              <View className="bg-surface rounded-xl p-4 border border-border">
+                <Text className="text-lg font-bold text-foreground mb-3">Aktivitätsverlauf</Text>
+                {activities.length === 0 ? (
+                  <Text className="text-sm text-muted">Noch keine Aktivitäten vorhanden.</Text>
+                ) : (
+                  <View className="gap-0">
+                    {activities.map((a: any, idx: number) => {
+                      const iconMap: Record<string, { name: string; color: string }> = {
+                        created: { name: "plus.circle.fill", color: "#22c55e" },
+                        edited: { name: "pencil.circle.fill", color: "#3b82f6" },
+                        sent: { name: "paperplane.fill", color: "#8b5cf6" },
+                        signed: { name: "checkmark.seal.fill", color: "#22c55e" },
+                        cancelled: { name: "xmark.circle.fill", color: "#f59e0b" },
+                        deleted: { name: "trash.fill", color: "#ef4444" },
+                        viewed: { name: "eye.fill", color: "#6366f1" },
+                      };
+                      const icon = iconMap[a.type] || { name: "clock.fill", color: colors.muted };
+                      const isLast = idx === activities.length - 1;
+                      return (
+                        <View key={a.id} className="flex-row">
+                          <View className="items-center mr-3" style={{ width: 24 }}>
+                            <IconSymbol name={icon.name as any} size={18} color={icon.color} />
+                            {!isLast && (
+                              <View style={{ width: 2, flex: 1, backgroundColor: colors.border, marginVertical: 2 }} />
+                            )}
+                          </View>
+                          <View className="flex-1 pb-3">
+                            <Text className="text-sm text-foreground">{a.description}</Text>
+                            <Text className="text-xs text-muted mt-1">
+                              {new Date(a.created_at).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              {a.user_name && a.user_name !== "System" ? ` · ${a.user_name}` : ""}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
                   </View>
                 )}
               </View>

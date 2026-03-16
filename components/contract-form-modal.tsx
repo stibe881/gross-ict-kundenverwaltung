@@ -151,8 +151,12 @@ export function ContractFormModal({
 
       if (contract?.id) {
         await Data.updateContract(contract.id, contractData);
+        await Data.logContractActivity(contract.id, "edited", `Vertrag "${formData.title}" wurde bearbeitet`);
       } else {
-        await Data.createContract(contractData);
+        const newContract = await Data.createContract(contractData);
+        if (newContract?.id) {
+          await Data.logContractActivity(newContract.id, "created", `Vertrag "${formData.title}" wurde erstellt`);
+        }
       }
       onSuccess?.();
       onClose();
