@@ -104,6 +104,12 @@ export default function AccountingScreen() {
     return unique.sort() as string[];
   }, [expenses]);
 
+  const knownDescriptions = useMemo(() => {
+    if (!expenses) return [];
+    const unique = Array.from(new Set(expenses.map((e: any) => e.description).filter(Boolean)));
+    return unique.sort() as string[];
+  }, [expenses]);
+
   // Fetch Year Status
   useEffect(() => {
     Data.getAccountingYear(selectedYear).then(res => {
@@ -1623,6 +1629,7 @@ export default function AccountingScreen() {
         expense={editingExpense}
         initialScanReceipt={scannedReceipt}
         knownSuppliers={knownSuppliers}
+        knownDescriptions={knownDescriptions}
       />
 
       <ScenarioBookingModal

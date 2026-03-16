@@ -43,9 +43,10 @@ interface ExpenseFormModalProps {
     expense?: any; // Für Bearbeitung
     initialScanReceipt?: { uri: string; name: string; type: string } | null;
     knownSuppliers?: string[];
+    knownDescriptions?: string[];
 }
 
-export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initialScanReceipt, knownSuppliers = [] }: ExpenseFormModalProps) {
+export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initialScanReceipt, knownSuppliers = [], knownDescriptions = [] }: ExpenseFormModalProps) {
     const colors = useColors();
     const [loading, setLoading] = useState(false);
     const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -57,6 +58,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
     const [existingReceiptPath, setExistingReceiptPath] = useState<string | null>(null);
     const [existingReceiptUrl, setExistingReceiptUrl] = useState<string | null>(null);
     const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+    const [showDescriptionDropdown, setShowDescriptionDropdown] = useState(false);
     const [isDragActive, setIsDragActive] = useState(false);
 
     const [form, setForm] = useState({
@@ -470,19 +472,45 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                     </View>
 
                     {/* Beschreibung */}
-                    <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border }}>
+                    <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border, zIndex: 20 }}>
                         <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 6, fontWeight: "600" }}>Beschreibung *</Text>
                         <TextInput
                             style={{ fontSize: 16, color: colors.foreground, padding: 0 }}
                             value={form.description}
-                            onChangeText={(v) => setForm({ ...form, description: v })}
+                            onChangeText={(v) => {
+                                setForm({ ...form, description: v });
+                                setShowDescriptionDropdown(true);
+                            }}
+                            onFocus={() => setShowDescriptionDropdown(true)}
+                            onBlur={() => setTimeout(() => setShowDescriptionDropdown(false), 200)}
                             placeholder="z.B. Adobe Creative Cloud"
                             placeholderTextColor={colors.muted}
                         />
+                        {showDescriptionDropdown && knownDescriptions.length > 0 && form.description.length > 0 && (
+                            <View style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, marginTop: 4, zIndex: 20, maxHeight: 150, overflow: 'hidden' }}>
+                                <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                                    {knownDescriptions
+                                        .filter(d => d.toLowerCase().includes(form.description.toLowerCase()) && d !== form.description)
+                                        .slice(0, 5)
+                                        .map(d => (
+                                            <TouchableOpacity
+                                                key={`desc-${d}`}
+                                                style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}
+                                                onPress={() => {
+                                                    setForm({ ...form, description: d });
+                                                    setShowDescriptionDropdown(false);
+                                                }}
+                                            >
+                                                <Text style={{ color: colors.foreground }}>{d}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                </ScrollView>
+                            </View>
+                        )}
                     </View>
 
                     {/* Datum & Lieferant */}
-                    <View style={{ flexDirection: "row", gap: 12 }}>
+                    <View style={{ flexDirection: "row", gap: 12, zIndex: 10 }}>
                         <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border }}>
                             <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 6, fontWeight: "600" }}>Datum</Text>
                             <TextInput
