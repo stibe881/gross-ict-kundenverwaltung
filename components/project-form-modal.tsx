@@ -16,6 +16,20 @@ import { useQuery } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert } from "@/lib/alert";
 
+// Date format helpers: display DD.MM.YYYY <-> storage YYYY-MM-DD
+const isoToDisplay = (iso: string) => {
+    if (!iso) return "";
+    const parts = iso.split("-");
+    if (parts.length !== 3) return iso;
+    return `${parts[2]}.${parts[1]}.${parts[0]}`;
+};
+const displayToIso = (display: string) => {
+    if (!display) return "";
+    const parts = display.split(".");
+    if (parts.length !== 3) return display;
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+};
+
 interface Props {
     visible: boolean;
     project?: any;
@@ -109,8 +123,8 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
             setDescription(project.description || "");
             setCustomerId(project.customer_id || "");
             setBudget(project.budget?.toString() || "");
-            setStartDate(project.start_date || "");
-            setEndDate(project.end_date || "");
+            setStartDate(isoToDisplay(project.start_date || ""));
+            setEndDate(isoToDisplay(project.end_date || ""));
             setStatus(project.status || "planning");
             setPriority(project.priority || "medium");
             setNotes(project.notes || "");
@@ -123,7 +137,8 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
             setCustomerId("");
             setCustomerSearch("");
             setBudget("");
-            setStartDate(new Date().toISOString().split("T")[0]);
+            const today = new Date();
+            setStartDate(`${String(today.getDate()).padStart(2,'0')}.${String(today.getMonth()+1).padStart(2,'0')}.${today.getFullYear()}`);
             setEndDate("");
             setStatus("planning");
             setPriority("medium");
@@ -149,8 +164,8 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
                 description: description.trim(),
                 customer_id: customerId,
                 budget: parseFloat(budget) || 0,
-                start_date: startDate || null,
-                end_date: endDate || null,
+                start_date: displayToIso(startDate) || null,
+                end_date: displayToIso(endDate) || null,
                 status,
                 priority,
                 notes: notes.trim() || null,
@@ -164,7 +179,7 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
                 // Meilensteine aus Vorlage erstellen
                 const tmpl = PROJECT_TEMPLATES.find((t) => t.key === selectedTemplate);
                 if (tmpl && newProject?.id && startDate) {
-                    const base = new Date(startDate);
+                    const base = new Date(displayToIso(startDate));
                     for (let i = 0; i < tmpl.milestones.length; i++) {
                         const m = tmpl.milestones[i];
                         const dueDate = new Date(base);
@@ -264,9 +279,9 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
                                                     // End date from last milestone
                                                     const lastMs = tmpl.milestones[tmpl.milestones.length - 1];
                                                     if (startDate && lastMs) {
-                                                        const end = new Date(startDate);
+                                                        const end = new Date(displayToIso(startDate));
                                                         end.setDate(end.getDate() + lastMs.dayOffset);
-                                                        setEndDate(end.toISOString().split('T')[0]);
+                                                        setEndDate(isoToDisplay(end.toISOString().split('T')[0]));
                                                     }
                                                 }
                                             }}
@@ -290,7 +305,7 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
                                     {PROJECT_TEMPLATES.find(t => t.key === selectedTemplate)?.milestones.map((m, i) => {
                                         let dateStr = '';
                                         if (startDate) {
-                                            const d = new Date(startDate);
+                                            const d = new Date(displayToIso(startDate));
                                             d.setDate(d.getDate() + m.dayOffset);
                                             dateStr = d.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' });
                                         }
@@ -520,7 +535,7 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
                             <TextInput
                                 value={startDate}
                                 onChangeText={setStartDate}
-                                placeholder="YYYY-MM-DD"
+                                placeholder="DD.MM.YYYY"
                                 placeholderTextColor={colors.muted}
                                 style={{
                                     backgroundColor: colors.surface,
@@ -535,7 +550,7 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
                             <TextInput
                                 value={endDate}
                                 onChangeText={setEndDate}
-                                placeholder="YYYY-MM-DD"
+                                placeholder="DD.MM.YYYY"
                                 placeholderTextColor={colors.muted}
                                 style={{
                                     backgroundColor: colors.surface,

@@ -7,13 +7,12 @@ import {
     Modal,
     ScrollView,
     ActivityIndicator,
-    Alert,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import * as Data from "@/lib/data";
 import { formatDate, formatCurrency } from "@/lib/format";
-import { showAlert } from "@/lib/alert";
+import { showAlert, showConfirm } from "@/lib/alert";
 import { ProjectFormModal } from "./project-form-modal";
 
 interface Props {
@@ -220,21 +219,15 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     };
 
     const handleDeleteMilestone = (milestone: any) => {
-        Alert.alert(
+        showConfirm(
             "Meilenstein löschen",
             `"${milestone.title}" wirklich löschen?`,
-            [
-                { text: "Abbrechen", style: "cancel" },
-                {
-                    text: "Löschen",
-                    style: "destructive",
-                    onPress: async () => {
-                        await Data.deleteMilestone(milestone.id);
-                        await loadMilestones();
-                        onUpdate();
-                    },
-                },
-            ]
+            async () => {
+                await Data.deleteMilestone(milestone.id);
+                await loadMilestones();
+                onUpdate();
+            },
+            "Löschen"
         );
     };
 
@@ -292,20 +285,14 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     };
 
     const handleDeleteTask = (task: any) => {
-        Alert.alert(
+        showConfirm(
             "Aufgabe löschen",
             `"${task.title}" wirklich löschen?`,
-            [
-                { text: "Abbrechen", style: "cancel" },
-                {
-                    text: "Löschen",
-                    style: "destructive",
-                    onPress: async () => {
-                        await Data.deleteProjectTask(task.id);
-                        await loadTasks();
-                    },
-                },
-            ]
+            async () => {
+                await Data.deleteProjectTask(task.id);
+                await loadTasks();
+            },
+            "Löschen"
         );
     };
 
@@ -594,7 +581,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                         <TextInput
                             value={newMilestoneDueDate}
                             onChangeText={setNewMilestoneDueDate}
-                            placeholder="Fällig am (YYYY-MM-DD)"
+                            placeholder="Fällig am (DD.MM.YYYY)"
                             placeholderTextColor={colors.muted}
                             style={{
                                 backgroundColor: colors.surface,
@@ -1066,21 +1053,15 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                             {project.project_number}
                         </Text>
                         <TouchableOpacity onPress={() => {
-                            Alert.alert(
+                            showConfirm(
                                 "Projekt löschen",
                                 `Möchten Sie "${project.title}" wirklich löschen?`,
-                                [
-                                    { text: "Abbrechen", style: "cancel" },
-                                    {
-                                        text: "Löschen",
-                                        style: "destructive",
-                                        onPress: async () => {
-                                            await Data.deleteProject(project.id);
-                                            onUpdate();
-                                            onClose();
-                                        },
-                                    },
-                                ]
+                                async () => {
+                                    await Data.deleteProject(project.id);
+                                    onUpdate();
+                                    onClose();
+                                },
+                                "Löschen"
                             );
                         }}>
                             <IconSymbol name="trash" size={20} color={colors.error || "#EF4444"} />
