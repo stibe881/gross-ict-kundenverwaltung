@@ -20,15 +20,32 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Linking from "expo-linking";
 
+const toDisplayDate = (d: string) => {
+    if (!d) return "";
+    if (d.includes(".")) return d;
+    const p = d.slice(0,10).split("-");
+    if(p.length === 3) return `${p[2]}.${p[1]}.${p[0]}`;
+    return d;
+};
+
+const toDbDate = (d: string) => {
+    if (!d) return "";
+    if (d.includes("-")) return d.slice(0,10);
+    const p = d.split(".");
+    if(p.length === 3) return `${p[2]}-${p[1]}-${p[0]}`;
+    return d;
+};
+
 interface ExpenseFormModalProps {
     visible: boolean;
     onClose: () => void;
     onSuccess: () => void;
     expense?: any; // Für Bearbeitung
     initialScanReceipt?: { uri: string; name: string; type: string } | null;
+    knownSuppliers?: string[];
 }
 
-export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initialScanReceipt }: ExpenseFormModalProps) {
+export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initialScanReceipt, knownSuppliers = [] }: ExpenseFormModalProps) {
     const colors = useColors();
     const [loading, setLoading] = useState(false);
     const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -39,9 +56,11 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
     const [receiptFile, setReceiptFile] = useState<{ uri: string; name: string; type: string; size?: number } | null>(null);
     const [existingReceiptPath, setExistingReceiptPath] = useState<string | null>(null);
     const [existingReceiptUrl, setExistingReceiptUrl] = useState<string | null>(null);
+    const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+    const [isDragActive, setIsDragActive] = useState(false);
 
     const [form, setForm] = useState({
-        date: new Date().toISOString().slice(0, 10),
+        date: toDisplayDate(new Date().toISOString().slice(0, 10)),
         amount: "",
         description: "",
         category: "other",
@@ -81,7 +100,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
             }
 
             setForm({
-                date: expense.date || expense.expense_date || new Date().toISOString().slice(0, 10),
+                date: toDisplayDate(expense.date || expense.expense_date || new Date().toISOString().slice(0, 10)),
                 amount: expense.amount ? Math.abs(expense.amount).toString() : "",
                 description: expense.description || "",
                 category: expense.category || "other",
@@ -100,7 +119,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
             setReceiptFile(null);
         } else {
             setForm({
-                date: new Date().toISOString().slice(0, 10),
+                date: toDisplayDate(new Date().toISOString().slice(0, 10)),
                 amount: "",
                 description: "",
                 category: "other",
@@ -183,7 +202,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 setForm((prev) => ({
                     ...prev,
                     amount: data.amount ? String(data.amount) : prev.amount,
-                    date: data.date ? data.date : prev.date,
+                    date: data.date ? toDisplayDate(data.date) : prev.date,
                     supplier: data.supplier ? data.supplier : prev.supplier,
                     description: data.description ? data.description : prev.description,
                     tax_rate: (data.tax_rate !== null && data.tax_rate !== undefined) ? String(data.tax_rate) : prev.tax_rate,
@@ -264,6 +283,23 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
         }
     };
 
+    const handleWebFileDrop = (e: any) => {
+        if (Platform.OS !== 'web') return;
+        e.preventDefault();
+        setIsDragActive(false);
+        const files = e.dataTransfer?.files;
+        if (files && files.length > 0) {
+            const file = files[0];
+            const url = URL.createObjectURL(file);
+            setReceiptFile({
+                uri: url,
+                name: file.name,
+                type: file.type || "application/octet-stream",
+                size: file.size,
+            });
+        }
+    };
+
     const handleRemoveReceipt = () => {
         if (receiptFile) {
             setReceiptFile(null);
@@ -330,7 +366,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
             const finalAmount = isIncome ? -Math.abs(rawAmount) : Math.abs(rawAmount);
 
             const payload = {
-                date: form.date,
+                date: toDbDate(form.date),
                 amount: finalAmount,
                 description: form.description.trim(),
                 category: form.category,
@@ -452,19 +488,46 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                                 style={{ fontSize: 15, color: colors.foreground, padding: 0 }}
                                 value={form.date}
                                 onChangeText={(v) => setForm({ ...form, date: v })}
-                                placeholder="YYYY-MM-DD"
+                                placeholder="DD.MM.YYYY"
                                 placeholderTextColor={colors.muted}
+                                keyboardType="numbers-and-punctuation"
                             />
                         </View>
-                        <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border }}>
+                        <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border, zIndex: 10 }}>
                             <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 6, fontWeight: "600" }}>Lieferant</Text>
                             <TextInput
                                 style={{ fontSize: 15, color: colors.foreground, padding: 0 }}
                                 value={form.supplier}
-                                onChangeText={(v) => setForm({ ...form, supplier: v })}
+                                onChangeText={(v) => {
+                                    setForm({ ...form, supplier: v });
+                                    setShowSupplierDropdown(true);
+                                }}
+                                onFocus={() => setShowSupplierDropdown(true)}
+                                onBlur={() => setTimeout(() => setShowSupplierDropdown(false), 200)}
                                 placeholder="Optional"
                                 placeholderTextColor={colors.muted}
                             />
+                            {showSupplierDropdown && knownSuppliers.length > 0 && form.supplier.length > 0 && (
+                                <View style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, marginTop: 4, zIndex: 20, maxHeight: 150, overflow: 'hidden' }}>
+                                    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                                        {knownSuppliers
+                                            .filter(s => s.toLowerCase().includes(form.supplier.toLowerCase()) && s !== form.supplier)
+                                            .slice(0, 5)
+                                            .map(s => (
+                                                <TouchableOpacity
+                                                    key={s}
+                                                    style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}
+                                                    onPress={() => {
+                                                        setForm({ ...form, supplier: s });
+                                                        setShowSupplierDropdown(false);
+                                                    }}
+                                                >
+                                                    <Text style={{ color: colors.foreground }}>{s}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                    </ScrollView>
+                                </View>
+                            )}
                         </View>
                     </View>
 
@@ -669,22 +732,36 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                                 </View>
                             </View>
                         ) : (
-                            <View style={{ flexDirection: "row", gap: 8 }}>
-                                <TouchableOpacity 
-                                    onPress={handleTakePhoto}
-                                    style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, alignItems: "center", gap: 6 }}
+                            <View>
+                                <View 
+                                    style={{ 
+                                        flexDirection: "row", 
+                                        gap: 8,
+                                        borderColor: isDragActive ? colors.primary : "transparent",
+                                        borderWidth: isDragActive ? 2 : 0,
+                                        borderRadius: 10,
+                                        padding: isDragActive ? 4 : 0
+                                    }}
+                                    {...(Platform.OS === 'web' ? {
+                                        onDragOver: (e: any) => { e.preventDefault(); setIsDragActive(true); },
+                                        onDragLeave: (e: any) => { e.preventDefault(); setIsDragActive(false); },
+                                        onDrop: handleWebFileDrop
+                                    } : {})}
                                 >
-                                    <IconSymbol name="camera.fill" size={20} color={colors.primary} />
-                                    <Text style={{ fontSize: 12, color: colors.foreground, fontWeight: "500" }}>Kamera</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity 
-                                    onPress={handlePickImage}
-                                    style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, alignItems: "center", gap: 6 }}
-                                >
-                                    <IconSymbol name="photo.fill" size={20} color={colors.primary} />
-                                    <Text style={{ fontSize: 12, color: colors.foreground, fontWeight: "500" }}>Foto</Text>
-                                </TouchableOpacity>
-                                {Platform.OS !== "web" && (
+                                    <TouchableOpacity 
+                                        onPress={handleTakePhoto}
+                                        style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, alignItems: "center", gap: 6 }}
+                                    >
+                                        <IconSymbol name="camera.fill" size={20} color={colors.primary} />
+                                        <Text style={{ fontSize: 12, color: colors.foreground, fontWeight: "500" }}>Kamera</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        onPress={handlePickImage}
+                                        style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, alignItems: "center", gap: 6 }}
+                                    >
+                                        <IconSymbol name="photo.fill" size={20} color={colors.primary} />
+                                        <Text style={{ fontSize: 12, color: colors.foreground, fontWeight: "500" }}>Foto</Text>
+                                    </TouchableOpacity>
                                     <TouchableOpacity 
                                         onPress={handlePickDocument}
                                         style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, alignItems: "center", gap: 6 }}
@@ -692,6 +769,12 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                                         <IconSymbol name="folder.fill" size={20} color={colors.primary} />
                                         <Text style={{ fontSize: 12, color: colors.foreground, fontWeight: "500" }}>Datei</Text>
                                     </TouchableOpacity>
+                                </View>
+                                
+                                {Platform.OS === 'web' && (
+                                    <Text style={{ textAlign: "center", fontSize: 12, color: colors.muted, marginTop: 12 }}>
+                                        Oder Datei hierher ziehen (Drag & Drop)
+                                    </Text>
                                 )}
                             </View>
                         )}
