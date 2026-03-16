@@ -286,8 +286,9 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
     const handleWebFileDrop = (e: any) => {
         if (Platform.OS !== 'web') return;
         e.preventDefault();
+        e.stopPropagation();
         setIsDragActive(false);
-        const files = e.dataTransfer?.files;
+        const files = e.dataTransfer?.files || e.nativeEvent?.dataTransfer?.files;
         if (files && files.length > 0) {
             const file = files[0];
             const url = URL.createObjectURL(file);
@@ -743,8 +744,9 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                                         padding: isDragActive ? 4 : 0
                                     }}
                                     {...(Platform.OS === 'web' ? {
-                                        onDragOver: (e: any) => { e.preventDefault(); setIsDragActive(true); },
-                                        onDragLeave: (e: any) => { e.preventDefault(); setIsDragActive(false); },
+                                        onDragEnter: (e: any) => { e.preventDefault(); e.stopPropagation(); setIsDragActive(true); },
+                                        onDragOver: (e: any) => { e.preventDefault(); e.stopPropagation(); setIsDragActive(true); },
+                                        onDragLeave: (e: any) => { e.preventDefault(); e.stopPropagation(); setIsDragActive(false); },
                                         onDrop: handleWebFileDrop
                                     } : {})}
                                 >
