@@ -716,9 +716,12 @@ function ContractDetailsModal({
                 ) : (
                   <View className="gap-2">
                     <View className="flex-row items-center gap-2">
-                      <IconSymbol name="pencil.and.outline" size={20} color={colors.muted} />
-                      <Text className="text-sm text-muted">Noch nicht unterschrieben</Text>
+                      <IconSymbol name="paperplane" size={20} color={colors.muted} />
+                      <Text className="text-sm text-muted">Noch nicht gesendet</Text>
                     </View>
+                    <Text className="text-xs text-muted mt-1">
+                      Dieser Vertrag wurde noch nicht zur Unterschrift an den Kunden gesendet.
+                    </Text>
                   </View>
                 )}
               </View>
