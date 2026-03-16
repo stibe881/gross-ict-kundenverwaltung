@@ -863,9 +863,9 @@ Deno.serve(async (req) => {
 
           const confirmEmailHtml = `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-              <div style="background:#1a1a2e;color:white;padding:24px;border-radius:8px 8px 0 0;">
+              <div style="background:linear-gradient(135deg,#CAFF5A 0%,#22c55e 100%);color:#111;padding:24px;border-radius:8px 8px 0 0;">
                 <h1 style="margin:0;font-size:20px;">Gross ICT</h1>
-                <p style="margin:4px 0 0;opacity:0.8;font-size:14px;">Vertragsbestätigung</p>
+                <p style="margin:4px 0 0;font-size:14px;">Vertragsbestätigung</p>
               </div>
               <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 8px 8px;">
                 <p>Guten Tag ${customerName},</p>
@@ -880,8 +880,17 @@ Deno.serve(async (req) => {
                     <tr><td style="padding:4px 0;color:#666;">Jahresbetrag:</td><td style="padding:4px 0;font-weight:600;">CHF ${fmtCHF(Number(contract.annual_amount || contract.amount || 0))}</td></tr>
                   </table>
                 </div>
+
+                <div style="text-align:center;margin:24px 0;">
+                  <a href="https://vertrag.gross-ict.ch/?token=${token}" style="display:inline-block;background:#CAFF5A;color:#111;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+                    📄 Unterzeichneten Vertrag ansehen
+                  </a>
+                </div>
+                <p style="color:#666;font-size:13px;">Über den obigen Link können Sie Ihren unterzeichneten Vertrag jederzeit einsehen und als PDF speichern (Drucken → Als PDF speichern).</p>
+
                 <p>Bitte bewahren Sie diese E-Mail als Bestätigung auf.</p>
                 <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
+                <hr style="border:none;border-top:1px solid #eee;margin:20px 0;" />
                 <p>Freundliche Grüsse<br/><strong>Gross ICT</strong></p>
               </div>
             </div>
@@ -893,7 +902,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               from: "Gross ICT <info@gross-ict.ch>",
               to: [customerEmail],
-              subject: `Vertragsbestätigung: ${contract.title} – Gross ICT`,
+              subject: `Ihr unterzeichneter Vertrag: ${contract.title} – Gross ICT`,
               html: confirmEmailHtml,
             }),
           });
