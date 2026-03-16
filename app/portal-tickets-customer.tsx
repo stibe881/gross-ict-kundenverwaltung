@@ -13,7 +13,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Data from "@/lib/data";
@@ -45,6 +45,7 @@ export default function PortalTicketsScreen() {
   const [filter, setFilter] = useState<"all" | TicketStatus>("all");
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [portalUserId, setPortalUserId] = useState<string | null>(null);
+  const { ticketId } = useLocalSearchParams();
 
   useEffect(() => {
     Data.supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
@@ -62,6 +63,15 @@ export default function PortalTicketsScreen() {
     queryFn: () => Data.getPortalTickets(customerId!),
     enabled: !!customerId,
   });
+
+  useEffect(() => {
+    if (ticketId && tickets.length > 0) {
+      const foundTicket = tickets.find((t: Ticket) => t.id.toString() === ticketId.toString());
+      if (foundTicket && selectedTicket?.id !== foundTicket.id) {
+        setSelectedTicket(foundTicket);
+      }
+    }
+  }, [ticketId, tickets]);
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ["unreadPortalNotifications", portalUserId],

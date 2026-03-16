@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,10 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +42,118 @@ export function TicketFormModal({
   });
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showPriorityPicker, setShowPriorityPicker] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<any[]>([]);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Tickets Anhänge laden
+  const { data: existingAttachments = [], refetch: refetchAttachments } = useQuery({
+    queryKey: ["ticketAttachments", ticket?.id],
+    queryFn: () => Data.getTicketAttachments(ticket.id),
+    enabled: !!ticket?.id,
+  });
+
+  // Global Drag & Drop Handler (Web only)
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !visible) return;
+
+    const handleDragOver = (e: any) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragActive(true);
+    };
+
+    const handleDragLeave = (e: any) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragActive(false);
+    };
+
+    const handleDrop = (e: any) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragActive(false);
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+        const newFiles = Array.from(files).map((file: any) => ({
+          uri: URL.createObjectURL(file),
+          name: file.name,
+          type: file.type || "application/octet-stream",
+          size: file.size,
+          file: file,
+        }));
+        setPendingFiles((prev) => [...prev, ...newFiles]);
+      }
+    };
+
+    window.addEventListener('dragenter', handleDragOver);
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('dragleave', handleDragLeave);
+    window.addEventListener('drop', handleDrop);
+
+    return () => {
+      window.removeEventListener('dragenter', handleDragOver);
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('dragleave', handleDragLeave);
+      window.removeEventListener('drop', handleDrop);
+    };
+  }, [visible]);
+
+  // Handler für Kamera (nur Mobile sinnvoll, aber geht per Web-Fallback)
+  const handleTakePhoto = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        setPendingFiles((prev) => [...prev, {
+          uri: asset.uri,
+          name: asset.fileName || `Foto_${Date.now()}.jpg`,
+          type: asset.mimeType || "image/jpeg",
+          size: asset.fileSize,
+        }]);
+      }
+    } catch (_e) {
+      Alert.alert("Fehler", "Kamera konnte nicht gestartet werden.");
+    }
+  };
+
+  // Handler für Datei-Explorer
+  const handlePickFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        setPendingFiles((prev) => [...prev, {
+          uri: asset.uri,
+          name: asset.name,
+          type: asset.mimeType || "application/octet-stream",
+          size: asset.size,
+          file: asset.file, // For web native File object
+        }]);
+      }
+    } catch (_e) {
+      // Ignored
+    }
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingAttachment = async (attachment: any) => {
+    try {
+      await Data.deleteTicketAttachment(attachment.id, attachment.file_path);
+      refetchAttachments();
+    } catch (e: any) {
+      Alert.alert("Fehler", "Konnte den Anhang nicht löschen: " + e.message);
+    }
+  };
 
   // Kunden laden
   const { data: customers } = useQuery({
@@ -56,6 +171,7 @@ export function TicketFormModal({
       return;
     }
 
+    setIsUploading(true);
     try {
       const ticketData = {
         title: formData.title,
@@ -72,8 +188,18 @@ export function TicketFormModal({
         newTicket = await Data.createTicket(ticketData);
       }
 
+      // Upload pending files
+      const finalTicketId = ticket?.id || newTicket.id;
+      if (finalTicketId && pendingFiles.length > 0) {
+        for (const file of pendingFiles) {
+          await Data.uploadTicketAttachment(finalTicketId, file);
+        }
+        setPendingFiles([]);
+      }
+
       // Invalidate queries to refresh
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["ticketAttachments", finalTicketId] });
 
       // Sende Push-Benachrichtigung für neues Ticket
       if (!ticket && selectedCustomer) {
@@ -86,7 +212,9 @@ export function TicketFormModal({
       onSuccess?.(newTicket);
       onClose();
     } catch (error: any) {
-      alert("Fehler: " + error.message);
+      Alert.alert("Fehler", error.message);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -229,6 +357,70 @@ export function TicketFormModal({
                   </Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Dateianhänge */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Dateianhänge
+                </Text>
+                <View className={`border-2 rounded-lg p-4 ${isDragActive ? "border-primary bg-primary/10 border-dashed" : "border-border bg-surface"}`}>
+                  <View className="flex-row gap-3 mb-4">
+                    {Platform.OS !== 'web' && (
+                      <TouchableOpacity
+                        className="flex-1 bg-secondary rounded-lg flex-row items-center justify-center py-3 gap-2"
+                        onPress={handleTakePhoto}
+                      >
+                        <IconSymbol name="camera" size={20} color={colors.primary} />
+                        <Text className="text-primary font-medium">Foto</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                      className="flex-1 bg-secondary rounded-lg flex-row items-center justify-center py-3 gap-2"
+                      onPress={handlePickFile}
+                    >
+                      <IconSymbol name="doc" size={20} color={colors.primary} />
+                      <Text className="text-primary font-medium">Datei</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {Platform.OS === 'web' && (
+                    <Text className="text-center text-muted mb-4">
+                      Oder Dateien per Drag & Drop hier ablegen
+                    </Text>
+                  )}
+
+                  {/* Bereit zum Hochladen */}
+                  {pendingFiles.length > 0 && (
+                    <View className="mb-3 gap-2">
+                      <Text className="text-xs font-semibold text-muted uppercase">Wird hochgeladen</Text>
+                      {pendingFiles.map((file, index) => (
+                        <View key={index} className="flex-row items-center bg-background rounded p-2 border border-border border-dashed">
+                          <IconSymbol name="arrow.up.doc.fill" size={16} color={colors.primary} />
+                          <Text className="flex-1 text-sm text-foreground ml-2" numberOfLines={1}>{file.name}</Text>
+                          <TouchableOpacity onPress={() => removePendingFile(index)} className="p-1">
+                            <IconSymbol name="xmark" size={16} color={colors.error} />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Gespeicherte Dateien */}
+                  {existingAttachments.length > 0 && (
+                    <View className="gap-2">
+                      <Text className="text-xs font-semibold text-muted uppercase">Gespeichert</Text>
+                      {existingAttachments.map((file: any) => (
+                        <View key={file.id} className="flex-row items-center bg-background rounded p-2 border border-border">
+                          <IconSymbol name="doc.fill" size={16} color={colors.muted} />
+                          <Text className="flex-1 text-sm text-foreground ml-2" numberOfLines={1}>{file.file_name}</Text>
+                          <TouchableOpacity onPress={() => removeExistingAttachment(file)} className="p-1">
+                            <IconSymbol name="trash" size={16} color={colors.error} />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </View>
             </View>
           </ScrollView>
 
@@ -244,13 +436,21 @@ export function TicketFormModal({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              className="flex-1 bg-primary py-3 rounded-lg"
+              className="flex-1 bg-primary py-3 rounded-lg flex-row justify-center items-center gap-2"
               onPress={handleSubmit}
               activeOpacity={0.8}
+              disabled={isUploading}
             >
-              <Text className="text-background font-semibold text-center">
-                {ticket ? "Aktualisieren" : "Erstellen"}
-              </Text>
+              {isUploading ? (
+                <>
+                  <ActivityIndicator size="small" color="#fff" />
+                  <Text className="text-background font-semibold text-center">Lädt...</Text>
+                </>
+              ) : (
+                <Text className="text-background font-semibold text-center">
+                  {ticket ? "Aktualisieren" : "Erstellen"}
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>

@@ -744,7 +744,7 @@ export async function convertQuoteToInvoice(quoteId: string) {
             "admin",
             "Angebot angenommen",
             `Das Angebot ${quote.quote_number} wurde angenommen und in eine Rechnung umgewandelt!`,
-            { url: "/quotes" }
+            { url: `/quotes?quoteId=${quote.id}` }
         );
     }
 
@@ -767,7 +767,7 @@ export async function updateQuoteStatus(quoteId: string, status: string) {
                 "admin",
                 "Angebot angenommen",
                 `Das Angebot ${quote.quote_number || quoteId} wurde angenommen!`,
-                { url: "/quotes" }
+                { url: `/quotes?quoteId=${quoteId}` }
             );
         }
     }
@@ -1553,7 +1553,7 @@ export async function addPortalTicketComment(ticketId: number, comment: string, 
 
     // Add Trigger Push here
     const { data: ticket } = await supabase.from("tickets").select("title").eq("id", ticketId).single();
-    triggerPushNotification("all_admins", "admin", "Neue Kunden-Antwort", `Der Kunde hat auf das Ticket "${ticket?.title || ticketId}" geantwortet.`, { url: '/tickets' }).catch(console.error);
+    triggerPushNotification("all_admins", "admin", "Neue Kunden-Antwort", `Der Kunde hat auf das Ticket "${ticket?.title || ticketId}" geantwortet.`, { url: `/tickets?ticketId=${ticketId}` }).catch(console.error);
 
     return data;
 }
@@ -2823,4 +2823,94 @@ export async function getProducts() {
 
     if (error) throw new Error(error.message);
     return data;
+}
+
+// -----------------------------
+// Ticket Attachments
+// -----------------------------
+
+export async function getTicketAttachments(ticketId: string) {
+    const { data, error } = await supabase
+        .from('ticket_attachments')
+        .select('*')
+        .eq('ticket_id', ticketId)
+        .order('created_at', { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function uploadTicketAttachment(ticketId: string, file: any) {
+    // Determine a safe file name and path
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const filePath = `tickets/${ticketId}/${timestamp}_${safeName}`;
+
+    let uploadData;
+
+    // React Native environment (Web vs Mobile handling)
+    if (file.file) {
+        // Web: use File object directly
+        const { data, error } = await supabase.storage
+            .from('ticket_attachments')
+            .upload(filePath, file.file, {
+                contentType: file.mimeType || file.type || 'application/octet-stream',
+            });
+        if (error) throw new Error(error.message);
+        uploadData = data;
+    } else {
+        // Mobile: fetch blob from URI or use base64
+        const response = await fetch(file.uri);
+        const blob = await response.blob();
+        
+        const { data, error } = await supabase.storage
+            .from('ticket_attachments')
+            .upload(filePath, blob, {
+                contentType: file.mimeType || 'application/octet-stream',
+            });
+        if (error) throw new Error(error.message);
+        uploadData = data;
+    }
+
+    // Determine created_by from current user session
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id || null;
+
+    // Save attachment metadata to the database
+    const { data: dbData, error: dbError } = await supabase
+        .from('ticket_attachments')
+        .insert([{
+            ticket_id: ticketId,
+            file_name: file.name,
+            file_path: uploadData.path,
+            file_type: file.mimeType || file.type || 'unknown',
+            created_by: userId
+        }])
+        .select()
+        .single();
+
+    if (dbError) throw new Error(dbError.message);
+    return dbData;
+}
+
+export async function deleteTicketAttachment(attachmentId: string, filePath: string) {
+    // Delete from Storage first
+    const { error: storageError } = await supabase.storage
+        .from('ticket_attachments')
+        .remove([filePath]);
+
+    if (storageError) {
+        console.warn("Could not delete file from storage:", storageError.message);
+        // We still proceed to delete the record if storage deletion fails
+        // (e.g. file might already be gone)
+    }
+
+    // Delete Database record
+    const { error: dbError } = await supabase
+        .from('ticket_attachments')
+        .delete()
+        .eq('id', attachmentId);
+
+    if (dbError) throw new Error(dbError.message);
+    return { success: true };
 }

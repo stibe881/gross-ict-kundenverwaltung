@@ -307,8 +307,8 @@ export async function createTicket(ticket: any) {
   if (error) throw new Error(error.message);
   
   if (data.customer_id) {
-    triggerPushNotification([data.customer_id], "customer", "Neues Ticket", `Es wurde ein neues Ticket für Sie eröffnet: ${data.title}`, { url: '/portal-tickets-customer' }).catch(console.error);
-    triggerPushNotification("all_admins", "admin", "Neues Ticket", `Ein neues Ticket wurde erstellt: ${data.title}`, { url: '/tickets' }).catch(console.error);
+    triggerPushNotification([data.customer_id], "customer", "Neues Ticket", `Es wurde ein neues Ticket für Sie eröffnet: ${data.title}`, { url: `/portal-tickets-customer?ticketId=${data.id}` }).catch(console.error);
+    triggerPushNotification("all_admins", "admin", "Neues Ticket", `Ein neues Ticket wurde erstellt: ${data.title}`, { url: `/tickets?ticketId=${data.id}` }).catch(console.error);
   }
 
   return data;
@@ -327,8 +327,8 @@ export async function updateTicket(id: string, ticket: any) {
   if (error) throw new Error(error.message);
 
   if (oldTicket && data.status && oldTicket.status !== data.status && data.customer_id) {
-    triggerPushNotification([data.customer_id], "customer", "Ticket Status", `Der Status von Ticket "${data.title}" hat sich geändert.`, { url: '/portal-tickets-customer' }).catch(console.error);
-    triggerPushNotification("all_admins", "admin", "Ticket Status", `Der Status von Ticket "${data.title}" hat sich geändert.`, { url: '/tickets' }).catch(console.error);
+    triggerPushNotification([data.customer_id], "customer", "Ticket Status", `Der Status von Ticket "${data.title}" hat sich geändert.`, { url: `/portal-tickets-customer?ticketId=${data.id}` }).catch(console.error);
+    triggerPushNotification("all_admins", "admin", "Ticket Status", `Der Status von Ticket "${data.title}" hat sich geändert.`, { url: `/tickets?ticketId=${data.id}` }).catch(console.error);
   }
 
   return data;
@@ -830,7 +830,7 @@ export async function createTicketComment(comment: any) {
   if (!comment.is_internal) {
     const { data: ticket } = await supabase.from("tickets").select("title, customer_id").eq("id", comment.ticket_id).single();
     if (ticket?.customer_id) {
-      triggerPushNotification([ticket.customer_id], "customer", "Neue Ticket-Antwort", `Gross-ICT hat auf das Ticket "${ticket.title}" geantwortet.`, { url: '/portal-tickets-customer' }).catch(console.error);
+      triggerPushNotification([ticket.customer_id], "customer", "Neue Ticket-Antwort", `Gross-ICT hat auf das Ticket "${ticket.title}" geantwortet.`, { url: `/portal-tickets-customer?ticketId=${comment.ticket_id}` }).catch(console.error);
     }
   }
 

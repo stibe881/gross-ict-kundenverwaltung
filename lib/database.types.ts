@@ -1232,6 +1232,51 @@ export type Database = {
           },
         ]
       }
+      ticket_attachments: {
+        Row: {
+          id: string
+          ticket_id: string
+          file_name: string
+          file_path: string
+          file_type: string | null
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          ticket_id: string
+          file_name: string
+          file_path: string
+          file_type?: string | null
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          ticket_id?: string
+          file_name?: string
+          file_path?: string
+          file_type?: string | null
+          created_at?: string
+          created_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_attachments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_attachments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       tickets: {
         Row: {
           assigned_to: string | null
