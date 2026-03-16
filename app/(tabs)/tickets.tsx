@@ -873,6 +873,22 @@ function TicketDetailsModal({
                   </Text>
                 </View>
               </View>
+
+              {/* Gast-Informationen (von Webseite) */}
+              {(!ticket.customer_id && (ticket.contact_name || ticket.contact_email)) && (
+                <View style={{ backgroundColor: colors.primary + "10", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.primary + "30" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                    <IconSymbol name="globe" size={16} color={colors.primary} />
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary, textTransform: "uppercase" }}>Webseite / Gastanfrage</Text>
+                  </View>
+                  <View style={{ gap: 6 }}>
+                    {ticket.contact_name && <Text style={{ fontSize: 14, color: colors.foreground }}><Text style={{ fontWeight: "600" }}>Name:</Text> {ticket.contact_name}</Text>}
+                    {ticket.contact_company && <Text style={{ fontSize: 14, color: colors.foreground }}><Text style={{ fontWeight: "600" }}>Firma:</Text> {ticket.contact_company}</Text>}
+                    {ticket.contact_email && <Text style={{ fontSize: 14, color: colors.foreground }}><Text style={{ fontWeight: "600" }}>E-Mail:</Text> {ticket.contact_email}</Text>}
+                    {ticket.contact_phone && <Text style={{ fontSize: 14, color: colors.foreground }}><Text style={{ fontWeight: "600" }}>Telefon:</Text> {ticket.contact_phone}</Text>}
+                  </View>
+                </View>
+              )}
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
