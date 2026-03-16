@@ -41,6 +41,7 @@ export function TicketFormModal({
     customerId: ticket?.customer_id || ticket?.customerId || null,
   });
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
   const [showPriorityPicker, setShowPriorityPicker] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<any[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -340,22 +341,82 @@ export function TicketFormModal({
                 )}
               </View>
 
-              {/* Kunde auswählen */}
-              <View>
+              {/* Kunde auswählen - Autocomplete */}
+              <View style={{ zIndex: 10 }}>
                 <Text className="text-sm font-semibold text-foreground mb-2">
                   Kunde (optional)
                 </Text>
-                <TouchableOpacity
-                  className="bg-surface border border-border rounded-lg px-4 py-3"
-                  onPress={() => setShowCustomerPicker(true)}
-                  activeOpacity={0.7}
+                <View
+                  className="flex-row items-center rounded-lg border"
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderColor: formData.customerId ? colors.primary : colors.border,
+                  }}
                 >
-                  <Text className={selectedCustomer ? "text-foreground" : "text-muted"}>
-                    {selectedCustomer
-                      ? getCustomerName(selectedCustomer)
-                      : "Kunde auswählen..."}
-                  </Text>
-                </TouchableOpacity>
+                  <IconSymbol name="magnifyingglass" size={16} color={colors.muted} style={{ marginLeft: 12 }} />
+                  <TextInput
+                    value={customerSearch}
+                    onChangeText={(text) => {
+                      setCustomerSearch(text);
+                      setShowCustomerPicker(true);
+                      if (!text.trim()) setFormData({ ...formData, customerId: null });
+                    }}
+                    onFocus={() => setShowCustomerPicker(true)}
+                    placeholder="Kunde suchen..."
+                    placeholderTextColor={colors.muted}
+                    style={{ flex: 1, color: colors.foreground, paddingVertical: 12, paddingHorizontal: 8, fontSize: 14 }}
+                  />
+                  {formData.customerId ? (
+                    <TouchableOpacity
+                      onPress={() => { setFormData({ ...formData, customerId: null }); setCustomerSearch(""); setShowCustomerPicker(true); }}
+                      style={{ paddingRight: 12 }}
+                    >
+                      <IconSymbol name="xmark.circle.fill" size={18} color={colors.muted} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                {showCustomerPicker && !formData.customerId && (() => {
+                  const filtered = (customers || []).filter((c: any) => {
+                    if (!customerSearch.trim()) return true;
+                    const term = customerSearch.toLowerCase();
+                    return getCustomerName(c).toLowerCase().includes(term) || (c.email || "").toLowerCase().includes(term);
+                  });
+                  return (
+                    <View className="rounded-lg border mt-1" style={{ backgroundColor: colors.surface, borderColor: colors.border, maxHeight: 180 }}>
+                      <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
+                        <TouchableOpacity
+                          className="px-3 py-2.5 border-b"
+                          style={{ borderColor: colors.border + '40' }}
+                          activeOpacity={0.6}
+                          onPress={() => { setFormData({ ...formData, customerId: null }); setCustomerSearch(""); setShowCustomerPicker(false); }}
+                        >
+                          <Text className="text-sm" style={{ color: colors.muted }}>Kein Kunde</Text>
+                        </TouchableOpacity>
+                        {filtered.slice(0, 20).map((c: any) => (
+                          <TouchableOpacity
+                            key={c.id}
+                            className="px-3 py-2.5 border-b"
+                            style={{ borderColor: colors.border + '40' }}
+                            activeOpacity={0.6}
+                            onPress={() => { setFormData({ ...formData, customerId: c.id }); setCustomerSearch(getCustomerName(c)); setShowCustomerPicker(false); }}
+                          >
+                            <Text className="text-sm font-semibold" style={{ color: colors.foreground }} numberOfLines={1}>{getCustomerName(c)}</Text>
+                            {c.email && <Text className="text-xs" style={{ color: colors.muted }} numberOfLines={1}>{c.email}</Text>}
+                          </TouchableOpacity>
+                        ))}
+                        {filtered.length === 0 && (
+                          <View className="px-3 py-3"><Text className="text-sm text-muted text-center">Kein Kunde gefunden</Text></View>
+                        )}
+                      </ScrollView>
+                    </View>
+                  );
+                })()}
+                {selectedCustomer && (
+                  <View className="flex-row items-center gap-2 mt-2 px-3 py-2 rounded-lg" style={{ backgroundColor: colors.primary + '15' }}>
+                    <IconSymbol name="checkmark" size={14} color={colors.primary} />
+                    <Text className="text-sm font-semibold" style={{ color: colors.primary }}>{getCustomerName(selectedCustomer)}</Text>
+                  </View>
+                )}
               </View>
 
               {/* Dateianhänge */}
@@ -456,65 +517,7 @@ export function TicketFormModal({
         </View>
       </KeyboardAvoidingView>
 
-      {/* Kunden-Picker Modal */}
-      <Modal
-        visible={showCustomerPicker}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowCustomerPicker(false)}
-      >
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-black/50 justify-end">
-          <View className="bg-background rounded-t-3xl" style={{ maxHeight: "70%" }}>
-            <View className="flex-row items-center justify-between p-4 border-b border-border">
-              <Text className="text-xl font-bold text-foreground">
-                Kunde auswählen
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowCustomerPicker(false)}
-                activeOpacity={0.7}
-              >
-                <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView className="p-4">
-              <TouchableOpacity
-                className="py-3 border-b border-border"
-                onPress={() => {
-                  setFormData({ ...formData, customerId: null });
-                  setShowCustomerPicker(false);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text className="text-base text-muted">Kein Kunde</Text>
-              </TouchableOpacity>
-              {customers && customers.length > 0 ? (
-                customers.map((customer) => (
-                  <TouchableOpacity
-                    key={customer.id}
-                    className="py-3 border-b border-border"
-                    onPress={() => {
-                      setFormData({ ...formData, customerId: customer.id });
-                      setShowCustomerPicker(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text className="text-base font-semibold text-foreground">
-                      {getCustomerName(customer)}
-                    </Text>
-                    {customer.email && (
-                      <Text className="text-sm text-muted">{customer.email}</Text>
-                    )}
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <Text className="text-center text-muted py-4">
-                  Keine Kunden vorhanden
-                </Text>
-              )}
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+
     </Modal>
   );
 }

@@ -82,22 +82,7 @@ export default function TicketsScreen() {
     }
   }, [ticketId, tickets]);
 
-  // Smart Default Filter Logic
-  useEffect(() => {
-    if (!hasInitializedFilter.current && tickets.length > 0 && currentUserId) {
-      const myTickets = tickets.filter((t: any) => t.assigned_to === currentUserId && t.status !== "closed");
-      const unassignedTickets = tickets.filter((t: any) => !t.assigned_to && t.status !== "closed");
 
-      if (myTickets.length > 0) {
-        setAssigneeFilter(currentUserId);
-      } else if (unassignedTickets.length > 0) {
-        setAssigneeFilter("unassigned");
-      } else {
-        setAssigneeFilter("all");
-      }
-      hasInitializedFilter.current = true;
-    }
-  }, [tickets, currentUserId]);
 
   const deleteTicketMutation = useMutation({
     mutationFn: (ticketId: string) => Data.deleteTicket(ticketId),
@@ -244,11 +229,16 @@ export default function TicketsScreen() {
     });
   }
 
-  // Stats
-  const openCount = tickets.filter((t) => t.status === "open").length;
-  const inProgressCount = tickets.filter((t) => t.status === "in_progress").length;
-  const waitingCount = tickets.filter((t) => t.status === "waiting").length;
-  const closedCount = tickets.filter((t) => t.status === "closed").length;
+  // Stats — folgen dem Mitarbeiter-Filter
+  const assigneeTickets = tickets.filter((t) => {
+    if (assigneeFilter === "all") return true;
+    if (assigneeFilter === "unassigned") return !t.assigned_to;
+    return t.assigned_to === assigneeFilter;
+  });
+  const openCount = assigneeTickets.filter((t) => t.status === "open").length;
+  const inProgressCount = assigneeTickets.filter((t) => t.status === "in_progress").length;
+  const waitingCount = assigneeTickets.filter((t) => t.status === "waiting").length;
+  const closedCount = assigneeTickets.filter((t) => t.status === "closed").length;
 
   const statCards = [
     { label: "Offen", count: openCount, color: colors.error, icon: "envelope.fill" as const },

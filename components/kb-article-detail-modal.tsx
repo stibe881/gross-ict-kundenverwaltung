@@ -18,9 +18,10 @@ import { KbArticleFormModal } from "./kb-article-form-modal";
 interface Props {
     article: any;
     onClose: () => void;
+    onNavigate?: (article: any) => void;
 }
 
-export function KbArticleDetailModal({ article: initialArticle, onClose }: Props) {
+export function KbArticleDetailModal({ article: initialArticle, onClose, onNavigate }: Props) {
     const colors = useColors();
     const queryClient = useQueryClient();
     const [showEditModal, setShowEditModal] = useState(false);
@@ -273,16 +274,24 @@ export function KbArticleDetailModal({ article: initialArticle, onClose }: Props
                                 <View className="mb-6">
                                     <Text className="text-sm font-semibold text-foreground mb-2">Verwandte Artikel</Text>
                                     {related.map((rel: any) => (
-                                        <View
+                                        <TouchableOpacity
                                             key={rel.id}
                                             className="flex-row items-center gap-2 bg-surface border border-border rounded-lg px-3 py-2 mb-1"
+                                            activeOpacity={0.7}
+                                            onPress={() => {
+                                                if (onNavigate) {
+                                                    onNavigate(rel);
+                                                } else {
+                                                    onClose();
+                                                }
+                                            }}
                                         >
-                                            <IconSymbol name="doc.text.fill" size={16} color={colors.muted} />
+                                            <IconSymbol name="doc.text.fill" size={16} color={colors.primary} />
                                             <Text className="text-sm text-foreground flex-1" numberOfLines={1}>
                                                 {rel.title}
                                             </Text>
-                                            <Text className="text-xs text-muted">{rel.view_count || 0}×</Text>
-                                        </View>
+                                            <IconSymbol name="chevron.right" size={14} color={colors.muted} />
+                                        </TouchableOpacity>
                                     ))}
                                 </View>
                             )}

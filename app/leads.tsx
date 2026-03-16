@@ -308,6 +308,73 @@ export default function LeadsScreen() {
               </View>
             );
           })()}
+          {/* Website-Anfragen Kachel */}
+          {!isLoading && (() => {
+            const websiteLeads = sortLeads(leads.filter((l: any) => l.source === 'website' && l.status === 'new'));
+            if (websiteLeads.length === 0) return null;
+            return (
+              <View className="bg-surface rounded-xl p-4 border border-border mb-4" style={{ minHeight: 140, maxHeight: 220 }}>
+                <View className="flex-row items-center justify-between mb-3">
+                  <View className="flex-row items-center gap-2">
+                    <IconSymbol name="globe" size={18} color={colors.primary} />
+                    <Text className="text-sm font-semibold text-foreground">Website-Anfragen</Text>
+                  </View>
+                  <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '20' }}>
+                    <Text className="text-xs font-semibold" style={{ color: colors.primary }}>{websiteLeads.length}</Text>
+                  </View>
+                </View>
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={websiteLeads.length > 3}>
+                  <View className="gap-2">
+                    {websiteLeads.map((lead: any) => (
+                      <TouchableOpacity
+                        key={lead.id}
+                        className="flex-row items-center bg-background rounded-lg px-3 py-2 border border-border"
+                        activeOpacity={0.7}
+                        onPress={() => setSelectedLead(lead)}
+                      >
+                        <View className="flex-1 mr-2">
+                          <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{lead.company || lead.name || '-'}</Text>
+                          {lead.company && lead.name && <Text className="text-xs text-muted" numberOfLines={1}>{lead.name}</Text>}
+                        </View>
+                        <Text className="text-xs font-semibold text-success mr-3">
+                          CHF {(lead.value || 0).toLocaleString('de-CH')}
+                        </Text>
+                        <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: getPriorityColor(lead.priority) + '20' }}>
+                          <Text className="text-[10px] font-semibold" style={{ color: getPriorityColor(lead.priority) }}>
+                            {getPriorityLabel(lead.priority)}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          className="ml-2 w-7 h-7 rounded-md items-center justify-center"
+                          style={{ backgroundColor: '#EF444415' }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          activeOpacity={0.6}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            showConfirm(
+                              "Lead löschen",
+                              `Möchten Sie "${lead.company || lead.name}" wirklich löschen?`,
+                              async () => {
+                                try {
+                                  await Data.deleteLead(lead.id);
+                                  queryClient.invalidateQueries({ queryKey: ["leads"] });
+                                } catch (err: any) {
+                                  showAlert("Fehler", err.message);
+                                }
+                              },
+                              "Löschen"
+                            );
+                          }}
+                        >
+                          <IconSymbol name="trash" size={14} color="#EF4444" />
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            );
+          })()}
 
           {isLoading ? (
             <View className="flex-1 items-center justify-center py-12">

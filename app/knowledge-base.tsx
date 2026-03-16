@@ -344,6 +344,7 @@ export default function KnowledgeBaseScreen() {
                 <KbArticleDetailModal
                     article={selectedArticle}
                     onClose={() => setSelectedArticle(null)}
+                    onNavigate={(article) => setSelectedArticle(article)}
                 />
             )}
 

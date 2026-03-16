@@ -33,6 +33,7 @@ const MAPPING = {
   "cube.box.fill": "inventory",
   "xmark.circle.fill": "cancel",
   "trash.fill": "delete",
+  "trash": "delete",
   "sun.max.fill": "wb-sunny",
   "moon.fill": "nightlight-round",
   "arrow.down.doc.fill": "download",
@@ -54,6 +55,7 @@ const MAPPING = {
   "percent": "percent",
   "chart.pie.fill": "pie-chart",
   "cart.fill": "shopping-cart",
+  "cart": "shopping-cart",
   "shield.fill": "shield",
   "car.fill": "directions-car",
   "airplane": "flight",
@@ -70,6 +72,7 @@ const MAPPING = {
   "eye.fill": "visibility",
   "link": "link",
   "checklist": "checklist",
+  "pin.fill": "push-pin",
 } as IconMapping;
 
 /**
