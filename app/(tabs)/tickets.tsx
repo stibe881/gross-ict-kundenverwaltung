@@ -425,8 +425,8 @@ export default function TicketsScreen() {
               activeOpacity={0.8}
               onPress={() => setShowAddModal(true)}
             >
-              <IconSymbol name="plus" size={16} color="#111111" />
-              {isDesktop && <Text style={{ color: "#111", fontWeight: "700", fontSize: 14 }}>Neues Ticket</Text>}
+              <IconSymbol name="plus" size={16} color={colors.background} />
+              {isDesktop && <Text style={{ color: colors.background, fontWeight: "700", fontSize: 14 }}>Neues Ticket</Text>}
             </TouchableOpacity>
           </View>
 
@@ -492,7 +492,7 @@ export default function TicketsScreen() {
                   }}
                   onPress={() => setAssigneeFilter("unassigned")}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: assigneeFilter === "unassigned" ? "#111" : colors.foreground }}>Nicht zugewiesen</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: assigneeFilter === "unassigned" ? colors.background : colors.foreground }}>Nicht zugewiesen</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={{
@@ -502,7 +502,7 @@ export default function TicketsScreen() {
                   }}
                   onPress={() => setAssigneeFilter("all")}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: assigneeFilter === "all" ? "#111" : colors.foreground }}>Alle</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: assigneeFilter === "all" ? colors.background : colors.foreground }}>Alle</Text>
                 </TouchableOpacity>
                 {allUsers.map((user: any) => (
                   <TouchableOpacity
@@ -514,7 +514,7 @@ export default function TicketsScreen() {
                     }}
                     onPress={() => setAssigneeFilter(assigneeFilter === user.id ? "all" : user.id)}
                   >
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: assigneeFilter === user.id ? "#111" : colors.foreground }}>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: assigneeFilter === user.id ? colors.background : colors.foreground }}>
                       {user.name}
                     </Text>
                   </TouchableOpacity>
@@ -756,7 +756,7 @@ function TicketDetailsModal({
         description: item.description,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        vat_rate: item.vat_rate || 8.1,
+        vat_rate: item.vat_rate || 0,
         total: item.quantity * item.unit_price
       }));
 
@@ -765,7 +765,7 @@ function TicketDetailsModal({
           description: `Leistungen gemäss Ticket #${ticket.id}: ${ticket.title}`,
           quantity: 1,
           unit_price: 0,
-          vat_rate: 8.1,
+          vat_rate: 0,
           total: 0
         }];
       }
@@ -775,10 +775,10 @@ function TicketDetailsModal({
 
       const draftInvoice = {
         invoice_number: `ENTWURF-${Date.now().toString().slice(-6)}`,
-        status: "draft",
+        status: "sent",
         customer_id: ticket.customer_id,
         invoice_date: new Date().toISOString().split("T")[0],
-        due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
         subtotal: rawSubtotal,
         vat_amount: rawVatAmount,
         total: rawSubtotal + rawVatAmount,

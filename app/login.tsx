@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -149,9 +150,14 @@ export default function LoginScreen() {
   };
 
   return (
-    <ScreenContainer className="p-6">
-      <View className="flex-1 justify-center max-w-md self-center w-full">
-        {/* Logo und Titel */}
+    <ScreenContainer>
+      <ScrollView 
+        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View className="max-w-md self-center w-full py-4">
+          {/* Logo und Titel */}
         <View className="items-center mb-8">
           <Image
             source={require("@/assets/images/android-icon-foreground.png")}
@@ -323,7 +329,8 @@ export default function LoginScreen() {
           visible={showResetModal}
           onClose={() => setShowResetModal(false)}
         />
-      </View>
+        </View>
+      </ScrollView>
     </ScreenContainer>
   );
 }

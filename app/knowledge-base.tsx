@@ -168,7 +168,7 @@ export default function KnowledgeBaseScreen() {
                                 activeOpacity={0.8}
                                 onPress={() => setShowAddModal(true)}
                             >
-                                <IconSymbol name="plus.circle.fill" size={20} color="#111" />
+                                <IconSymbol name="plus.circle.fill" size={20} color={colors.background} />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -323,7 +323,7 @@ export default function KnowledgeBaseScreen() {
                                     onPress={() => setShowAddModal(true)}
                                     activeOpacity={0.8}
                                 >
-                                    <Text className="font-semibold" style={{ color: "#111" }}>
+                                    <Text className="font-semibold" style={{ color: colors.background }}>
                                         Artikel erstellen
                                     </Text>
                                 </TouchableOpacity>
@@ -538,7 +538,7 @@ function CategoryManagementModal({ onClose }: { onClose: () => void }) {
                                     disabled={!newName.trim() || createMutation.isPending}
                                     style={{ opacity: !newName.trim() ? 0.5 : 1 }}
                                 >
-                                    <Text className="font-semibold text-center text-sm" style={{ color: "#111" }}>
+                                    <Text className="font-semibold text-center text-sm" style={{ color: colors.background }}>
                                         {editingId ? "Aktualisieren" : "Hinzufügen"}
                                     </Text>
                                 </TouchableOpacity>

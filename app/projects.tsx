@@ -295,8 +295,8 @@ export default function ProjectsScreen() {
                                                 onPress={() => setViewMode("kanban")}
                                                 activeOpacity={0.8}
                                             >
-                                                <IconSymbol name="square.grid.2x2.fill" size={12} color={viewMode === "kanban" ? "#111" : colors.muted} />
-                                                <Text className="text-xs font-semibold" style={{ color: viewMode === "kanban" ? "#111" : colors.foreground }}>Kanban</Text>
+                                                <IconSymbol name="square.grid.2x2.fill" size={12} color={viewMode === "kanban" ? colors.background : colors.muted} />
+                                                <Text className="text-xs font-semibold" style={{ color: viewMode === "kanban" ? colors.background : colors.foreground }}>Kanban</Text>
                                             </TouchableOpacity>
                                             <TouchableOpacity
                                                 className="flex-row items-center gap-1 px-3 py-1.5"
@@ -304,8 +304,8 @@ export default function ProjectsScreen() {
                                                 onPress={() => setViewMode("list")}
                                                 activeOpacity={0.8}
                                             >
-                                                <IconSymbol name="list.bullet" size={12} color={viewMode === "list" ? "#111" : colors.muted} />
-                                                <Text className="text-xs font-semibold" style={{ color: viewMode === "list" ? "#111" : colors.foreground }}>Liste</Text>
+                                                <IconSymbol name="list.bullet" size={12} color={viewMode === "list" ? colors.background : colors.muted} />
+                                                <Text className="text-xs font-semibold" style={{ color: viewMode === "list" ? colors.background : colors.foreground }}>Liste</Text>
                                             </TouchableOpacity>
                                         </View>
                                         <TouchableOpacity
@@ -313,7 +313,7 @@ export default function ProjectsScreen() {
                                             onPress={() => setShowCreateModal(true)}
                                             activeOpacity={0.8}
                                         >
-                                            <Text className="text-sm font-semibold" style={{ color: "#111" }}>+ Neues Projekt</Text>
+                                            <Text className="text-sm font-semibold" style={{ color: colors.background }}>+ Neues Projekt</Text>
                                         </TouchableOpacity>
                                     </View>
                                 )}
@@ -329,8 +329,8 @@ export default function ProjectsScreen() {
                                             onPress={() => setViewMode("kanban")}
                                             activeOpacity={0.8}
                                         >
-                                            <IconSymbol name="square.grid.2x2.fill" size={14} color={viewMode === "kanban" ? "#111" : colors.muted} />
-                                            <Text className="text-xs font-semibold" style={{ color: viewMode === "kanban" ? "#111" : colors.foreground }}>Kanban</Text>
+                                            <IconSymbol name="square.grid.2x2.fill" size={14} color={viewMode === "kanban" ? colors.background : colors.muted} />
+                                            <Text className="text-xs font-semibold" style={{ color: viewMode === "kanban" ? colors.background : colors.foreground }}>Kanban</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             className="flex-row items-center gap-1 px-3 py-2"
@@ -338,8 +338,8 @@ export default function ProjectsScreen() {
                                             onPress={() => setViewMode("list")}
                                             activeOpacity={0.8}
                                         >
-                                            <IconSymbol name="list.bullet" size={14} color={viewMode === "list" ? "#111" : colors.muted} />
-                                            <Text className="text-xs font-semibold" style={{ color: viewMode === "list" ? "#111" : colors.foreground }}>Liste</Text>
+                                            <IconSymbol name="list.bullet" size={14} color={viewMode === "list" ? colors.background : colors.muted} />
+                                            <Text className="text-xs font-semibold" style={{ color: viewMode === "list" ? colors.background : colors.foreground }}>Liste</Text>
                                         </TouchableOpacity>
                                     </View>
                                     <View className="flex-1" />
@@ -348,7 +348,7 @@ export default function ProjectsScreen() {
                                         onPress={() => setShowCreateModal(true)}
                                         activeOpacity={0.8}
                                     >
-                                        <Text className="text-sm font-semibold" style={{ color: "#111" }}>+ Neues Projekt</Text>
+                                        <Text className="text-sm font-semibold" style={{ color: colors.background }}>+ Neues Projekt</Text>
                                     </TouchableOpacity>
                                 </View>
                             )}
@@ -422,7 +422,7 @@ export default function ProjectsScreen() {
                                             onPress={() => setShowCreateModal(true)}
                                             activeOpacity={0.8}
                                         >
-                                            <Text className="font-semibold" style={{ color: "#111" }}>
+                                            <Text className="font-semibold" style={{ color: colors.background }}>
                                                 Erstes Projekt erstellen
                                             </Text>
                                         </TouchableOpacity>

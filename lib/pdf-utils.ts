@@ -506,6 +506,7 @@ interface InvoiceForPDF {
   total: number;
   paid_amount?: number | null;
   dunning_level?: number | null;
+  is_dunning_document?: boolean;
   notes?: string | null;
   customer?: any;
   items?: Array<{
@@ -558,10 +559,12 @@ export function generateInvoiceHTML(invoice: InvoiceForPDF, settings?: InvoiceSe
 
   // Dokumententyp bestimmen
   let docType = "Rechnung";
-  if (invoice.dunning_level === 0) docType = "Zahlungserinnerung";
-  else if (invoice.dunning_level === 1) docType = "1. Mahnung";
-  else if (invoice.dunning_level === 2) docType = "2. Mahnung";
-  else if (invoice.dunning_level === 3) docType = "Betreibungsandrohung";
+  if (invoice.is_dunning_document || (invoice.dunning_level !== undefined && invoice.dunning_level !== null && invoice.dunning_level > 0)) {
+    if (invoice.dunning_level === 0) docType = "Zahlungserinnerung";
+    else if (invoice.dunning_level === 1) docType = "1. Mahnung";
+    else if (invoice.dunning_level === 2) docType = "2. Mahnung";
+    else if (invoice.dunning_level === 3) docType = "Betreibungsandrohung";
+  }
 
   const remainingAmount = calculatedTotal - (invoice.paid_amount || 0);
 

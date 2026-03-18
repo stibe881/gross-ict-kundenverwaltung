@@ -509,7 +509,7 @@ export default function CustomerDetailScreen() {
                   {createContactMutation.isPending ? (
                     <ActivityIndicator color="#FFF" size="small" />
                   ) : (
-                    <Text className="font-semibold text-center text-sm" style={{ color: "#111" }}>Speichern</Text>
+                    <Text className="font-semibold text-center text-sm" style={{ color: colors.background }}>Speichern</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -598,7 +598,7 @@ export default function CustomerDetailScreen() {
                               {updateContactMutation.isPending ? (
                                 <ActivityIndicator color="#FFF" size="small" />
                               ) : (
-                                <Text className="font-semibold text-center text-sm" style={{ color: "#111" }}>Speichern</Text>
+                                <Text className="font-semibold text-center text-sm" style={{ color: colors.background }}>Speichern</Text>
                               )}
                             </TouchableOpacity>
                           </View>
@@ -730,7 +730,7 @@ export default function CustomerDetailScreen() {
                           {updateContactMutation.isPending ? (
                             <ActivityIndicator color="#FFF" size="small" />
                           ) : (
-                            <Text className="font-semibold text-center text-sm" style={{ color: "#111" }}>Speichern</Text>
+                            <Text className="font-semibold text-center text-sm" style={{ color: colors.background }}>Speichern</Text>
                           )}
                         </TouchableOpacity>
                       </View>
@@ -898,7 +898,7 @@ export default function CustomerDetailScreen() {
                         className="w-14 h-14 rounded-xl items-center justify-center mr-4"
                         style={{ backgroundColor: colors.primary }}
                       >
-                        <Text className="text-2xl font-bold" style={{ color: "#111" }}>
+                        <Text className="text-2xl font-bold" style={{ color: colors.background }}>
                           {initial}
                         </Text>
                       </View>
@@ -1007,7 +1007,7 @@ export default function CustomerDetailScreen() {
                   className="flex-row items-center gap-1.5 bg-primary px-4 py-2 rounded-lg"
                   activeOpacity={0.8}
                 >
-                  <Text className="text-sm font-semibold" style={{ color: "#111" }}>+ Neues Ticket</Text>
+                  <Text className="text-sm font-semibold" style={{ color: colors.background }}>+ Neues Ticket</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   className="flex-row items-center gap-1.5 bg-surface border border-border px-4 py-2 rounded-lg"

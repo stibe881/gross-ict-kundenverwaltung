@@ -7,9 +7,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
-  TextInput,
   Platform,
   Linking,
+  Switch,
+  TextInput,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -76,9 +77,28 @@ export default function AccountingScreen() {
 
   // Scenario Calculator State
   const [scenarioVolume, setScenarioVolume] = useState("10000");
+  const [scenarioHosting, setScenarioHosting] = useState("");
+  const [scenarioDomain, setScenarioDomain] = useState("");
+  const [scenarioOtherCosts, setScenarioOtherCosts] = useState("");
+  const [deductHosting, setDeductHosting] = useState(true);
+  const [deductDomain, setDeductDomain] = useState(true);
+  const [deductOtherCosts, setDeductOtherCosts] = useState(true);
   const [scenarioExecutor, setScenarioExecutor] = useState<
     "inhaber" | "angestellter"
   >("angestellter");
+
+  const scenarioRawVol = parseFloat(scenarioVolume) || 0;
+  const scenarioHostC = parseFloat(scenarioHosting) || 0;
+  const scenarioDomC = parseFloat(scenarioDomain) || 0;
+  const scenarioOthC = parseFloat(scenarioOtherCosts) || 0;
+
+  const scenarioDeductions = 
+    (deductHosting ? scenarioHostC : 0) + 
+    (deductDomain ? scenarioDomC : 0) + 
+    (deductOtherCosts ? scenarioOthC : 0);
+
+  const scenarioCalculatedVol = Math.max(0, scenarioRawVol - scenarioDeductions);
+  const scenarioLohn = scenarioExecutor === "angestellter" ? scenarioCalculatedVol * 0.7 : 0;
 
   const {
     data: invoices,
@@ -359,8 +379,10 @@ export default function AccountingScreen() {
   };
 
   const handleSubmitScenarioBooking = async (data: any) => {
-    const vol = parseFloat(scenarioVolume) || 0;
-    const lohn = vol * 0.7;
+    const lohn = scenarioLohn;
+    const anAhv = lohn * 0.053;
+    const anAlv = lohn * 0.011;
+    const nettolohn = lohn - anAhv - anAlv;
 
     // Verbuchen im aktuell ausgewählten Jahr
     const bookingDate = new Date();
@@ -398,14 +420,14 @@ export default function AccountingScreen() {
 
     const payload: any = {
         date: bookingDate.toISOString().slice(0, 10),
-        amount: lohn,
+        amount: nettolohn,
         description: `Leistungsbezug: ${data.freelancerName}`,
         category: "salary",
         supplier: data.freelancerName,
         payment_method: "bank",
         tax_rate: 0,
         is_deductible: true,
-        notes: `Automatische Verbuchung aus Szenario-Modell.\nIBAN: ${data.freelancerIban}\nKunde: ${data.customerId}\nProjekt: ${data.projectId}`,
+        notes: `Automatische Verbuchung aus Szenario-Modell.\nNetto-Auszahlung (Basis-Brutto: ${formatCurrency(lohn)} CHF).\nIBAN: ${data.freelancerIban}\nKunde: ${data.customerId}\nProjekt: ${data.projectId}`,
         receipt_path: uploadRes.filePath,
         receipt_url: uploadRes.publicUrl
     };
@@ -1228,6 +1250,75 @@ export default function AccountingScreen() {
             />
           </View>
 
+          <View className="mb-4 gap-3">
+            <Text className="text-xs font-semibold text-foreground">
+              WEITERE KOSTEN (CHF)
+            </Text>
+            
+            <View className="flex-row items-center gap-2">
+              <View className="flex-1">
+                <TextInput
+                  value={scenarioHosting}
+                  onChangeText={setScenarioHosting}
+                  keyboardType="numeric"
+                  className="bg-background border border-border rounded-lg p-3 text-foreground"
+                  placeholder="Hosting Kosten"
+                  placeholderTextColor={colors.muted}
+                />
+              </View>
+              <View className="flex-row items-center gap-2 bg-background p-2 px-3 rounded-lg border border-border">
+                <Text className="text-xs text-foreground">Abziehen?</Text>
+                <Switch 
+                  value={deductHosting} 
+                  onValueChange={setDeductHosting} 
+                  trackColor={{ false: colors.border, true: colors.primary }} 
+                />
+              </View>
+            </View>
+
+            <View className="flex-row items-center gap-2">
+              <View className="flex-1">
+                <TextInput
+                  value={scenarioDomain}
+                  onChangeText={setScenarioDomain}
+                  keyboardType="numeric"
+                  className="bg-background border border-border rounded-lg p-3 text-foreground"
+                  placeholder="Domain Kosten"
+                  placeholderTextColor={colors.muted}
+                />
+              </View>
+              <View className="flex-row items-center gap-2 bg-background p-2 px-3 rounded-lg border border-border">
+                <Text className="text-xs text-foreground">Abziehen?</Text>
+                <Switch 
+                  value={deductDomain} 
+                  onValueChange={setDeductDomain} 
+                  trackColor={{ false: colors.border, true: colors.primary }} 
+                />
+              </View>
+            </View>
+
+            <View className="flex-row items-center gap-2">
+              <View className="flex-1">
+                <TextInput
+                  value={scenarioOtherCosts}
+                  onChangeText={setScenarioOtherCosts}
+                  keyboardType="numeric"
+                  className="bg-background border border-border rounded-lg p-3 text-foreground"
+                  placeholder="Sonstige Kosten"
+                  placeholderTextColor={colors.muted}
+                />
+              </View>
+              <View className="flex-row items-center gap-2 bg-background p-2 px-3 rounded-lg border border-border">
+                <Text className="text-xs text-foreground">Abziehen?</Text>
+                <Switch 
+                  value={deductOtherCosts} 
+                  onValueChange={setDeductOtherCosts} 
+                  trackColor={{ false: colors.border, true: colors.primary }} 
+                />
+              </View>
+            </View>
+          </View>
+
           <View className="mb-4">
             <Text className="text-xs font-semibold text-foreground mb-2">
               AUSFÜHRENDE PERSON
@@ -1259,18 +1350,25 @@ export default function AccountingScreen() {
           {/* Scenario Result */}
           <View className="bg-background border border-border rounded-lg p-4 mt-2">
             {(() => {
-              const vol = parseFloat(scenarioVolume) || 0;
+              const vol = scenarioCalculatedVol;
               const isEmployee = scenarioExecutor === "angestellter";
 
-              const lohn = isEmployee ? vol * 0.7 : 0;
+              const lohn = scenarioLohn;
               const agBeitrag = isEmployee ? lohn * 0.064 : 0;
+              const agFak = isEmployee ? lohn * 0.014 : 0;
               const uvg = isEmployee ? lohn * 0.01 : 0;
 
-              const totalMarge = vol - lohn - agBeitrag - uvg;
+              const anAhv = isEmployee ? lohn * 0.053 : 0;
+              const anAlv = isEmployee ? lohn * 0.011 : 0;
+              const anBeitrag = anAhv + anAlv;
+              const nettoLohn = isEmployee ? lohn - anBeitrag : 0;
 
-              const ownerAhv = totalMarge > 0 ? totalMarge * 0.106 : 0;
-              const ownerFak = totalMarge > 0 ? totalMarge * 0.014 : 0;
-              const ownerSteuer = totalMarge > 0 ? totalMarge * 0.15 : 0;
+              const baseMarge = vol - lohn - agBeitrag - agFak - uvg;
+              const totalMarge = baseMarge + scenarioDeductions;
+
+              const ownerAhv = baseMarge > 0 ? baseMarge * 0.106 : 0;
+              const ownerFak = baseMarge > 0 ? baseMarge * 0.014 : 0;
+              const ownerSteuer = baseMarge > 0 ? baseMarge * 0.15 : 0;
               const ownerDeductions = ownerAhv + ownerFak + ownerSteuer;
               const nettoMarge = totalMarge - ownerDeductions;
 
@@ -1279,11 +1377,17 @@ export default function AccountingScreen() {
 
               return (
                 <View className="gap-2">
+                  {scenarioDeductions > 0 && (
+                    <View className="flex-row justify-between mb-2 pb-2 border-b border-border border-dashed">
+                       <Text className="text-sm text-muted">Aktivierte Abzüge</Text>
+                       <Text className="text-sm text-muted">-{formatCurrency(scenarioDeductions)}</Text>
+                    </View>
+                  )}
                   {isEmployee && (
                     <>
                       <View className="flex-row justify-between mb-2">
                         <Text className="text-sm text-foreground font-semibold">
-                          Projekt-Volumen
+                          Berechnetes Projekt-Volumen
                         </Text>
                         <Text className="text-sm font-semibold">
                           {formatCurrency(vol)}
@@ -1291,18 +1395,66 @@ export default function AccountingScreen() {
                       </View>
                       <View className="flex-row justify-between">
                         <Text className="text-sm text-muted">
-                          Auszahlung Angestellter (70%)
+                          Brutto-Lohn Angestellter (70%)
                         </Text>
                         <Text className="text-sm text-error">
                           -{formatCurrency(lohn)}
                         </Text>
                       </View>
                       <View className="flex-row justify-between">
-                        <Text className="text-sm text-muted">
-                          AG-Beiträge & UVG (versteckt)
+                        <Text className="text-xs text-muted ml-2">
+                          ↳ AN-Beitrag AHV/IV/EO (5.3%)
                         </Text>
-                        <Text className="text-sm text-error">
-                          -{formatCurrency(agBeitrag + uvg)}
+                        <Text className="text-xs text-error">
+                          -{formatCurrency(anAhv)}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between mt-1">
+                        <Text className="text-xs text-muted ml-2">
+                          ↳ AN-Beitrag ALV (1.1%)
+                        </Text>
+                        <Text className="text-xs text-error">
+                          -{formatCurrency(anAlv)}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between pt-1 mt-1 border-t border-border border-dotted mb-3">
+                        <Text className="text-xs font-semibold text-foreground ml-2">
+                          = Netto-Lohn / Auszahlung (ca.)
+                        </Text>
+                        <Text className="text-xs font-bold text-success">
+                          {formatCurrency(nettoLohn)}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between mt-3 mb-1">
+                        <Text className="text-sm font-semibold text-foreground">
+                          Arbeitgeber-Zusatzkosten (ca.)
+                        </Text>
+                        <Text className="text-sm font-semibold text-error">
+                          -{formatCurrency(agBeitrag + agFak + uvg)}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between">
+                        <Text className="text-xs text-muted ml-2">
+                          ↳ AG-Beitrag AHV/IV/ALV (6.4%)
+                        </Text>
+                        <Text className="text-xs text-error">
+                          -{formatCurrency(agBeitrag)}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between mt-1">
+                        <Text className="text-xs text-muted ml-2">
+                          ↳ FAK Luzern (1.4%)
+                        </Text>
+                        <Text className="text-xs text-error">
+                          -{formatCurrency(agFak)}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between mt-1">
+                        <Text className="text-xs text-muted ml-2">
+                          ↳ UVG / Unfallvers. (ca. 1.0%)
+                        </Text>
+                        <Text className="text-xs text-error">
+                          -{formatCurrency(uvg)}
                         </Text>
                       </View>
                       <View className="flex-row justify-between mt-2 pt-2 border-t border-border border-dashed">
@@ -1390,7 +1542,7 @@ export default function AccountingScreen() {
                           Brutto-Marge Gross ICT
                         </Text>
                         <Text className="text-sm font-bold">
-                          {formatCurrency(vol)}
+                          {formatCurrency(scenarioRawVol)}
                         </Text>
                       </View>
                       <View className="flex-row justify-between mt-1">
@@ -1595,7 +1747,7 @@ export default function AccountingScreen() {
                 }
               }}
             >
-              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
+              <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
             </TouchableOpacity>
           </View>
 
@@ -1615,7 +1767,7 @@ export default function AccountingScreen() {
                 <IconSymbol
                   name={tab.icon as any}
                   size={14}
-                  color={activeTab === tab.key ? "#111" : colors.muted}
+                  color={activeTab === tab.key ? colors.background : colors.muted}
                 />
                 <Text
                   className={`text-sm font-semibold ${activeTab === tab.key ? "text-background" : "text-foreground"}`}
@@ -1657,8 +1809,8 @@ export default function AccountingScreen() {
 
       <ScenarioBookingModal
         visible={showScenarioModal}
-        amount={(parseFloat(scenarioVolume) || 0) * 0.7}
-        projectVol={parseFloat(scenarioVolume) || 0}
+        amount={scenarioLohn}
+        projectVol={scenarioRawVol}
         onClose={() => setShowScenarioModal(false)}
         onSubmit={handleSubmitScenarioBooking}
       />
@@ -1885,7 +2037,7 @@ function DocumentsTab({ colors }: { colors: any }) {
           activeOpacity={0.8}
           onPress={() => setShowNewFolder(true)}
         >
-          <IconSymbol name="folder.badge.plus" size={16} color="#111" />
+          <IconSymbol name="folder.badge.plus" size={16} color={colors.background} />
           <Text className="text-background font-semibold text-sm">
             Neuer Ordner
           </Text>

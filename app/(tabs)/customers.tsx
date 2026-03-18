@@ -109,7 +109,7 @@ export default function CustomersScreen() {
                 className="w-10 h-10 rounded-lg items-center justify-center mr-3"
                 style={{ backgroundColor: colors.primary }}
               >
-                <Text className="text-base font-bold" style={{ color: "#111" }}>
+                <Text className="text-base font-bold" style={{ color: colors.background }}>
                   {displayName.charAt(0).toUpperCase()}
                 </Text>
               </View>
@@ -201,7 +201,7 @@ export default function CustomersScreen() {
               activeOpacity={0.8}
               onPress={() => setShowAddModal(true)}
             >
-              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
+              <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
             </TouchableOpacity>
           </View>
 

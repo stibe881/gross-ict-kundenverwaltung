@@ -813,7 +813,7 @@ export default function DashboardScreen() {
                   <IconSymbol
                     name={item.icon as any}
                     size={20}
-                    color="#111111"
+                    color={colors.background}
                   />
                 </View>
               </TouchableOpacity>
@@ -847,7 +847,7 @@ export default function DashboardScreen() {
           <IconSymbol
             name={showFabMenu ? "xmark" : "plus"}
             size={28}
-            color="#111111"
+            color={colors.background}
           />
         </TouchableOpacity>
       )}

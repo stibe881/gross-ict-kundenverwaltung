@@ -123,26 +123,38 @@ export function generateQuittungJSPDF(data: QuittungData): any {
   
   y += 15;
 
-  // 4. Meta Box
+  // 4. Meta Box – with gold accent bar and title
   const metaText = "Diese Abrechnung dient als Beleg für den Bezug von Leistungen im Projektgeschäft. Die Abrechnung der gesetzlichen Sozialabgaben (AHV/IV/EO/ALV) für diesen Betrag obliegt entsprechend dem geltenden Gesamtarbeits- oder Anstellungsverhältnis.";
-  // Reduced width slightly to ensure text fully fits in the box
-  const boxInnerWidth = pageWidth - marginX * 2 - 12;
+  const boxInnerWidth = pageWidth - marginX * 2 - 16;
   const metaLines = doc.splitTextToSize(metaText, boxInnerWidth);
-  const metaH = metaLines.length * 5 + 10;
+  const metaH = metaLines.length * 4.5 + 18;
+  const boxX = marginX;
+  const boxW = pageWidth - marginX * 2;
 
+  // Background & border
   doc.setFillColor(...cBoxBg);
   doc.setDrawColor(...cBorder);
-  doc.roundedRect(marginX, y, pageWidth - marginX * 2, metaH, 2, 2, "FD");
+  doc.roundedRect(boxX, y, boxW, metaH, 3, 3, "FD");
 
-  doc.setFontSize(10);
+  // Gold accent bar on left
+  doc.setFillColor(...cGold);
+  doc.rect(boxX, y + 1, 1.2, metaH - 2, "F");
+
+  // Title "HINWEIS"
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...cGold);
+  doc.text("HINWEIS", boxX + 8, y + 7);
+
+  // Body text
+  doc.setFontSize(8.5);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(...cTextDark);
-  
+  doc.setTextColor(...cTextMuted);
   for (let i = 0; i < metaLines.length; i++) {
-    doc.text(metaLines[i], marginX + 6, y + 8 + (i * 5));
+    doc.text(metaLines[i], boxX + 8, y + 13 + (i * 4.5));
   }
 
-  y += metaH + 20;
+  y += metaH + 15;
 
   // 5. Details Table
   doc.setDrawColor(...cBorder);
@@ -170,20 +182,82 @@ export function generateQuittungJSPDF(data: QuittungData): any {
   
   y += Math.max(descLines.length * 5, 5) + 10;
 
-  // Totals Row
-  doc.setFillColor(253, 251, 247); // #fdfbf7
-  doc.rect(marginX, y, pageWidth - marginX * 2, 12, "F");
-  doc.setDrawColor(...cGold);
-  doc.setLineWidth(0.5);
+  // Calculations
+  const bruttolohn = data.amount;
+  const ahv = bruttolohn * 0.053;
+  const alv = bruttolohn * 0.011;
+  const nettolohn = bruttolohn - ahv - alv;
+  const rowH = 9;
+  const tableW = pageWidth - marginX * 2;
+
+  // Section title
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...cTextLight);
+  doc.text("ABRECHNUNG", marginX + 2, y);
+  y += 3;
+
+  // Separator under header
+  doc.setDrawColor(...cBorder);
+  doc.setLineWidth(0.3);
   doc.line(marginX, y, pageWidth - marginX, y);
+  y += 2;
+
+  // Bruttolohn row
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...cTextDark);
+  doc.text("Bruttolohn", marginX + 4, y + 6);
+  doc.text(fmtCHF(bruttolohn), pageWidth - marginX - 4, y + 6, { align: "right" });
+  y += rowH;
+
+  // Subtle row separator
+  doc.setDrawColor(241, 245, 249); // #f1f5f9
+  doc.setLineWidth(0.2);
+  doc.line(marginX + 4, y, pageWidth - marginX - 4, y);
+
+  // AHV deduction row
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...cTextMuted);
+  doc.text("Abzug AHV/IV/EO (5.3%)", marginX + 8, y + 6);
+  doc.setTextColor(185, 28, 28); // subtle dark red
+  doc.text(`-${fmtCHF(ahv)}`, pageWidth - marginX - 4, y + 6, { align: "right" });
+  y += rowH;
+
+  // Subtle row separator
+  doc.setDrawColor(241, 245, 249);
+  doc.setLineWidth(0.2);
+  doc.line(marginX + 4, y, pageWidth - marginX - 4, y);
+
+  // ALV deduction row
+  doc.setTextColor(...cTextMuted);
+  doc.text("Abzug ALV (1.1%)", marginX + 8, y + 6);
+  doc.setTextColor(185, 28, 28);
+  doc.text(`-${fmtCHF(alv)}`, pageWidth - marginX - 4, y + 6, { align: "right" });
+  y += rowH + 3;
+
+  // Netto-Auszahlung total row – prominent gold-accented box
+  const nettoH = 14;
+  doc.setFillColor(253, 251, 247); // warm ivory background
+  doc.roundedRect(marginX, y, tableW, nettoH, 2, 2, "F");
+
+  // Gold top border
+  doc.setDrawColor(...cGold);
+  doc.setLineWidth(0.8);
+  doc.line(marginX, y, pageWidth - marginX, y);
+
+  // Gold left accent
+  doc.setFillColor(...cGold);
+  doc.rect(marginX, y, 1.5, nettoH, "F");
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...cTextDark);
-  doc.text("Total Auszahlung", marginX + 5, y + 8);
-  doc.text(`${fmtCHF(data.amount)} CHF`, pageWidth - marginX - 5, y + 8, { align: "right" });
+  doc.text("Netto-Auszahlung", marginX + 7, y + 9);
+  doc.text(`${fmtCHF(nettolohn)} CHF`, pageWidth - marginX - 6, y + 9, { align: "right" });
 
-  y += 40;
+  y += nettoH + 20;
 
   // 6. Signatures
   doc.setFontSize(9);

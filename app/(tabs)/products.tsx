@@ -135,7 +135,7 @@ export default function ProductsScreen() {
                 setShowAddModal(true);
               }}
             >
-              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
+              <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
             </TouchableOpacity>
           </View>
 

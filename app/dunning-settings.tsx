@@ -390,7 +390,7 @@ export default function DunningSettingsScreen() {
                             className={`flex-1 py-3 rounded-lg flex-row items-center justify-center gap-2 ${activeTab === "invoices" ? "bg-primary" : "bg-surface border border-border"}`}
                             onPress={() => setActiveTab("invoices")}
                         >
-                            <IconSymbol name="doc.text.fill" size={16} color={activeTab === "invoices" ? "#111" : colors.muted} />
+                            <IconSymbol name="doc.text.fill" size={16} color={activeTab === "invoices" ? colors.background : colors.muted} />
                             <Text className={`text-sm font-semibold ${activeTab === "invoices" ? "text-background" : "text-foreground"}`}>
                                 Rechnungen
                             </Text>
@@ -399,7 +399,7 @@ export default function DunningSettingsScreen() {
                             className={`flex-1 py-3 rounded-lg flex-row items-center justify-center gap-2 ${activeTab === "dunning" ? "bg-primary" : "bg-surface border border-border"}`}
                             onPress={() => setActiveTab("dunning")}
                         >
-                            <IconSymbol name="exclamationmark.triangle.fill" size={16} color={activeTab === "dunning" ? "#111" : colors.muted} />
+                            <IconSymbol name="exclamationmark.triangle.fill" size={16} color={activeTab === "dunning" ? colors.background : colors.muted} />
                             <Text className={`text-sm font-semibold ${activeTab === "dunning" ? "text-background" : "text-foreground"}`}>
                                 Mahnungen
                             </Text>

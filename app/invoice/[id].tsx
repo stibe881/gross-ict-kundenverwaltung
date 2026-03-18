@@ -149,7 +149,7 @@ export default function InvoiceDetailScreen() {
             `${levelLabels[level]} für ${invoice.invoice_number} an ${invoice.customer.email} senden?`,
             async () => {
                 try {
-                    const pdfBase64 = await generateInvoicePDFBase64({ ...invoice, dunning_level: level }, invoiceSettings);
+                    const pdfBase64 = await generateInvoicePDFBase64({ ...invoice, dunning_level: level, is_dunning_document: true }, invoiceSettings);
                     const { data, error } = await supabase.functions.invoke('send-reminder-email', {
                         body: { id: invoice.id, pdfBase64, level },
                     });

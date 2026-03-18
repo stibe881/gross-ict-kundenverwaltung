@@ -11,6 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-context";
 import { ToastProvider } from "@/components/toast-provider";
+import { RouteGuard } from "@/components/route-guard";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -136,6 +137,69 @@ export default function RootLayout() {
 
   // Global Supabase auth state listener — handles SSO callback
   useEffect(() => {
+    const syncUserProfileToDB = async (session: any) => {
+      const authProvider = session.user.app_metadata?.provider || "email";
+      const userName = session.user.user_metadata?.full_name ||
+        session.user.user_metadata?.name ||
+        session.user.email?.split("@")[0] || "";
+      try {
+        // Try to find existing user by email to handle SSO Identity gaps (409 Conflict avoid)
+        const { data: existingUserByEmail } = await supabase
+          .from("users")
+          .select("*")
+          .eq("email", session.user.email)
+          .maybeSingle();
+
+        if (existingUserByEmail) {
+          if (existingUserByEmail.id !== session.user.id) {
+            // Local user exists with same email but different ID (SSO login collision).
+            // Try to repoint the public.users record to the new SSO ID.
+            const { error: updateIdError } = await supabase
+              .from("users")
+              .update({ id: session.user.id, provider: authProvider })
+              .eq("email", session.user.email);
+            
+            if (updateIdError) {
+              // Fails if Foreign Keys exist. Rename old email and insert new row, migrating roles!
+              await supabase.from("users").update({ 
+                email: "merged_sso_" + session.user.id.substring(0, 5) + "_" + session.user.email 
+              }).eq("id", existingUserByEmail.id);
+              
+              await supabase.from("users").insert({
+                id: session.user.id,
+                email: session.user.email,
+                name: userName || existingUserByEmail.name,
+                provider: authProvider,
+                is_active: true,
+                roles: existingUserByEmail.roles || [], // Copy permissions
+              });
+            }
+          } else {
+            // Standard update for existing matching user
+            await supabase.from("users").update({
+              name: userName,
+              provider: authProvider,
+              is_active: true,
+            }).eq("id", session.user.id);
+          }
+        } else {
+          // Completely new user!
+          await supabase.from("users").insert({
+            id: session.user.id,
+            email: session.user.email,
+            name: userName,
+            provider: authProvider,
+            is_active: true,
+            role: "admin",
+            roles: [],
+          });
+        }
+        console.log("[Auth] User profile synced, provider:", authProvider);
+      } catch (e) {
+        console.warn("[Auth] Failed to sync user profile:", e);
+      }
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         // Only navigate on actual sign-in, NOT on token refresh or initial session
@@ -179,24 +243,7 @@ export default function RootLayout() {
               session.user.email || ""
             );
 
-            // Sync user profile with provider detection
-            const authProvider = session.user.app_metadata?.provider || "email";
-            const userName = session.user.user_metadata?.full_name ||
-              session.user.user_metadata?.name ||
-              session.user.email?.split("@")[0] || "";
-            try {
-              await supabase.from("users").upsert({
-                id: session.user.id,
-                email: session.user.email,
-                name: userName,
-                provider: authProvider,
-                is_active: true,
-                role: "admin",
-              }, { onConflict: "id" });
-              console.log("[Auth] User profile synced, provider:", authProvider);
-            } catch (e) {
-              console.warn("[Auth] Failed to sync user profile:", e);
-            }
+            await syncUserProfileToDB(session);
 
             registerForPushNotificationsAsync("admin", session.user.id, session.user.email).catch(console.error);
             router.replace("/(tabs)");
@@ -214,6 +261,7 @@ export default function RootLayout() {
           } else {
             await AsyncStorage.setItem("isLoggedIn", "true");
             await AsyncStorage.setItem("userEmail", session.user.email || "");
+            await syncUserProfileToDB(session);
             registerForPushNotificationsAsync("admin", session.user.id, session.user.email).catch(console.error);
           }
         }
@@ -279,15 +327,17 @@ export default function RootLayout() {
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="users" />
-            <Stack.Screen name="links" />
-            <Stack.Screen name="oauth/callback" />
-          </Stack>
-          <StatusBar style="auto" />
-        </ToastProvider>
+        <RouteGuard>
+          <ToastProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="users" />
+              <Stack.Screen name="links" />
+              <Stack.Screen name="oauth/callback" />
+            </Stack>
+            <StatusBar style="auto" />
+          </ToastProvider>
+        </RouteGuard>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

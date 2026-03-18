@@ -318,9 +318,9 @@ export default function UsersScreen() {
           onPress={handleSaveRoles}
         >
           {updateRolesMutation.isPending ? (
-            <ActivityIndicator color="#111" size="small" />
+            <ActivityIndicator color={colors.background} size="small" />
           ) : (
-            <Text style={{ fontWeight: "700", color: "#111" }}>Speichern</Text>
+            <Text style={{ fontWeight: "700", color: colors.background }}>Speichern</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -600,7 +600,7 @@ export default function UsersScreen() {
               activeOpacity={0.8}
               onPress={() => setShowCreateModal(true)}
             >
-              <IconSymbol name="plus" size={22} color="#111" />
+              <IconSymbol name="plus" size={22} color={colors.background} />
             </TouchableOpacity>
           </View>
 
@@ -659,7 +659,7 @@ export default function UsersScreen() {
                 onPress={() => queryClient.invalidateQueries({ queryKey: ["users"] })}
                 activeOpacity={0.8}
               >
-                <Text style={{ color: "#111", fontWeight: "600" }}>Erneut versuchen</Text>
+                <Text style={{ color: colors.background, fontWeight: "600" }}>Erneut versuchen</Text>
               </TouchableOpacity>
             </View>
           ) : users.length === 0 ? (
@@ -813,9 +813,9 @@ export default function UsersScreen() {
                   disabled={!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim()}
                 >
                   {createUserMutation.isPending ? (
-                    <ActivityIndicator color="#111" size="small" />
+                    <ActivityIndicator color={colors.background} size="small" />
                   ) : (
-                    <Text style={{ fontWeight: "700", color: "#111", fontSize: 14 }}>Erstellen</Text>
+                    <Text style={{ fontWeight: "700", color: colors.background, fontSize: 14 }}>Erstellen</Text>
                   )}
                 </TouchableOpacity>
               </View>

@@ -235,7 +235,7 @@ export default function ContractsScreen() {
               activeOpacity={0.8}
               onPress={() => setShowPlusMenu(true)}
             >
-              <IconSymbol name="plus.circle.fill" size={24} color="#111111" />
+              <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
             </TouchableOpacity>
           </View>
 

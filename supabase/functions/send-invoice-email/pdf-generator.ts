@@ -68,10 +68,12 @@ export function generateInvoicePDF(data: InvoiceData): string {
   y = 25;
 
   let docType = "Rechnung";
-  if (data.dunningLevel === 0) docType = "Zahlungserinnerung";
-  else if (data.dunningLevel === 1) docType = "1. Mahnung";
-  else if (data.dunningLevel === 2) docType = "2. Mahnung";
-  else if (data.dunningLevel === 3) docType = "Betreibungsandrohung";
+  if (data.is_dunning_document || (data.dunningLevel !== undefined && data.dunningLevel !== null && data.dunningLevel > 0)) {
+    if (data.dunningLevel === 0) docType = "Zahlungserinnerung";
+    else if (data.dunningLevel === 1) docType = "1. Mahnung";
+    else if (data.dunningLevel === 2) docType = "2. Mahnung";
+    else if (data.dunningLevel === 3) docType = "Betreibungsandrohung";
+  }
 
   if (LOGO_BASE64) {
     try {
