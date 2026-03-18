@@ -635,6 +635,17 @@ export async function getAllQuotes() {
     return data || [];
 }
 
+export async function getCustomerQuotes(customerId: string) {
+    const { data, error } = await supabase
+        .from("quotes")
+        .select(`*, items:quote_items(*)`)
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
 export async function getQuoteById(id: string) {
     const { data, error } = await supabase
         .from("quotes")

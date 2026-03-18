@@ -22,6 +22,7 @@ interface QuoteFormModalProps {
     onClose: () => void;
     onSuccess: () => void;
     editQuote?: any;
+    initialCustomerId?: string;
 }
 
 interface LineItem {
@@ -35,11 +36,11 @@ interface LineItem {
     optional: boolean;
 }
 
-export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: QuoteFormModalProps) {
+export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initialCustomerId }: QuoteFormModalProps) {
     const colors = useColors();
     const queryClient = useQueryClient();
 
-    const [customerId, setCustomerId] = useState("");
+    const [customerId, setCustomerId] = useState(initialCustomerId || "");
     const [validUntil, setValidUntil] = useState("");
     const [previewUrl, setPreviewUrl] = useState("");
     const [notes, setNotes] = useState("");
@@ -99,11 +100,12 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote }: Quote
             );
         } else {
             resetForm();
+            if (initialCustomerId) setCustomerId(initialCustomerId);
         }
     }, [editQuote, visible]);
 
     const resetForm = () => {
-        setCustomerId("");
+        setCustomerId(initialCustomerId || "");
         setValidUntil("");
         setPreviewUrl("");
         setNotes("");

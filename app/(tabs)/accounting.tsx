@@ -37,6 +37,7 @@ type TabKey =
   | "expenses"
   | "vat"
   | "annual"
+  | "scenario"
   | "documents";
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
@@ -44,6 +45,7 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: "invoices", label: "Rechnungen", icon: "doc.text.fill" },
   { key: "expenses", label: "Ein-/Ausgaben", icon: "cart.fill" },
   { key: "annual", label: "Jahresabschluss", icon: "calendar" },
+  { key: "scenario", label: "Projekt-Marge", icon: "plus.forwardslash.minus" },
   { key: "vat", label: "MwSt", icon: "percent" },
   { key: "documents", label: "Dokumente", icon: "folder.fill" },
 ];
@@ -58,6 +60,9 @@ export default function AccountingScreen() {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any>(null);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [expenseCategoryFilter, setExpenseCategoryFilter] = useState<string>("all");
+  const [initialIsIncome, setInitialIsIncome] = useState(false);
 
   // Invoice Filters & Sorting
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<"all" | "open" | "paid" | "overdue" | "cancelled">("all");
@@ -646,27 +651,29 @@ export default function AccountingScreen() {
             </ScrollView>
 
             {/* Sort Order Toggles */}
-            <View className="flex-row items-center border-t border-border pt-3 gap-2 flex-wrap">
-              <Text className="text-sm font-semibold text-muted mr-1">Sortieren nach:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingRight: 16 }} className="border-t border-border pt-3">
+              <View className="flex-row items-center mr-1">
+                <IconSymbol name="arrow.up.arrow.down" size={12} color={colors.muted} />
+              </View>
               {[
-                { label: "Datum ↓", value: "date_desc" },
-                { label: "Datum ↑", value: "date_asc" },
-                { label: "Betrag ↓", value: "amount_desc" },
-                { label: "Betrag ↑", value: "amount_asc" },
-                { label: "Nummer ↓", value: "number_desc" },
+                { label: "Neueste", value: "date_desc" },
+                { label: "Älteste", value: "date_asc" },
+                { label: "Höchster Betrag", value: "amount_desc" },
+                { label: "Niedrigster Betrag", value: "amount_asc" },
+                { label: "Nr. absteigend", value: "number_desc" },
               ].map((sort) => (
                 <TouchableOpacity
                   key={sort.value}
                   onPress={() => setInvoiceSort(sort.value as any)}
                   activeOpacity={0.7}
-                  className={`px-3 py-1.5 rounded-md ${invoiceSort === sort.value ? 'bg-primary/10 border border-primary/30' : 'bg-transparent border border-transparent'}`}
+                  className={`px-3 py-1.5 rounded-full ${invoiceSort === sort.value ? 'bg-primary' : 'bg-background border border-border'}`}
                 >
-                  <Text className={`text-xs font-semibold ${invoiceSort === sort.value ? 'text-primary' : 'text-muted'}`}>
+                  <Text className={`text-xs font-medium ${invoiceSort === sort.value ? 'text-background' : 'text-muted'}`}>
                     {sort.label}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
           </View>
 
           {processedInvoices.length === 0 && (
@@ -780,7 +787,28 @@ export default function AccountingScreen() {
 
               {renderYearSelector()}
 
-              {yearExpenses.map((expense: any) => (
+              {/* Category Filter */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
+                <TouchableOpacity
+                  onPress={() => setExpenseCategoryFilter("all")}
+                  activeOpacity={0.7}
+                  className={`px-4 py-2 rounded-full border ${expenseCategoryFilter === "all" ? 'bg-primary border-primary' : 'bg-background border-border'}`}
+                >
+                  <Text className={`text-sm font-semibold ${expenseCategoryFilter === "all" ? 'text-background' : 'text-foreground'}`}>Alle</Text>
+                </TouchableOpacity>
+                {Data.EXPENSE_CATEGORIES.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.value}
+                    onPress={() => setExpenseCategoryFilter(cat.value)}
+                    activeOpacity={0.7}
+                    className={`px-4 py-2 rounded-full border ${expenseCategoryFilter === cat.value ? 'bg-primary border-primary' : 'bg-background border-border'}`}
+                  >
+                    <Text className={`text-sm font-semibold ${expenseCategoryFilter === cat.value ? 'text-background' : 'text-foreground'}`}>{cat.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {yearExpenses.filter((e: any) => expenseCategoryFilter === "all" || e.category === expenseCategoryFilter).map((expense: any) => (
                 <TouchableOpacity
                   key={expense.id}
                   className="bg-surface rounded-xl p-4 border border-border"
@@ -1218,378 +1246,6 @@ export default function AccountingScreen() {
           )}
         </View>
 
-        {/* Szenario Calculator */}
-        <View className="bg-surface rounded-xl p-5 border border-border">
-          <View className="flex-row items-center gap-2 mb-4">
-            <IconSymbol
-              name="plus.forwardslash.minus"
-              size={20}
-              color={colors.primary}
-            />
-            <Text className="text-base font-bold text-foreground">
-              Szenario-Modell: Projekt-Marge
-            </Text>
-          </View>
-
-          <Text className="text-sm text-muted mb-4">
-            Berechnen Sie die verbleibende Marge für Gross ICT, wenn Aufträge an
-            Freelancer bzw. externe Personen ausgelagert werden.
-          </Text>
-
-          <View className="mb-4">
-            <Text className="text-xs font-semibold text-foreground mb-2">
-              AUFTRAGSVOLUMEN (CHF)
-            </Text>
-            <TextInput
-              value={scenarioVolume}
-              onChangeText={setScenarioVolume}
-              keyboardType="numeric"
-              className="bg-background border border-border rounded-lg p-3 text-foreground"
-              placeholder="10000"
-              placeholderTextColor={colors.muted}
-            />
-          </View>
-
-          <View className="mb-4 gap-3">
-            <Text className="text-xs font-semibold text-foreground">
-              WEITERE KOSTEN (CHF)
-            </Text>
-            
-            <View className="flex-row items-center gap-2">
-              <View className="flex-1">
-                <TextInput
-                  value={scenarioHosting}
-                  onChangeText={setScenarioHosting}
-                  keyboardType="numeric"
-                  className="bg-background border border-border rounded-lg p-3 text-foreground"
-                  placeholder="Hosting Kosten"
-                  placeholderTextColor={colors.muted}
-                />
-              </View>
-              <View className="flex-row items-center gap-2 bg-background p-2 px-3 rounded-lg border border-border">
-                <Text className="text-xs text-foreground">Abziehen?</Text>
-                <Switch 
-                  value={deductHosting} 
-                  onValueChange={setDeductHosting} 
-                  trackColor={{ false: colors.border, true: colors.primary }} 
-                />
-              </View>
-            </View>
-
-            <View className="flex-row items-center gap-2">
-              <View className="flex-1">
-                <TextInput
-                  value={scenarioDomain}
-                  onChangeText={setScenarioDomain}
-                  keyboardType="numeric"
-                  className="bg-background border border-border rounded-lg p-3 text-foreground"
-                  placeholder="Domain Kosten"
-                  placeholderTextColor={colors.muted}
-                />
-              </View>
-              <View className="flex-row items-center gap-2 bg-background p-2 px-3 rounded-lg border border-border">
-                <Text className="text-xs text-foreground">Abziehen?</Text>
-                <Switch 
-                  value={deductDomain} 
-                  onValueChange={setDeductDomain} 
-                  trackColor={{ false: colors.border, true: colors.primary }} 
-                />
-              </View>
-            </View>
-
-            <View className="flex-row items-center gap-2">
-              <View className="flex-1">
-                <TextInput
-                  value={scenarioOtherCosts}
-                  onChangeText={setScenarioOtherCosts}
-                  keyboardType="numeric"
-                  className="bg-background border border-border rounded-lg p-3 text-foreground"
-                  placeholder="Sonstige Kosten"
-                  placeholderTextColor={colors.muted}
-                />
-              </View>
-              <View className="flex-row items-center gap-2 bg-background p-2 px-3 rounded-lg border border-border">
-                <Text className="text-xs text-foreground">Abziehen?</Text>
-                <Switch 
-                  value={deductOtherCosts} 
-                  onValueChange={setDeductOtherCosts} 
-                  trackColor={{ false: colors.border, true: colors.primary }} 
-                />
-              </View>
-            </View>
-          </View>
-
-          <View className="mb-4">
-            <Text className="text-xs font-semibold text-foreground mb-2">
-              AUSFÜHRENDE PERSON
-            </Text>
-            <View className="flex-row gap-2">
-              <TouchableOpacity
-                className={`flex-1 py-3 px-4 rounded-lg items-center justify-center border ${scenarioExecutor === "inhaber" ? "bg-primary border-primary" : "bg-background border-border"}`}
-                onPress={() => setScenarioExecutor("inhaber")}
-              >
-                <Text
-                  className={`font-semibold ${scenarioExecutor === "inhaber" ? "text-background" : "text-foreground"}`}
-                >
-                  Inhaber
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className={`flex-1 py-3 px-4 rounded-lg items-center justify-center border ${scenarioExecutor === "angestellter" ? "bg-primary border-primary" : "bg-background border-border"}`}
-                onPress={() => setScenarioExecutor("angestellter")}
-              >
-                <Text
-                  className={`font-semibold ${scenarioExecutor === "angestellter" ? "text-background" : "text-foreground"}`}
-                >
-                  Angestellter
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Scenario Result */}
-          <View className="bg-background border border-border rounded-lg p-4 mt-2">
-            {(() => {
-              const vol = scenarioCalculatedVol;
-              const isEmployee = scenarioExecutor === "angestellter";
-
-              const lohn = scenarioLohn;
-              const agBeitrag = isEmployee ? lohn * 0.064 : 0;
-              const agFak = isEmployee ? lohn * 0.014 : 0;
-              const uvg = isEmployee ? lohn * 0.01 : 0;
-
-              const anAhv = isEmployee ? lohn * 0.053 : 0;
-              const anAlv = isEmployee ? lohn * 0.011 : 0;
-              const anBeitrag = anAhv + anAlv;
-              const nettoLohn = isEmployee ? lohn - anBeitrag : 0;
-
-              const baseMarge = vol - lohn - agBeitrag - agFak - uvg;
-              const totalMarge = baseMarge + scenarioDeductions;
-
-              const ownerAhv = baseMarge > 0 ? baseMarge * 0.106 : 0;
-              const ownerFak = baseMarge > 0 ? baseMarge * 0.014 : 0;
-              const ownerSteuer = baseMarge > 0 ? baseMarge * 0.15 : 0;
-              const ownerDeductions = ownerAhv + ownerFak + ownerSteuer;
-              const nettoMarge = totalMarge - ownerDeductions;
-
-              const vermittlung = isEmployee ? vol * 0.1 : 0;
-              const restMarge = isEmployee ? nettoMarge - vermittlung : 0;
-
-              return (
-                <View className="gap-2">
-                  {scenarioDeductions > 0 && (
-                    <View className="flex-row justify-between mb-2 pb-2 border-b border-border border-dashed">
-                       <Text className="text-sm text-muted">Aktivierte Abzüge</Text>
-                       <Text className="text-sm text-muted">-{formatCurrency(scenarioDeductions)}</Text>
-                    </View>
-                  )}
-                  {isEmployee && (
-                    <>
-                      <View className="flex-row justify-between mb-2">
-                        <Text className="text-sm text-foreground font-semibold">
-                          Berechnetes Projekt-Volumen
-                        </Text>
-                        <Text className="text-sm font-semibold">
-                          {formatCurrency(vol)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between">
-                        <Text className="text-sm text-muted">
-                          Brutto-Lohn Angestellter (70%)
-                        </Text>
-                        <Text className="text-sm text-error">
-                          -{formatCurrency(lohn)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ AN-Beitrag AHV/IV/EO (5.3%)
-                        </Text>
-                        <Text className="text-xs text-error">
-                          -{formatCurrency(anAhv)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ AN-Beitrag ALV (1.1%)
-                        </Text>
-                        <Text className="text-xs text-error">
-                          -{formatCurrency(anAlv)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between pt-1 mt-1 border-t border-border border-dotted mb-3">
-                        <Text className="text-xs font-semibold text-foreground ml-2">
-                          = Netto-Lohn / Auszahlung (ca.)
-                        </Text>
-                        <Text className="text-xs font-bold text-success">
-                          {formatCurrency(nettoLohn)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-3 mb-1">
-                        <Text className="text-sm font-semibold text-foreground">
-                          Arbeitgeber-Zusatzkosten (ca.)
-                        </Text>
-                        <Text className="text-sm font-semibold text-error">
-                          -{formatCurrency(agBeitrag + agFak + uvg)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ AG-Beitrag AHV/IV/ALV (6.4%)
-                        </Text>
-                        <Text className="text-xs text-error">
-                          -{formatCurrency(agBeitrag)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ FAK Luzern (1.4%)
-                        </Text>
-                        <Text className="text-xs text-error">
-                          -{formatCurrency(agFak)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ UVG / Unfallvers. (ca. 1.0%)
-                        </Text>
-                        <Text className="text-xs text-error">
-                          -{formatCurrency(uvg)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-2 pt-2 border-t border-border border-dashed">
-                        <Text className="text-sm text-foreground">
-                          Brutto-Marge Gross ICT
-                        </Text>
-                        <Text className="text-sm font-semibold">
-                          {formatCurrency(totalMarge)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ AHV/IV/EO Inhaber (10.6%)
-                        </Text>
-                        <Text className="text-xs text-error">
-                          -{formatCurrency(ownerAhv)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ FAK Luzern Inhaber (1.4%)
-                        </Text>
-                        <Text className="text-xs text-error">
-                          -{formatCurrency(ownerFak)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-1 mb-1">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ Einkommenssteuer (ca. 15%)
-                        </Text>
-                        <Text className="text-xs text-error">
-                          -{formatCurrency(ownerSteuer)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between pt-1 border-t border-border border-dotted">
-                        <Text className="text-sm font-semibold text-foreground">
-                          Netto-Marge Gross ICT
-                        </Text>
-                        <Text className="text-sm text-success font-bold">
-                          {formatCurrency(nettoMarge)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ Davon Vermittlungs-Fee (10% v. Vol.)
-                        </Text>
-                        <Text className="text-xs text-muted">
-                          {formatCurrency(vermittlung)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ Davon Unternehmens-Reserve
-                        </Text>
-                        <Text className="text-xs text-muted">
-                          {formatCurrency(restMarge)}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        className="bg-primary/10 border border-primary/30 py-3 rounded-lg flex-row items-center justify-center mt-4"
-                        activeOpacity={0.8}
-                        onPress={() => {
-                          if (isYearClosed) {
-                            showAlert("Gesperrt", "Dieses Jahr ist abgeschlossen.");
-                            return;
-                          }
-                          setShowScenarioModal(true);
-                        }}
-                      >
-                        <IconSymbol name="plus.circle.fill" size={18} color={colors.primary} />
-                        <Text className="text-primary font-semibold ml-2">
-                          Als Ausgabe verbuchen
-                        </Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                  {!isEmployee && (
-                    <>
-                      <View className="flex-row justify-between">
-                        <Text className="text-sm text-muted">Lohnkosten</Text>
-                        <Text className="text-sm text-muted">0.00 CHF</Text>
-                      </View>
-                      <View className="flex-row justify-between mt-2 pt-2 border-t border-border border-dashed">
-                        <Text className="text-sm font-bold text-foreground">
-                          Brutto-Marge Gross ICT
-                        </Text>
-                        <Text className="text-sm font-bold">
-                          {formatCurrency(scenarioRawVol)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ AHV/IV/EO Inhaber (10.6%)
-                        </Text>
-                        <Text className="text-xs text-error">
-                          -{formatCurrency(vol * 0.106)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ FAK Luzern Inhaber (1.4%)
-                        </Text>
-                        <Text className="text-xs text-error">
-                          -{formatCurrency(vol * 0.014)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-1 mb-1">
-                        <Text className="text-xs text-muted ml-2">
-                          ↳ Einkommenssteuer (ca. 15%)
-                        </Text>
-                        <Text className="text-xs text-error">
-                          -{formatCurrency(vol * 0.15)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between pt-1 border-t border-border border-dotted">
-                        <Text className="text-sm font-semibold text-foreground">
-                          Netto-Marge Gross ICT
-                        </Text>
-                        <Text className="text-sm text-success font-bold">
-                          {formatCurrency(vol * 0.73)}
-                        </Text>
-                      </View>
-                      <Text className="text-xs text-muted mt-2 text-center text-balance">
-                        Inhaber führt aus. Die Brutto-Marge ist der
-                        Unternehmensgewinn (wird anschliessend nach
-                        Jahresabschluss-Logik mit ca. 27% versteuert).
-                      </Text>
-                    </>
-                  )}
-                </View>
-              );
-            })()}
-          </View>
-        </View>
-
         {/* Export & Archive Actions */}
         <View className="gap-3 mt-2">
           {/* PDF Export */}
@@ -1699,6 +1355,126 @@ export default function AccountingScreen() {
     );
   };
 
+  const renderScenario = () => (
+    <View className="gap-4">
+      {renderYearSelector()}
+
+      <View className="bg-surface rounded-xl p-5 border border-border">
+        <View className="flex-row items-center gap-2 mb-4">
+          <IconSymbol name="plus.forwardslash.minus" size={20} color={colors.primary} />
+          <Text className="text-base font-bold text-foreground">Szenario-Modell: Projekt-Marge</Text>
+        </View>
+
+        <Text className="text-sm text-muted mb-4">
+          Berechnen Sie die verbleibende Marge für Gross ICT, wenn Aufträge an Freelancer bzw. externe Personen ausgelagert werden.
+        </Text>
+
+        <View className="mb-4">
+          <Text className="text-xs font-semibold text-foreground mb-2">AUFTRAGSVOLUMEN (CHF)</Text>
+          <TextInput value={scenarioVolume} onChangeText={setScenarioVolume} keyboardType="numeric" className="bg-background border border-border rounded-lg p-3 text-foreground" placeholder="10000" placeholderTextColor={colors.muted} />
+        </View>
+
+        <View className="mb-4 gap-3">
+          <Text className="text-xs font-semibold text-foreground">WEITERE KOSTEN (CHF)</Text>
+          <View className="flex-row items-center gap-2">
+            <View className="flex-1"><TextInput value={scenarioHosting} onChangeText={setScenarioHosting} keyboardType="numeric" className="bg-background border border-border rounded-lg p-3 text-foreground" placeholder="Hosting Kosten" placeholderTextColor={colors.muted} /></View>
+            <View className="flex-row items-center gap-2 bg-background p-2 px-3 rounded-lg border border-border"><Text className="text-xs text-foreground">Abziehen?</Text><Switch value={deductHosting} onValueChange={setDeductHosting} trackColor={{ false: colors.border, true: colors.primary }} /></View>
+          </View>
+          <View className="flex-row items-center gap-2">
+            <View className="flex-1"><TextInput value={scenarioDomain} onChangeText={setScenarioDomain} keyboardType="numeric" className="bg-background border border-border rounded-lg p-3 text-foreground" placeholder="Domain Kosten" placeholderTextColor={colors.muted} /></View>
+            <View className="flex-row items-center gap-2 bg-background p-2 px-3 rounded-lg border border-border"><Text className="text-xs text-foreground">Abziehen?</Text><Switch value={deductDomain} onValueChange={setDeductDomain} trackColor={{ false: colors.border, true: colors.primary }} /></View>
+          </View>
+          <View className="flex-row items-center gap-2">
+            <View className="flex-1"><TextInput value={scenarioOtherCosts} onChangeText={setScenarioOtherCosts} keyboardType="numeric" className="bg-background border border-border rounded-lg p-3 text-foreground" placeholder="Sonstige Kosten" placeholderTextColor={colors.muted} /></View>
+            <View className="flex-row items-center gap-2 bg-background p-2 px-3 rounded-lg border border-border"><Text className="text-xs text-foreground">Abziehen?</Text><Switch value={deductOtherCosts} onValueChange={setDeductOtherCosts} trackColor={{ false: colors.border, true: colors.primary }} /></View>
+          </View>
+        </View>
+
+        <View className="mb-4">
+          <Text className="text-xs font-semibold text-foreground mb-2">AUSFÜHRENDE PERSON</Text>
+          <View className="flex-row gap-2">
+            <TouchableOpacity className={`flex-1 py-3 px-4 rounded-lg items-center justify-center border ${scenarioExecutor === "inhaber" ? "bg-primary border-primary" : "bg-background border-border"}`} onPress={() => setScenarioExecutor("inhaber")}>
+              <Text className={`font-semibold ${scenarioExecutor === "inhaber" ? "text-background" : "text-foreground"}`}>Inhaber</Text>
+            </TouchableOpacity>
+            <TouchableOpacity className={`flex-1 py-3 px-4 rounded-lg items-center justify-center border ${scenarioExecutor === "angestellter" ? "bg-primary border-primary" : "bg-background border-border"}`} onPress={() => setScenarioExecutor("angestellter")}>
+              <Text className={`font-semibold ${scenarioExecutor === "angestellter" ? "text-background" : "text-foreground"}`}>Angestellter</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Scenario Result */}
+        <View className="bg-background border border-border rounded-lg p-4 mt-2">
+          {(() => {
+            const vol = scenarioCalculatedVol;
+            const isEmployee = scenarioExecutor === "angestellter";
+            const lohn = scenarioLohn;
+            const agBeitrag = isEmployee ? lohn * 0.064 : 0;
+            const agFak = isEmployee ? lohn * 0.014 : 0;
+            const uvg = isEmployee ? lohn * 0.01 : 0;
+            const anAhv = isEmployee ? lohn * 0.053 : 0;
+            const anAlv = isEmployee ? lohn * 0.011 : 0;
+            const anBeitrag = anAhv + anAlv;
+            const nettoLohn = isEmployee ? lohn - anBeitrag : 0;
+            const baseMarge = vol - lohn - agBeitrag - agFak - uvg;
+            const totalMarge = baseMarge + scenarioDeductions;
+            const ownerAhv = baseMarge > 0 ? baseMarge * 0.106 : 0;
+            const ownerFak = baseMarge > 0 ? baseMarge * 0.014 : 0;
+            const ownerSteuer = baseMarge > 0 ? baseMarge * 0.15 : 0;
+            const ownerDeductions = ownerAhv + ownerFak + ownerSteuer;
+            const nettoMarge = totalMarge - ownerDeductions;
+            const vermittlung = isEmployee ? vol * 0.1 : 0;
+            const restMarge = isEmployee ? nettoMarge - vermittlung : 0;
+            return (
+              <View className="gap-2">
+                {scenarioDeductions > 0 && (
+                  <View className="flex-row justify-between mb-2 pb-2 border-b border-border border-dashed">
+                    <Text className="text-sm text-muted">Aktivierte Abzüge</Text>
+                    <Text className="text-sm text-muted">-{formatCurrency(scenarioDeductions)}</Text>
+                  </View>
+                )}
+                {isEmployee && (
+                  <>
+                    <View className="flex-row justify-between mb-2"><Text className="text-sm text-foreground font-semibold">Berechnetes Projekt-Volumen</Text><Text className="text-sm font-semibold">{formatCurrency(vol)}</Text></View>
+                    <View className="flex-row justify-between"><Text className="text-sm text-muted">Brutto-Lohn Angestellter (70%)</Text><Text className="text-sm text-error">-{formatCurrency(lohn)}</Text></View>
+                    <View className="flex-row justify-between"><Text className="text-xs text-muted ml-2">↳ AN-Beitrag AHV/IV/EO (5.3%)</Text><Text className="text-xs text-error">-{formatCurrency(anAhv)}</Text></View>
+                    <View className="flex-row justify-between mt-1"><Text className="text-xs text-muted ml-2">↳ AN-Beitrag ALV (1.1%)</Text><Text className="text-xs text-error">-{formatCurrency(anAlv)}</Text></View>
+                    <View className="flex-row justify-between pt-1 mt-1 border-t border-border border-dotted mb-3"><Text className="text-xs font-semibold text-foreground ml-2">= Netto-Lohn / Auszahlung (ca.)</Text><Text className="text-xs font-bold text-success">{formatCurrency(nettoLohn)}</Text></View>
+                    <View className="flex-row justify-between mt-3 mb-1"><Text className="text-sm font-semibold text-foreground">Arbeitgeber-Zusatzkosten (ca.)</Text><Text className="text-sm font-semibold text-error">-{formatCurrency(agBeitrag + agFak + uvg)}</Text></View>
+                    <View className="flex-row justify-between"><Text className="text-xs text-muted ml-2">↳ AG-Beitrag AHV/IV/ALV (6.4%)</Text><Text className="text-xs text-error">-{formatCurrency(agBeitrag)}</Text></View>
+                    <View className="flex-row justify-between mt-1"><Text className="text-xs text-muted ml-2">↳ FAK Luzern (1.4%)</Text><Text className="text-xs text-error">-{formatCurrency(agFak)}</Text></View>
+                    <View className="flex-row justify-between mt-1"><Text className="text-xs text-muted ml-2">↳ UVG / Unfallvers. (ca. 1.0%)</Text><Text className="text-xs text-error">-{formatCurrency(uvg)}</Text></View>
+                    <View className="flex-row justify-between mt-2 pt-2 border-t border-border border-dashed"><Text className="text-sm text-foreground">Brutto-Marge Gross ICT</Text><Text className="text-sm font-semibold">{formatCurrency(totalMarge)}</Text></View>
+                    <View className="flex-row justify-between mt-1"><Text className="text-xs text-muted ml-2">↳ AHV/IV/EO Inhaber (10.6%)</Text><Text className="text-xs text-error">-{formatCurrency(ownerAhv)}</Text></View>
+                    <View className="flex-row justify-between mt-1"><Text className="text-xs text-muted ml-2">↳ FAK Luzern Inhaber (1.4%)</Text><Text className="text-xs text-error">-{formatCurrency(ownerFak)}</Text></View>
+                    <View className="flex-row justify-between mt-1 mb-1"><Text className="text-xs text-muted ml-2">↳ Einkommenssteuer (ca. 15%)</Text><Text className="text-xs text-error">-{formatCurrency(ownerSteuer)}</Text></View>
+                    <View className="flex-row justify-between pt-1 border-t border-border border-dotted"><Text className="text-sm font-semibold text-foreground">Netto-Marge Gross ICT</Text><Text className="text-sm text-success font-bold">{formatCurrency(nettoMarge)}</Text></View>
+                    <View className="flex-row justify-between mt-1"><Text className="text-xs text-muted ml-2">↳ Davon Vermittlungs-Fee (10% v. Vol.)</Text><Text className="text-xs text-muted">{formatCurrency(vermittlung)}</Text></View>
+                    <View className="flex-row justify-between mt-1"><Text className="text-xs text-muted ml-2">↳ Davon Unternehmens-Reserve</Text><Text className="text-xs text-muted">{formatCurrency(restMarge)}</Text></View>
+                    <TouchableOpacity className="bg-primary/10 border border-primary/30 py-3 rounded-lg flex-row items-center justify-center mt-4" activeOpacity={0.8} onPress={() => { if (isYearClosed) { showAlert("Gesperrt", "Dieses Jahr ist abgeschlossen."); return; } setShowScenarioModal(true); }}>
+                      <IconSymbol name="plus.circle.fill" size={18} color={colors.primary} />
+                      <Text className="text-primary font-semibold ml-2">Als Ausgabe verbuchen</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+                {!isEmployee && (
+                  <>
+                    <View className="flex-row justify-between"><Text className="text-sm text-muted">Lohnkosten</Text><Text className="text-sm text-muted">0.00 CHF</Text></View>
+                    <View className="flex-row justify-between mt-2 pt-2 border-t border-border border-dashed"><Text className="text-sm font-bold text-foreground">Brutto-Marge Gross ICT</Text><Text className="text-sm font-bold">{formatCurrency(scenarioRawVol)}</Text></View>
+                    <View className="flex-row justify-between mt-1"><Text className="text-xs text-muted ml-2">↳ AHV/IV/EO Inhaber (10.6%)</Text><Text className="text-xs text-error">-{formatCurrency(vol * 0.106)}</Text></View>
+                    <View className="flex-row justify-between mt-1"><Text className="text-xs text-muted ml-2">↳ FAK Luzern Inhaber (1.4%)</Text><Text className="text-xs text-error">-{formatCurrency(vol * 0.014)}</Text></View>
+                    <View className="flex-row justify-between mt-1 mb-1"><Text className="text-xs text-muted ml-2">↳ Einkommenssteuer (ca. 15%)</Text><Text className="text-xs text-error">-{formatCurrency(vol * 0.15)}</Text></View>
+                    <View className="flex-row justify-between pt-1 border-t border-border border-dotted"><Text className="text-sm font-semibold text-foreground">Netto-Marge Gross ICT</Text><Text className="text-sm text-success font-bold">{formatCurrency(vol * 0.73)}</Text></View>
+                    <Text className="text-xs text-muted mt-2 text-center text-balance">Inhaber führt aus. Die Brutto-Marge ist der Unternehmensgewinn (wird anschliessend nach Jahresabschluss-Logik mit ca. 27% versteuert).</Text>
+                  </>
+                )}
+              </View>
+            );
+          })()}
+        </View>
+      </View>
+    </View>
+  );
+
   return (
     <ScreenContainer>
       <ScrollView
@@ -1731,24 +1507,31 @@ export default function AccountingScreen() {
                 Buchhaltung
               </Text>
             </View>
-            <TouchableOpacity
-              className={`w-12 h-12 rounded-full items-center justify-center ${isYearClosed && (activeTab === "expenses" || activeTab === "invoices") ? "bg-muted" : "bg-primary"}`}
-              activeOpacity={0.8}
-              onPress={() => {
-                if (isYearClosed && (activeTab === "expenses" || activeTab === "invoices")) {
-                  showAlert("Gesperrt", "Dieses Jahr ist abgeschlossen.");
-                  return;
-                }
-                if (activeTab === "expenses") {
-                  setEditingExpense(null);
-                  setShowExpenseModal(true);
-                } else if (activeTab === "invoices") {
-                  setShowInvoiceModal(true);
-                }
-              }}
-            >
-              <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
-            </TouchableOpacity>
+            <View>
+              <TouchableOpacity
+                className="w-12 h-12 rounded-full items-center justify-center bg-primary"
+                activeOpacity={0.8}
+                onPress={() => setShowPlusMenu(!showPlusMenu)}
+              >
+                <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
+              </TouchableOpacity>
+              {showPlusMenu && (
+                <View className="absolute right-0 top-14 bg-surface border border-border rounded-xl shadow-lg z-50" style={{ minWidth: 200, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 }}>
+                  <TouchableOpacity className="flex-row items-center gap-3 px-4 py-3 border-b border-border" activeOpacity={0.7} onPress={() => { setShowPlusMenu(false); if (isYearClosed) { showAlert("Gesperrt", "Dieses Jahr ist abgeschlossen."); return; } setShowInvoiceModal(true); }}>
+                    <IconSymbol name="doc.text.fill" size={18} color={colors.primary} />
+                    <Text className="text-sm font-semibold text-foreground">Neue Rechnung</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity className="flex-row items-center gap-3 px-4 py-3 border-b border-border" activeOpacity={0.7} onPress={() => { setShowPlusMenu(false); if (isYearClosed) { showAlert("Gesperrt", "Dieses Jahr ist abgeschlossen."); return; } setEditingExpense(null); setInitialIsIncome(true); setShowExpenseModal(true); }}>
+                    <IconSymbol name="arrow.down.circle.fill" size={18} color={colors.success || "#22c55e"} />
+                    <Text className="text-sm font-semibold text-foreground">Neue Eingabe</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity className="flex-row items-center gap-3 px-4 py-3" activeOpacity={0.7} onPress={() => { setShowPlusMenu(false); if (isYearClosed) { showAlert("Gesperrt", "Dieses Jahr ist abgeschlossen."); return; } setEditingExpense(null); setInitialIsIncome(false); setShowExpenseModal(true); }}>
+                    <IconSymbol name="arrow.up.circle.fill" size={18} color={colors.error || "#ef4444"} />
+                    <Text className="text-sm font-semibold text-foreground">Neue Ausgabe</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
           </View>
 
           {/* Tab Navigation */}
@@ -1784,6 +1567,7 @@ export default function AccountingScreen() {
           {activeTab === "expenses" && renderExpenses()}
           {activeTab === "vat" && renderVat()}
           {activeTab === "annual" && renderAnnual()}
+          {activeTab === "scenario" && renderScenario()}
           {activeTab === "documents" && <DocumentsTab colors={colors} />}
         </View>
       </ScrollView>
@@ -1805,6 +1589,7 @@ export default function AccountingScreen() {
         initialScanReceipt={scannedReceipt}
         knownSuppliers={knownSuppliers}
         knownDescriptions={knownDescriptions}
+        initialIsIncome={initialIsIncome}
       />
 
       <ScenarioBookingModal

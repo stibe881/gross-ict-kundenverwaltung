@@ -225,7 +225,7 @@ export default function DashboardScreen() {
         {
           id: "quotes",
           title: "Angebote",
-          subtitle: "Offerten erstellen",
+          subtitle: "Angebote erstellen",
           icon: "doc.text.fill",
           color: "#EC4899",
           route: "/quotes",

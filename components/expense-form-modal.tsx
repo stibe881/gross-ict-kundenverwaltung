@@ -44,9 +44,10 @@ interface ExpenseFormModalProps {
     initialScanReceipt?: { uri: string; name: string; type: string } | null;
     knownSuppliers?: string[];
     knownDescriptions?: string[];
+    initialIsIncome?: boolean;
 }
 
-export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initialScanReceipt, knownSuppliers = [], knownDescriptions = [] }: ExpenseFormModalProps) {
+export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initialScanReceipt, knownSuppliers = [], knownDescriptions = [], initialIsIncome = false }: ExpenseFormModalProps) {
     const colors = useColors();
     const [loading, setLoading] = useState(false);
     const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -134,7 +135,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 customerName: "",
                 projectName: "",
             });
-            setIsIncome(false);
+            setIsIncome(initialIsIncome);
             setExistingReceiptPath(null);
             setExistingReceiptUrl(null);
             

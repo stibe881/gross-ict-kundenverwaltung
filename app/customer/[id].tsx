@@ -9,6 +9,8 @@ import {
   Linking,
   Image,
   TextInput,
+  Platform,
+  Alert,
 } from "react-native";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
@@ -23,8 +25,10 @@ import { formatDate, formatCurrency, getInvoiceTotal } from "@/lib/format";
 import { CustomerPortalManagement } from "@/components/customer-portal-management";
 import { ContractFormModal } from "@/components/contract-form-modal";
 import { CustomerFormModal } from "@/components/customer-form-modal";
+import { QuoteFormModal } from "@/components/quote-form-modal";
+import { TicketFormModal } from "@/components/ticket-form-modal";
 
-type Tab = "tickets" | "rechnungen" | "vertraege" | "kontakte";
+type Tab = "tickets" | "rechnungen" | "vertraege" | "angebote" | "kontakte";
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -41,6 +45,8 @@ export default function CustomerDetailScreen() {
   const [newContact, setNewContact] = useState({ first_name: "", last_name: "", email: "", phone: "", position: "" });
   const [editingContact, setEditingContact] = useState<any>(null);
   const [editContactData, setEditContactData] = useState({ first_name: "", last_name: "", email: "", phone: "", position: "" });
+  const [showNewQuote, setShowNewQuote] = useState(false);
+  const [showNewTicket, setShowNewTicket] = useState(false);
 
   // ── Data ──
   const { data: customer, isLoading: loading } = useQuery({
@@ -70,6 +76,12 @@ export default function CustomerDetailScreen() {
   const { data: customerContacts = [] } = useQuery({
     queryKey: ["customer-contacts", id],
     queryFn: () => Data.getCustomerContacts(id as string),
+    enabled: !!id,
+  });
+
+  const { data: quotes = [] } = useQuery({
+    queryKey: ["quotes", "customer", id],
+    queryFn: () => Data.getCustomerQuotes(id as string),
     enabled: !!id,
   });
 
@@ -176,6 +188,7 @@ export default function CustomerDetailScreen() {
     { key: "tickets", label: "Tickets", icon: "ticket.fill", count: tickets.length },
     { key: "rechnungen", label: "Rechnungen", icon: "chart.bar.fill", count: invoices.length },
     { key: "vertraege", label: "Verträge", icon: "doc.text.fill", count: contracts.length },
+    { key: "angebote", label: "Angebote", icon: "doc.badge.clock.fill", count: quotes.length },
     { key: "kontakte", label: "Kontakte", icon: "person.2.fill", count: (customerContacts.length || 0) + (contactPerson ? 1 : 0) },
   ];
 
@@ -198,6 +211,35 @@ export default function CustomerDetailScreen() {
     s === "active" ? "AKTIV" : s === "cancelled" ? "GEKÜNDIGT" : "ABGELAUFEN";
   const contractStatusColor = (s: string) =>
     s === "active" ? colors.success : s === "cancelled" ? colors.error : colors.warning;
+
+  const quoteStatusLabel = (s: string) =>
+    s === "draft" ? "ENTWURF" : s === "sent" ? "GESENDET" : s === "accepted" ? "ANGENOMMEN" : s === "declined" ? "ABGELEHNT" : s === "expired" ? "ABGELAUFEN" : s.toUpperCase();
+  const quoteStatusColor = (s: string) =>
+    s === "accepted" ? colors.success : s === "sent" ? colors.primary : s === "declined" ? colors.error : s === "expired" ? colors.warning : colors.muted;
+
+  const handleOpenAddressChoice = () => {
+    const addressParts = [customer?.address, customer?.postal_code, customer?.city, customer?.country].filter(Boolean);
+    const fullAddress = addressParts.join(", ");
+    if (!fullAddress) return;
+    const encodedAddress = encodeURIComponent(fullAddress);
+    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+    const appleMapsUrl = `https://maps.apple.com/?q=${encodedAddress}`;
+
+    if (Platform.OS === "web") {
+      Linking.openURL(googleMapsUrl);
+      return;
+    }
+
+    Alert.alert(
+      "Karte öffnen",
+      fullAddress,
+      [
+        { text: "Abbrechen", style: "cancel" },
+        { text: "Google Maps", onPress: () => Linking.openURL(googleMapsUrl) },
+        { text: "Apple Maps", onPress: () => Linking.openURL(appleMapsUrl) },
+      ]
+    );
+  };
 
   // ── Handlers ──
   const handleToggleStatus = () => {
@@ -431,6 +473,77 @@ export default function CustomerDetailScreen() {
                 </Text>
                 <Text className="text-sm font-bold text-foreground" style={{ width: 90, textAlign: "right" }}>
                   {formatCurrency(c.amount)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        );
+
+      case "angebote":
+        if (quotes.length === 0) return renderEmpty("Keine Angebote", "doc.badge.clock.fill");
+        if (!isWide) {
+          return (
+            <View className="gap-3">
+              {quotes.map((q: any) => (
+                <TouchableOpacity
+                  key={q.id}
+                  className="bg-surface rounded-xl border border-border p-4"
+                  activeOpacity={0.7}
+                  onPress={() => router.push(`/quote/${q.id}`)}
+                >
+                  <View className="flex-row items-start justify-between mb-2">
+                    <View>
+                      <Text className="text-base font-semibold text-foreground">{q.quote_number || "—"}</Text>
+                      <Text className="text-xs text-muted">{formatDate(q.created_at)}</Text>
+                    </View>
+                    <View className="px-2 py-0.5 rounded" style={{ backgroundColor: quoteStatusColor(q.status) + "20" }}>
+                      <Text className="text-[10px] font-bold" style={{ color: quoteStatusColor(q.status) }}>
+                        {quoteStatusLabel(q.status)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-xs text-muted">Gültig bis: {q.valid_until ? formatDate(q.valid_until) : "—"}</Text>
+                    <Text className="text-lg font-bold text-primary">{formatCurrency(q.total || 0)}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          );
+        }
+        return (
+          <View className="bg-surface rounded-xl border border-border overflow-hidden">
+            <View className="flex-row px-4 py-3 border-b border-border">
+              <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 110 }}>Nr.</Text>
+              <Text className="text-[10px] font-semibold text-muted uppercase flex-1">Datum</Text>
+              <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 100 }}>Status</Text>
+              <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 90, textAlign: "right" }}>Gültig bis</Text>
+              <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 90, textAlign: "right" }}>Betrag</Text>
+            </View>
+            {quotes.map((q: any, idx: number) => (
+              <TouchableOpacity
+                key={q.id}
+                className="flex-row items-center px-4 py-3"
+                style={{ borderBottomWidth: idx < quotes.length - 1 ? 1 : 0, borderColor: colors.border }}
+                activeOpacity={0.6}
+                onPress={() => router.push(`/quote/${q.id}`)}
+              >
+                <Text className="text-xs text-primary font-semibold" style={{ width: 110 }}>
+                  {q.quote_number || "—"}
+                </Text>
+                <Text className="text-sm text-foreground flex-1">
+                  {formatDate(q.created_at)}
+                </Text>
+                <View style={{ width: 100 }}>
+                  <Text className="text-[10px] font-bold" style={{ color: quoteStatusColor(q.status) }}>
+                    {quoteStatusLabel(q.status)}
+                  </Text>
+                </View>
+                <Text className="text-xs text-muted" style={{ width: 90, textAlign: "right" }}>
+                  {q.valid_until ? formatDate(q.valid_until) : "—"}
+                </Text>
+                <Text className="text-sm font-bold text-foreground" style={{ width: 90, textAlign: "right" }}>
+                  {formatCurrency(q.total || 0)}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -856,7 +969,7 @@ export default function CustomerDetailScreen() {
               {/* ← Zurück zu Kunden */}
               <TouchableOpacity
                 className="flex-row items-center gap-1 mb-4"
-                onPress={() => router.back()}
+                onPress={() => router.push("/(tabs)/customers" as any)}
                 activeOpacity={0.7}
               >
                 <IconSymbol name="chevron.left" size={16} color={colors.muted} />
@@ -956,12 +1069,16 @@ export default function CustomerDetailScreen() {
                           </TouchableOpacity>
                         )}
                         {(customer?.city || customer?.address) && (
-                          <View className="flex-row items-center gap-1">
-                            <IconSymbol name="mappin.circle.fill" size={12} color={colors.muted} />
-                            <Text className="text-xs text-muted">
+                          <TouchableOpacity
+                            className="flex-row items-center gap-1"
+                            onPress={handleOpenAddressChoice}
+                            activeOpacity={0.7}
+                          >
+                            <IconSymbol name="mappin.circle.fill" size={12} color={colors.success} />
+                            <Text className="text-xs text-muted" style={{ textDecorationLine: "underline" }}>
                               {[customer?.address, [customer?.postal_code, customer?.city].filter(Boolean).join(" "), customer?.country].filter(Boolean).join(", ")}
                             </Text>
-                          </View>
+                          </TouchableOpacity>
                         )}
                         {customer?.email && (
                           <TouchableOpacity
@@ -1006,15 +1123,16 @@ export default function CustomerDetailScreen() {
                 <TouchableOpacity
                   className="flex-row items-center gap-1.5 bg-primary px-4 py-2 rounded-lg"
                   activeOpacity={0.8}
+                  onPress={() => setShowNewTicket(true)}
                 >
                   <Text className="text-sm font-semibold" style={{ color: colors.background }}>+ Neues Ticket</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   className="flex-row items-center gap-1.5 bg-surface border border-border px-4 py-2 rounded-lg"
                   activeOpacity={0.8}
-                  onPress={() => router.push(`/quote/new?customer_id=${id}`)}
+                  onPress={() => setShowNewQuote(true)}
                 >
-                  <Text className="text-sm font-semibold text-foreground">+ Neue Offerte</Text>
+                  <Text className="text-sm font-semibold text-foreground">+ Neues Angebot</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   className="flex-row items-center gap-1.5 bg-surface border border-border px-4 py-2 rounded-lg"
@@ -1159,7 +1277,7 @@ export default function CustomerDetailScreen() {
       {editingContract && (
         <ContractFormModal
           visible={true}
-          contract={editingContract.customer_id ? undefined : editingContract}
+          contract={editingContract.id ? editingContract : (editingContract.customer_id ? { customerId: editingContract.customer_id } : undefined)}
           onClose={() => setEditingContract(null)}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ["contracts", id] });
@@ -1249,6 +1367,32 @@ export default function CustomerDetailScreen() {
             queryClient.invalidateQueries({ queryKey: ["customer", id] });
             queryClient.invalidateQueries({ queryKey: ["customers"] });
             queryClient.invalidateQueries({ queryKey: ["customer-contacts", id] });
+          }}
+        />
+      )}
+
+      {showNewQuote && (
+        <QuoteFormModal
+          visible={showNewQuote}
+          initialCustomerId={id as string}
+          onClose={() => setShowNewQuote(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["quotes", "customer", id] });
+            queryClient.invalidateQueries({ queryKey: ["quotes"] });
+            setShowNewQuote(false);
+          }}
+        />
+      )}
+
+      {showNewTicket && (
+        <TicketFormModal
+          visible={showNewTicket}
+          ticket={{ customer_id: id }}
+          onClose={() => setShowNewTicket(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["tickets", id] });
+            queryClient.invalidateQueries({ queryKey: ["tickets"] });
+            setShowNewTicket(false);
           }}
         />
       )}
