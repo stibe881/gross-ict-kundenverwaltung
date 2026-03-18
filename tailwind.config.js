@@ -24,10 +24,4 @@ module.exports = {
       colors: tailwindColors,
     },
   },
-  plugins: [
-    plugin(({ addVariant }) => {
-      addVariant("light", ':root:not([data-theme="dark"]) &');
-      addVariant("dark", ':root[data-theme="dark"] &');
-    }),
-  ],
 };

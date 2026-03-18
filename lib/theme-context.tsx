@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useColorScheme as useDeviceColorScheme } from "react-native";
+import { useColorScheme as useNativeWindColorScheme } from "nativewind";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type ThemeMode = "light" | "dark" | "system";
@@ -17,7 +18,8 @@ const THEME_STORAGE_KEY = "@app_theme_mode";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const deviceColorScheme = useDeviceColorScheme();
-  const [themeMode, setThemeModeState] = useState<ThemeMode>("system");
+  const { setColorScheme } = useNativeWindColorScheme();
+  const [themeMode, setThemeModeState] = useState<ThemeMode>("light");
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load theme from storage on mount
@@ -31,10 +33,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Resolve the actual theme based on mode and device settings
+  // We force 'light' as the default/system theme to explicitly match gross-ict.ch brand
   const resolvedTheme: ResolvedTheme =
-    themeMode === "system"
-      ? (deviceColorScheme === "dark" ? "dark" : "light")
-      : themeMode;
+    themeMode === "system" ? "light" : themeMode;
+
+  // Sync NativeWind with our resolved JS theme
+  useEffect(() => {
+    setColorScheme(resolvedTheme);
+  }, [resolvedTheme, setColorScheme]);
 
   const setThemeMode = async (mode: ThemeMode) => {
     setThemeModeState(mode);

@@ -17,7 +17,22 @@
 }
 
 /* ── Dark Mode ── */
-:root[data-theme="dark"] {
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #C19A6B;
+    --color-background: #1C1D27;
+    --color-surface: #252636;
+    --color-foreground: #EDE8DF;
+    --color-muted: #8A8498;
+    --color-border: #3A3748;
+    --color-success: #4ADE80;
+    --color-warning: #FB923C;
+    --color-error: #F87171;
+    --color-info: #22D3EE;
+  }
+}
+
+.dark {
   --color-primary: #C19A6B;
   --color-background: #1C1D27;
   --color-surface: #252636;
@@ -31,7 +46,7 @@
 }
 
 /* ── Light theme explicit ── */
-:root[data-theme="light"] {
+.light {
   --color-primary: #C19A6B;
   --color-background: #FDFCFA;
   --color-surface: #F5F2EE;
