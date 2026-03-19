@@ -45,6 +45,7 @@ export function ContractFormModal({
     title: contract?.title || "",
     description: contract?.description || "",
     customerId: contract?.customer_id || contract?.customerId || null,
+    employeeId: contract?.employee_id || contract?.employeeId || null,
     amount: (contract?.annual_amount || contract?.amount)?.toString() || "",
     startDate: toDisplay(contract?.start_date || contract?.startDate || ""),
     durationMonths: (contract?.duration_months || contract?.durationMonths)?.toString() || "12",
@@ -80,6 +81,12 @@ export function ContractFormModal({
   const { data: customers } = useQuery({
     queryKey: ["customers"],
     queryFn: Data.getCustomersWithCounts,
+  });
+
+  // Benutzer laden
+  const { data: users } = useQuery({
+    queryKey: ["users"],
+    queryFn: Data.getAllUsers,
   });
 
   // Vorlagen laden
@@ -136,7 +143,7 @@ export function ContractFormModal({
   };
 
   const handleSubmit = async () => {
-    if (!formData.title || !formData.customerId || !formData.amount || !formData.startDate) {
+    if (!formData.title || (!formData.isInternal && !formData.customerId) || (formData.isInternal && !formData.employeeId) || (!formData.isInternal && !formData.amount) || !formData.startDate) {
       alert("Bitte füllen Sie alle Pflichtfelder aus");
       return;
     }
@@ -144,23 +151,24 @@ export function ContractFormModal({
     try {
       const endDate = calculateEndDate();
       const contractData = {
-        customer_id: formData.customerId,
+        customer_id: formData.isInternal ? null : formData.customerId,
+        employee_id: formData.isInternal ? formData.employeeId : null,
         title: formData.title,
         description: formData.description || undefined,
-        amount: parseFloat(formData.amount),
+        amount: formData.isInternal ? 0 : parseFloat(formData.amount),
         start_date: toDb(formData.startDate),
-        end_date: endDate || undefined,
-        duration_months: parseInt(formData.durationMonths) || 12,
-        notice_period_months: parseInt(formData.noticePeriodMonths) || 3,
+        end_date: formData.isInternal ? undefined : (endDate || undefined),
+        duration_months: formData.isInternal ? undefined : (parseInt(formData.durationMonths) || 12),
+        notice_period_months: formData.isInternal ? undefined : (parseInt(formData.noticePeriodMonths) || 3),
         template_id: selectedTemplate?.id || undefined,
         contact_person: formData.contactPerson || undefined,
-        payment_terms: formData.paymentTerms || undefined,
+        payment_terms: formData.isInternal ? undefined : formData.paymentTerms || undefined,
         scope_of_services: formData.scopeOfServices || undefined,
         special_agreements: formData.specialAgreements || undefined,
-        recurring_enabled: formData.recurringEnabled,
-        billing_cycle: formData.recurringEnabled ? formData.billingCycle : undefined,
-        auto_renewal: formData.autoRenewal,
-        vat_rate: parseFloat(formData.vatRate) || 0,
+        recurring_enabled: formData.isInternal ? false : formData.recurringEnabled,
+        billing_cycle: (formData.recurringEnabled && !formData.isInternal) ? formData.billingCycle : undefined,
+        auto_renewal: formData.isInternal ? false : formData.autoRenewal,
+        vat_rate: formData.isInternal ? 0 : (parseFloat(formData.vatRate) || 0),
         is_internal: formData.isInternal,
       };
 
@@ -242,20 +250,20 @@ export function ContractFormModal({
                 </View>
               )}
 
-              {/* Kunde auswählen */}
+              {/* Kunde / Mitarbeiter auswählen */}
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
-                  Kunde *
+                  {formData.isInternal ? "Mitarbeiter *" : "Kunde *"}
                 </Text>
                 <TouchableOpacity
                   className="bg-surface border border-border rounded-lg px-4 py-3"
                   onPress={() => { setCustomerSearch(''); setShowCustomerPicker(true); }}
                   activeOpacity={0.7}
                 >
-                  <Text className={selectedCustomer ? "text-foreground" : "text-muted"}>
-                    {selectedCustomer
-                      ? getCustomerName(selectedCustomer)
-                      : "Kunde auswählen..."}
+                  <Text className={(formData.isInternal ? formData.employeeId : formData.customerId) ? "text-foreground" : "text-muted"}>
+                    {formData.isInternal 
+                        ? (users?.find((u: any) => u.id === formData.employeeId)?.name || users?.find((u: any) => u.id === formData.employeeId)?.email || "Mitarbeiter auswählen...")
+                        : (selectedCustomer ? getCustomerName(selectedCustomer) : "Kunde auswählen...")}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -331,6 +339,7 @@ export function ContractFormModal({
               </View>
 
               {/* Zahlungsbedingungen */}
+              {!formData.isInternal && (
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
                   Zahlungsbedingungen
@@ -359,6 +368,7 @@ export function ContractFormModal({
                   ))}
                 </View>
               </View>
+              )}
 
               {/* Zusatzvereinbarungen */}
               <View>
@@ -380,6 +390,7 @@ export function ContractFormModal({
               </View>
 
               {/* Betrag */}
+              {!formData.isInternal && (
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
                   Jahresbetrag (CHF) *
@@ -395,6 +406,7 @@ export function ContractFormModal({
                   }
                 />
               </View>
+              )}
 
               {/* Startdatum */}
               <View>
@@ -416,6 +428,7 @@ export function ContractFormModal({
               </View>
 
               {/* MWST-Satz */}
+              {!formData.isInternal && (
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
                   MWST-Satz
@@ -444,8 +457,10 @@ export function ContractFormModal({
                   ))}
                 </View>
               </View>
+              )}
 
               {/* Laufzeit */}
+              {!formData.isInternal && (
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
                   Laufzeit (Monate)
@@ -461,8 +476,10 @@ export function ContractFormModal({
                   }
                 />
               </View>
+              )}
 
               {/* Kündigungsfrist */}
+              {!formData.isInternal && (
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
                   Kündigungsfrist (Monate)
@@ -478,9 +495,10 @@ export function ContractFormModal({
                   }
                 />
               </View>
+              )}
 
               {/* Berechnetes Enddatum */}
-              {formData.startDate && formData.durationMonths && (
+              {!formData.isInternal && formData.startDate && formData.durationMonths && (
                 <View className="bg-primary/10 rounded-lg p-3">
                   <Text className="text-sm text-muted mb-1">Berechnetes Enddatum</Text>
                   <Text className="text-base font-semibold text-primary">
@@ -489,35 +507,8 @@ export function ContractFormModal({
                 </View>
               )}
 
-              {/* Interne Verträge (nur für Admins sichtbar) */}
-              {isAdmin && (
-                <View className="bg-surface rounded-lg p-4 border border-border mb-4">
-                  <TouchableOpacity
-                    className="flex-row items-center justify-between"
-                    onPress={() => setFormData({ ...formData, isInternal: !formData.isInternal })}
-                    activeOpacity={0.7}
-                  >
-                    <View className="flex-1">
-                      <Text className="text-sm font-semibold text-foreground">Interner Vertrag</Text>
-                      <Text className="text-xs text-muted mt-1">Nur für Administratoren sichtbar. Wird Kunden oder normalen Mitarbeitern nicht angezeigt.</Text>
-                    </View>
-                    <View style={{
-                      width: 48, height: 28, borderRadius: 14,
-                      backgroundColor: formData.isInternal ? colors.primary : colors.border,
-                      justifyContent: "center",
-                      paddingHorizontal: 2,
-                    }}>
-                      <View style={{
-                        width: 24, height: 24, borderRadius: 12,
-                        backgroundColor: "#fff",
-                        alignSelf: formData.isInternal ? "flex-end" : "flex-start",
-                      }} />
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              )}
-
               {/* Automatische Verlängerung */}
+              {!formData.isInternal && (
               <View className="bg-surface rounded-lg p-4 border border-border">
                 <TouchableOpacity
                   className="flex-row items-center justify-between"
@@ -542,8 +533,10 @@ export function ContractFormModal({
                   </View>
                 </TouchableOpacity>
               </View>
+              )}
 
               {/* Regelmässige Rechnungen */}
+              {!formData.isInternal && (
               <View className="bg-surface rounded-lg p-4 border border-border">
                 <TouchableOpacity
                   className="flex-row items-center justify-between"
@@ -625,6 +618,43 @@ export function ContractFormModal({
                   </View>
                 )}
               </View>
+              )}
+
+              {/* Interne Verträge (nur für Admins sichtbar) */}
+              {isAdmin && (
+                <View className="bg-surface rounded-lg p-4 border border-border mb-4">
+                  <TouchableOpacity
+                    className="flex-row items-center justify-between"
+                    onPress={() => {
+                        const nextInternal = !formData.isInternal;
+                        setFormData({ 
+                            ...formData, 
+                            isInternal: nextInternal, 
+                            customerId: nextInternal ? null : formData.customerId, 
+                            employeeId: nextInternal ? formData.employeeId : null 
+                        });
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View className="flex-1">
+                      <Text className="text-sm font-semibold text-foreground">Interner Vertrag</Text>
+                      <Text className="text-xs text-muted mt-1">Nur für Administratoren sichtbar. Wird Kunden oder normalen Mitarbeitern nicht angezeigt.</Text>
+                    </View>
+                    <View style={{
+                      width: 48, height: 28, borderRadius: 14,
+                      backgroundColor: formData.isInternal ? colors.primary : colors.border,
+                      justifyContent: "center",
+                      paddingHorizontal: 2,
+                    }}>
+                      <View style={{
+                        width: 24, height: 24, borderRadius: 12,
+                        backgroundColor: "#fff",
+                        alignSelf: formData.isInternal ? "flex-end" : "flex-start",
+                      }} />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </ScrollView>
 
@@ -684,29 +714,55 @@ export function ContractFormModal({
               />
             </View>
             <ScrollView className="p-4">
-              {filteredCustomers && filteredCustomers.length > 0 ? (
-                filteredCustomers.map((customer: any) => (
+              {formData.isInternal ? (
+                // Mitarbeiter-Liste
+                users?.filter((u: any) => 
+                  (u.name || '').toLowerCase().includes(customerSearch.toLowerCase()) || 
+                  (u.email || '').toLowerCase().includes(customerSearch.toLowerCase())
+                ).map((user: any) => (
                   <TouchableOpacity
-                    key={customer.id}
+                    key={user.id}
                     className="py-3 border-b border-border"
                     onPress={() => {
-                      setFormData({ ...formData, customerId: customer.id });
+                      setFormData({ ...formData, employeeId: user.id });
                       setShowCustomerPicker(false);
                     }}
                     activeOpacity={0.7}
                   >
                     <Text className="text-base font-semibold text-foreground">
-                      {getCustomerName(customer)}
+                      {user.name || user.email}
                     </Text>
-                    {customer.email && (
-                      <Text className="text-sm text-muted">{customer.email}</Text>
+                    {user.email && user.name && (
+                      <Text className="text-sm text-muted">{user.email}</Text>
                     )}
                   </TouchableOpacity>
                 ))
               ) : (
-                <Text className="text-center text-muted py-4">
-                  {customerSearch ? "Kein Kunde gefunden" : "Keine Kunden vorhanden"}
-                </Text>
+                // Kunden-Liste
+                filteredCustomers && filteredCustomers.length > 0 ? (
+                  filteredCustomers.map((customer: any) => (
+                    <TouchableOpacity
+                      key={customer.id}
+                      className="py-3 border-b border-border"
+                      onPress={() => {
+                        setFormData({ ...formData, customerId: customer.id });
+                        setShowCustomerPicker(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text className="text-base font-semibold text-foreground">
+                        {getCustomerName(customer)}
+                      </Text>
+                      {customer.email && (
+                        <Text className="text-sm text-muted">{customer.email}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text className="text-center text-muted py-4">
+                    {customerSearch ? "Kein Kunde gefunden" : "Keine Kunden vorhanden"}
+                  </Text>
+                )
               )}
             </ScrollView>
           </View>

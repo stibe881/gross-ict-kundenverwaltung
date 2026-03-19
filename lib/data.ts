@@ -833,18 +833,34 @@ export async function getContracts() {
         .order("created_at", { ascending: false });
 
     if (!isAdmin) {
-        query = query.eq('is_internal', false);
+        query = query.eq("is_internal", false);
     }
 
     const { data, error } = await query;
-
     if (error) throw new Error(error.message);
-    return (data || []).map((c: any) => ({
-        ...c,
-        customer_name: c.customers?.company_name ||
-            `${c.customers?.first_name || ''} ${c.customers?.last_name || ''}`.trim() ||
-            'Unbekannt',
-    }));
+
+    let allUsers: any[] = [];
+    if (isAdmin) {
+        const { data: ud } = await supabase.from('users').select('id, name, email');
+        allUsers = ud || [];
+    }
+
+    return (data || []).map((c: any) => {
+        let empName = 'Mitarbeiter';
+        if (c.is_internal && c.employee_id) {
+            const u = allUsers.find(x => x.id === c.employee_id);
+            if (u) empName = u.name || u.email || 'Mitarbeiter';
+        }
+
+        return {
+            ...c,
+            customer_name: c.is_internal
+                ? empName
+                : (c.customers?.company_name ||
+                    `${c.customers?.first_name || ''} ${c.customers?.last_name || ''}`.trim() ||
+                    'Unbekannt'),
+        };
+    });
 }
 
 // Payment terms options
@@ -937,7 +953,8 @@ export async function createRecurringInvoiceFromContract(contract: any): Promise
 }
 
 export async function createContract(contract: {
-    customer_id: string;
+    customer_id?: string | null;
+    employee_id?: string | null;
     title: string;
     description?: string;
     amount?: number;

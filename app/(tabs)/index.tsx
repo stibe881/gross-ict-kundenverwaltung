@@ -327,8 +327,8 @@ export default function DashboardScreen() {
         },
         {
           id: "users",
-          title: "Benutzer & Rollen",
-          subtitle: "Mitarbeitende",
+          title: "Mitarbeitende",
+          subtitle: "Benutzer & Rollen",
           icon: "person.2.fill",
           color: "#6366F1",
           route: "/users",

@@ -104,7 +104,9 @@ export default function ContractViewPage() {
         );
     }
 
-    const customerName = contract.customer
+    const customerName = contract.is_internal && contract.users
+        ? contract.users.name || contract.users.email
+        : contract.customer
         ? contract.customer.company_name ||
         `${contract.customer.first_name || ""} ${contract.customer.last_name || ""}`.trim()
         : "";
@@ -154,24 +156,28 @@ export default function ContractViewPage() {
                                 {formatDate(contract.start_date)}
                             </Text>
                         </View>
-                        <View className="flex-row justify-between">
-                            <Text className="text-sm text-muted">Vertragsende</Text>
-                            <Text className="text-sm font-semibold text-foreground">
-                                {formatDate(contract.end_date)}
-                            </Text>
-                        </View>
-                        <View className="flex-row justify-between">
-                            <Text className="text-sm text-muted">Jahresbetrag</Text>
-                            <Text className="text-sm font-bold text-primary">
-                                CHF {Number(contract.annual_amount).toFixed(2)}
-                            </Text>
-                        </View>
-                        <View className="flex-row justify-between">
-                            <Text className="text-sm text-muted">Kündigungsfrist</Text>
-                            <Text className="text-sm font-semibold text-foreground">
-                                {contract.notice_period_months} Monate
-                            </Text>
-                        </View>
+                        {!contract.is_internal && (
+                            <>
+                                <View className="flex-row justify-between">
+                                    <Text className="text-sm text-muted">Vertragsende</Text>
+                                    <Text className="text-sm font-semibold text-foreground">
+                                        {formatDate(contract.end_date)}
+                                    </Text>
+                                </View>
+                                <View className="flex-row justify-between">
+                                    <Text className="text-sm text-muted">Jahresbetrag</Text>
+                                    <Text className="text-sm font-bold text-primary">
+                                        CHF {Number(contract.annual_amount || contract.amount).toFixed(2)}
+                                    </Text>
+                                </View>
+                                <View className="flex-row justify-between">
+                                    <Text className="text-sm text-muted">Kündigungsfrist</Text>
+                                    <Text className="text-sm font-semibold text-foreground">
+                                        {contract.notice_period_months} Monate
+                                    </Text>
+                                </View>
+                            </>
+                        )}
                     </View>
                 </View>
 

@@ -21,9 +21,11 @@ function escHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function renderPage(contract: any, supabaseUrl: string): string {
-  const customerName = contract.customer?.company_name ||
-    `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde";
+function renderPage(contract: any, supabaseUrl: string, employee: any = null): string {
+  const customerName = contract.is_internal
+    ? (employee?.name || employee?.email || "Mitarbeiter")
+    : (contract.customer?.company_name ||
+      `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde");
 
   const isSigned = !!contract.signature_date;
   const signDate = contract.signature_date
@@ -388,6 +390,7 @@ function renderPage(contract: any, supabaseUrl: string): string {
           <div class="label">Vertragsbeginn</div>
           <div class="value">${fmtDate(contract.start_date)}</div>
         </div>
+        ${!contract.is_internal ? `
         <div class="detail-item">
           <div class="label">Vertragsende</div>
           <div class="value">${fmtDate(contract.end_date)}</div>
@@ -403,6 +406,7 @@ function renderPage(contract: any, supabaseUrl: string): string {
           <div class="label">Jahresbetrag</div>
           <div class="value highlight">CHF ${fmtCHF(Number(contract.annual_amount || contract.amount))}</div>
         </div>
+        ` : ""}
         ` : ""}
       </div>
 
@@ -423,6 +427,7 @@ function renderPage(contract: any, supabaseUrl: string): string {
     <!-- Terms & Conditions -->
     <div class="terms-card">
       <div class="card-title">Vertragsbedingungen</div>
+      ${!contract.is_internal ? `
       <div class="terms-item">
         <div class="terms-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -450,6 +455,7 @@ function renderPage(contract: any, supabaseUrl: string): string {
           <div class="t-value">Bei Nichtkündigung verlängert sich der Vertrag automatisch um die gleiche Laufzeit</div>
         </div>
       </div>
+      ` : ""}
       ${contract.special_agreements ? `
       <div class="terms-item">
         <div class="terms-icon">
@@ -508,10 +514,12 @@ function renderPage(contract: any, supabaseUrl: string): string {
             <table class="pc-meta-table">
               <tr><td>Vertragstitel</td><td>${escHtml(contract.title || "")}</td></tr>
               <tr><td>Beginn</td><td>${fmtDate(contract.start_date)}</td></tr>
+              ${!contract.is_internal ? `
               <tr><td>Ende</td><td>${fmtDate(contract.end_date)}</td></tr>
               ${durationText ? `<tr><td>Laufzeit</td><td>${durationText}</td></tr>` : ""}
               ${(contract.annual_amount || contract.amount) ? `<tr><td>Betrag p.a.</td><td>CHF ${fmtCHF(Number(contract.annual_amount || contract.amount))}</td></tr>` : ""}
               <tr><td>Zahlung</td><td>${contract.payment_terms ? escHtml(contract.payment_terms) : "30 Tage netto"}</td></tr>
+              ` : ""}
             </table>
           </div>
         </td>
@@ -534,9 +542,11 @@ function renderPage(contract: any, supabaseUrl: string): string {
       <div class="pc-section">
         <table class="pc-section-header"><tr><th>Vertragsbedingungen</th></tr></table>
         <table class="pc-terms-table">
+          ${!contract.is_internal ? `
           <tr><td>Kündigungsfrist</td><td>${contract.notice_period_months || 3} ${(contract.notice_period_months || 3) === 1 ? "Monat" : "Monate"} zum Vertragsende</td></tr>
           <tr><td>Zahlungsbedingungen</td><td>${contract.payment_terms ? escHtml(contract.payment_terms) : "Jährliche Abrechnung, zahlbar innert 30 Tagen"}</td></tr>
           <tr><td>Automatische Verlängerung</td><td>Bei Nichtkündigung verlängert sich der Vertrag automatisch um die gleiche Laufzeit</td></tr>
+          ` : ""}
           ${contract.special_agreements ? `<tr><td>Zusatzvereinbarungen</td><td>${escHtml(contract.special_agreements)}</td></tr>` : ""}
         </table>
       </div>
@@ -729,9 +739,15 @@ Deno.serve(async (req) => {
 
     const { data: contract, error: fetchErr } = await supabase
       .from("contracts")
-      .select("*, customer:customers(company_name, first_name, last_name, email)")
+      .select("*, customer:customers(company_name, first_name, last_name, email, street, zip, city)")
       .eq("token", token)
       .single();
+
+    let employee = null;
+    if (contract?.is_internal && contract?.employee_id) {
+       const { data: emp } = await supabase.from('users').select('name, email').eq('id', contract.employee_id).single();
+       employee = emp;
+    }
 
     if (fetchErr || !contract) {
       return new Response(
@@ -790,8 +806,10 @@ Deno.serve(async (req) => {
       }
 
       // Notify admin
-      const customerName = contract.customer?.company_name ||
-        `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde";
+      const customerName = contract.is_internal
+        ? (employee?.name || employee?.email || "Mitarbeiter")
+        : (contract.customer?.company_name ||
+        `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde");
 
       // Log activity: signed
       try {
@@ -913,11 +931,13 @@ Deno.serve(async (req) => {
           // Generate signed contract PDF
           let pdfBase64: string | null = null;
           try {
-            const addressParts = [
-              customerName,
-              contract.customer?.street || contract.customer?.address,
-              `${contract.customer?.zip || contract.customer?.postal_code || ""} ${contract.customer?.city || ""}`.trim()
-            ].filter(Boolean);
+            const addressParts = contract.is_internal
+              ? [customerName, employee?.email].filter(Boolean)
+              : [
+                customerName,
+                contract.customer?.street,
+                `${contract.customer?.zip || ""} ${contract.customer?.city || ""}`.trim()
+              ].filter(Boolean);
 
             pdfBase64 = generateContractPDF({
               title: contract.title,
@@ -928,6 +948,9 @@ Deno.serve(async (req) => {
               amount: Number(contract.annual_amount || contract.amount || 0),
               noticePeriodMonths: contract.notice_period_months || 3,
               description: contract.description || "",
+              scopeOfServices: contract.scope_of_services || "",
+              specialAgreements: contract.special_agreements || "",
+              isInternal: contract.is_internal,
               signatureName: sigName,
               signatureDate: new Date().toISOString().split("T")[0],
               signatureLocation: sigLocation || undefined,
@@ -1085,8 +1108,10 @@ Deno.serve(async (req) => {
 
     // GET: Render page + track view + push notification
     // Non-blocking: track that contract was viewed
-    const customerName2 = contract.customer?.company_name ||
-      `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde";
+    const customerName2 = contract.is_internal
+      ? (employee?.name || employee?.email || "Mitarbeiter")
+      : (contract.customer?.company_name ||
+      `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde");
     try {
       const { data: admins } = await supabase
         .from("users")
@@ -1122,7 +1147,7 @@ Deno.serve(async (req) => {
       console.warn("[contract-page] View tracking push error:", pushErr);
     }
 
-    const html = renderPage(contract, supabaseUrl);
+    const html = renderPage(contract, supabaseUrl, employee);
     return new Response(html, {
       headers: {
         ...corsHeaders,

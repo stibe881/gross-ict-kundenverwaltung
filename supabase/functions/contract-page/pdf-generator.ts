@@ -10,6 +10,9 @@ export interface ContractData {
   amount: number;
   noticePeriodMonths: number;
   description?: string;
+  scopeOfServices?: string;
+  specialAgreements?: string;
+  isInternal?: boolean;
   signatureName: string;
   signatureDate: string;
   signatureLocation?: string;
@@ -130,43 +133,53 @@ export function generateContractPDF(data: ContractData): string {
   doc.text(titleLines[0] || data.title, mValueX, metaY, { align: "right" });
   metaY += ls;
 
-  doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
-  doc.text("Laufzeit:", mLabelX, metaY);
-  doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
-  doc.text(`${fmtDate(data.startDate)} – ${fmtDate(data.endDate)}`, mValueX, metaY, { align: "right" });
-  metaY += ls;
+  if (!data.isInternal) {
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
+    doc.text("Laufzeit:", mLabelX, metaY);
+    doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
+    doc.text(`${fmtDate(data.startDate)} – ${data.endDate ? fmtDate(data.endDate) : 'Unbefristet'}`, mValueX, metaY, { align: "right" });
+    metaY += ls;
 
-  doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
-  doc.text("Jahresbetrag:", mLabelX, metaY);
-  doc.setFont("helvetica", "bold"); doc.setTextColor(...cDarkGreen);
-  doc.text(`CHF ${fmtCHF(data.amount)}`, mValueX, metaY, { align: "right" });
-  metaY += ls;
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
+    doc.text("Jahresbetrag:", mLabelX, metaY);
+    doc.setFont("helvetica", "bold"); doc.setTextColor(...cDarkGreen);
+    doc.text(`CHF ${fmtCHF(data.amount || 0)}`, mValueX, metaY, { align: "right" });
+    metaY += ls;
 
-  doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
-  doc.text("Kündigungsfrist:", mLabelX, metaY);
-  doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
-  doc.text(`${data.noticePeriodMonths} Monate`, mValueX, metaY, { align: "right" });
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
+    doc.text("Kündigungsfrist:", mLabelX, metaY);
+    doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
+    doc.text(`${data.noticePeriodMonths || 3} Monate`, mValueX, metaY, { align: "right" });
+  }
 
   y = Math.max(addrY, y + 35) + 8;
 
   // 5. Contract description
-  if (data.description) {
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(148, 163, 184);
-    doc.text("VERTRAGSBESCHREIBUNG", marginX, y);
-    y += 5;
+  const fields = [
+    { title: "BESCHREIBUNG", val: data.description },
+    { title: "LEISTUNGSUMFANG", val: data.scopeOfServices },
+    { title: "ZUSATZVEREINBARUNGEN", val: data.specialAgreements }
+  ];
 
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(71, 85, 105);
-    const safeDesc = data.description.replace(/<[^>]*>?/gm, '\n');
-    const descLines = doc.splitTextToSize(safeDesc, pageWidth - marginX * 2);
-    for (const line of descLines) {
-      doc.text(line, marginX, y);
-      y += 4.5;
+  for (const field of fields) {
+    if (field.val) {
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(148, 163, 184);
+      doc.text(field.title, marginX, y);
+      y += 5;
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      const safeDesc = field.val.replace(/<[^>]*>?/gm, '\n');
+      const lines = doc.splitTextToSize(safeDesc, pageWidth - marginX * 2);
+      for (const line of lines) {
+        doc.text(line, marginX, y);
+        y += 4.5;
+      }
+      y += 8;
     }
-    y += 8;
   }
 
   // 6. Signature section (green box)
