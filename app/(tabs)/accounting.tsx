@@ -103,7 +103,7 @@ export default function AccountingScreen() {
     (deductOtherCosts ? scenarioOthC : 0);
 
   const scenarioCalculatedVol = Math.max(0, scenarioRawVol - scenarioDeductions);
-  const scenarioLohn = scenarioExecutor === "angestellter" ? scenarioCalculatedVol * 0.7 : 0;
+  const scenarioLohn = scenarioExecutor === "angestellter" ? scenarioCalculatedVol * 0.75 : 0;
 
   const {
     data: invoices,
@@ -1435,7 +1435,7 @@ export default function AccountingScreen() {
                 {isEmployee && (
                   <>
                     <View className="flex-row justify-between mb-2"><Text className="text-sm text-foreground font-semibold">Berechnetes Projekt-Volumen</Text><Text className="text-sm font-semibold">{formatCurrency(vol)}</Text></View>
-                    <View className="flex-row justify-between"><Text className="text-sm text-muted">Brutto-Lohn Angestellter (70%)</Text><Text className="text-sm text-error">-{formatCurrency(lohn)}</Text></View>
+                    <View className="flex-row justify-between"><Text className="text-sm text-muted">Brutto-Lohn Angestellter (75%)</Text><Text className="text-sm text-error">-{formatCurrency(lohn)}</Text></View>
                     <View className="flex-row justify-between"><Text className="text-xs text-muted ml-2">↳ AN-Beitrag AHV/IV/EO (5.3%)</Text><Text className="text-xs text-error">-{formatCurrency(anAhv)}</Text></View>
                     <View className="flex-row justify-between mt-1"><Text className="text-xs text-muted ml-2">↳ AN-Beitrag ALV (1.1%)</Text><Text className="text-xs text-error">-{formatCurrency(anAlv)}</Text></View>
                     <View className="flex-row justify-between pt-1 mt-1 border-t border-border border-dotted mb-3"><Text className="text-xs font-semibold text-foreground ml-2">= Netto-Lohn / Auszahlung (ca.)</Text><Text className="text-xs font-bold text-success">{formatCurrency(nettoLohn)}</Text></View>
