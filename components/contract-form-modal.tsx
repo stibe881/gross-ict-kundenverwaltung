@@ -62,11 +62,14 @@ export function ContractFormModal({
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const isAppAdmin = (session?.user as any)?.role === 'admin'
-          || session?.user?.user_metadata?.role === 'admin';
-      if (isAppAdmin) setIsAdmin(true);
-    });
+    const checkAdmin = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        const { data: profile } = await supabase.from('users').select('roles').eq('id', session.user.id).single();
+        if (profile?.roles?.includes('admin')) setIsAdmin(true);
+      }
+    };
+    checkAdmin();
   }, []);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);

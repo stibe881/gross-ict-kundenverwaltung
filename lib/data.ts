@@ -489,7 +489,11 @@ export async function addInvoiceActivity(
 
 export async function getCustomerContracts(customerId: string) {
     const { data: { session } } = await supabase.auth.getSession();
-    const isAdmin = session?.user?.user_metadata?.role === 'admin' || (session?.user as any)?.role === 'admin';
+    let isAdmin = false;
+    if (session?.user?.id) {
+        const { data: profile } = await supabase.from('users').select('roles').eq('id', session.user.id).single();
+        if (profile?.roles?.includes('admin')) isAdmin = true;
+    }
 
     let query = supabase
         .from("contracts")
@@ -817,7 +821,11 @@ export async function sendQuoteEmail(quoteId: string, pdfBase64: string) {
 
 export async function getContracts() {
     const { data: { session } } = await supabase.auth.getSession();
-    const isAdmin = session?.user?.user_metadata?.role === 'admin' || (session?.user as any)?.role === 'admin';
+    let isAdmin = false;
+    if (session?.user?.id) {
+        const { data: profile } = await supabase.from('users').select('roles').eq('id', session.user.id).single();
+        if (profile?.roles?.includes('admin')) isAdmin = true;
+    }
 
     let query = supabase
         .from("contracts")
