@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useQuery } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
+import { supabase } from "@/lib/supabase";
 
 interface ContractFormModalProps {
   visible: boolean;
@@ -56,7 +57,17 @@ export function ContractFormModal({
     billingCycle: contract?.billing_cycle || "yearly",
     autoRenewal: contract?.auto_renewal !== false,
     vatRate: (contract?.vat_rate ?? 0).toString(),
+    isInternal: contract?.is_internal || false,
   });
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const isAppAdmin = (session?.user as any)?.role === 'admin'
+          || session?.user?.user_metadata?.role === 'admin';
+      if (isAppAdmin) setIsAdmin(true);
+    });
+  }, []);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
@@ -147,6 +158,7 @@ export function ContractFormModal({
         billing_cycle: formData.recurringEnabled ? formData.billingCycle : undefined,
         auto_renewal: formData.autoRenewal,
         vat_rate: parseFloat(formData.vatRate) || 0,
+        is_internal: formData.isInternal,
       };
 
       if (contract?.id) {
@@ -471,6 +483,34 @@ export function ContractFormModal({
                   <Text className="text-base font-semibold text-primary">
                     {(() => { const d = new Date(calculateEndDate()); return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`; })()}
                   </Text>
+                </View>
+              )}
+
+              {/* Interne Verträge (nur für Admins sichtbar) */}
+              {isAdmin && (
+                <View className="bg-surface rounded-lg p-4 border border-border mb-4">
+                  <TouchableOpacity
+                    className="flex-row items-center justify-between"
+                    onPress={() => setFormData({ ...formData, isInternal: !formData.isInternal })}
+                    activeOpacity={0.7}
+                  >
+                    <View className="flex-1">
+                      <Text className="text-sm font-semibold text-foreground">Interner Vertrag</Text>
+                      <Text className="text-xs text-muted mt-1">Nur für Administratoren sichtbar. Wird Kunden oder normalen Mitarbeitern nicht angezeigt.</Text>
+                    </View>
+                    <View style={{
+                      width: 48, height: 28, borderRadius: 14,
+                      backgroundColor: formData.isInternal ? colors.primary : colors.border,
+                      justifyContent: "center",
+                      paddingHorizontal: 2,
+                    }}>
+                      <View style={{
+                        width: 24, height: 24, borderRadius: 12,
+                        backgroundColor: "#fff",
+                        alignSelf: formData.isInternal ? "flex-end" : "flex-start",
+                      }} />
+                    </View>
+                  </TouchableOpacity>
                 </View>
               )}
 

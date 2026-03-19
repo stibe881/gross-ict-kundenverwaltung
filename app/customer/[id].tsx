@@ -27,6 +27,7 @@ import { ContractFormModal } from "@/components/contract-form-modal";
 import { CustomerFormModal } from "@/components/customer-form-modal";
 import { QuoteFormModal } from "@/components/quote-form-modal";
 import { TicketFormModal } from "@/components/ticket-form-modal";
+import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 
 type Tab = "tickets" | "rechnungen" | "vertraege" | "angebote" | "kontakte";
 
@@ -47,6 +48,7 @@ export default function CustomerDetailScreen() {
   const [editContactData, setEditContactData] = useState({ first_name: "", last_name: "", email: "", phone: "", position: "" });
   const [showNewQuote, setShowNewQuote] = useState(false);
   const [showNewTicket, setShowNewTicket] = useState(false);
+  const [showNewInvoice, setShowNewInvoice] = useState(false);
 
   // ── Data ──
   const { data: customer, isLoading: loading } = useQuery({
@@ -430,7 +432,14 @@ export default function CustomerDetailScreen() {
                   onPress={() => setSelectedContract(c)}
                 >
                   <View className="flex-row items-start justify-between mb-2">
-                    <Text className="text-base font-semibold text-foreground flex-1" numberOfLines={1}>{c.title}</Text>
+                    <View className="flex-1 flex-row flex-wrap items-center gap-2 pr-2">
+                      <Text className="text-base font-semibold text-foreground" numberOfLines={1}>{c.title}</Text>
+                      {c.is_internal && (
+                        <View className="px-2 py-0.5 rounded" style={{ backgroundColor: colors.primary + "20" }}>
+                          <Text className="text-[10px] font-bold" style={{ color: colors.primary }}>INTERN</Text>
+                        </View>
+                      )}
+                    </View>
                     <View className="px-2 py-0.5 rounded" style={{ backgroundColor: contractStatusColor(c.status) + "20" }}>
                       <Text className="text-[10px] font-bold" style={{ color: contractStatusColor(c.status) }}>
                         {contractStatusLabel(c.status)}
@@ -462,7 +471,14 @@ export default function CustomerDetailScreen() {
                 activeOpacity={0.6}
                 onPress={() => setSelectedContract(c)}
               >
-                <Text className="text-sm text-foreground flex-1" numberOfLines={1}>{c.title}</Text>
+                <View className="flex-1 flex-row items-center gap-2 pr-2">
+                  <Text className="text-sm text-foreground" numberOfLines={1}>{c.title}</Text>
+                  {c.is_internal && (
+                    <View className="px-1.5 py-0.5 rounded" style={{ backgroundColor: colors.primary + "20" }}>
+                      <Text className="text-[9px] font-bold" style={{ color: colors.primary }}>INTERN</Text>
+                    </View>
+                  )}
+                </View>
                 <View style={{ width: 80 }}>
                   <Text className="text-[10px] font-bold" style={{ color: contractStatusColor(c.status) }}>
                     {contractStatusLabel(c.status)}
@@ -1141,6 +1157,13 @@ export default function CustomerDetailScreen() {
                 >
                   <Text className="text-sm font-semibold text-foreground">+ Neuer Vertrag</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-row items-center gap-1.5 bg-surface border border-border px-4 py-2 rounded-lg"
+                  activeOpacity={0.8}
+                  onPress={() => setShowNewInvoice(true)}
+                >
+                  <Text className="text-sm font-semibold text-foreground">+ Neue Rechnung</Text>
+                </TouchableOpacity>
               </View>
 
               {/* ── Tab Navigation ── */}
@@ -1393,6 +1416,19 @@ export default function CustomerDetailScreen() {
             queryClient.invalidateQueries({ queryKey: ["tickets", id] });
             queryClient.invalidateQueries({ queryKey: ["tickets"] });
             setShowNewTicket(false);
+          }}
+        />
+      )}
+
+      {showNewInvoice && (
+        <InvoiceFormModal
+          visible={showNewInvoice}
+          initialCustomerId={id as string}
+          onClose={() => setShowNewInvoice(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["invoices", "customer", id] });
+            queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            setShowNewInvoice(false);
           }}
         />
       )}

@@ -34,6 +34,7 @@ interface InvoiceFormModalProps {
   onClose: () => void;
   onSuccess?: () => void;
   editInvoice?: any;
+  initialCustomerId?: string;
 }
 
 export function InvoiceFormModal({
@@ -41,10 +42,11 @@ export function InvoiceFormModal({
   onClose,
   onSuccess,
   editInvoice,
+  initialCustomerId,
 }: InvoiceFormModalProps) {
   const colors = useColors();
   const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(initialCustomerId || null);
 
   // Nächste Rechnungsnummer laden
   const { data: nextNumber } = useQuery({
@@ -78,8 +80,9 @@ export function InvoiceFormModal({
       }
     } else if (visible && nextNumber && !invoiceNumber) {
       setInvoiceNumber(nextNumber);
+      if (initialCustomerId) setSelectedCustomerId(initialCustomerId);
     }
-  }, [visible, editInvoice, nextNumber]);
+  }, [visible, editInvoice, nextNumber, initialCustomerId]);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", discountPercentage: "0", vatRate: VAT_RATES.normal },
@@ -273,7 +276,7 @@ export function InvoiceFormModal({
 
   const resetForm = () => {
     setInvoiceNumber("");
-    setSelectedCustomerId(null);
+    setSelectedCustomerId(initialCustomerId || null);
     setItems([{ id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", discountPercentage: "0", vatRate: VAT_RATES.normal }]);
   };
 

@@ -111,6 +111,15 @@ export default function ContractsScreen() {
     return "Unbekannt";
   };
 
+  const getFilterLabel = (status: string) => {
+    switch (status) {
+      case "active": return "Aktiv";
+      case "cancelled": return "Gekündigt";
+      case "expired": return "Abgelaufen";
+      default: return "Unbekannt";
+    }
+  };
+
   const getStatusColor = (item: any) => {
     if (item.status === "cancelled" || item.cancellation_date) return colors.error;
     if (item.signature_date) return colors.success;
@@ -130,7 +139,14 @@ export default function ContractsScreen() {
     >
       <View className="flex-row items-start justify-between mb-2">
         <View className="flex-1">
-          <Text className="text-lg font-semibold text-foreground mb-1">{item.title}</Text>
+          <View className="flex-row items-center gap-2 mb-1">
+            <Text className="text-lg font-semibold text-foreground">{item.title}</Text>
+            {item.is_internal && (
+              <View className="px-2 py-0.5 rounded" style={{ backgroundColor: colors.primary + "20" }}>
+                <Text className="text-[10px] font-bold" style={{ color: colors.primary }}>INTERN</Text>
+              </View>
+            )}
+          </View>
           <Text className="text-sm text-muted">{item.customer_name}</Text>
         </View>
         <View
@@ -297,7 +313,7 @@ export default function ContractsScreen() {
                         className={`font-semibold ${filter === status ? "text-background" : "text-foreground"
                           }`}
                       >
-                        {status === "all" ? "Alle" : getStatusLabel(status as ContractStatus)}
+                        {status === "all" ? "Alle" : getFilterLabel(status)}
                       </Text>
                     </TouchableOpacity>
                   ))}

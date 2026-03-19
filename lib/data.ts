@@ -488,11 +488,20 @@ export async function addInvoiceActivity(
 // ==================== VERTRÄGE ====================
 
 export async function getCustomerContracts(customerId: string) {
-    const { data, error } = await supabase
+    const { data: { session } } = await supabase.auth.getSession();
+    const isAdmin = session?.user?.user_metadata?.role === 'admin' || (session?.user as any)?.role === 'admin';
+
+    let query = supabase
         .from("contracts")
         .select("*")
         .eq("customer_id", customerId)
         .order("start_date", { ascending: false });
+
+    if (!isAdmin) {
+        query = query.eq('is_internal', false);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw new Error(error.message);
     return data || [];
@@ -807,10 +816,19 @@ export async function sendQuoteEmail(quoteId: string, pdfBase64: string) {
 // ==================== VERTRÄGE ====================
 
 export async function getContracts() {
-    const { data, error } = await supabase
+    const { data: { session } } = await supabase.auth.getSession();
+    const isAdmin = session?.user?.user_metadata?.role === 'admin' || (session?.user as any)?.role === 'admin';
+
+    let query = supabase
         .from("contracts")
         .select("*, customers(company_name, first_name, last_name)")
         .order("created_at", { ascending: false });
+
+    if (!isAdmin) {
+        query = query.eq('is_internal', false);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw new Error(error.message);
     return (data || []).map((c: any) => ({
@@ -931,6 +949,7 @@ export async function createContract(contract: {
     next_invoice_date?: string;
     auto_renewal?: boolean;
     vat_rate?: number;
+    is_internal?: boolean;
 }) {
     // Calculate next_invoice_date if recurring is enabled
     const insertData: any = { ...contract, status: "active" };
