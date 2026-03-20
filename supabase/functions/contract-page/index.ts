@@ -738,106 +738,12 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    let contract: any = null;
-    let fetchErr: any = null;
 
     console.log(`[contract-page] Lookup: token=${token}, contractId=${contractId}, action=${action}`);
 
-    if (token) {
-      const result = await supabase
-        .from("contracts")
-        .select("*, customer:customers(*)")
-        .eq("token", token)
-        .single();
-      contract = result.data;
-      fetchErr = result.error;
-      console.log(`[contract-page] Token lookup: found=${!!contract}, error=${fetchErr?.message}`);
-    }
-
-    // Fallback: lookup by ID (for generate-pdf when no token exists)
-    if (!contract && contractId) {
-      const result = await supabase
-        .from("contracts")
-        .select("*, customer:customers(*)")
-        .eq("id", contractId)
-        .single();
-      contract = result.data;
-      fetchErr = result.error;
-      console.log(`[contract-page] ID lookup: found=${!!contract}, error=${fetchErr?.message}`);
-    }
-
-    let employee = null;
-    if (contract?.is_internal && contract?.employee_id) {
-       const { data: emp } = await supabase.from('users').select('name, email').eq('id', contract.employee_id).single();
-       employee = emp;
-    }
-
-    if (fetchErr || !contract) {
-      // Return JSON for generate-pdf so the client can show a proper error
-      if (action === "generate-pdf") {
-        return new Response(
-          JSON.stringify({ error: `Vertrag nicht gefunden (token=${token}, id=${contractId}, dbError=${fetchErr?.message || 'none'})` }),
-          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      return new Response(
-        renderErrorPage("Vertrag nicht gefunden", "Der angeforderte Vertrag konnte nicht gefunden werden. Der Link ist möglicherweise abgelaufen oder ungültig."),
-        { status: 404, headers: { ...corsHeaders, "content-type": "text/html;charset=UTF-8" } }
-      );
-    }
-    // GET: Generate PDF and return as base64
-    if (action === "generate-pdf") {
-      try {
-        const customerName = contract.is_internal
-          ? (employee?.name || employee?.email || "Mitarbeiter")
-          : (contract.customer?.company_name ||
-            `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde");
-
-        const addressParts = contract.is_internal
-          ? [customerName, "Gross ICT", "Neuhushof 3", "6144 Zell LU", "Schweiz"].filter(Boolean)
-          : [
-            customerName,
-            contract.customer?.address || contract.customer?.street,
-            (contract.customer?.zip || contract.customer?.city) ? `${contract.customer?.zip || ""} ${contract.customer?.city || ""}`.trim() : undefined,
-            "Schweiz"
-          ].filter(Boolean);
-
-        const pdfData = {
-          title: contract.title,
-          customerName,
-          customerAddress: addressParts.join("\n"),
-          startDate: contract.start_date,
-          endDate: contract.end_date,
-          amount: Number(contract.annual_amount || contract.amount || 0),
-          noticePeriodMonths: contract.notice_period_months || 3,
-          description: contract.description || "",
-          scopeOfServices: contract.scope_of_services || "",
-          specialAgreements: contract.special_agreements || "",
-          isInternal: contract.is_internal,
-          cancellationDate: contract.cancellation_date || undefined,
-          signatureName: contract.signature_name || undefined,
-          signatureDate: contract.signature_date ? new Date(contract.signature_date).toISOString().split("T")[0] : undefined,
-          signatureIp: contract.signature_ip || undefined,
-        };
-
-        const pdfBase64 = generateContractPDF(pdfData);
-        return new Response(
-          JSON.stringify({ pdf: pdfBase64 }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      } catch (pdfErr: any) {
-        console.error("[contract-page] PDF generation error:", pdfErr);
-        return new Response(
-          JSON.stringify({ error: "PDF konnte nicht generiert werden: " + pdfErr.message }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
-
-    // GET: Generate Invoice PDF
+    // ── Invoice/Quote PDF: eigenständig, kein Contract nötig ──
     if (action === "generate-invoice-pdf" && contractId) {
       try {
-        // Fetch invoice by ID
         const { data: invoice, error: invErr } = await supabase
           .from("invoices")
           .select("*, customer:customers(*), items:invoice_items(*)")
@@ -851,7 +757,6 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Fetch invoice settings
         const { data: settings } = await supabase
           .from("invoice_settings")
           .select("*")
@@ -868,7 +773,6 @@ Deno.serve(async (req) => {
           "Schweiz"
         ].filter(Boolean);
 
-        // Determine document type
         let docType = "Rechnung";
         if (invoice.is_dunning_document || (invoice.dunning_level != null && invoice.dunning_level > 0)) {
           if (invoice.dunning_level === 0) docType = "Zahlungserinnerung";
@@ -923,10 +827,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // GET: Generate Quote PDF
     if (action === "generate-quote-pdf" && contractId) {
       try {
-        // Fetch quote by ID
         const { data: quote, error: quoteErr } = await supabase
           .from("quotes")
           .select("*, customer:customers(*), items:quote_items(*)")
@@ -981,6 +883,101 @@ Deno.serve(async (req) => {
         console.error("[contract-page] Quote PDF error:", err);
         return new Response(
           JSON.stringify({ error: "Angebots-PDF Fehler: " + err.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // ── Contract lookup (nur für Vertrags-Aktionen) ──
+    let contract: any = null;
+    let fetchErr: any = null;
+
+    if (token) {
+      const result = await supabase
+        .from("contracts")
+        .select("*, customer:customers(*)")
+        .eq("token", token)
+        .single();
+      contract = result.data;
+      fetchErr = result.error;
+      console.log(`[contract-page] Token lookup: found=${!!contract}, error=${fetchErr?.message}`);
+    }
+
+    // Fallback: lookup by ID (for generate-pdf when no token exists)
+    if (!contract && contractId) {
+      const result = await supabase
+        .from("contracts")
+        .select("*, customer:customers(*)")
+        .eq("id", contractId)
+        .single();
+      contract = result.data;
+      fetchErr = result.error;
+      console.log(`[contract-page] ID lookup: found=${!!contract}, error=${fetchErr?.message}`);
+    }
+
+    let employee = null;
+    if (contract?.is_internal && contract?.employee_id) {
+       const { data: emp } = await supabase.from('users').select('name, email, address, street, zip, city').eq('id', contract.employee_id).single();
+       employee = emp;
+    }
+
+    if (fetchErr || !contract) {
+      // Return JSON for generate-pdf so the client can show a proper error
+      if (action === "generate-pdf") {
+        return new Response(
+          JSON.stringify({ error: `Vertrag nicht gefunden (token=${token}, id=${contractId}, dbError=${fetchErr?.message || 'none'})` }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      return new Response(
+        renderErrorPage("Vertrag nicht gefunden", "Der angeforderte Vertrag konnte nicht gefunden werden. Der Link ist möglicherweise abgelaufen oder ungültig."),
+        { status: 404, headers: { ...corsHeaders, "content-type": "text/html;charset=UTF-8" } }
+      );
+    }
+    // GET: Generate PDF and return as base64
+    if (action === "generate-pdf") {
+      try {
+        const customerName = contract.is_internal
+          ? (employee?.name || employee?.email || "Mitarbeiter")
+          : (contract.customer?.company_name ||
+            `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde");
+
+        const addressParts = contract.is_internal
+          ? [customerName, employee?.address || employee?.street, (employee?.zip || employee?.city) ? `${employee?.zip || ''} ${employee?.city || ''}`.trim() : undefined].filter(Boolean)
+          : [
+            customerName,
+            contract.customer?.address || contract.customer?.street,
+            (contract.customer?.zip || contract.customer?.city) ? `${contract.customer?.zip || ""} ${contract.customer?.city || ""}`.trim() : undefined,
+            "Schweiz"
+          ].filter(Boolean);
+
+        const pdfData = {
+          title: contract.title,
+          customerName,
+          customerAddress: addressParts.join("\n"),
+          startDate: contract.start_date,
+          endDate: contract.end_date,
+          amount: Number(contract.annual_amount || contract.amount || 0),
+          noticePeriodMonths: contract.notice_period_months || 3,
+          description: contract.description || "",
+          scopeOfServices: contract.scope_of_services || "",
+          specialAgreements: contract.special_agreements || "",
+          isInternal: contract.is_internal,
+          cancellationDate: contract.cancellation_date || undefined,
+          signatureName: contract.signature_name || undefined,
+          signatureDate: contract.signature_date ? new Date(contract.signature_date).toISOString().split("T")[0] : undefined,
+          signatureIp: contract.signature_ip || undefined,
+        };
+
+        const pdfBase64 = generateContractPDF(pdfData);
+        return new Response(
+          JSON.stringify({ pdf: pdfBase64 }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (pdfErr: any) {
+        console.error("[contract-page] PDF generation error:", pdfErr);
+        return new Response(
+          JSON.stringify({ error: "PDF konnte nicht generiert werden: " + pdfErr.message }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
