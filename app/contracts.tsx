@@ -541,13 +541,14 @@ function ContractDetailsModal({
   });
 
   const handleSendForSignature = async () => {
-    if (!contract.customer_id) {
-      showAlert("Fehler", "Kein Kunde zugewiesen.");
+    if (!contract.customer_id && !(contract.is_internal && contract.employee_id)) {
+      showAlert("Fehler", contract.is_internal ? "Kein Mitarbeiter zugewiesen." : "Kein Kunde zugewiesen.");
       return;
     }
+    const recipientLabel = contract.is_internal ? "den Mitarbeiter" : "den Kunden";
     showConfirm(
       "Zur Unterschrift senden",
-      `Vertrag "${contract.title}" per E-Mail an den Kunden senden?`,
+      `Vertrag "${contract.title}" per E-Mail an ${recipientLabel} senden?`,
       async () => {
         setSending(true);
         try {
@@ -566,7 +567,7 @@ function ContractDetailsModal({
           showToast("Vertrag wurde per E-Mail zur Unterschrift gesendet.");
           queryClient.invalidateQueries({ queryKey: ["contracts"] });
           queryClient.invalidateQueries({ queryKey: ["contract_activities", contract.id] });
-          await Data.logContractActivity(contract.id, "sent", `Vertrag per E-Mail an den Kunden gesendet`);
+          await Data.logContractActivity(contract.id, "sent", `Vertrag per E-Mail an ${recipientLabel} gesendet`);
         } catch (err: any) {
           showAlert("Fehler", err.message || "E-Mail konnte nicht gesendet werden");
         } finally {
