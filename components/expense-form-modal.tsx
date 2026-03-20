@@ -61,6 +61,13 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
     const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
     const [showDescriptionDropdown, setShowDescriptionDropdown] = useState(false);
     const [isDragActive, setIsDragActive] = useState(false);
+    const [employees, setEmployees] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (visible) {
+            Data.getAllEmployees().then(setEmployees).catch(() => {});
+        }
+    }, [visible]);
 
     const [form, setForm] = useState({
         date: toDisplayDate(new Date().toISOString().slice(0, 10)),
@@ -75,6 +82,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
         iban: "",
         customerName: "",
         projectName: "",
+        user_id: "",
     });
 
     const [isIncome, setIsIncome] = useState(false);
@@ -115,6 +123,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 iban,
                 customerName,
                 projectName,
+                user_id: expense.user_id || "",
             });
             setIsIncome(expense.amount && expense.amount < 0 ? true : false);
             setExistingReceiptPath(expense.receipt_path || null);
@@ -134,6 +143,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 iban: "",
                 customerName: "",
                 projectName: "",
+                user_id: "",
             });
             setIsIncome(initialIsIncome);
             setExistingReceiptPath(null);
@@ -410,6 +420,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 notes: finalNotes || null,
                 receipt_path: uploadedPath,
                 receipt_url: uploadedUrl,
+                user_id: form.user_id || "",
             };
 
             if (expense) {
@@ -717,6 +728,34 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                                     <Text style={{ fontSize: 14, fontWeight: "600", color: form.tax_rate === rate ? "#111" : colors.foreground }}>
                                         {rate}%
                                     </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+
+                    {/* Mitarbeiter-Auswahl */}
+                    <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border }}>
+                        <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 8, fontWeight: "600" }}>Wird verknüpft mit Mitarbeiter (Optional)</Text>
+                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                            <TouchableOpacity
+                                style={{
+                                    paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8,
+                                    backgroundColor: !form.user_id ? colors.primary : colors.border,
+                                }}
+                                onPress={() => setForm({ ...form, user_id: "" })}
+                            >
+                                <Text style={{ fontSize: 13, fontWeight: "600", color: !form.user_id ? "#111" : colors.foreground }}>Autom. (Aktueller Nutzer)</Text>
+                            </TouchableOpacity>
+                            {employees.map(emp => (
+                                <TouchableOpacity
+                                    key={emp.id}
+                                    style={{
+                                        paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8,
+                                        backgroundColor: form.user_id === emp.id ? colors.primary : colors.border,
+                                    }}
+                                    onPress={() => setForm({ ...form, user_id: emp.id })}
+                                >
+                                    <Text style={{ fontSize: 13, fontWeight: "600", color: form.user_id === emp.id ? "#111" : colors.foreground }}>{emp.name || emp.email}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>

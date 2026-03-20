@@ -2038,6 +2038,16 @@ export const PAYMENT_METHODS = [
     { value: "other", label: "Sonstiges" },
 ] as const;
 
+export async function getAllEmployees() {
+    const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .order("name", { ascending: true });
+    
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
 export async function getAllExpenses() {
     let { data, error } = await supabase
         .from("expenses")
@@ -2070,7 +2080,7 @@ export async function createExpense(expense: any) {
         .from("expenses")
         .insert({
             ...rest,
-            user_id: sessionData.session?.user.id,
+            user_id: expense.user_id !== undefined && expense.user_id !== "" ? expense.user_id : sessionData.session?.user.id,
             expense_date: date,
             tax_amount: taxAmount,
             receipt_path: receipt_path || null,
@@ -2097,6 +2107,10 @@ export async function updateExpense(id: string, expense: any) {
         tax_amount: taxAmount,
         updated_at: new Date().toISOString(),
     };
+    
+    if (expense.user_id !== undefined && expense.user_id !== "") {
+        payload.user_id = expense.user_id;
+    }
     
     // Only update receipt fields if they are explicitly provided in the object
     if (expense.hasOwnProperty('receipt_path')) payload.receipt_path = receipt_path;
