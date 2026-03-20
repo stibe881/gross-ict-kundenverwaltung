@@ -917,8 +917,8 @@ Deno.serve(async (req) => {
 
     let employee = null;
     if (contract?.is_internal && contract?.employee_id) {
-       const { data: emp, error: empErr } = await supabase.from('users').select('name, email').eq('id', contract.employee_id).single();
-       console.log(`[contract-page] Employee lookup: id=${contract.employee_id}, name=${emp?.name}, error=${empErr?.message}`);
+       const { data: emp, error: empErr } = await supabase.from('users').select('name, email, address, postal_code, city').eq('id', contract.employee_id).single();
+       console.log(`[contract-page] Employee lookup: id=${contract.employee_id}, name=${emp?.name}, address=${emp?.address}, postal_code=${emp?.postal_code}, city=${emp?.city}, error=${empErr?.message}`);
        employee = emp;
     }
 
@@ -944,7 +944,13 @@ Deno.serve(async (req) => {
             `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde");
 
         const addressParts = contract.is_internal
-          ? [customerName, "Gross ICT", "Neuhushof 3", "6144 Zell LU", "Schweiz"].filter(Boolean)
+          ? [
+              customerName,
+              employee?.address || "Gross ICT",
+              (employee?.postal_code || employee?.city) ? `${employee?.postal_code || ''} ${employee?.city || ''}`.trim() : (!employee?.address ? "Neuhushof 3" : undefined),
+              (!employee?.address ? "6144 Zell LU" : undefined),
+              "Schweiz"
+            ].filter(Boolean)
           : [
             customerName,
             contract.customer?.address || contract.customer?.street,
@@ -1160,7 +1166,13 @@ Deno.serve(async (req) => {
           let pdfBase64: string | null = null;
           try {
             const addressParts = contract.is_internal
-              ? [customerName, "Gross ICT", "Neuhushof 3", "6144 Zell LU", "Schweiz"].filter(Boolean)
+              ? [
+                  customerName,
+                  employee?.address || "Gross ICT",
+                  (employee?.postal_code || employee?.city) ? `${employee?.postal_code || ''} ${employee?.city || ''}`.trim() : (!employee?.address ? "Neuhushof 3" : undefined),
+                  (!employee?.address ? "6144 Zell LU" : undefined),
+                  "Schweiz"
+                ].filter(Boolean)
               : [
                 customerName,
                 contract.customer?.address || contract.customer?.street,
