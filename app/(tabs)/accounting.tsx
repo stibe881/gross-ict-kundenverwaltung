@@ -853,6 +853,7 @@ export default function AccountingScreen() {
                             (c) => c.value === expense.category,
                           )?.label || expense.category}
                           {expense.supplier ? ` · ${expense.supplier}` : ""}
+                          {expense.user?.name ? ` · Erfasst von: ${expense.user.name}` : ""}
                         </Text>
                       </View>
                     </View>

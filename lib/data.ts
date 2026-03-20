@@ -2041,7 +2041,7 @@ export const PAYMENT_METHODS = [
 export async function getAllExpenses() {
     const { data, error } = await supabase
         .from("expenses")
-        .select("*")
+        .select("*, user:users(name)")
         .order("expense_date", { ascending: false });
 
     if (error) throw new Error(error.message);

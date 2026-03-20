@@ -286,17 +286,48 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Setup Home Screen Quick Actions (Shortcuts)
+  // Setup Home Screen Quick Actions based on Auth (Admins only)
   useEffect(() => {
-    QuickActions.setItems([
-      {
-        title: "Beleg scannen",
-        subtitle: "Direkt zur Kamera öffnen",
-        icon: "compose", // iOS system icon similar to camera/scan
-        id: "scan_receipt",
-        params: { href: "/(tabs)/scanner" }
+    const setupQuickActions = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          QuickActions.setItems([]);
+          return;
+        }
+
+        const { data: userProfile } = await supabase
+          .from("users")
+          .select("roles")
+          .eq("id", session.user.id)
+          .single();
+
+        const roles = userProfile?.roles || [];
+        if (roles.includes("admin")) {
+          QuickActions.setItems([
+            {
+              title: "Beleg scannen",
+              subtitle: "Direkt zur Kamera öffnen",
+              icon: "compose", // iOS system icon similar to camera/scan
+              id: "scan_receipt",
+              params: { href: "/(tabs)/scanner" }
+            }
+          ]);
+        } else {
+          QuickActions.setItems([]);
+        }
+      } catch (e) {
+        console.warn("Failed to setup quick actions", e);
       }
-    ]);
+    };
+
+    setupQuickActions();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      setupQuickActions();
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Handle Quick Action Launches
