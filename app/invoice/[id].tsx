@@ -49,6 +49,7 @@ export default function InvoiceDetailScreen() {
     });
     const [showEditModal, setShowEditModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [showStatusModal, setShowStatusModal] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState("");
 
     const queryClient = useQueryClient();
@@ -168,6 +169,7 @@ export default function InvoiceDetailScreen() {
     const getStatusLabel = (status: string) => {
         switch (status) {
             case "open": return "Offen";
+            case "sent": return "Gesendet";
             case "paid": return "Bezahlt";
             case "overdue": return "Überfällig";
             case "cancelled": return "Storniert";
@@ -178,6 +180,7 @@ export default function InvoiceDetailScreen() {
     const getStatusColor = (status: string) => {
         switch (status) {
             case "open": return "bg-warning";
+            case "sent": return "bg-primary";
             case "paid": return "bg-success";
             case "overdue": return "bg-error";
             case "cancelled": return "bg-muted";
@@ -242,11 +245,15 @@ export default function InvoiceDetailScreen() {
                             >
                                 <Text className="text-background font-semibold text-sm">Bearbeiten</Text>
                             </TouchableOpacity>
-                            <View className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}>
+                            <TouchableOpacity
+                                onPress={() => setShowStatusModal(true)}
+                                activeOpacity={0.7}
+                                className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}
+                            >
                                 <Text className="text-xs font-semibold text-white">
                                     {getStatusLabel(invoice.status)}
                                 </Text>
-                            </View>
+                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -610,6 +617,63 @@ export default function InvoiceDetailScreen() {
                         </View>
                     </View>
                 </KeyboardAvoidingView>
+            </Modal>
+
+            {/* Status ändern Modal */}
+            <Modal
+                visible={showStatusModal}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setShowStatusModal(false)}
+            >
+                <View className="flex-1 bg-black/50 justify-end">
+                    <View className="bg-background rounded-t-3xl p-6">
+                        <View className="flex-row items-center justify-between mb-4">
+                            <Text className="text-xl font-bold text-foreground">
+                                Status ändern
+                            </Text>
+                            <TouchableOpacity onPress={() => setShowStatusModal(false)} activeOpacity={0.7}>
+                                <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View className="gap-2 mb-4">
+                            {[
+                                { status: "open", label: "Offen", color: "#f59e0b", icon: "clock.fill" },
+                                { status: "sent", label: "Gesendet", color: "#3b82f6", icon: "paperplane.fill" },
+                                { status: "paid", label: "Bezahlt", color: "#22c55e", icon: "checkmark.circle.fill" },
+                                { status: "overdue", label: "Überfällig", color: "#ef4444", icon: "exclamationmark.triangle.fill" },
+                                { status: "cancelled", label: "Storniert", color: "#6b7280", icon: "xmark.circle.fill" },
+                            ].map((item) => (
+                                <TouchableOpacity
+                                    key={item.status}
+                                    className="flex-row items-center gap-3 p-4 bg-surface rounded-xl border border-border"
+                                    activeOpacity={0.7}
+                                    style={invoice.status === item.status ? { borderColor: item.color, borderWidth: 2 } : undefined}
+                                    onPress={async () => {
+                                        try {
+                                            await supabase.from("invoices").update({ status: item.status }).eq("id", invoice.id);
+                                            refetch();
+                                            setShowStatusModal(false);
+                                        } catch (e: any) {
+                                            showAlert("Fehler", e.message || "Status konnte nicht geändert werden");
+                                        }
+                                    }}
+                                >
+                                    <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: item.color + "20" }}>
+                                        <IconSymbol name={item.icon as any} size={18} color={item.color} />
+                                    </View>
+                                    <View className="flex-1">
+                                        <Text className="text-sm font-bold text-foreground">{item.label}</Text>
+                                    </View>
+                                    {invoice.status === item.status && (
+                                        <IconSymbol name="checkmark" size={18} color={item.color} />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                </View>
             </Modal>
         </ScreenContainer>
     );
