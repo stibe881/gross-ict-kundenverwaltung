@@ -231,12 +231,20 @@ export function generateContractPDF(data: ContractData): string {
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(71, 85, 105);
-      const safeText = field.val.replace(/<[^>]*>?/gm, '\n');
-      const lines = doc.splitTextToSize(safeText, PAGE_WIDTH - MARGIN_X * 2);
-      for (const line of lines) {
-        y = checkPageBreak(doc, y, 5, data.startDate, data.signatureDate);
-        doc.text(line, MARGIN_X, y);
-        y += 4.5;
+      // Clean HTML tags, then split by newlines and " - " separators for bullet points
+      let safeText = field.val.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>?/gm, '');
+      // Convert " - " at the start of items into newline + bullet
+      safeText = safeText.replace(/\s*-\s+/g, '\n• ');
+      // Split into paragraphs by newlines
+      const paragraphs = safeText.split(/\n+/).map((p: string) => p.trim()).filter(Boolean);
+      for (const para of paragraphs) {
+        const lines = doc.splitTextToSize(para, PAGE_WIDTH - MARGIN_X * 2);
+        for (const line of lines) {
+          y = checkPageBreak(doc, y, 5, data.startDate, data.signatureDate);
+          doc.text(line, MARGIN_X, y);
+          y += 4.5;
+        }
+        y += 2; // Extra spacing between paragraphs/bullet points
       }
       y += 8;
     }
