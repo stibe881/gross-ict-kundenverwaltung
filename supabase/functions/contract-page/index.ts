@@ -623,8 +623,8 @@ function renderPage(contract: any, supabaseUrl: string, employee: any = null): s
       .pc-header-table td { border: none; padding: 0; vertical-align: bottom; }
       .pc-logo-img { height: 45px; width: auto; }
       .pc-doc-type { text-align: right; font-size: 22pt; font-weight: 700; color: #D4A432; letter-spacing: 3px; text-transform: uppercase; }
-      .pc-company-bar { text-align: right; font-size: 8pt; color: #64748b; padding: 6px 0 20px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 24px; line-height: 1.7; }
-      .pc-addr-meta { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+      .pc-company-bar { text-align: right; font-size: 8pt; color: #64748b; padding: 4px 0 12px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 16px; line-height: 1.7; }
+      .pc-addr-meta { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
       .pc-addr-meta td { border: none; padding: 0; vertical-align: top; }
       .pc-cust-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-bottom: 6px; font-weight: 600; }
       .pc-cust-addr { font-size: 11pt; font-weight: 600; line-height: 1.3; color: #1a1a2e; }
@@ -633,7 +633,7 @@ function renderPage(contract: any, supabaseUrl: string, employee: any = null): s
       .pc-meta-table td { padding: 3px 0; border: none; }
       .pc-meta-table td:first-child { color: #64748b; padding-right: 24px; }
       .pc-meta-table td:last-child { font-weight: 600; text-align: right; color: #1a1a2e; }
-      .pc-section { margin-bottom: 16px; }
+      .pc-section { margin-bottom: 8px; }
       .pc-section-header { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
       .pc-section-header th { background: #D4A432; color: #fff; padding: 8px 12px; font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; text-align: left; border-radius: 4px 4px 0 0; }
       .pc-section-body { font-size: 9.5pt; color: #475569; line-height: 1.7; white-space: pre-wrap; padding: 10px 12px; }
@@ -647,7 +647,7 @@ function renderPage(contract: any, supabaseUrl: string, employee: any = null): s
       .pc-sig-field { width: 45%; }
       .pc-sig-dash { border-bottom: 1px solid #1a1a2e; height: 30px; margin-bottom: 4px; }
       .pc-sig-field span { font-size: 8pt; color: #94a3b8; }
-      .pc-footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; position: fixed; bottom: 0; left: 0; right: 0; width: 100%; }
+      .pc-footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; margin-top: auto; }
       .pc-footer-table { width: 100%; border-collapse: collapse; }
       .pc-footer-table td { border: none; padding: 0; vertical-align: top; color: #cbd5e1; }
       .pc-ft-label { font-weight: 700; color: #D4A432; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
