@@ -794,11 +794,12 @@ Deno.serve(async (req) => {
             `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde");
 
         const addressParts = contract.is_internal
-          ? [customerName, employee?.email].filter(Boolean)
+          ? [customerName, "Gross ICT", "Neuhushof 3", "6144 Zell LU", "Schweiz"].filter(Boolean)
           : [
             customerName,
             contract.customer?.address || contract.customer?.street,
-            (contract.customer?.zip || contract.customer?.city) ? `${contract.customer?.zip || ""} ${contract.customer?.city || ""}`.trim() : undefined
+            (contract.customer?.zip || contract.customer?.city) ? `${contract.customer?.zip || ""} ${contract.customer?.city || ""}`.trim() : undefined,
+            "Schweiz"
           ].filter(Boolean);
 
         const pdfData = {

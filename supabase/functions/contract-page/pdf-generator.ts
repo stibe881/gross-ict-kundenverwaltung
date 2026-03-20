@@ -113,7 +113,7 @@ export function generateContractPDF(data: ContractData): string {
   // 2. Logo + Title
   if (LOGO_BASE64) {
     try {
-      doc.addImage(LOGO_BASE64, "PNG", MARGIN_X, y, 40, 15);
+      doc.addImage(LOGO_BASE64, "PNG", MARGIN_X, y, 50, 12);
     } catch {
       doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
@@ -503,7 +503,7 @@ export function generateInvoicePDF(data: InvoiceData): string {
 
   // Logo
   if (LOGO_BASE64) {
-    try { doc.addImage(LOGO_BASE64, "PNG", MARGIN_X, y, 40, 15); } catch { /* fallback */ }
+    try { doc.addImage(LOGO_BASE64, "PNG", MARGIN_X, y, 50, 12); } catch { /* fallback */ }
   }
 
   // Doc type title
@@ -801,7 +801,7 @@ export function generateQuotePDF(data: QuoteData): string {
 
   // Logo
   if (LOGO_BASE64) {
-    try { doc.addImage(LOGO_BASE64, "PNG", MARGIN_X, y, 40, 15); } catch { /* fallback */ }
+    try { doc.addImage(LOGO_BASE64, "PNG", MARGIN_X, y, 50, 12); } catch { /* fallback */ }
   }
 
   doc.setFontSize(22);
