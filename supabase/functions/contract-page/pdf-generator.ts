@@ -234,7 +234,7 @@ export function generateContractPDF(data: ContractData): string {
       // Clean HTML tags, then split by newlines and " - " separators for bullet points
       let safeText = field.val.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>?/gm, '');
       // Convert " - " at the start of items into newline + bullet
-      safeText = safeText.replace(/\s*-\s+/g, '\n• ');
+      safeText = safeText.replace(/\s*-\s+/g, '\n- ');
       // Split into paragraphs by newlines
       const paragraphs = safeText.split(/\n+/).map((p: string) => p.trim()).filter(Boolean);
       for (const para of paragraphs) {
@@ -340,7 +340,7 @@ export function generateContractPDF(data: ContractData): string {
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...cGreen);
-    doc.text("✓ Digital unterzeichnet und signiert", MARGIN_X + 8, y);
+    doc.text("Digital unterzeichnet und signiert", MARGIN_X + 8, y);
 
     y += 10;
 
