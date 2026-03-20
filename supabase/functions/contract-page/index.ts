@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LOGO_BASE64 } from "./logo.ts";
-import { generateContractPDF } from "./pdf-generator.ts";
+import { generateContractPDF, generateInvoicePDF, generateQuotePDF } from "./pdf-generator.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -828,6 +828,158 @@ Deno.serve(async (req) => {
         console.error("[contract-page] PDF generation error:", pdfErr);
         return new Response(
           JSON.stringify({ error: "PDF konnte nicht generiert werden: " + pdfErr.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // GET: Generate Invoice PDF
+    if (action === "generate-invoice-pdf" && contractId) {
+      try {
+        // Fetch invoice by ID
+        const { data: invoice, error: invErr } = await supabase
+          .from("invoices")
+          .select("*, customer:customers(*), items:invoice_items(*)")
+          .eq("id", contractId)
+          .single();
+
+        if (invErr || !invoice) {
+          return new Response(
+            JSON.stringify({ error: "Rechnung nicht gefunden" }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Fetch invoice settings
+        const { data: settings } = await supabase
+          .from("invoice_settings")
+          .select("*")
+          .limit(1)
+          .single();
+
+        const customerName = invoice.customer?.company_name ||
+          `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "Kunde";
+
+        const addressParts = [
+          customerName,
+          invoice.customer?.address || invoice.customer?.street,
+          (invoice.customer?.zip || invoice.customer?.city) ? `${invoice.customer?.zip || ""} ${invoice.customer?.city || ""}`.trim() : undefined,
+          "Schweiz"
+        ].filter(Boolean);
+
+        // Determine document type
+        let docType = "Rechnung";
+        if (invoice.is_dunning_document || (invoice.dunning_level != null && invoice.dunning_level > 0)) {
+          if (invoice.dunning_level === 0) docType = "Zahlungserinnerung";
+          else if (invoice.dunning_level === 1) docType = "1. Mahnung";
+          else if (invoice.dunning_level === 2) docType = "2. Mahnung";
+          else if (invoice.dunning_level === 3) docType = "Betreibungsandrohung";
+        }
+
+        const itemsTotal = (invoice.items || []).reduce((sum: number, i: any) => sum + (Number(i.total) || 0), 0);
+        const calculatedTotal = itemsTotal > 0 ? itemsTotal : Number(invoice.total || 0);
+
+        const pdfBase64 = generateInvoicePDF({
+          invoiceNumber: invoice.invoice_number,
+          invoiceDate: invoice.invoice_date,
+          dueDate: invoice.due_date,
+          customerName,
+          customerAddress: addressParts.join("\n"),
+          customerNumber: invoice.customer?.customer_number,
+          docType,
+          greetingText: settings?.greeting_text,
+          items: (invoice.items || []).map((item: any) => ({
+            description: item.description || "",
+            quantity: Number(item.quantity || 1),
+            unit: item.unit || "Stk.",
+            unitPrice: Number(item.unit_price || 0),
+            discountPercentage: Number(item.discount_percentage || 0),
+            vatRate: Number(item.vat_rate || 0),
+            total: Number(item.total || 0),
+          })),
+          total: calculatedTotal,
+          paidAmount: Number(invoice.paid_amount || 0),
+          notes: invoice.notes,
+          settings: settings ? {
+            accountHolder: settings.account_holder,
+            bankName: settings.bank_name,
+            iban: settings.iban,
+            swiftBic: settings.swift_bic,
+            accountNumber: settings.account_number,
+          } : undefined,
+        });
+
+        return new Response(
+          JSON.stringify({ pdf: pdfBase64 }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (err: any) {
+        console.error("[contract-page] Invoice PDF error:", err);
+        return new Response(
+          JSON.stringify({ error: "Rechnungs-PDF Fehler: " + err.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // GET: Generate Quote PDF
+    if (action === "generate-quote-pdf" && contractId) {
+      try {
+        // Fetch quote by ID
+        const { data: quote, error: quoteErr } = await supabase
+          .from("quotes")
+          .select("*, customer:customers(*), items:quote_items(*)")
+          .eq("id", contractId)
+          .single();
+
+        if (quoteErr || !quote) {
+          return new Response(
+            JSON.stringify({ error: "Angebot nicht gefunden" }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const customerName = quote.customer?.company_name ||
+          `${quote.customer?.first_name || ""} ${quote.customer?.last_name || ""}`.trim() || "Kunde";
+
+        const addressParts = [
+          customerName,
+          quote.customer?.address || quote.customer?.street,
+          (quote.customer?.zip || quote.customer?.city) ? `${quote.customer?.zip || ""} ${quote.customer?.city || ""}`.trim() : undefined,
+          "Schweiz"
+        ].filter(Boolean);
+
+        const pdfBase64 = generateQuotePDF({
+          quoteNumber: quote.quote_number,
+          quoteDate: quote.quote_date,
+          validUntil: quote.valid_until,
+          customerName,
+          customerAddress: addressParts.join("\n"),
+          customerNumber: quote.customer?.customer_number,
+          creatorName: quote.creator_name || "Stefan Gross",
+          items: (quote.items || []).map((item: any) => ({
+            description: item.description || "",
+            quantity: Number(item.quantity || 1),
+            unit: item.unit || "Stk.",
+            unitPrice: Number(item.unit_price || 0),
+            vatRate: Number(item.vat_rate || 0),
+            total: Number(item.total || 0),
+            optional: !!item.optional,
+          })),
+          subtotal: Number(quote.subtotal || 0),
+          tax: Number(quote.tax || 0),
+          total: Number(quote.total || 0),
+          notes: quote.notes,
+        });
+
+        return new Response(
+          JSON.stringify({ pdf: pdfBase64 }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (err: any) {
+        console.error("[contract-page] Quote PDF error:", err);
+        return new Response(
+          JSON.stringify({ error: "Angebots-PDF Fehler: " + err.message }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

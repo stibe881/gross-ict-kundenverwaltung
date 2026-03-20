@@ -1,933 +1,116 @@
-import { LOGO_BASE64 } from "./logo-base64";
-import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Platform } from "react-native";
 
-function fmtCHF(amount: number | null | undefined): string {
-  if (amount == null) return "0.00";
-  return amount.toLocaleString("de-CH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+// ──────────────────────────────────────────────────────────────
+// Shared: PDF aus Base64 öffnen (Web: neuer Tab, Native: Share)
+// ──────────────────────────────────────────────────────────────
+
+async function openPDFFromBase64(base64: string, filename: string): Promise<void> {
+  if (Platform.OS === "web") {
+    // Web: Base64 → Blob → Neuer Tab (Drucken + Download möglich)
+    const byteChars = atob(base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNumbers[i] = byteChars.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: "application/pdf" });
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, "_blank");
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    return;
+  }
+
+  // Native: Base64 → Datei → Teilen (Drucken möglich via Share-Dialog)
+  const fileUri = FileSystem.cacheDirectory + filename;
+  await FileSystem.writeAsStringAsync(fileUri, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+
+  await Sharing.shareAsync(fileUri, {
+    UTI: "com.adobe.pdf",
+    mimeType: "application/pdf",
   });
 }
 
-function fmtDate(dateString: string): string {
-  const date = new Date(dateString);
-  const day = date.getDate().toString().padStart(2, "0");
-  const month = (date.getMonth() + 1).toString().padStart(2, "0");
-  const year = date.getFullYear();
-  return `${day}.${month}.${year}`;
-}
-
 // ──────────────────────────────────────────────────────────────
-// Gemeinsame Bausteine
+// Server-side PDF generieren via Edge Function
 // ──────────────────────────────────────────────────────────────
 
-function buildCustomerAddressHTML(customer: any): string {
-  const customerName =
-    customer?.company_name ||
-    `${customer?.first_name || ""} ${customer?.last_name || ""}`.trim() ||
-    "Unbekannt";
-
-  return [
-    customerName,
-    customer?.street || customer?.address,
-    `${customer?.zip || customer?.postal_code || ""} ${customer?.city || ""}`.trim(),
-    "Schweiz",
-  ].filter(Boolean).join("<br>");
-}
-
-// ──────────────────────────────────────────────────────────────
-// ANGEBOT PDF — Professionelles modernes Design
-// ──────────────────────────────────────────────────────────────
-
-interface QuoteForPDF {
-  quote_number: string;
-  quote_date: string;
-  valid_until?: string | null;
-  subtotal: number;
-  tax: number;
-  total: number;
-  notes?: string | null;
-  creator_name?: string;
-  customer?: any;
-  items?: Array<{
-    description: string;
-    quantity: number;
-    unit?: string;
-    unit_price: number;
-    vat_rate: number;
-    total: number;
-    optional?: boolean;
-  }>;
-}
-
-export function generateQuoteHTML(quote: QuoteForPDF): string {
-  const customerAddressHTML = buildCustomerAddressHTML(quote.customer);
-
-  // Optionale Positionen berechnen
-  const optionalItems = (quote.items || []).filter(i => !!i.optional);
-  const nonOptionalItems = (quote.items || []).filter(i => !i.optional);
-  const optionalSubtotal = optionalItems.reduce((sum, i) => sum + (i.total || 0), 0);
-  const nonOptionalSubtotal = nonOptionalItems.reduce((sum, i) => sum + (i.total || 0), 0);
-  const grandTotal = nonOptionalSubtotal + optionalSubtotal;
-  const hasOptional = optionalSubtotal > 0;
-
-  console.log("[PDF] Quote items:", (quote.items || []).length, "optional:", optionalItems.length, "optionalSubtotal:", optionalSubtotal, "hasOptional:", hasOptional);
-
-  // Web: position:fixed für Footer. Mobile: Spacer-Div.
-  const isWeb = Platform.OS === "web";
-  let spacerH = 0;
-  if (!isWeb) {
-    const PAGE_H = 297;
-    const HEADER_H = 62; const ADDR_H = 42; const INTRO_H = 16;
-    const TABLE_HEAD_H = 12; const ITEM_ROW_H = 11; const SUB_LINE_H = 5;
-    const TOTALS_H = hasOptional ? 42 : 28;
-    const NOTES_H = quote.notes ? 22 : 0;
-    const FOOTER_H = 22; const SAFETY = 25;
-    let itemsH = 0;
-    for (const item of (quote.items || [])) {
-      const lines = (item.description || "").split("\n");
-      itemsH += ITEM_ROW_H + Math.max(0, lines.length - 1) * SUB_LINE_H;
-    }
-    const contentH = HEADER_H + ADDR_H + INTRO_H + TABLE_HEAD_H + itemsH + TOTALS_H + NOTES_H + FOOTER_H + SAFETY;
-    const pages = Math.max(1, Math.ceil(contentH / PAGE_H));
-    spacerH = Math.max(0, pages * PAGE_H - contentH);
-  }
-
-  const itemsHTML = (quote.items || [])
-    .map((item, idx) => {
-      const nameParts = (item.description || "").split("\n");
-      const mainName = nameParts[0] || "";
-      const subLines = nameParts.slice(1).filter(Boolean);
-      const prefix = item.optional ? '<span style="color:#D4A432;font-weight:600;">OPTIONAL</span> – ' : "";
-      const descHTML =
-        `${prefix}${mainName}` +
-        (subLines.length > 0
-          ? "<br>" + subLines.map(l => `<span class="sub-desc">${l}</span>`).join("<br>")
-          : "");
-      const rowBg = idx % 2 === 1 ? ' style="background:#f8fafb;"' : "";
-
-      return `
-      <tr${rowBg}>
-        <td class="cell-center">${idx + 1}</td>
-        <td class="cell-left">${descHTML}</td>
-        <td class="cell-right">${item.quantity} ${item.unit || 'Stk.'}</td>
-        <td class="cell-right">${fmtCHF(item.unit_price)}</td>
-        <td class="cell-right">${fmtCHF(item.total)}</td>
-      </tr>`;
-    })
-    .join("");
-
-  return `<!DOCTYPE html>
-<html lang="de-CH">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Angebot ${quote.quote_number}</title>
-  <style>
-    @page { size: A4; margin: 0; }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      font-size: 9.5pt;
-      color: #1a1a2e !important;
-      line-height: 1.5;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-      padding: 0;
-      margin: 0;
-    }
-
-    /* ── Accent Bar ── */
-    .accent-bar {
-      height: 6px;
-      background: linear-gradient(90deg, #D4A432, #E8B84A);
-    }
-
-    .page {
-      padding: 30px 40px ${isWeb ? '80px' : '30px'} 40px;
-      position: relative;
-    }
-
-    /* ── Header ── */
-    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-    .header-table td { border: none; padding: 0; vertical-align: bottom; }
-    .logo {
-      font-size: 26pt;
-      font-weight: 300;
-      color: #1a1a2e;
-      letter-spacing: 2px;
-    }
-    .logo span { color: #D4A432; font-weight: 600; }
-    .doc-type {
-      text-align: right;
-      font-size: 22pt;
-      font-weight: 700;
-      color: #D4A432;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-    }
-
-    /* ── Company Info ── */
-    .company-bar {
-      text-align: right;
-      font-size: 8pt;
-      color: #64748b;
-      padding: 6px 0 20px 0;
-      border-bottom: 1px solid #e2e8f0;
-      margin-bottom: 24px;
-      line-height: 1.7;
-    }
-
-    /* ── Address + Meta ── */
-    .addr-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-    .addr-meta-table td { border: none; padding: 0; vertical-align: top; }
-    .customer-label {
-      font-size: 7pt;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: #94a3b8;
-      margin-bottom: 6px;
-      font-weight: 600;
-    }
-    .customer-address {
-      font-size: 10pt;
-      line-height: 1.3;
-      color: #1a1a2e;
-    }
-    .meta-box {
-      background: #f8fafb;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 14px 18px;
-      float: right;
-    }
-    .meta-table { border-collapse: collapse; font-size: 9pt; }
-    .meta-table td { padding: 3px 0; border: none; }
-    .meta-table td:first-child { color: #64748b; padding-right: 24px; }
-    .meta-table td:last-child { font-weight: 600; text-align: right; color: #1a1a2e; }
-
-    /* ── Intro ── */
-    .intro {
-      font-size: 10pt;
-      color: #475569;
-      margin-bottom: 20px;
-      line-height: 1.6;
-    }
-
-    /* ── Items Table ── */
-    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-    .items-table thead th {
-      background: #D4A432;
-      color: #fff;
-      padding: 10px 12px;
-      font-size: 7.5pt;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .items-table thead th:first-child { border-radius: 4px 0 0 0; text-align: center; width: 40px; }
-    .items-table thead th:last-child { border-radius: 0 4px 0 0; }
-    .items-table thead th:not(:first-child):not(:nth-child(2)) { text-align: right; }
-    .items-table thead th:nth-child(2) { text-align: left; }
-    .items-table tbody td {
-      padding: 10px 12px;
-      border-bottom: 1px solid #f1f5f9;
-      font-size: 9pt;
-      vertical-align: top;
-    }
-    .cell-left { text-align: left; }
-    .cell-right { text-align: right; }
-    .cell-center { text-align: center; color: #94a3b8; font-weight: 600; }
-    .sub-desc { font-size: 8pt; color: #94a3b8; }
-
-    /* ── Totals ── */
-    .totals-wrap { width: 100%; margin-top: 6px; }
-    .totals-table { border-collapse: collapse; float: right; min-width: 280px; }
-    .totals-table td { padding: 6px 12px; font-size: 9pt; border: none; }
-    .totals-label { text-align: right; color: #374151 !important; font-weight: 500; }
-    .totals-value { text-align: right; font-weight: 600; color: #1a1a2e !important; min-width: 100px; }
-    .totals-sep td { height: 2px; padding: 0; }
-    .totals-sep td div { height: 2px; background: #e2e8f0; }
-    .total-row { background: #D4A432; }
-    .total-row td {
-      padding: 12px 14px !important;
-      font-size: 13pt !important;
-      font-weight: 700 !important;
-      color: #fff !important;
-      border-radius: 4px;
-    }
-
-    /* ── Notes ── */
-    .notes {
-      clear: both;
-      margin-top: 30px;
-      padding: 14px 16px;
-      background: #f8fafb;
-      border-left: 3px solid #D4A432;
-      font-size: 9pt;
-      color: #475569;
-      line-height: 1.6;
-    }
-    .notes-title {
-      font-weight: 700;
-      font-size: 8pt;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #D4A432;
-      margin-bottom: 4px;
-    }
-
-    .footer {
-      background: #1a1a2e;
-      color: #cbd5e1;
-      padding: 14px 40px;
-      font-size: 7.5pt;
-      line-height: 1.7;
-      ${isWeb ? 'position: fixed; bottom: 0; left: 0; right: 0;' : ''}
-      page-break-inside: avoid;
-    }
-
-    /* ── Page break hints ── */
-    .totals-wrap { page-break-inside: avoid; }
-    .notes { page-break-inside: avoid; }
-    .footer-table { width: 100%; border-collapse: collapse; }
-    .footer-table td { border: none; padding: 0; vertical-align: top; color: #cbd5e1; }
-    .footer-label { font-weight: 700; color: #D4A432; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
-    .footer-val { font-weight: 600; color: #fff; }
-  </style>
-</head>
-<body>
-
-  <!-- Accent Bar -->
-  <div class="accent-bar"></div>
-
-  <div class="page">
-    <!-- Header -->
-    <table class="header-table">
-      <tr>
-        <td><img src="${LOGO_BASE64}" style="height:45px;width:auto;" alt="Gross ICT" /></td>
-        <td><div class="doc-type">Angebot</div></td>
-      </tr>
-    </table>
-
-    <!-- Company Info Bar -->
-    <div class="company-bar">
-      <strong>Gross ICT</strong> · Neuhushof 3 · 6144 Zell LU · Schweiz<br>
-      ${quote.creator_name || "Stefan Gross"} · +41 79 414 06 16 · info@gross-ict.ch
-    </div>
-
-    <!-- Customer Address + Meta -->
-    <table class="addr-meta-table">
-      <tr>
-        <td style="width:55%;">
-          <div class="customer-label">Empfänger</div>
-          <div class="customer-address">${customerAddressHTML}</div>
-        </td>
-        <td style="width:45%;">
-          <div class="meta-box">
-            <table class="meta-table">
-              <tr><td>Angebotsnr.</td><td>${quote.quote_number}</td></tr>
-              ${quote.customer?.customer_number ? `<tr><td>Kundennr.</td><td>${quote.customer.customer_number}</td></tr>` : ""}
-              <tr><td>Datum</td><td>${fmtDate(quote.quote_date)}</td></tr>
-              ${quote.valid_until ? `<tr><td>Gültig bis</td><td>${fmtDate(quote.valid_until)}</td></tr>` : ""}
-            </table>
-          </div>
-        </td>
-      </tr>
-    </table>
-
-    <!-- Intro -->
-    <div class="intro">
-      Guten Tag<br><br>
-      Gerne unterbreiten wir Ihnen folgendes Angebot:
-    </div>
-
-    <!-- Items Table -->
-    <table class="items-table">
-      <thead>
-        <tr>
-          <th>Pos.</th>
-          <th>Beschreibung</th>
-          <th>Menge</th>
-          <th>Einzelpreis</th>
-          <th>Betrag (CHF)</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${itemsHTML}
-      </tbody>
-    </table>
-
-    <!-- Totals -->
-    <div class="totals-wrap" style="margin-bottom:60px;">
-      <table class="totals-table">
-        <tr class="total-row">
-          <td class="totals-label" style="color:#fff !important;">Total</td>
-          <td class="totals-value">${fmtCHF(nonOptionalSubtotal)} CHF</td>
-        </tr>
-        ${hasOptional ? `
-        <tr><td colspan="2" style="padding-top:12px;"></td></tr>
-        <tr>
-          <td class="totals-label">Zwischensumme OPTIONAL</td>
-          <td class="totals-value">${fmtCHF(optionalSubtotal)}</td>
-        </tr>
-        <tr class="totals-sep"><td colspan="2"><div></div></td></tr>
-        <tr class="total-row">
-          <td class="totals-label" style="color:#fff !important;">Total inkl. OPTIONAL</td>
-          <td class="totals-value">${fmtCHF(grandTotal)} CHF</td>
-        </tr>
-        ` : ""}
-      </table>
-    </div>
-
-    ${quote.notes ? `
-    <div class="notes">
-      <div class="notes-title">Anmerkungen</div>
-      ${quote.notes.replace(/\n/g, "<br>")}
-    </div>` : ""}
-  </div>
-
-  <!-- Spacer: vorberechnet in TypeScript -->
-  <div id="footer-spacer" style="height: ${spacerH}mm;"></div>
-
-  <!-- Footer -->
-  <div id="pdf-footer" class="footer">
-    <table class="footer-table">
-      <tr>
-        <td style="width:33%;">
-          <div class="footer-label">Zahlungsempfänger</div>
-          <span class="footer-val">Stefan Gross</span>
-        </td>
-        <td style="width:33%;">
-          <div class="footer-label">Bankverbindung</div>
-          <span class="footer-val">Bank Cler AG</span><br>
-          Konto: 2610.4169.200
-        </td>
-        <td style="width:34%;">
-          <div class="footer-label">IBAN / SWIFT</div>
-          <span class="footer-val">CH39 0844 0261 0416 9200 1</span><br>
-          SWIFT: BCLRCHBB
-        </td>
-      </tr>
-    </table>
-  </div>
-
-</body>
-</html>`;
-}
-
-export async function downloadQuotePDF(quote: QuoteForPDF): Promise<void> {
-  const html = generateQuoteHTML(quote);
-
-  // Web: Hidden-Iframe-Druck (nur HTML-Inhalt, keine App-Buttons)
-  if (Platform.OS === "web") {
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "none";
-    document.body.appendChild(iframe);
-
-    const iframeDoc = iframe.contentWindow?.document;
-    if (iframeDoc) {
-      iframeDoc.open();
-      iframeDoc.write(html);
-      iframeDoc.close();
-
-      // Warten bis Inhalte geladen sind, dann drucken
-      iframe.onload = () => {
-        setTimeout(() => {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-          setTimeout(() => document.body.removeChild(iframe), 3000);
-        }, 500);
-      };
-
-      // Fallback: Falls onload nicht feuert
-      setTimeout(() => {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        } catch { }
-        setTimeout(() => {
-          try { document.body.removeChild(iframe); } catch { }
-        }, 3000);
-      }, 2000);
-    }
-    return;
-  }
-
-  // Native: PDF erstellen und teilen
-  try {
-    const { uri } = await Print.printToFileAsync({
-      html,
-      width: 595,
-      height: 842,
-    });
-
-    await Sharing.shareAsync(uri, {
-      UTI: "com.adobe.pdf",
-      mimeType: "application/pdf",
-    });
-    return;
-  } catch (e1: any) {
-    console.warn("[PDF] printToFileAsync fehlgeschlagen:", e1.message);
-  }
-
-  // Fallback: HTML-Datei direkt teilen
-  try {
-    const fileUri = FileSystem.cacheDirectory + `angebot-${quote.quote_number}.html`;
-    await FileSystem.writeAsStringAsync(fileUri, html, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-    await Sharing.shareAsync(fileUri, {
-      mimeType: "text/html",
-    });
-  } catch (e2: any) {
-    Alert.alert("Fehler", "PDF konnte nicht erstellt werden: " + e2.message);
-  }
-}
-
-// ──────────────────────────────────────────────────────────────
-// RECHNUNG PDF — Gleicher professioneller Stil wie Angebot
-// ──────────────────────────────────────────────────────────────
-
-interface InvoiceForPDF {
-  invoice_number: string;
-  invoice_date: string;
-  due_date: string;
-  subtotal: number;
-  vat_amount: number;
-  total: number;
-  paid_amount?: number | null;
-  dunning_level?: number | null;
-  is_dunning_document?: boolean;
-  notes?: string | null;
-  customer?: any;
-  items?: Array<{
-    description: string;
-    quantity: number;
-    unit_price: number;
-    discount_percentage?: number | null;
-    vat_rate: number;
-    total: number;
-  }>;
-}
-
-interface InvoiceSettings {
-  greeting_text?: string;
-  closing_text?: string;
-  bank_name?: string;
-  account_holder?: string;
-  iban?: string;
-  swift_bic?: string;
-  account_number?: string;
-  payment_terms_days?: number;
-}
-
-export function generateInvoiceHTML(invoice: InvoiceForPDF, settings?: InvoiceSettings | null): string {
-  const customerAddressHTML = buildCustomerAddressHTML(invoice.customer);
-
-  // Total aus den Items berechnen (statt aus DB-Feld)
-  const itemsTotal = (invoice.items || []).reduce((sum, i) => sum + (i.total || 0), 0);
-  const calculatedTotal = itemsTotal > 0 ? itemsTotal : invoice.total;
-
-  const isWebInv = Platform.OS === "web";
-
-  const itemsHTML = (invoice.items || [])
-    .map((item, idx) => {
-      let descHTML = (item.description || "").replace(/\n/g, "<br>");
-      if (item.discount_percentage && item.discount_percentage > 0) {
-        descHTML += `<br><small style="color:#64748b;">Rabatt: ${item.discount_percentage}%</small>`;
-      }
-      const rowBg = idx % 2 === 1 ? ' style="background:#f8fafb;"' : "";
-      return `
-      <tr${rowBg}>
-        <td class="cell-center">${idx + 1}</td>
-        <td class="cell-left">${descHTML}</td>
-        <td class="cell-right">${item.quantity} ${(item as any).unit || 'Stk.'}</td>
-        <td class="cell-right">${fmtCHF(item.unit_price)}</td>
-        <td class="cell-right">${fmtCHF(item.total)}</td>
-      </tr>`;
-    })
-    .join("");
-
-  // Dokumententyp bestimmen
-  let docType = "Rechnung";
-  if (invoice.is_dunning_document || (invoice.dunning_level !== undefined && invoice.dunning_level !== null && invoice.dunning_level > 0)) {
-    if (invoice.dunning_level === 0) docType = "Zahlungserinnerung";
-    else if (invoice.dunning_level === 1) docType = "1. Mahnung";
-    else if (invoice.dunning_level === 2) docType = "2. Mahnung";
-    else if (invoice.dunning_level === 3) docType = "Betreibungsandrohung";
-  }
-
-  const remainingAmount = calculatedTotal - (invoice.paid_amount || 0);
-
-  return `<!DOCTYPE html>
-<html lang="de-CH">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${docType} ${invoice.invoice_number}</title>
-  <style>
-    @page { size: A4; margin: 0; }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      font-size: 9.5pt;
-      color: #1a1a2e !important;
-      line-height: 1.5;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-      padding: 0;
-      margin: 0;
-      display: flex; flex-direction: column; min-height: 100vh;
-    }
-    .accent-bar { height: 6px; background: linear-gradient(90deg, #D4A432, #E8B84A); }
-    .page { padding: 30px 40px 30px 40px; position: relative; flex: 1; }
-    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-    .header-table td { border: none; padding: 0; vertical-align: bottom; }
-    .logo { font-size: 26pt; font-weight: 300; color: #1a1a2e; letter-spacing: 2px; }
-    .logo span { color: #D4A432; font-weight: 600; }
-    .doc-type { text-align: right; font-size: 20pt; font-weight: 700; color: #D4A432; letter-spacing: 2px; text-transform: uppercase; }
-    .company-bar { text-align: right; font-size: 8pt; color: #64748b; padding: 6px 0 20px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 24px; line-height: 1.7; }
-    .addr-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-    .addr-meta-table td { border: none; padding: 0; vertical-align: top; }
-    .customer-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-bottom: 6px; font-weight: 600; }
-    .customer-address { font-size: 10pt; line-height: 1.3; color: #1a1a2e; }
-    .meta-box { background: #f8fafb; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; float: right; }
-    .meta-table { border-collapse: collapse; font-size: 9pt; }
-    .meta-table td { padding: 3px 0; border: none; }
-    .meta-table td:first-child { color: #64748b; padding-right: 24px; }
-    .meta-table td:last-child { font-weight: 600; text-align: right; color: #1a1a2e; }
-    .intro { font-size: 10pt; color: #475569; margin-bottom: 20px; line-height: 1.6; }
-    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-    .items-table thead th { background: #D4A432; color: #fff; padding: 10px 12px; font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-    .items-table thead th:first-child { border-radius: 4px 0 0 0; text-align: center; width: 40px; }
-    .items-table thead th:last-child { border-radius: 0 4px 0 0; }
-    .items-table thead th:not(:first-child):not(:nth-child(2)) { text-align: right; }
-    .items-table thead th:nth-child(2) { text-align: left; }
-    .items-table tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 9pt; vertical-align: top; }
-    .cell-left { text-align: left; } .cell-right { text-align: right; } .cell-center { text-align: center; color: #94a3b8; font-weight: 600; }
-    .totals-wrap { width: 100%; margin-top: 6px; }
-    .totals-table { border-collapse: collapse; float: right; min-width: 280px; }
-    .totals-table td { padding: 6px 12px; font-size: 9pt; border: none; }
-    .totals-label { text-align: right; color: #374151 !important; font-weight: 500; }
-    .totals-value { text-align: right; font-weight: 600; color: #1a1a2e !important; min-width: 100px; }
-    .totals-sep td { height: 2px; padding: 0; }
-    .totals-sep td div { height: 2px; background: #e2e8f0; }
-    .total-row { background: #D4A432; }
-    .total-row td { padding: 12px 14px !important; font-size: 13pt !important; font-weight: 700 !important; color: #fff !important; border-radius: 4px; }
-    .notes { clear: both; margin-top: 30px; padding: 14px 16px; background: #f8fafb; border-left: 3px solid #D4A432; font-size: 9pt; color: #475569; line-height: 1.6; }
-    .notes-title { font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; color: #D4A432; margin-bottom: 4px; }
-    .footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; margin-top: auto; page-break-inside: avoid; }
-    .totals-wrap { page-break-inside: avoid; }
-    .notes { page-break-inside: avoid; }
-    .footer-table { width: 100%; border-collapse: collapse; }
-    .footer-table td { border: none; padding: 0; vertical-align: top; color: #cbd5e1; }
-    .footer-label { font-weight: 700; color: #D4A432; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
-    .footer-val { font-weight: 600; color: #fff; }
-  </style>
-</head>
-<body>
-  <div class="accent-bar"></div>
-  <div class="page">
-    <table class="header-table">
-      <tr>
-        <td><img src="${LOGO_BASE64}" style="height:45px;width:auto;" alt="Gross ICT" /></td>
-        <td><div class="doc-type">${docType}</div></td>
-      </tr>
-    </table>
-
-    <div class="company-bar">
-      <strong>Gross ICT</strong> · Neuhushof 3 · 6144 Zell LU · Schweiz<br>
-      Stefan Gross · +41 79 414 06 16 · info@gross-ict.ch
-    </div>
-
-    <table class="addr-meta-table">
-      <tr>
-        <td style="width:55%;">
-          <div class="customer-label">Empfänger</div>
-          <div class="customer-address">${customerAddressHTML}</div>
-        </td>
-        <td style="width:45%;">
-          <div class="meta-box">
-            <table class="meta-table">
-              <tr><td>Rechnungsnr.</td><td>${invoice.invoice_number}</td></tr>
-              ${invoice.customer?.customer_number ? `<tr><td>Kundennr.</td><td>${invoice.customer.customer_number}</td></tr>` : ""}
-              <tr><td>Datum</td><td>${fmtDate(invoice.invoice_date)}</td></tr>
-              <tr><td>Zahlungsziel</td><td>${fmtDate(invoice.due_date)}</td></tr>
-              <tr><td>Zahlungsform</td><td>Überweisung</td></tr>
-            </table>
-          </div>
-        </td>
-      </tr>
-    </table>
-
-    <div class="intro">
-      Guten Tag<br><br>
-      ${settings?.greeting_text || 'Wir bedanken uns für Ihren Auftrag und stellen folgende Positionen in Rechnung:'}
-    </div>
-
-    <table class="items-table">
-      <thead>
-        <tr>
-          <th>Pos.</th>
-          <th>Beschreibung</th>
-          <th>Menge</th>
-          <th>Einzelpreis</th>
-          <th>Betrag (CHF)</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${itemsHTML}
-      </tbody>
-    </table>
-
-    <div class="totals-wrap" style="margin-bottom:60px;">
-      <table class="totals-table">
-        ${(invoice.paid_amount && invoice.paid_amount > 0) ? `
-        <tr>
-          <td class="totals-label">Totalbetrag</td>
-          <td class="totals-value">${fmtCHF(calculatedTotal)} CHF</td>
-        </tr>
-        <tr>
-          <td class="totals-label" style="color:#10b981 !important;">Bereits bezahlt</td>
-          <td class="totals-value" style="color:#10b981 !important;">-${fmtCHF(invoice.paid_amount)} CHF</td>
-        </tr>
-        ` : ""}
-        <tr class="total-row">
-          <td class="totals-label" style="color:#fff !important;">Zu bezahlen</td>
-          <td class="totals-value">${fmtCHF(remainingAmount > 0 ? remainingAmount : 0)} CHF</td>
-        </tr>
-      </table>
-    </div>
-
-    ${invoice.notes ? `
-    <div class="notes">
-      <div class="notes-title">Anmerkungen</div>
-      ${invoice.notes.replace(/\n/g, "<br>")}
-    </div>` : ""}
-  </div>
-
-
-
-  <div id="pdf-footer" class="footer">
-    <table class="footer-table">
-      <tr>
-        <td style="width:33%;">
-          <div class="footer-label">Zahlungsempfänger</div>
-          <span class="footer-val">${settings?.account_holder || 'Stefan Gross'}</span>
-        </td>
-        <td style="width:33%;">
-          <div class="footer-label">Bankverbindung</div>
-          <span class="footer-val">${settings?.bank_name || 'Bank Cler AG'}</span><br>
-          ${settings?.account_number ? `Konto: ${settings.account_number}` : 'Konto: 2610.4169.200'}
-        </td>
-        <td style="width:34%;">
-          <div class="footer-label">IBAN / SWIFT</div>
-          <span class="footer-val">${settings?.iban || 'CH39 0844 0261 0416 9200 1'}</span><br>
-          ${settings?.swift_bic ? `SWIFT: ${settings.swift_bic}` : 'SWIFT: BCLRCHBB'}
-        </td>
-      </tr>
-    </table>
-  </div>
-
-</body>
-</html>`;
-}
-
-export async function downloadInvoicePDF(invoice: InvoiceForPDF, settings?: InvoiceSettings | null): Promise<void> {
-  const html = generateInvoiceHTML(invoice, settings);
-
-  // Web: Hidden-Iframe-Druck (nur HTML-Inhalt, keine App-Buttons)
-  if (Platform.OS === "web") {
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "none";
-    document.body.appendChild(iframe);
-
-    const iframeDoc = iframe.contentWindow?.document;
-    if (iframeDoc) {
-      iframeDoc.open();
-      iframeDoc.write(html);
-      iframeDoc.close();
-
-      iframe.onload = () => {
-        setTimeout(() => {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-          setTimeout(() => document.body.removeChild(iframe), 3000);
-        }, 500);
-      };
-
-      setTimeout(() => {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        } catch { }
-        setTimeout(() => {
-          try { document.body.removeChild(iframe); } catch { }
-        }, 3000);
-      }, 2000);
-    }
-    return;
-  }
-
-  // Native: PDF erstellen und teilen
-  try {
-    const { uri } = await Print.printToFileAsync({
-      html,
-      width: 595,
-      height: 842,
-    });
-
-    await Sharing.shareAsync(uri, {
-      UTI: "com.adobe.pdf",
-      mimeType: "application/pdf",
-    });
-    return;
-  } catch (e1: any) {
-    console.warn("[PDF] printToFileAsync fehlgeschlagen:", e1.message);
-  }
-
-  // Fallback: HTML-Datei direkt teilen
-  try {
-    const fileUri = FileSystem.cacheDirectory + `rechnung-${invoice.invoice_number}.html`;
-    await FileSystem.writeAsStringAsync(fileUri, html, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-    await Sharing.shareAsync(fileUri, {
-      mimeType: "text/html",
-    });
-  } catch (e2: any) {
-    Alert.alert("Fehler", "PDF konnte nicht erstellt werden: " + e2.message);
-  }
-}
-
-/**
- * Generiert das Rechnungs-PDF als Base64-String (für E-Mail-Anhang).
- * Verwendet dasselbe HTML-Template wie downloadInvoicePDF.
- */
-export async function generateInvoicePDFBase64(invoice: InvoiceForPDF, settings?: InvoiceSettings | null): Promise<string | null> {
-  const html = generateInvoiceHTML(invoice, settings);
-
-  if (Platform.OS === "web") {
-    // Auf Web können wir kein Base64-PDF ohne Server erzeugen
-    return null;
-  }
-
-  try {
-    const { uri } = await Print.printToFileAsync({
-      html,
-      width: 595,
-      height: 842,
-    });
-
-    // PDF-Datei als Base64 lesen
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        const base64Data = dataUrl.split(",")[1] || "";
-        resolve(base64Data);
-      };
-      reader.readAsDataURL(blob);
-    });
-  } catch (err: any) {
-    console.error("[PDF] generateInvoicePDFBase64 error:", err.message);
-    return null;
-  }
-}
-
-// VERTRAG PDF — Server-seitige Generierung via Edge Function (jsPDF)
-// ──────────────────────────────────────────────────────────────
-
-interface ContractForPDF {
-  id: string;
-  title: string;
-  token?: string | null;
-  description?: string | null;
-  scope_of_services?: string | null;
-  special_agreements?: string | null;
-  is_internal?: boolean;
-  start_date: string;
-  end_date: string;
-  amount: number;
-  notice_period_months: number;
-  customer?: any;
-  customer_name?: string;
-  signature_date?: string | null;
-  signature_name?: string | null;
-  signature_ip?: string | null;
-  cancellation_date?: string | null;
-  status?: string;
-}
-
-export async function downloadContractPDF(contract: ContractForPDF): Promise<void> {
+async function fetchPDFFromEdgeFunction(params: string): Promise<string> {
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
-  const url = `${supabaseUrl}/functions/v1/contract-page?id=${encodeURIComponent(contract.id)}&action=generate-pdf`;
+  const url = `${supabaseUrl}/functions/v1/contract-page?${params}`;
 
+  const response = await fetch(url);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unbekannter Fehler" }));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (!data.pdf) {
+    throw new Error("Kein PDF in der Antwort erhalten");
+  }
+  return data.pdf;
+}
+
+// ──────────────────────────────────────────────────────────────
+// VERTRAG PDF
+// ──────────────────────────────────────────────────────────────
+
+export async function downloadContractPDF(contract: { id: string; title: string }): Promise<void> {
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: "Unbekannter Fehler" }));
-      throw new Error(errorData.error || `HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (!data.pdf) {
-      throw new Error("Kein PDF in der Antwort erhalten");
-    }
-
+    const base64 = await fetchPDFFromEdgeFunction(
+      `id=${encodeURIComponent(contract.id)}&action=generate-pdf`
+    );
     const safeTitle = contract.title.replace(/[^a-zA-Z0-9äöüÄÖÜ_\- ]/g, "").replace(/\s+/g, "_");
-    const filename = `Vertrag_${safeTitle}.pdf`;
-
-    if (Platform.OS === "web") {
-      // Web: Base64 → Blob → Download-Link
-      const byteChars = atob(data.pdf);
-      const byteNumbers = new Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) {
-        byteNumbers[i] = byteChars.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: "application/pdf" });
-      const blobUrl = URL.createObjectURL(blob);
-
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-      return;
-    }
-
-    // Native: Base64 → Datei → Teilen
-    const fileUri = FileSystem.cacheDirectory + filename;
-    await FileSystem.writeAsStringAsync(fileUri, data.pdf, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    await Sharing.shareAsync(fileUri, {
-      UTI: "com.adobe.pdf",
-      mimeType: "application/pdf",
-    });
+    await openPDFFromBase64(base64, `Vertrag_${safeTitle}.pdf`);
   } catch (err: any) {
-    console.error("[PDF] Contract PDF download error:", err);
+    console.error("[PDF] Contract PDF error:", err);
     Alert.alert("Fehler", "PDF konnte nicht erstellt werden: " + err.message);
   }
 }
 
+// ──────────────────────────────────────────────────────────────
+// RECHNUNG PDF
+// ──────────────────────────────────────────────────────────────
+
+export async function downloadInvoicePDF(invoice: { id: string; invoice_number: string }, _settings?: any): Promise<void> {
+  try {
+    const base64 = await fetchPDFFromEdgeFunction(
+      `id=${encodeURIComponent(invoice.id)}&action=generate-invoice-pdf`
+    );
+    await openPDFFromBase64(base64, `Rechnung_${invoice.invoice_number}.pdf`);
+  } catch (err: any) {
+    console.error("[PDF] Invoice PDF error:", err);
+    Alert.alert("Fehler", "Rechnungs-PDF konnte nicht erstellt werden: " + err.message);
+  }
+}
+
+export async function generateInvoicePDFBase64(invoice: { id: string }, _settings?: any): Promise<string | null> {
+  try {
+    return await fetchPDFFromEdgeFunction(
+      `id=${encodeURIComponent(invoice.id)}&action=generate-invoice-pdf`
+    );
+  } catch (err: any) {
+    console.error("[PDF] generateInvoicePDFBase64 error:", err);
+    return null;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// ANGEBOT PDF
+// ──────────────────────────────────────────────────────────────
+
+export async function downloadQuotePDF(quote: { id: string; quote_number: string }): Promise<void> {
+  try {
+    const base64 = await fetchPDFFromEdgeFunction(
+      `id=${encodeURIComponent(quote.id)}&action=generate-quote-pdf`
+    );
+    await openPDFFromBase64(base64, `Angebot_${quote.quote_number}.pdf`);
+  } catch (err: any) {
+    console.error("[PDF] Quote PDF error:", err);
+    Alert.alert("Fehler", "Angebots-PDF konnte nicht erstellt werden: " + err.message);
+  }
+}

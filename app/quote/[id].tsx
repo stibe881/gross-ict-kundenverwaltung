@@ -16,9 +16,8 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
 import { QuoteFormModal } from "@/components/quote-form-modal";
-import { downloadQuotePDF, generateQuoteHTML } from "@/lib/pdf-utils";
+import { downloadQuotePDF } from "@/lib/pdf-utils";
 import { Platform, Linking } from "react-native";
-import * as Print from "expo-print";
 import { supabase } from "@/lib/supabase";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -171,23 +170,14 @@ export default function QuoteDetailScreen() {
             async () => {
                 setIsSendingEmail(true);
                 try {
-                    const { data: { session } } = await (await import("@/lib/supabase")).supabase.auth.getSession();
-                    const userName = session?.user?.user_metadata?.full_name ||
-                        session?.user?.user_metadata?.name ||
-                        `${session?.user?.user_metadata?.first_name || ""} ${session?.user?.user_metadata?.last_name || ""}`.trim() ||
-                        "Stefan Gross";
-
-                    const html = generateQuoteHTML({ ...quote, creator_name: userName });
-
+                    // PDF Base64 via Edge Function generieren
+                    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
+                    const pdfUrl = `${supabaseUrl}/functions/v1/contract-page?id=${encodeURIComponent(quote.id)}&action=generate-quote-pdf`;
+                    const pdfResponse = await fetch(pdfUrl);
                     let pdfBase64 = "";
-                    if (Platform.OS !== "web") {
-                        const { uri } = await Print.printToFileAsync({
-                            html,
-                            width: 595,
-                            height: 842,
-                        });
-                        const fs = require("expo-file-system");
-                        pdfBase64 = await fs.readAsStringAsync(uri, { encoding: fs.EncodingType.Base64 });
+                    if (pdfResponse.ok) {
+                        const pdfData = await pdfResponse.json();
+                        pdfBase64 = pdfData.pdf || "";
                     }
 
                     await Data.sendQuoteEmail(quote.id, pdfBase64);
