@@ -618,7 +618,7 @@ function renderPage(contract: any, supabaseUrl: string, employee: any = null): s
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
       }
       .pc-accent-bar { height: 6px; background: linear-gradient(90deg, #D4A432, #E8B84A); }
-      .pc-page { padding: 30px 40px 30px 40px; flex: 1; }
+      .pc-page { padding: 30px 40px 60px 40px; flex: 1; }
       .pc-header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
       .pc-header-table td { border: none; padding: 0; vertical-align: bottom; }
       .pc-logo-img { height: 45px; width: auto; }
@@ -647,7 +647,7 @@ function renderPage(contract: any, supabaseUrl: string, employee: any = null): s
       .pc-sig-field { width: 45%; }
       .pc-sig-dash { border-bottom: 1px solid #1a1a2e; height: 30px; margin-bottom: 4px; }
       .pc-sig-field span { font-size: 8pt; color: #94a3b8; }
-      .pc-footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; margin-top: auto; page-break-inside: avoid; }
+      .pc-footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; position: fixed; bottom: 0; left: 0; right: 0; width: 100%; }
       .pc-footer-table { width: 100%; border-collapse: collapse; }
       .pc-footer-table td { border: none; padding: 0; vertical-align: top; color: #cbd5e1; }
       .pc-ft-label { font-weight: 700; color: #D4A432; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
