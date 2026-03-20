@@ -2039,10 +2039,20 @@ export const PAYMENT_METHODS = [
 ] as const;
 
 export async function getAllExpenses() {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
         .from("expenses")
         .select("*, user:users(name)")
         .order("expense_date", { ascending: false });
+
+    if (error && error.message.includes("relationship")) {
+        console.warn("Fallback: Beziehung noch nicht im Schema-Cache, lade ohne Benutzer...");
+        const fallback = await supabase
+            .from("expenses")
+            .select("*")
+            .order("expense_date", { ascending: false });
+        data = fallback.data;
+        error = fallback.error;
+    }
 
     if (error) throw new Error(error.message);
     return data || [];
