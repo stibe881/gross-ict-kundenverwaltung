@@ -21,6 +21,18 @@ function escHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+function formatTextHtml(str: string): string {
+  // Escape HTML first, then convert " - " separators and newlines to <br> line breaks
+  let text = escHtml(str);
+  // Convert " - " at word boundaries to line breaks with dash
+  text = text.replace(/\s*-\s+/g, '<br/>- ');
+  // Also convert actual newlines
+  text = text.replace(/\n/g, '<br/>');
+  // Clean up leading <br/> if present
+  text = text.replace(/^(<br\/>)+/, '');
+  return text;
+}
+
 function renderPage(contract: any, supabaseUrl: string, employee: any = null): string {
   const customerName = contract.is_internal
     ? (employee?.name || employee?.email || "Mitarbeiter")
@@ -414,11 +426,11 @@ function renderPage(contract: any, supabaseUrl: string, employee: any = null): s
       <div class="description-section">
         ${contract.description ? `
         <div class="label">Beschreibung</div>
-        <p style="margin-bottom: 12px;">${escHtml(contract.description)}</p>
+        <p style="margin-bottom: 12px;">${formatTextHtml(contract.description)}</p>
         ` : ""}
         ${contract.scope_of_services ? `
         <div class="label">Leistungsumfang</div>
-        <p>${escHtml(contract.scope_of_services)}</p>
+        <p>${formatTextHtml(contract.scope_of_services)}</p>
         ` : ""}
       </div>
       ` : ""}
@@ -463,7 +475,7 @@ function renderPage(contract: any, supabaseUrl: string, employee: any = null): s
         </div>
         <div class="terms-text">
           <div class="t-label">Zusatzvereinbarungen</div>
-          <div class="t-value" style="white-space: pre-wrap;">${escHtml(contract.special_agreements)}</div>
+          <div class="t-value">${formatTextHtml(contract.special_agreements)}</div>
         </div>
       </div>
       ` : ""}
@@ -528,14 +540,14 @@ function renderPage(contract: any, supabaseUrl: string, employee: any = null): s
       ${contract.description ? `
       <div class="pc-section">
         <table class="pc-section-header"><tr><th>Beschreibung</th></tr></table>
-        <div class="pc-section-body">${escHtml(contract.description)}</div>
+        <div class="pc-section-body">${formatTextHtml(contract.description)}</div>
       </div>
       ` : ""}
 
       ${contract.scope_of_services ? `
       <div class="pc-section">
         <table class="pc-section-header"><tr><th>Leistungsumfang</th></tr></table>
-        <div class="pc-section-body">${escHtml(contract.scope_of_services)}</div>
+        <div class="pc-section-body">${formatTextHtml(contract.scope_of_services)}</div>
       </div>
       ` : ""}
 
@@ -547,7 +559,7 @@ function renderPage(contract: any, supabaseUrl: string, employee: any = null): s
           <tr><td>Zahlungsbedingungen</td><td>${contract.payment_terms ? escHtml(contract.payment_terms) : "Jährliche Abrechnung, zahlbar innert 30 Tagen"}</td></tr>
           <tr><td>Automatische Verlängerung</td><td>Bei Nichtkündigung verlängert sich der Vertrag automatisch um die gleiche Laufzeit</td></tr>
           ` : ""}
-          ${contract.special_agreements ? `<tr><td>Zusatzvereinbarungen</td><td>${escHtml(contract.special_agreements)}</td></tr>` : ""}
+          ${contract.special_agreements ? `<tr><td>Zusatzvereinbarungen</td><td>${formatTextHtml(contract.special_agreements)}</td></tr>` : ""}
         </table>
       </div>
 
