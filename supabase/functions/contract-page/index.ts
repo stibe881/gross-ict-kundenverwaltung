@@ -721,9 +721,10 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const token = url.searchParams.get("token");
+  const contractId = url.searchParams.get("id");
   const action = url.searchParams.get("action");
 
-  if (!token) {
+  if (!token && !contractId) {
     return new Response(
       renderErrorPage("Token fehlt", "Der Link ist ungültig. Bitte verwenden Sie den Link aus der E-Mail."),
       { status: 400, headers: { ...corsHeaders, "content-type": "text/html;charset=UTF-8" } }
@@ -737,11 +738,33 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { data: contract, error: fetchErr } = await supabase
-      .from("contracts")
-      .select("*, customer:customers(company_name, first_name, last_name, email, street, zip, city)")
-      .eq("token", token)
-      .single();
+    let contract: any = null;
+    let fetchErr: any = null;
+
+    console.log(`[contract-page] Lookup: token=${token}, contractId=${contractId}, action=${action}`);
+
+    if (token) {
+      const result = await supabase
+        .from("contracts")
+        .select("*, customer:customers(*)")
+        .eq("token", token)
+        .single();
+      contract = result.data;
+      fetchErr = result.error;
+      console.log(`[contract-page] Token lookup: found=${!!contract}, error=${fetchErr?.message}`);
+    }
+
+    // Fallback: lookup by ID (for generate-pdf when no token exists)
+    if (!contract && contractId) {
+      const result = await supabase
+        .from("contracts")
+        .select("*, customer:customers(*)")
+        .eq("id", contractId)
+        .single();
+      contract = result.data;
+      fetchErr = result.error;
+      console.log(`[contract-page] ID lookup: found=${!!contract}, error=${fetchErr?.message}`);
+    }
 
     let employee = null;
     if (contract?.is_internal && contract?.employee_id) {
@@ -750,10 +773,64 @@ Deno.serve(async (req) => {
     }
 
     if (fetchErr || !contract) {
+      // Return JSON for generate-pdf so the client can show a proper error
+      if (action === "generate-pdf") {
+        return new Response(
+          JSON.stringify({ error: `Vertrag nicht gefunden (token=${token}, id=${contractId}, dbError=${fetchErr?.message || 'none'})` }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       return new Response(
         renderErrorPage("Vertrag nicht gefunden", "Der angeforderte Vertrag konnte nicht gefunden werden. Der Link ist möglicherweise abgelaufen oder ungültig."),
         { status: 404, headers: { ...corsHeaders, "content-type": "text/html;charset=UTF-8" } }
       );
+    }
+    // GET: Generate PDF and return as base64
+    if (action === "generate-pdf") {
+      try {
+        const customerName = contract.is_internal
+          ? (employee?.name || employee?.email || "Mitarbeiter")
+          : (contract.customer?.company_name ||
+            `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde");
+
+        const addressParts = contract.is_internal
+          ? [customerName, employee?.email].filter(Boolean)
+          : [
+            customerName,
+            contract.customer?.address || contract.customer?.street,
+            (contract.customer?.zip || contract.customer?.city) ? `${contract.customer?.zip || ""} ${contract.customer?.city || ""}`.trim() : undefined
+          ].filter(Boolean);
+
+        const pdfData = {
+          title: contract.title,
+          customerName,
+          customerAddress: addressParts.join("\n"),
+          startDate: contract.start_date,
+          endDate: contract.end_date,
+          amount: Number(contract.annual_amount || contract.amount || 0),
+          noticePeriodMonths: contract.notice_period_months || 3,
+          description: contract.description || "",
+          scopeOfServices: contract.scope_of_services || "",
+          specialAgreements: contract.special_agreements || "",
+          isInternal: contract.is_internal,
+          cancellationDate: contract.cancellation_date || undefined,
+          signatureName: contract.signature_name || undefined,
+          signatureDate: contract.signature_date ? new Date(contract.signature_date).toISOString().split("T")[0] : undefined,
+          signatureIp: contract.signature_ip || undefined,
+        };
+
+        const pdfBase64 = generateContractPDF(pdfData);
+        return new Response(
+          JSON.stringify({ pdf: pdfBase64 }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (pdfErr: any) {
+        console.error("[contract-page] PDF generation error:", pdfErr);
+        return new Response(
+          JSON.stringify({ error: "PDF konnte nicht generiert werden: " + pdfErr.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // POST: Sign contract
@@ -935,8 +1012,8 @@ Deno.serve(async (req) => {
               ? [customerName, employee?.email].filter(Boolean)
               : [
                 customerName,
-                contract.customer?.street,
-                `${contract.customer?.zip || ""} ${contract.customer?.city || ""}`.trim()
+                contract.customer?.address || contract.customer?.street,
+                (contract.customer?.zip || contract.customer?.city) ? `${contract.customer?.zip || ""} ${contract.customer?.city || ""}`.trim() : undefined
               ].filter(Boolean);
 
             pdfBase64 = generateContractPDF({

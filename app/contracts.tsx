@@ -164,24 +164,28 @@ export default function ContractsScreen() {
 
       <View className="flex-row items-center justify-between mt-2">
         <View>
-          <Text className="text-xs text-muted">Laufzeit</Text>
+          <Text className="text-xs text-muted">{item.is_internal ? "Startdatum" : "Laufzeit"}</Text>
           <Text className="text-sm text-foreground">
-            {formatDate(item.start_date)} - {formatDate(item.end_date)}
+            {item.is_internal ? formatDate(item.start_date) : `${formatDate(item.start_date)} - ${formatDate(item.end_date)}`}
           </Text>
         </View>
+        {!item.is_internal && (
         <View>
           <Text className="text-xs text-muted text-right">Betrag</Text>
           <Text className="text-sm font-semibold text-success">
             {formatCurrency(item.amount)}/Jahr
           </Text>
         </View>
+        )}
       </View>
 
+      {!item.is_internal && (
       <View className="mt-2">
         <Text className="text-xs text-muted">
           Kündigungsfrist: {item.notice_period_months} {item.notice_period_months === 1 ? "Monat" : "Monate"}
         </Text>
       </View>
+      )}
     </TouchableOpacity>
   );
 
@@ -665,23 +669,27 @@ function ContractDetailsModal({
               <View className="bg-surface rounded-xl p-4 border border-border">
                 <View className="gap-3">
                   <View>
-                    <Text className="text-sm text-muted mb-1">Laufzeit</Text>
+                    <Text className="text-sm text-muted mb-1">{contract.is_internal ? "Startdatum" : "Laufzeit"}</Text>
                     <Text className="text-base text-foreground">
-                      {formatDate(contract.start_date)} - {formatDate(contract.end_date)}
+                      {contract.is_internal ? formatDate(contract.start_date) : `${formatDate(contract.start_date)} - ${formatDate(contract.end_date)}`}
                     </Text>
                   </View>
+                  {!contract.is_internal && (
                   <View>
                     <Text className="text-sm text-muted mb-1">Jahresbetrag</Text>
                     <Text className="text-lg font-bold text-success">
                       {formatCurrency(contract.amount)}
                     </Text>
                   </View>
+                  )}
+                  {!contract.is_internal && (
                   <View>
                     <Text className="text-sm text-muted mb-1">Kündigungsfrist</Text>
                     <Text className="text-base text-foreground">
                       {contract.notice_period_months} {contract.notice_period_months === 1 ? "Monat" : "Monate"}
                     </Text>
                   </View>
+                  )}
                   {contract.cancellation_date && (
                     <View className="mt-2 p-3 bg-warning/10 rounded-lg border border-warning/20">
                       <Text className="text-sm font-semibold text-warning mb-1">Kündigungsdatum</Text>
@@ -701,6 +709,32 @@ function ContractDetailsModal({
                   )}
                 </View>
               </View>
+
+              {/* Beschreibung, Leistungsumfang, Zusatzvereinbarungen */}
+              {(contract.description || contract.scope_of_services || contract.special_agreements) && (
+                <View className="bg-surface rounded-xl p-4 border border-border">
+                  <View className="gap-3">
+                    {contract.description ? (
+                      <View>
+                        <Text className="text-sm text-muted mb-1">Beschreibung</Text>
+                        <Text className="text-base text-foreground">{contract.description}</Text>
+                      </View>
+                    ) : null}
+                    {contract.scope_of_services ? (
+                      <View>
+                        <Text className="text-sm text-muted mb-1">Leistungsumfang</Text>
+                        <Text className="text-base text-foreground">{contract.scope_of_services}</Text>
+                      </View>
+                    ) : null}
+                    {contract.special_agreements ? (
+                      <View>
+                        <Text className="text-sm text-muted mb-1">Zusatzvereinbarungen</Text>
+                        <Text className="text-base text-foreground">{contract.special_agreements}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+              )}
 
               {/* Signatur-Status */}
               <View className="bg-surface rounded-xl p-4 border border-border">

@@ -851,13 +851,17 @@ export async function generateInvoicePDFBase64(invoice: InvoiceForPDF, settings?
   }
 }
 
-// ──────────────────────────────────────────────────────────────
-// VERTRAG PDF — Professionelles Design wie Angebot/Rechnung
+// VERTRAG PDF — Server-seitige Generierung via Edge Function (jsPDF)
 // ──────────────────────────────────────────────────────────────
 
 interface ContractForPDF {
+  id: string;
   title: string;
+  token?: string | null;
   description?: string | null;
+  scope_of_services?: string | null;
+  special_agreements?: string | null;
+  is_internal?: boolean;
   start_date: string;
   end_date: string;
   amount: number;
@@ -871,268 +875,59 @@ interface ContractForPDF {
   status?: string;
 }
 
-export function generateContractHTML(contract: ContractForPDF): string {
-  const customerAddressHTML = contract.customer
-    ? buildCustomerAddressHTML(contract.customer)
-    : (contract.customer_name || "Unbekannt");
-
-  const isSigned = !!contract.signature_date;
-  const isWeb = Platform.OS === "web";
-
-  return `<!DOCTYPE html>
-<html lang="de-CH">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vertrag – ${contract.title}</title>
-  <style>
-    @page { size: A4; margin: 0; }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      font-size: 10pt;
-      color: #1a1a2e !important;
-      line-height: 1.6;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-      display: flex; flex-direction: column; min-height: 100vh;
-    }
-    .accent-bar { height: 6px; background: linear-gradient(90deg, #D4A432, #E8B84A); }
-    .page { padding: 30px 40px 30px 40px; flex: 1; }
-    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-    .header-table td { border: none; padding: 0; vertical-align: bottom; }
-    .doc-type { text-align: right; font-size: 20pt; font-weight: 700; color: #D4A432; letter-spacing: 2px; text-transform: uppercase; }
-    .company-bar { text-align: right; font-size: 8pt; color: #64748b; padding: 6px 0 20px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 24px; line-height: 1.7; }
-    .addr-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-    .addr-meta-table td { border: none; padding: 0; vertical-align: top; }
-    .customer-label { font-size: 7pt; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-bottom: 6px; font-weight: 600; }
-    .customer-address { font-size: 10pt; line-height: 1.3; color: #1a1a2e; }
-    .meta-box { background: #f8fafb; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; float: right; }
-    .meta-table { border-collapse: collapse; font-size: 9pt; }
-    .meta-table td { padding: 3px 0; border: none; }
-    .meta-table td:first-child { color: #64748b; padding-right: 24px; }
-    .meta-table td:last-child { font-weight: 600; text-align: right; color: #1a1a2e; }
-
-    .section-title {
-      font-size: 11pt; font-weight: 700; color: #D4A432;
-      text-transform: uppercase; letter-spacing: 1px;
-      margin: 28px 0 12px 0; padding-bottom: 4px;
-      border-bottom: 2px solid #D4A432;
-    }
-    .contract-text { font-size: 10pt; color: #1a1a2e; line-height: 1.7; margin-bottom: 10px; }
-
-    .details-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    .details-table td { padding: 10px 16px; font-size: 10pt; border-bottom: 1px solid #f1f5f9; }
-    .details-table td:first-child { color: #64748b; width: 40%; }
-    .details-table td:last-child { font-weight: 600; color: #1a1a2e; }
-    .details-table tr:nth-child(odd) { background: #f8fafb; }
-
-    .amount-box {
-      background: #D4A432; color: #fff; border-radius: 6px;
-      padding: 16px 24px; display: flex; justify-content: space-between;
-      align-items: center; margin: 20px 0;
-    }
-    .amount-label { font-size: 11pt; font-weight: 500; }
-    .amount-value { font-size: 18pt; font-weight: 700; }
-
-    .signature-box {
-      margin-top: 30px; padding: 20px;
-      background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px;
-    }
-    .signature-box.unsigned { background: #f8fafb; border-color: #e2e8f0; }
-    .sig-label { font-size: 8pt; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-    .sig-value { font-size: 10pt; font-weight: 600; color: #1a1a2e; }
-    .sig-line { margin-top: 40px; border-top: 1px solid #1a1a2e; padding-top: 6px; width: 250px; }
-
-    .footer { background: #1a1a2e; color: #cbd5e1; padding: 14px 40px; font-size: 7.5pt; line-height: 1.7; margin-top: auto; page-break-inside: avoid; }
-    .footer-table { width: 100%; border-collapse: collapse; }
-    .footer-table td { border: none; padding: 0; vertical-align: top; color: #cbd5e1; }
-    .footer-label { font-weight: 700; color: #D4A432; text-transform: uppercase; letter-spacing: 1px; font-size: 7pt; margin-bottom: 3px; }
-    .footer-val { font-weight: 600; color: #fff; }
-  </style>
-</head>
-<body>
-  <div class="accent-bar"></div>
-  <div class="page">
-    <table class="header-table">
-      <tr>
-        <td><img src="${LOGO_BASE64}" style="height:45px;width:auto;" alt="Gross ICT" /></td>
-        <td><div class="doc-type">Vertrag</div></td>
-      </tr>
-    </table>
-
-    <div class="company-bar">
-      <strong>Gross ICT</strong> · Neuhushof 3 · 6144 Zell LU · Schweiz<br>
-      Stefan Gross · +41 79 414 06 16 · info@gross-ict.ch
-    </div>
-
-    <table class="addr-meta-table">
-      <tr>
-        <td style="width:55%;">
-          <div class="customer-label">Vertragspartner</div>
-          <div class="customer-address">${customerAddressHTML}</div>
-        </td>
-        <td style="width:45%;">
-          <div class="meta-box">
-            <table class="meta-table">
-              <tr><td>Vertragsbeginn</td><td>${fmtDate(contract.start_date)}</td></tr>
-              <tr><td>Vertragsende</td><td>${fmtDate(contract.end_date)}</td></tr>
-              <tr><td>Kündigungsfrist</td><td>${contract.notice_period_months} Monate</td></tr>
-            </table>
-          </div>
-        </td>
-      </tr>
-    </table>
-
-    <div class="section-title">Vertragsgegenstand</div>
-    <div class="contract-text">
-      <strong>${contract.title}</strong>
-    </div>
-    ${contract.description ? `<div class="contract-text">${contract.description.replace(/\n/g, "<br>")}</div>` : ""}
-
-    <div class="section-title">Vertragsdetails</div>
-    <table class="details-table">
-      <tr><td>Vertragsbeginn</td><td>${fmtDate(contract.start_date)}</td></tr>
-      <tr><td>Vertragsende</td><td>${fmtDate(contract.end_date)}</td></tr>
-      <tr><td>Kündigungsfrist</td><td>${contract.notice_period_months} ${contract.notice_period_months === 1 ? "Monat" : "Monate"}</td></tr>
-      ${contract.cancellation_date ? `<tr><td>Gekündigt per</td><td style="color:#EF4444;">${fmtDate(contract.cancellation_date)}</td></tr>` : ""}
-    </table>
-
-    <div style="background:#D4A432;color:#fff;border-radius:6px;padding:16px 24px;margin:20px 0;">
-      <table style="width:100%;border-collapse:collapse;">
-        <tr>
-          <td style="font-size:11pt;font-weight:500;color:#fff;border:none;padding:0;">Jahresbetrag</td>
-          <td style="font-size:18pt;font-weight:700;text-align:right;color:#fff;border:none;padding:0;">${fmtCHF(contract.amount)} CHF</td>
-        </tr>
-      </table>
-    </div>
-
-    ${isSigned ? `
-    <div class="section-title">Digitale Unterschrift</div>
-    <div class="signature-box">
-      <div style="display:flex;gap:40px;">
-        <div>
-          <div class="sig-label">Unterzeichnet von</div>
-          <div class="sig-value">${contract.signature_name || "—"}</div>
-        </div>
-        <div>
-          <div class="sig-label">Datum</div>
-          <div class="sig-value">${contract.signature_date ? fmtDate(contract.signature_date.split("T")[0]) : "—"}</div>
-        </div>
-        ${contract.signature_ip ? `
-        <div>
-          <div class="sig-label">IP-Adresse</div>
-          <div class="sig-value">${contract.signature_ip}</div>
-        </div>` : ""}
-      </div>
-    </div>` : `
-    <div class="section-title">Unterschrift</div>
-    <div class="signature-box unsigned">
-      <table style="width:100%;border-collapse:collapse;">
-        <tr>
-          <td style="width:50%;border:none;padding:0;vertical-align:bottom;">
-            <div class="sig-label">Datum, Ort</div>
-            <div class="sig-line"></div>
-          </td>
-          <td style="width:50%;border:none;padding:0;vertical-align:bottom;">
-            <div class="sig-label">Unterschrift Auftraggeber</div>
-            <div class="sig-line"></div>
-          </td>
-        </tr>
-      </table>
-    </div>`}
-  </div>
-
-  <div class="footer">
-    <table class="footer-table">
-      <tr>
-        <td style="width:33%;">
-          <div class="footer-label">Vertragspartner</div>
-          <span class="footer-val">Stefan Gross</span><br>
-          Gross ICT
-        </td>
-        <td style="width:33%;">
-          <div class="footer-label">Kontakt</div>
-          info@gross-ict.ch<br>
-          +41 79 414 06 16
-        </td>
-        <td style="width:34%;">
-          <div class="footer-label">Adresse</div>
-          <span class="footer-val">Neuhushof 3</span><br>
-          6144 Zell LU, Schweiz
-        </td>
-      </tr>
-    </table>
-  </div>
-</body>
-</html>`;
-}
-
 export async function downloadContractPDF(contract: ContractForPDF): Promise<void> {
-  const html = generateContractHTML(contract);
-
-  if (Platform.OS === "web") {
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "none";
-    document.body.appendChild(iframe);
-
-    const iframeDoc = iframe.contentWindow?.document;
-    if (iframeDoc) {
-      iframeDoc.open();
-      iframeDoc.write(html);
-      iframeDoc.close();
-
-      iframe.onload = () => {
-        setTimeout(() => {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-          setTimeout(() => document.body.removeChild(iframe), 3000);
-        }, 500);
-      };
-
-      setTimeout(() => {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        } catch { }
-        setTimeout(() => {
-          try { document.body.removeChild(iframe); } catch { }
-        }, 3000);
-      }, 2000);
-    }
-    return;
-  }
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
+  const url = `${supabaseUrl}/functions/v1/contract-page?id=${encodeURIComponent(contract.id)}&action=generate-pdf`;
 
   try {
-    const { uri } = await Print.printToFileAsync({
-      html,
-      width: 595,
-      height: 842,
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: "Unbekannter Fehler" }));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!data.pdf) {
+      throw new Error("Kein PDF in der Antwort erhalten");
+    }
+
+    const safeTitle = contract.title.replace(/[^a-zA-Z0-9äöüÄÖÜ_\- ]/g, "").replace(/\s+/g, "_");
+    const filename = `Vertrag_${safeTitle}.pdf`;
+
+    if (Platform.OS === "web") {
+      // Web: Base64 → Blob → Download-Link
+      const byteChars = atob(data.pdf);
+      const byteNumbers = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteNumbers[i] = byteChars.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "application/pdf" });
+      const blobUrl = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+      return;
+    }
+
+    // Native: Base64 → Datei → Teilen
+    const fileUri = FileSystem.cacheDirectory + filename;
+    await FileSystem.writeAsStringAsync(fileUri, data.pdf, {
+      encoding: FileSystem.EncodingType.Base64,
     });
 
-    await Sharing.shareAsync(uri, {
+    await Sharing.shareAsync(fileUri, {
       UTI: "com.adobe.pdf",
       mimeType: "application/pdf",
     });
-    return;
-  } catch (e1: any) {
-    console.warn("[PDF] printToFileAsync fehlgeschlagen:", e1.message);
-  }
-
-  try {
-    const fileUri = FileSystem.cacheDirectory + `vertrag-${contract.title.replace(/\s+/g, "-")}.html`;
-    await FileSystem.writeAsStringAsync(fileUri, html, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-    await Sharing.shareAsync(fileUri, {
-      mimeType: "text/html",
-    });
-  } catch (e2: any) {
-    Alert.alert("Fehler", "PDF konnte nicht erstellt werden: " + e2.message);
+  } catch (err: any) {
+    console.error("[PDF] Contract PDF download error:", err);
+    Alert.alert("Fehler", "PDF konnte nicht erstellt werden: " + err.message);
   }
 }
+
