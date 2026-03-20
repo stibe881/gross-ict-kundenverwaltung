@@ -769,7 +769,7 @@ Deno.serve(async (req) => {
         const addressParts = [
           customerName,
           invoice.customer?.address || invoice.customer?.street,
-          (invoice.customer?.zip || invoice.customer?.city) ? `${invoice.customer?.zip || ""} ${invoice.customer?.city || ""}`.trim() : undefined,
+          (invoice.customer?.postal_code || invoice.customer?.city) ? `${invoice.customer?.postal_code || ""} ${invoice.customer?.city || ""}`.trim() : undefined,
           "Schweiz"
         ].filter(Boolean);
 
@@ -848,7 +848,7 @@ Deno.serve(async (req) => {
         const addressParts = [
           customerName,
           quote.customer?.address || quote.customer?.street,
-          (quote.customer?.zip || quote.customer?.city) ? `${quote.customer?.zip || ""} ${quote.customer?.city || ""}`.trim() : undefined,
+          (quote.customer?.postal_code || quote.customer?.city) ? `${quote.customer?.postal_code || ""} ${quote.customer?.city || ""}`.trim() : undefined,
           "Schweiz"
         ].filter(Boolean);
 
@@ -947,7 +947,7 @@ Deno.serve(async (req) => {
           : [
             customerName,
             contract.customer?.address || contract.customer?.street,
-            (contract.customer?.zip || contract.customer?.city) ? `${contract.customer?.zip || ""} ${contract.customer?.city || ""}`.trim() : undefined,
+            (contract.customer?.postal_code || contract.customer?.city) ? `${contract.customer?.postal_code || ""} ${contract.customer?.city || ""}`.trim() : undefined,
             "Schweiz"
           ].filter(Boolean);
 
@@ -1163,7 +1163,7 @@ Deno.serve(async (req) => {
               : [
                 customerName,
                 contract.customer?.address || contract.customer?.street,
-                (contract.customer?.zip || contract.customer?.city) ? `${contract.customer?.zip || ""} ${contract.customer?.city || ""}`.trim() : undefined
+                (contract.customer?.postal_code || contract.customer?.city) ? `${contract.customer?.postal_code || ""} ${contract.customer?.city || ""}`.trim() : undefined
               ].filter(Boolean);
 
             pdfBase64 = generateContractPDF({
