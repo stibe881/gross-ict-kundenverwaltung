@@ -943,7 +943,7 @@ Deno.serve(async (req) => {
             `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde");
 
         const addressParts = contract.is_internal
-          ? [customerName, employee?.address || employee?.street, (employee?.zip || employee?.city) ? `${employee?.zip || ''} ${employee?.city || ''}`.trim() : undefined].filter(Boolean)
+          ? [customerName, "Gross ICT", "Neuhushof 3", "6144 Zell LU", "Schweiz"].filter(Boolean)
           : [
             customerName,
             contract.customer?.address || contract.customer?.street,
@@ -1159,7 +1159,7 @@ Deno.serve(async (req) => {
           let pdfBase64: string | null = null;
           try {
             const addressParts = contract.is_internal
-              ? [customerName, employee?.email].filter(Boolean)
+              ? [customerName, "Gross ICT", "Neuhushof 3", "6144 Zell LU", "Schweiz"].filter(Boolean)
               : [
                 customerName,
                 contract.customer?.address || contract.customer?.street,
