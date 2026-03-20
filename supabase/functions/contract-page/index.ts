@@ -917,7 +917,8 @@ Deno.serve(async (req) => {
 
     let employee = null;
     if (contract?.is_internal && contract?.employee_id) {
-       const { data: emp } = await supabase.from('users').select('name, email, address, street, zip, city').eq('id', contract.employee_id).single();
+       const { data: emp, error: empErr } = await supabase.from('users').select('name, email').eq('id', contract.employee_id).single();
+       console.log(`[contract-page] Employee lookup: id=${contract.employee_id}, name=${emp?.name}, error=${empErr?.message}`);
        employee = emp;
     }
 
