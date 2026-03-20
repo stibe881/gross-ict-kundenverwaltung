@@ -25,6 +25,7 @@ import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-run
 import { initializePushNotifications } from "@/lib/push-notifications";
 import { registerForPushNotificationsAsync } from "@/lib/notifications";
 import * as Notifications from 'expo-notifications';
+import * as QuickActions from 'expo-quick-actions';
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -284,6 +285,38 @@ export default function RootLayout() {
     );
     return () => subscription.unsubscribe();
   }, []);
+
+  // Setup Home Screen Quick Actions (Shortcuts)
+  useEffect(() => {
+    QuickActions.setItems([
+      {
+        title: "Beleg scannen",
+        subtitle: "Direkt zur Kamera öffnen",
+        icon: "compose", // iOS system icon similar to camera/scan
+        id: "scan_receipt",
+        params: { href: "/(tabs)/scanner" }
+      }
+    ]);
+  }, []);
+
+  // Handle Quick Action Launches
+  useEffect(() => {
+    const handleAction = (action: QuickActions.Action) => {
+      if (action.id === "scan_receipt") {
+        router.push("/(tabs)/scanner");
+      }
+    };
+
+    const sub = QuickActions.addListener(handleAction);
+    
+    // Check if app was launched directly via Quick Action
+    const initialAction = QuickActions.initial;
+    if (initialAction && initialAction.id === "scan_receipt") {
+      setTimeout(() => router.push("/(tabs)/scanner"), 600); // Wait for navigation tree
+    }
+
+    return () => sub.remove();
+  }, [router]);
 
   const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
     setInsets(metrics.insets);

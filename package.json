@@ -54,6 +54,7 @@
     "expo-local-authentication": "~17.0.8",
     "expo-notifications": "~0.32.15",
     "expo-print": "~15.0.8",
+    "expo-quick-actions": "^6.0.1",
     "expo-router": "~6.0.19",
     "expo-secure-store": "~15.0.8",
     "expo-server-sdk": "^6.0.0",
