@@ -1777,7 +1777,7 @@ export async function updateUserRoles(userId: string, roles: string[]) {
     if (error) throw new Error(error.message);
 }
 
-export async function updateUserProfileAndRoles(userId: string, updates: { roles: string[]; address: string; iban: string }) {
+export async function updateUserProfileAndRoles(userId: string, updates: { roles: string[]; address?: string; postal_code?: string; city?: string; iban: string }) {
     const { data, error } = await supabase
         .from("users")
         .update(updates)

@@ -28,7 +28,9 @@ export default function UsersScreen() {
   const queryClient = useQueryClient();
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editRoles, setEditRoles] = useState<string[]>([]);
-  const [editAddress, setEditAddress] = useState("");
+  const [editStreet, setEditStreet] = useState("");
+  const [editPostalCode, setEditPostalCode] = useState("");
+  const [editCity, setEditCity] = useState("");
   const [editIban, setEditIban] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newUserName, setNewUserName] = useState("");
@@ -82,8 +84,8 @@ export default function UsersScreen() {
   });
 
   const updateRolesMutation = useMutation({
-    mutationFn: ({ userId, roles, address, iban }: { userId: string; roles: string[]; address: string; iban: string }) =>
-      Data.updateUserProfileAndRoles(userId, { roles, address, iban }),
+    mutationFn: ({ userId, roles, address, postal_code, city, iban }: { userId: string; roles: string[]; address: string; postal_code: string; city: string; iban: string }) =>
+      Data.updateUserProfileAndRoles(userId, { roles, address, postal_code, city, iban }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setEditingUserId(null);
@@ -108,7 +110,9 @@ export default function UsersScreen() {
   const startEditRoles = (user: any) => {
     setEditingUserId(user.id);
     setEditRoles(user.roles || []);
-    setEditAddress(user.address || "");
+    setEditStreet(user.address || "");
+    setEditPostalCode(user.postal_code || "");
+    setEditCity(user.city || "");
     setEditIban(user.iban || "");
   };
 
@@ -123,7 +127,7 @@ export default function UsersScreen() {
   const handleSaveRoles = async () => {
     if (!editingUserId) return;
     try {
-      updateRolesMutation.mutate({ userId: editingUserId, roles: editRoles, address: editAddress, iban: editIban });
+      updateRolesMutation.mutate({ userId: editingUserId, roles: editRoles, address: editStreet, postal_code: editPostalCode, city: editCity, iban: editIban });
     } catch (err: any) {
       showAlert("Fehler", err.message || "Fehler beim Speichern der Benutzerdaten");
     }
@@ -252,7 +256,7 @@ export default function UsersScreen() {
       </Text>
       <View style={{ gap: 12 }}>
         <View>
-          <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 4, fontWeight: "600" }}>Vollständige Adresse</Text>
+          <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 4, fontWeight: "600" }}>Strasse</Text>
           <TextInput
             style={{
               backgroundColor: colors.surface,
@@ -262,15 +266,51 @@ export default function UsersScreen() {
               paddingHorizontal: 12,
               paddingVertical: 10,
               color: colors.foreground,
-              minHeight: 60,
-              textAlignVertical: "top",
             }}
-            placeholder="Musterstrasse 1&#10;8000 Zürich"
+            placeholder="Musterstrasse 1"
             placeholderTextColor={colors.muted}
-            value={editAddress}
-            onChangeText={setEditAddress}
-            multiline
+            value={editStreet}
+            onChangeText={setEditStreet}
           />
+        </View>
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <View style={{ width: 100 }}>
+            <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 4, fontWeight: "600" }}>PLZ</Text>
+            <TextInput
+              style={{
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                color: colors.foreground,
+              }}
+              placeholder="8000"
+              placeholderTextColor={colors.muted}
+              value={editPostalCode}
+              onChangeText={setEditPostalCode}
+              keyboardType="number-pad"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 4, fontWeight: "600" }}>Ort</Text>
+            <TextInput
+              style={{
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                color: colors.foreground,
+              }}
+              placeholder="Zürich"
+              placeholderTextColor={colors.muted}
+              value={editCity}
+              onChangeText={setEditCity}
+            />
+          </View>
         </View>
         <View>
           <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 4, fontWeight: "600" }}>IBAN für Auszahlung</Text>
