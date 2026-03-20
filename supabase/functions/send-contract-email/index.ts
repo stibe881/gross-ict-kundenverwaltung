@@ -38,8 +38,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!contract.customer?.email) {
-      return new Response(JSON.stringify({ error: "Kunde hat keine E-Mail-Adresse" }), {
+    // Determine recipient: employee for internal contracts, customer for external
+    let recipientEmail: string | null = null;
+    let customerName = "Kunde";
+
+    if (contract.is_internal && contract.employee_id) {
+      // Internal contract: look up employee from users table
+      const { data: employee } = await supabase
+        .from("users")
+        .select("name, email")
+        .eq("id", contract.employee_id)
+        .single();
+      
+      if (employee?.email) {
+        recipientEmail = employee.email;
+        customerName = employee.name || employee.email;
+      }
+    } else if (contract.customer?.email) {
+      recipientEmail = contract.customer.email;
+      customerName = contract.customer?.company_name ||
+        `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde";
+    }
+
+    if (!recipientEmail) {
+      return new Response(JSON.stringify({ error: contract.is_internal ? "Mitarbeiter hat keine E-Mail-Adresse" : "Kunde hat keine E-Mail-Adresse" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -60,9 +82,6 @@ Deno.serve(async (req) => {
 
     const fmtCHF = (amount: number) =>
       amount.toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    const customerName = contract.customer?.company_name ||
-      `${contract.customer?.first_name || ""} ${contract.customer?.last_name || ""}`.trim() || "Kunde";
 
     // Signing-URL: Custom Subdomain on Hetzner
     const signUrl = `https://vertrag.gross-ict.ch/?token=${token}`;
@@ -95,18 +114,21 @@ Deno.serve(async (req) => {
               <td style="padding: 6px 0; color: #666; font-size: 13px;">Vertrag:</td>
               <td style="padding: 6px 0; text-align: right; font-weight: bold; color: #111; font-size: 14px;">${contract.title}</td>
             </tr>
-            <tr>
+            ${!contract.is_internal ? `<tr>
               <td style="padding: 6px 0; color: #666; font-size: 13px;">Laufzeit:</td>
               <td style="padding: 6px 0; text-align: right; color: #111; font-size: 14px;">${fmtDate(contract.start_date)} – ${fmtDate(contract.end_date)}</td>
-            </tr>
+            </tr>` : `<tr>
+              <td style="padding: 6px 0; color: #666; font-size: 13px;">Startdatum:</td>
+              <td style="padding: 6px 0; text-align: right; color: #111; font-size: 14px;">${fmtDate(contract.start_date)}</td>
+            </tr>`}
             ${contract.annual_amount ? `<tr>
               <td style="padding: 6px 0; color: #666; font-size: 13px;">Jahresbetrag:</td>
               <td style="padding: 6px 0; text-align: right; font-weight: bold; color: #22c55e; font-size: 14px;">CHF ${fmtCHF(Number(contract.annual_amount))}</td>
             </tr>` : ""}
-            <tr>
+            ${!contract.is_internal ? `<tr>
               <td style="padding: 6px 0; color: #666; font-size: 13px;">Kündigungsfrist:</td>
               <td style="padding: 6px 0; text-align: right; color: #111; font-size: 14px;">${contract.notice_period_months || 3} Monate</td>
-            </tr>
+            </tr>` : ""}
           </table>
         </div>
 
@@ -135,7 +157,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         from: "Gross ICT <info@gross-ict.ch>",
-        to: [contract.customer.email],
+        to: [recipientEmail],
         subject: `Vertrag "${contract.title}" zur Unterzeichnung – Gross ICT`,
         html,
       }),
