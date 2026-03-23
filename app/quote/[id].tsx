@@ -134,9 +134,13 @@ export default function QuoteDetailScreen() {
     };
 
     const handleConvert = () => {
+        const message = quote?.status === "accepted" 
+            ? "Möchten Sie aus diesem Angebot eine Rechnung erstellen?" 
+            : "Möchten Sie dieses Angebot in eine Rechnung umwandeln? Das Angebot wird als 'Angenommen' markiert.";
+            
         showConfirm(
             "In Rechnung umwandeln",
-            "Möchten Sie dieses Angebot in eine Rechnung umwandeln? Das Angebot wird als 'Angenommen' markiert.",
+            message,
             () => convertMutation.mutate(id as string),
             "Umwandeln"
         );
@@ -415,7 +419,7 @@ export default function QuoteDetailScreen() {
                     </TouchableOpacity>
 
                     {/* In Rechnung umwandeln */}
-                    {(quote.status === "draft" || quote.status === "sent") && (
+                    {(quote.status === "draft" || quote.status === "sent" || quote.status === "accepted") && (
                         <TouchableOpacity
                             onPress={handleConvert}
                             disabled={convertMutation.isPending}
