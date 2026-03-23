@@ -476,3 +476,21 @@ export const products = mysqlTable("products", {
 
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = typeof products.$inferInsert;
+
+// ============================================================================
+// REMINDERS
+// ============================================================================
+
+export const leadReminders = mysqlTable("leadReminders", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  userId: int("userId").notNull(),
+  remindAt: timestamp("remindAt").notNull(),
+  note: text("note").notNull(),
+  isProcessed: boolean("isProcessed").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type LeadReminder = typeof leadReminders.$inferSelect;
+export type InsertLeadReminder = typeof leadReminders.$inferInsert;
+
