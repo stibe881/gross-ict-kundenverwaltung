@@ -1995,6 +1995,59 @@ export async function deleteLead(id: string) {
     if (error) throw new Error(error.message);
 }
 
+export async function convertLeadToCustomer(leadId: string) {
+    // 1. Hole den Lead
+    const { data: lead, error: leadError } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("id", leadId)
+        .single();
+
+    if (leadError || !lead) throw new Error("Lead nicht gefunden");
+
+    // 2. Extrahiere Vor- und Nachname (rudimentär)
+    const nameParts = lead.name ? lead.name.split(" ") : [];
+    const firstName = nameParts.length > 1 ? nameParts[0] : "";
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : lead.name || "";
+
+    // 3. Erstelle Kunden-Objekt
+    const customerData: any = {
+        first_name: firstName,
+        last_name: lastName,
+        company_name: lead.company || "",
+        email: lead.email || "",
+        phone: lead.phone || "",
+        mobile: lead.mobile || "",
+        website: lead.website || "",
+        street: lead.address || "",
+        zip_code: lead.zip || "",
+        city: lead.city || "",
+        country: "Schweiz", // Default oder leer lassen
+        status: "active",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    };
+
+    // 4. In "customers" einfügen
+    const { data: customer, error: customerError } = await supabase
+        .from("customers")
+        .insert([customerData])
+        .select()
+        .single();
+
+    if (customerError) throw new Error("Fehler beim Erstellen des Kunden: " + customerError.message);
+
+    // 5. Lead-Status aktualisieren und Notiz hinzufügen
+    await updateLead(leadId, { status: "won" });
+    await supabase.from("leadActivities").insert([{
+        lead_id: leadId,
+        type: "system",
+        content: `Lead erfolgreich in Kunde umgewandelt: ${customerData.company_name || lead.name}`,
+    }]);
+
+    return customer;
+}
+
 export async function getLeadItems(leadId: string) {
     const { data, error } = await supabase
         .from("lead_items")

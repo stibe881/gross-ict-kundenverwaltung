@@ -736,6 +736,21 @@ function LeadDetailsModal({
     queryFn: () => Data.getLeadReminders(lead.id),
   });
 
+  const convertToCustomer = useMutation({
+    mutationFn: () => Data.convertLeadToCustomer(lead.id),
+    onSuccess: (newCustomer) => {
+      showAlert("Erfolg", "Lead wurde erfolgreich zu einem Kunden umgewandelt!");
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      // Eventuell direkt zum neuen Kunden navigieren
+      // router.push(`/customer/${newCustomer.id}`);
+      onClose(); // Schließe das Lead-Fenster
+    },
+    onError: (e: any) => {
+      showAlert("Fehler", "Fehler bei der Umwandlung: " + e.message);
+    }
+  });
+
   const addReminder = useMutation({
     mutationFn: (data: { remind_at: string; note: string }) => Data.createLeadReminder({
       lead_id: lead.id,
@@ -833,9 +848,34 @@ function LeadDetailsModal({
           {/* Header */}
           <View className="flex-row items-center justify-between p-4 border-b border-border">
             <Text className="text-2xl font-bold text-foreground">Lead-Details</Text>
-            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-              <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
-            </TouchableOpacity>
+            <View className="flex-row items-center justify-end gap-4">
+              <TouchableOpacity 
+                className="bg-primary/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1.5"
+                onPress={() => {
+                  Alert.alert(
+                    "Zu Kunde umwandeln",
+                    "Möchten Sie diesen Lead wirklich in einen Kunden umwandeln? Der Status wird auf 'Gewonnen' gesetzt und ein neuer Kundeneintrag erstellt.",
+                    [
+                      { text: "Abbrechen", style: "cancel" },
+                      { text: "Umwandeln", style: "default", onPress: () => convertToCustomer.mutate() }
+                    ]
+                  );
+                }}
+                disabled={convertToCustomer.isPending || lead.status === "won"}
+              >
+                {convertToCustomer.isPending ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <>
+                    <IconSymbol name="person.crop.circle.badge.plus" size={16} color={colors.primary} />
+                    <Text className="text-sm font-semibold text-primary">Kunde erstellen</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+                <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Content */}

@@ -5,6 +5,7 @@ import { supabase } from "./supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
+import { makeRedirectUri } from "expo-auth-session";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 
@@ -54,9 +55,11 @@ export async function signInWithMicrosoft() {
     if (Platform.OS === "web") {
         redirectTo = window.location.origin;
     } else {
-        // In Expo Go, Linking.createURL uses exp:// scheme which works correctly.
+        // In Expo Go, makeRedirectUri uses exp:// scheme which works correctly.
         // In standalone builds, it uses the custom scheme from app.config.ts.
-        redirectTo = Linking.createURL("oauth/callback");
+        redirectTo = makeRedirectUri({
+            path: "oauth/callback"
+        });
     }
 
     console.log("[Auth] OAuth redirectTo:", redirectTo);
