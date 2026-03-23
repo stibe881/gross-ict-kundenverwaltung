@@ -302,3 +302,46 @@ export async function sendContractEmail(options: SendContractEmailOptions) {
 
   if (error) throw new Error(`E-Mail konnte nicht gesendet werden: ${error.message}`);
 }
+
+interface SendLeadReminderEmailOptions {
+  to: string;
+  leadName: string;
+  note: string;
+  leadUrl: string;
+}
+
+export async function sendLeadReminderEmail(options: SendLeadReminderEmailOptions) {
+  const { to, leadName, note, leadUrl } = options;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #1a1a2e; color: white; padding: 24px; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; font-size: 20px;">Gross ICT</h1>
+        <p style="margin: 4px 0 0; opacity: 0.8; font-size: 14px;">Erinnerung: Akquise ${leadName}</p>
+      </div>
+      <div style="padding: 24px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 8px 8px;">
+        <p>Hallo,</p>
+        <p>Dies ist deine festgelegte Erinnerung für die Akquise <strong>${leadName}</strong>.</p>
+        <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid #eee;">
+          <p style="margin: 0;"><strong>Notiz:</strong><br/>${note.replace(/\n/g, '<br/>')}</p>
+        </div>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${leadUrl}" style="display: inline-block; background: #d4a432; color: #1a1a2e; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+            Akquise ansehen
+          </a>
+        </div>
+        <p>Freundliche Grüsse<br/><strong>Dein Gross ICT System</strong></p>
+      </div>
+    </div>
+  `;
+
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to: [to],
+    subject: `Erinnerung Akquise: ${leadName} - Gross ICT`,
+    html,
+  });
+
+  if (error) throw new Error(`E-Mail konnte nicht gesendet werden: ${error.message}`);
+}
+

@@ -678,6 +678,10 @@ function LeadDetailsModal({
   const [currentStatus, setCurrentStatus] = useState(lead.status);
   const [linkedQuoteId, setLinkedQuoteId] = useState<string | null>(lead.quote_id || null);
   const [showQuotePicker, setShowQuotePicker] = useState(false);
+  const [showAddReminder, setShowAddReminder] = useState(false);
+  const [reminderNote, setReminderNote] = useState("");
+  const [reminderDate, setReminderDate] = useState("");
+  const [reminderTime, setReminderTime] = useState("");
 
   // Echten Benutzernamen laden
   useEffect(() => {
@@ -726,6 +730,56 @@ function LeadDetailsModal({
       queryClient.invalidateQueries({ queryKey: ["leads"] });
     },
   });
+
+  const { data: leadReminders = [], isLoading: remindersLoading, refetch: refetchReminders } = useQuery({
+    queryKey: ["lead_reminders", lead.id],
+    queryFn: () => Data.getLeadReminders(lead.id),
+  });
+
+  const addReminder = useMutation({
+    mutationFn: (data: { remind_at: string; note: string }) => Data.createLeadReminder({
+      lead_id: lead.id,
+      ...data,
+    }),
+    onSuccess: async () => {
+      await Data.addLeadActivity({
+        lead_id: lead.id,
+        type: "system",
+        content: `Erinnerung hinzugefügt für ${reminderDate} ${reminderTime}`,
+        user_name: currentUserName,
+      });
+      refetchReminders();
+      refetchActivities();
+      setShowAddReminder(false);
+      setReminderNote("");
+      setReminderDate("");
+      setReminderTime("");
+    },
+    onError: (e: any) => {
+      showAlert("Fehler", "Erinnerung konnte nicht erstellt werden: " + e.message);
+    }
+  });
+
+  const deleteReminder = useMutation({
+    mutationFn: (id: string) => Data.deleteLeadReminder(id),
+    onSuccess: () => refetchReminders(),
+  });
+
+  const handleCreateReminder = () => {
+    if (!reminderNote.trim() || !reminderDate || !reminderTime) {
+      showAlert("Fehler", "Bitte Notiz, Datum (JJJJ-MM-TT) und Zeit (HH:MM) eingeben.");
+      return;
+    }
+    const remindAt = new Date(`${reminderDate}T${reminderTime}:00`);
+    if (isNaN(remindAt.getTime())) {
+      showAlert("Fehler", "Ungültiges Datum oder Zeitformat.");
+      return;
+    }
+    addReminder.mutate({
+      remind_at: remindAt.toISOString(),
+      note: reminderNote.trim(),
+    });
+  };
 
   const handleAddActivity = async () => {
     if (!newActivity.trim()) return;
@@ -1006,6 +1060,116 @@ function LeadDetailsModal({
                   </View>
                 </ScrollView>
               </View>
+            </View>
+
+            {/* Erinnerungen */}
+            <View className="mt-6 border-t border-border pt-6">
+              <View className="flex-row items-center justify-between mb-3">
+                <Text className="text-lg font-bold text-foreground">Erinnerungen</Text>
+                <TouchableOpacity
+                  className="bg-primary/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1"
+                  onPress={() => {
+                    // Set default to tomorrow 10:00
+                    const tmrw = new Date();
+                    tmrw.setDate(tmrw.getDate() + 1);
+                    setReminderDate(tmrw.toISOString().split('T')[0]);
+                    setReminderTime("10:00");
+                    setShowAddReminder(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol name="bell.badge.fill" size={14} color={colors.primary} />
+                  <Text className="text-xs font-semibold text-primary">Neue Erinnerung</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {showAddReminder && (
+                <View className="bg-surface rounded-xl p-4 border border-border mb-4">
+                  <Text className="text-sm font-semibold text-foreground mb-3">Erinnerung einstellen</Text>
+                  
+                  <View className="flex-row gap-2 mb-3">
+                    <View className="flex-1">
+                      <Text className="text-xs text-muted mb-1">Datum (JJJJ-MM-TT)</Text>
+                      <TextInput
+                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                        value={reminderDate}
+                        onChangeText={setReminderDate}
+                        placeholder="2026-03-24"
+                        placeholderTextColor={colors.muted}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-xs text-muted mb-1">Zeit (HH:MM)</Text>
+                      <TextInput
+                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                        value={reminderTime}
+                        onChangeText={setReminderTime}
+                        placeholder="10:00"
+                        placeholderTextColor={colors.muted}
+                      />
+                    </View>
+                  </View>
+
+                  <Text className="text-xs text-muted mb-1">Notiz</Text>
+                  <TextInput
+                    className="bg-background border border-border rounded-lg px-3 py-2 text-foreground mb-3"
+                    value={reminderNote}
+                    onChangeText={setReminderNote}
+                    placeholder="Woran soll erinnert werden?"
+                    placeholderTextColor={colors.muted}
+                    multiline
+                    style={{ minHeight: 60 }}
+                  />
+
+                  <View className="flex-row gap-2">
+                    <TouchableOpacity
+                      className="flex-1 bg-background border border-border py-2 rounded-lg"
+                      onPress={() => setShowAddReminder(false)}
+                      activeOpacity={0.7}
+                    >
+                      <Text className="text-foreground font-semibold text-center">Abbrechen</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="flex-1 bg-primary py-2 rounded-lg flex-row justify-center items-center gap-2"
+                      onPress={handleCreateReminder}
+                      activeOpacity={0.8}
+                      disabled={addReminder.isPending}
+                    >
+                      {addReminder.isPending ? <ActivityIndicator size="small" color="#fff" /> : <Text className="text-background font-semibold text-center">Speichern</Text>}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {remindersLoading ? (
+                <View className="py-4 items-center">
+                  <ActivityIndicator color={colors.primary} />
+                </View>
+              ) : leadReminders.some((r: any) => !r.is_processed) ? (
+                <View className="gap-2">
+                  {leadReminders.filter((r: any) => !r.is_processed).map((r: any) => (
+                    <View key={r.id} className="bg-surface border border-primary/20 rounded-lg p-3 flex-row items-start">
+                      <View className="mt-1 mr-3">
+                        <IconSymbol name="bell.fill" size={16} color={colors.primary} />
+                      </View>
+                      <View className="flex-1 mr-2">
+                        <Text className="text-sm font-semibold text-foreground mb-1">
+                          {new Date(r.remind_at).toLocaleString("de-CH", { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                        <Text className="text-sm text-foreground">{r.note}</Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => deleteReminder.mutate(r.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <IconSymbol name="trash" size={16} color={colors.error} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text className="text-sm text-muted">Keine anstehenden Erinnerungen</Text>
+              )}
             </View>
 
             {/* Historie */}

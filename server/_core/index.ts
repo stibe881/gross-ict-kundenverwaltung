@@ -710,6 +710,74 @@ async function startServer() {
     processRecurringInvoices();
   }, 10000);
 
+  // ── Process Lead Reminders (Cron-like) ──
+  async function processLeadReminders() {
+    try {
+      const { getDueLeadReminders, markLeadReminderProcessed, triggerPushNotification } = await import("../supabase-db");
+      const { supabase } = await import("../supabase-client");
+      const { sendLeadReminderEmail } = await import("../email");
+
+      const dueReminders = await getDueLeadReminders();
+      if (!dueReminders || dueReminders.length === 0) return { processed: 0, errors: [] };
+
+      let processed = 0;
+      let errors: string[] = [];
+
+      for (const reminder of dueReminders) {
+        try {
+          const { data: userAuth, error: authError } = await supabase.auth.admin.getUserById(reminder.user_id);
+          const email = userAuth?.user?.email;
+          const leadName = reminder.leads?.company_name || `${reminder.leads?.first_name || ""} ${reminder.leads?.last_name || ""}`.trim() || 'Unbekannt';
+          const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || `http://localhost:3000`; // Assuming local or production URL from env
+          // Wait, the UI base url is where they view it. Usually we can construct the frontend url:
+          // In notification.ts they just use relative path `/tickets?ticketId=xyz`.
+          // In email we need absolute. Let's use the provided API_BASE_URL or assume typical frontend URL.
+          const frontendUrl = process.env.NODE_ENV === "production" ? "https://app.gross-ict.ch" : "http://localhost:5173";
+          
+          if (email) {
+            await sendLeadReminderEmail({
+              to: email,
+              leadName: leadName,
+              note: reminder.note,
+              leadUrl: `${frontendUrl}/akquisen/${reminder.lead_id}`
+            }).catch(e => console.error("[Reminders] Failed to send email:", e));
+          }
+
+          await triggerPushNotification(
+            [reminder.user_id],
+            "admin",
+            `Erinnerung: Akquise ${leadName}`,
+            reminder.note,
+            { url: `/akquisen/${reminder.lead_id}` }
+          );
+
+          await markLeadReminderProcessed(reminder.id);
+          processed++;
+          console.log(`[Reminders] Processed reminder ${reminder.id} for lead ${leadName}`);
+        } catch (e: any) {
+          console.error(`[Reminders] Error processing reminder ${reminder.id}:`, e.message);
+          errors.push(`Reminder ${reminder.id}: ${e.message}`);
+        }
+      }
+
+      return { processed, errors };
+    } catch (err: any) {
+      console.error("[Reminders] Error:", err);
+      return { processed: 0, errors: [err.message] };
+    }
+  }
+
+  // Run lead reminders check every minute
+  setInterval(() => {
+    processLeadReminders();
+  }, 60 * 1000);
+
+  // Also run on startup after a small delay
+  setTimeout(() => {
+    console.log("[Reminders] Startup check triggered");
+    processLeadReminders();
+  }, 15000);
+
   app.post("/api/send-invoice-email", async (req, res) => {
     try {
       const { id } = req.body;

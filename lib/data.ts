@@ -1949,10 +1949,42 @@ export async function updateLead(id: string, updates: Record<string, any>, items
             if (itemsError) console.error("[Lead] Items update error:", itemsError.message);
         }
     }
-
     return data;
 }
 
+export async function createLeadReminder(reminder: { lead_id: string; remind_at: string; note: string }) {
+    // For local trpc we'd use apiCall, but let's use apiCall to hit the TRPC endpoint if we have one.
+    // Or we can just use supabase directly since we're using "Client-side data layer".
+    // Wait, the backend trpc was added under /api/trpc/leads.addReminder. But this app uses Supabase directly for everything!
+    // I will use Supabase directly, but wait, the reminder needs `user_id`! Let's get the user_id from session.
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id;
+    if (!userId) throw new Error("Not authenticated");
+
+    const { data, error } = await supabase
+        .from("leadReminders")
+        .insert([{ ...reminder, user_id: userId }])
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function getLeadReminders(leadId: string) {
+    const { data, error } = await supabase
+        .from("leadReminders")
+        .select("*")
+        .eq("lead_id", leadId)
+        .order("remind_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function deleteLeadReminder(id: string) {
+    const { error } = await supabase.from("leadReminders").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
 export async function deleteLead(id: string) {
     // Items get cascade-deleted by FK constraint
     const { error } = await supabase

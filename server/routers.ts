@@ -227,6 +227,36 @@ export const appRouter = router({
         const { id, ...data } = input;
         return supabaseDb.updateLead(id, data);
       }),
+
+    // --- REMINDERS ---
+    addReminder: protectedProcedure
+      .input(
+        z.object({
+          leadId: z.string(),
+          remindAt: z.string(),
+          note: z.string(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        return supabaseDb.createLeadReminder({
+          lead_id: input.leadId,
+          user_id: ctx.user.id,
+          remind_at: input.remindAt,
+          note: input.note,
+        });
+      }),
+
+    getReminders: protectedProcedure
+      .input(z.object({ leadId: z.string() }))
+      .query(async ({ input }) => {
+        return supabaseDb.getLeadReminders(input.leadId);
+      }),
+
+    deleteReminder: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ input }) => {
+        return supabaseDb.deleteLeadReminder(input.id);
+      }),
   }),
 
   // Verträge

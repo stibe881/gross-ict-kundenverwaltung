@@ -1,6 +1,6 @@
 import { supabase } from "./supabase-client";
 
-async function triggerPushNotification(
+export async function triggerPushNotification(
   recipients: string[] | "all_admins",
   recipientType: "admin" | "customer",
   title: string,
@@ -182,6 +182,69 @@ export async function updateLead(id: string, lead: any) {
   const { data, error } = await supabase
     .from("leads")
     .update(lead)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// ==================== LEAD REMINDERS ====================
+
+export async function getLeadReminders(leadId: string) {
+  const { data, error } = await supabase
+    .from("lead_reminders")
+    .select("*")
+    .eq("lead_id", leadId)
+    .order("remind_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function createLeadReminder(reminder: any) {
+  const { data, error } = await supabase
+    .from("lead_reminders")
+    .insert([reminder])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function deleteLeadReminder(id: string) {
+  const { error } = await supabase
+    .from("lead_reminders")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  return { success: true };
+}
+
+export async function getDueLeadReminders() {
+  const { data, error } = await supabase
+    .from("lead_reminders")
+    .select("*, leads(*)")
+    .eq("is_processed", false)
+    .lte("remind_at", new Date().toISOString());
+
+  if (error) {
+    if (error.message.includes("does not exist") || error.code === "PGRST204") {
+      // Table doesn't exist yet, ignore silently during dev
+      return [];
+    }
+    throw new Error(error.message);
+  }
+  return data || [];
+}
+
+export async function markLeadReminderProcessed(id: string) {
+  const { data, error } = await supabase
+    .from("lead_reminders")
+    .update({ is_processed: true })
     .eq("id", id)
     .select()
     .single();
