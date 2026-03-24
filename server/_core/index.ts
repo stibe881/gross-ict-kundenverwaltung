@@ -64,21 +64,23 @@ async function startServer() {
   app.get("/api/track/:invoiceId", async (req, res) => {
     try {
       const { invoiceId } = req.params;
-      const { addInvoiceActivity, getInvoiceById } = await import("../supabase-db");
-      const { notifyOwner } = await import("./notification");
+      const { addInvoiceActivity, getInvoiceById, triggerPushNotification } = await import("../supabase-db");
 
       // Prüfen ob Rechnung existiert
       const invoice = await getInvoiceById(invoiceId);
       if (invoice) {
         await addInvoiceActivity(invoiceId, "opened", "Rechnung wurde vom Kunden geöffnet");
 
-        // Push-Notification senden
+        // Push-Notification an alle Admins senden
         const customerName = invoice.customer?.company_name ||
           `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "Unbekannt";
-        await notifyOwner({
-          title: `📧 Rechnung ${invoice.invoice_number} geöffnet`,
-          content: `${customerName} hat die Rechnung ${invoice.invoice_number} geöffnet.`,
-        }).catch(() => { }); // Fehler ignorieren
+        triggerPushNotification(
+          "all_admins",
+          "admin",
+          "📧 Rechnung geöffnet",
+          `${customerName} hat die Rechnung ${invoice.invoice_number} geöffnet.`,
+          { url: "/invoices" }
+        ).catch(() => { }); // Fehler ignorieren
       }
     } catch (err) {
       console.error("[tracking] Error:", err);
@@ -98,17 +100,19 @@ async function startServer() {
   app.get("/api/track-quote/:quoteId", async (req, res) => {
     try {
       const { quoteId } = req.params;
-      const { getQuoteById } = await import("../supabase-db");
-      const { notifyOwner } = await import("./notification");
+      const { getQuoteById, triggerPushNotification } = await import("../supabase-db");
 
       const quote = await getQuoteById(quoteId);
       if (quote) {
         const customerName = quote.customer?.company_name ||
           `${quote.customer?.first_name || ""} ${quote.customer?.last_name || ""}`.trim() || "Unbekannt";
-        await notifyOwner({
-          title: `📋 Angebot ${quote.quote_number} geöffnet`,
-          content: `${customerName} hat das Angebot ${quote.quote_number} geöffnet.`,
-        }).catch(() => { });
+        triggerPushNotification(
+          "all_admins",
+          "admin",
+          "📋 Angebot geöffnet",
+          `${customerName} hat das Angebot ${quote.quote_number} geöffnet.`,
+          { url: "/quotes" }
+        ).catch(() => { });
       }
     } catch (err) {
       console.error("[tracking-quote] Error:", err);
