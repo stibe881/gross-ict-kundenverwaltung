@@ -690,6 +690,8 @@ export const appRouter = router({
           ctx.user?.name || ctx.user?.email || undefined
         );
 
+        supabaseDb.triggerPushNotification("all_admins", "admin", "Rechnung gesendet", `Die Rechnung ${invoice.invoice_number} wurde per E-Mail an ${invoice.customer.email} versendet.`, null, "auto_invoices").catch(console.error);
+
         return { success: true };
       }),
 
@@ -750,6 +752,8 @@ export const appRouter = router({
           `Zahlungserinnerung per E-Mail an ${invoice.customer.email} gesendet`,
           ctx.user?.name || ctx.user?.email || undefined
         );
+
+        supabaseDb.triggerPushNotification("all_admins", "admin", "Zahlungserinnerung gesendet", `Eine Zahlungserinnerung für Rechnung ${invoice.invoice_number} wurde an ${invoice.customer.email} gesendet.`, null, "auto_invoices").catch(console.error);
 
         return { success: true };
       }),

@@ -282,7 +282,7 @@ async function startServer() {
               // Send invoice email
               if (fullContract.customer?.email) {
                 try {
-                  const { getInvoiceById, addInvoiceActivity } = await import("../supabase-db");
+                  const { getInvoiceById, addInvoiceActivity, triggerPushNotification } = await import("../supabase-db");
                   const { generateInvoicePDF } = await import("../pdf-generator");
                   const { sendInvoiceEmail } = await import("../email");
 
@@ -326,6 +326,7 @@ async function startServer() {
 
                     await addInvoiceActivity(invoiceData.id, "sent", `Rechnung automatisch per E-Mail an ${invoice.customer.email} gesendet (Vertragsunterzeichnung)`);
                     console.log(`[sign-contract] Invoice ${invoiceNumber} sent to ${invoice.customer.email}`);
+                    triggerPushNotification("all_admins", "admin", "Automatische Rechnung", `Die wiederkehrende Rechnung ${invoice.invoice_number} wurde automatisch an ${invoice.customer.email} gesendet.`, null, "auto_invoices").catch(console.error);
                   }
                 } catch (emailErr: any) {
                   console.error("[sign-contract] Failed to send invoice email:", emailErr.message);
@@ -790,7 +791,7 @@ async function startServer() {
       const { id } = req.body;
       if (!id) return res.status(400).json({ error: "id fehlt" });
 
-      const { getInvoiceById, addInvoiceActivity } = await import("../supabase-db");
+      const { getInvoiceById, addInvoiceActivity, triggerPushNotification } = await import("../supabase-db");
       const { generateInvoicePDF } = await import("../pdf-generator");
       const { sendInvoiceEmail } = await import("../email");
 
@@ -832,6 +833,7 @@ async function startServer() {
       });
 
       await addInvoiceActivity(id, "sent", `Rechnung per E-Mail an ${invoice.customer.email} gesendet`);
+      triggerPushNotification("all_admins", "admin", "Rechnung gesendet", `Die Rechnung ${invoice.invoice_number} wurde per E-Mail an ${invoice.customer.email} versendet.`, null, "auto_invoices").catch(console.error);
       res.json({ success: true });
     } catch (err: any) {
       console.error("[send-invoice-email] Error:", err);
@@ -844,7 +846,7 @@ async function startServer() {
       const { id } = req.body;
       if (!id) return res.status(400).json({ error: "id fehlt" });
 
-      const { getInvoiceById, addInvoiceActivity } = await import("../supabase-db");
+      const { getInvoiceById, addInvoiceActivity, triggerPushNotification } = await import("../supabase-db");
       const { generateInvoicePDF } = await import("../pdf-generator");
       const { sendReminderEmail } = await import("../email");
 
@@ -887,6 +889,7 @@ async function startServer() {
       });
 
       await addInvoiceActivity(id, "reminder_sent", `Zahlungserinnerung per E-Mail an ${invoice.customer.email} gesendet`);
+      triggerPushNotification("all_admins", "admin", "Zahlungserinnerung gesendet", `Eine Zahlungserinnerung für Rechnung ${invoice.invoice_number} wurde an ${invoice.customer.email} gesendet.`, null, "auto_invoices").catch(console.error);
       res.json({ success: true });
     } catch (err: any) {
       console.error("[send-reminder-email] Error:", err);

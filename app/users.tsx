@@ -340,7 +340,8 @@ export default function UsersScreen() {
       <View style={{ gap: 8 }}>
         {[
           { key: "tickets", label: "Tickets", desc: "Neue Tickets, Status, Kommentare", icon: "ticket.fill", color: "#F59E0B" },
-          { key: "invoices", label: "Rechnungen", desc: "Rechnung vom Kunden geöffnet", icon: "doc.text.fill", color: "#22C55E" },
+          { key: "invoices", label: "Rechnungen (Portal)", desc: "Rechnung vom Kunden geöffnet", icon: "doc.text.fill", color: "#22C55E" },
+          { key: "auto_invoices", label: "Auto-Mails & Mahnungen", desc: "Automatischer Versand an Kunden", icon: "paperplane.fill", color: "#EF4444" },
           { key: "quotes", label: "Angebote", desc: "Angebot vom Kunden geöffnet/angenommen", icon: "doc.on.doc.fill", color: "#0EA5E9" },
           { key: "tasks", label: "Aufgaben", desc: "Aufgaben-Zuweisung, Erinnerungen", icon: "checklist", color: "#8B5CF6" },
           { key: "portal", label: "Kundenportal", desc: "Kunden-Antworten auf Tickets", icon: "person.2.fill", color: "#14B8A6" },
