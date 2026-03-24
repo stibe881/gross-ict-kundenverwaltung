@@ -124,8 +124,15 @@ export default function RootLayout() {
       }
 
       if (url) {
+        // Map notification URLs to actual app routes
+        const routeMap: Record<string, string> = {
+          '/invoices': '/(tabs)/accounting',
+          '/contracts': '/contracts',
+          '/quotes': '/quotes',
+        };
+        const resolvedUrl = routeMap[url as string] || url;
         // Small delay to ensure app is fully loaded before navigating
-        setTimeout(() => router.push(url as any), 300);
+        setTimeout(() => router.push(resolvedUrl as any), 300);
       }
     });
 
