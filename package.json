@@ -17,7 +17,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "qr": "node scripts/generate_qr.mjs",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package && node -e \"const fs=require('fs');try{fs.chmodSync('.expo',0o777)}catch(e){};fs.mkdirSync('.expo/web',{recursive:true})\""
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
