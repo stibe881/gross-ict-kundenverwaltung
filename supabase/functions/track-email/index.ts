@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
           supabase,
           "📧 Rechnung geöffnet",
           `${customerName} hat die Rechnung ${invoice.invoice_number} geöffnet.`,
-          "/invoices"
+          "/(tabs)/accounting"
         );
       }
     }

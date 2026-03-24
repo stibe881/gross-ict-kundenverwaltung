@@ -79,7 +79,7 @@ async function startServer() {
           "admin",
           "📧 Rechnung geöffnet",
           `${customerName} hat die Rechnung ${invoice.invoice_number} geöffnet.`,
-          { url: "/invoices" }
+          { url: "/(tabs)/accounting" }
         ).catch(() => { }); // Fehler ignorieren
       }
     } catch (err) {
