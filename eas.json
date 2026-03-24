@@ -11,7 +11,9 @@
         "preview": {
             "distribution": "internal"
         },
-        "production": {}
+        "production": {
+            "pre-install": "bash eas-build-pre-install.sh"
+        }
     },
     "submit": {
         "production": {
