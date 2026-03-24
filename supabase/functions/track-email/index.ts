@@ -8,11 +8,11 @@ const corsHeaders = {
 // 1x1 transparent GIF pixel
 const PIXEL = Uint8Array.from(atob("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"), c => c.charCodeAt(0));
 
-async function sendPushToAdmins(supabase: any, title: string, body: string, url: string) {
+async function sendPushToAdmins(supabase: any, title: string, body: string, url: string, category?: string) {
   try {
     const { data: admins } = await supabase
       .from("users")
-      .select("id, push_token")
+      .select("id, push_token, push_preferences")
       .not("push_token", "is", null);
 
     if (!admins || admins.length === 0) return;
@@ -20,10 +20,12 @@ async function sendPushToAdmins(supabase: any, title: string, body: string, url:
     const messages: any[] = [];
     for (const a of admins) {
       if (!a.push_token) continue;
+      // Check push_preferences (opt-out: missing key = enabled)
+      if (category && a.push_preferences && a.push_preferences[category] === false) continue;
       const tokens = a.push_token.split(",").map((t: string) => t.trim()).filter(Boolean);
       for (const t of tokens) {
         if (t.startsWith("ExponentPushToken")) {
-          messages.push({ to: t, sound: "default", title, body, data: { url } });
+          messages.push({ to: t, sound: "default", title, body, data: { url, category } });
         }
       }
     }
@@ -84,7 +86,8 @@ Deno.serve(async (req) => {
           supabase,
           "📧 Rechnung geöffnet",
           `${customerName} hat die Rechnung ${invoice.invoice_number} geöffnet.`,
-          "/(tabs)/accounting"
+          "/(tabs)/accounting",
+          "invoices"
         );
       }
     }
@@ -104,7 +107,8 @@ Deno.serve(async (req) => {
           supabase,
           "📋 Angebot geöffnet",
           `${customerName} hat das Angebot ${quote.quote_number} geöffnet.`,
-          "/quotes"
+          "/quotes",
+          "quotes"
         );
       }
     }
@@ -124,7 +128,8 @@ Deno.serve(async (req) => {
           supabase,
           "📄 Vertrag geöffnet",
           `${customerName} hat den Vertrag "${contract.title}" geöffnet.`,
-          "/contracts"
+          "/contracts",
+          "invoices"
         );
       }
     }

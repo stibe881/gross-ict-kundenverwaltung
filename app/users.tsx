@@ -32,6 +32,7 @@ export default function UsersScreen() {
   const [editPostalCode, setEditPostalCode] = useState("");
   const [editCity, setEditCity] = useState("");
   const [editIban, setEditIban] = useState("");
+  const [editPushPrefs, setEditPushPrefs] = useState<Record<string, boolean>>({});
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
@@ -84,8 +85,8 @@ export default function UsersScreen() {
   });
 
   const updateRolesMutation = useMutation({
-    mutationFn: ({ userId, roles, address, postal_code, city, iban }: { userId: string; roles: string[]; address: string; postal_code: string; city: string; iban: string }) =>
-      Data.updateUserProfileAndRoles(userId, { roles, address, postal_code, city, iban }),
+    mutationFn: ({ userId, roles, address, postal_code, city, iban, push_preferences }: { userId: string; roles: string[]; address: string; postal_code: string; city: string; iban: string; push_preferences?: Record<string, boolean> }) =>
+      Data.updateUserProfileAndRoles(userId, { roles, address, postal_code, city, iban, push_preferences }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setEditingUserId(null);
@@ -114,6 +115,7 @@ export default function UsersScreen() {
     setEditPostalCode(user.postal_code || "");
     setEditCity(user.city || "");
     setEditIban(user.iban || "");
+    setEditPushPrefs(user.push_preferences || {});
   };
 
   const toggleRole = (roleKey: string) => {
@@ -127,7 +129,7 @@ export default function UsersScreen() {
   const handleSaveRoles = async () => {
     if (!editingUserId) return;
     try {
-      updateRolesMutation.mutate({ userId: editingUserId, roles: editRoles, address: editStreet, postal_code: editPostalCode, city: editCity, iban: editIban });
+      updateRolesMutation.mutate({ userId: editingUserId, roles: editRoles, address: editStreet, postal_code: editPostalCode, city: editCity, iban: editIban, push_preferences: editPushPrefs });
     } catch (err: any) {
       showAlert("Fehler", err.message || "Fehler beim Speichern der Benutzerdaten");
     }
@@ -330,6 +332,65 @@ export default function UsersScreen() {
             onChangeText={setEditIban}
           />
         </View>
+      </View>
+
+      <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, marginTop: 24, marginBottom: 8 }}>
+        Push-Benachrichtigungen
+      </Text>
+      <View style={{ gap: 8 }}>
+        {[
+          { key: "tickets", label: "Tickets", desc: "Neue Tickets, Status, Kommentare", icon: "ticket.fill", color: "#F59E0B" },
+          { key: "invoices", label: "Rechnungen", desc: "Rechnung vom Kunden geöffnet", icon: "doc.text.fill", color: "#22C55E" },
+          { key: "quotes", label: "Angebote", desc: "Angebot vom Kunden geöffnet/angenommen", icon: "doc.on.doc.fill", color: "#0EA5E9" },
+          { key: "tasks", label: "Aufgaben", desc: "Aufgaben-Zuweisung, Erinnerungen", icon: "checklist", color: "#8B5CF6" },
+          { key: "portal", label: "Kundenportal", desc: "Kunden-Antworten auf Tickets", icon: "person.2.fill", color: "#14B8A6" },
+        ].map((cat) => {
+          const isEnabled = editPushPrefs[cat.key] !== false;
+          return (
+            <TouchableOpacity
+              key={cat.key}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                padding: 12,
+                borderRadius: 10,
+                backgroundColor: isEnabled ? cat.color + "10" : colors.surface,
+                borderWidth: 1,
+                borderColor: isEnabled ? cat.color + "40" : colors.border,
+              }}
+              activeOpacity={0.7}
+              onPress={() => {
+                setEditPushPrefs(prev => ({ ...prev, [cat.key]: !isEnabled }));
+              }}
+            >
+              <View
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  borderWidth: 2,
+                  borderColor: isEnabled ? cat.color : colors.muted,
+                  backgroundColor: isEnabled ? cat.color : "transparent",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 12,
+                }}
+              >
+                {isEnabled && (
+                  <IconSymbol name="checkmark" size={12} color="#FFF" />
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: "600", color: isEnabled ? cat.color : colors.foreground }}>
+                  {cat.label}
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.muted, marginTop: 1 }}>
+                  {cat.desc}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <View style={{ flexDirection: "row", gap: 10, marginTop: 24 }}>

@@ -218,7 +218,8 @@ function TaskFormModal({ task, users, onClose }: { task: any; users: any[]; onCl
           "admin",
           "Neue Aufgabe zugewiesen",
           `Dir wurde die Aufgabe "${payload.title}" zugewiesen.`,
-          { type: "task_assigned", taskId: savedTask.id, url: `/tasks?taskId=${savedTask.id}` }
+          { type: "task_assigned", taskId: savedTask.id, url: `/tasks?taskId=${savedTask.id}` },
+          "tasks"
         ).catch(console.warn);
       }
     };

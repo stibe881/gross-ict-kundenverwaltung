@@ -79,7 +79,8 @@ async function startServer() {
           "admin",
           "📧 Rechnung geöffnet",
           `${customerName} hat die Rechnung ${invoice.invoice_number} geöffnet.`,
-          { url: "/(tabs)/accounting" }
+          { url: "/(tabs)/accounting" },
+          "invoices"
         ).catch(() => { }); // Fehler ignorieren
       }
     } catch (err) {
@@ -111,7 +112,8 @@ async function startServer() {
           "admin",
           "📋 Angebot geöffnet",
           `${customerName} hat das Angebot ${quote.quote_number} geöffnet.`,
-          { url: "/quotes" }
+          { url: "/quotes" },
+          "quotes"
         ).catch(() => { });
       }
     } catch (err) {
@@ -752,7 +754,8 @@ async function startServer() {
             "admin",
             `Erinnerung: Akquise ${leadName}`,
             reminder.note,
-            { url: `/akquisen/${reminder.lead_id}` }
+            { url: `/akquisen/${reminder.lead_id}` },
+            "tasks"
           );
 
           await markLeadReminderProcessed(reminder.id);

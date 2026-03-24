@@ -87,7 +87,7 @@ serve(async (req) => {
 
     // Get push tokens
     const table = recipientType === "customer" ? "customer_portal_users" : "users";
-    let query = supabaseAdmin.from(table).select("id, push_token").not("push_token", "is", null);
+    let query = supabaseAdmin.from(table).select("id, push_token, push_preferences").not("push_token", "is", null);
 
     if (recipients !== "all_admins" && Array.isArray(recipients)) {
       query = query.in("id", recipients);
@@ -96,6 +96,15 @@ serve(async (req) => {
     const { data: targetUsers, error: queryError } = await query;
     console.log("[send-push] Found users:", targetUsers?.length, "Error:", queryError?.message);
 
+    // Filter users by push_preferences (opt-out model: missing key = enabled)
+    const category = data?.category;
+    const filteredUsers = (targetUsers || []).filter((u: any) => {
+      if (!category) return true; // no category = always send
+      const prefs = u.push_preferences || {};
+      return prefs[category] !== false; // only skip if explicitly false
+    });
+    console.log("[send-push] After preference filter:", filteredUsers.length, "category:", category);
+
     if (queryError) {
       return new Response(JSON.stringify({ error: queryError.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -103,8 +112,8 @@ serve(async (req) => {
       });
     }
 
-    if (!targetUsers || targetUsers.length === 0) {
-      return new Response(JSON.stringify({ message: "No users with push tokens found" }), {
+    if (!filteredUsers || filteredUsers.length === 0) {
+      return new Response(JSON.stringify({ message: "No users with push tokens found (or all filtered by preferences)" }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
@@ -112,7 +121,7 @@ serve(async (req) => {
 
     // Save notification history (non-blocking)
     try {
-      const histories = targetUsers.map(u => ({
+      const histories = filteredUsers.map(u => ({
         user_id: u.id,
         title,
         body,
@@ -126,7 +135,7 @@ serve(async (req) => {
 
     // Expand comma-separated tokens into individual messages
     const messages: any[] = [];
-    for (const u of targetUsers) {
+    for (const u of filteredUsers) {
       if (!u.push_token) continue;
       const tokens = u.push_token.split(',').map((t: string) => t.trim()).filter(Boolean);
       for (const token of tokens) {
@@ -169,7 +178,7 @@ serve(async (req) => {
         if (invalidTokens.length > 0) {
           console.log("[send-push] Cleaning up", invalidTokens.length, "invalid tokens");
           // Remove invalid tokens from the DB
-          for (const u of targetUsers) {
+          for (const u of filteredUsers) {
             if (!u.push_token) continue;
             const validTokens = u.push_token.split(',')
               .map((t: string) => t.trim())

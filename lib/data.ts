@@ -14,12 +14,13 @@ export async function triggerPushNotification(
     recipientType: "admin" | "customer",
     title: string,
     body: string,
-    data?: any
+    data?: any,
+    category?: string
 ) {
     try {
-        console.log("[Push] Sending via Edge Function:", { recipients, recipientType, title });
+        console.log("[Push] Sending via Edge Function:", { recipients, recipientType, title, category });
         const { data: result, error } = await supabase.functions.invoke('send-push', {
-            body: { recipients, recipientType, title, body, data },
+            body: { recipients, recipientType, title, body, data: { ...data, category } },
         });
         if (error) {
             const ctx = (error as any)?.context;
@@ -768,7 +769,8 @@ export async function convertQuoteToInvoice(quoteId: string) {
             "admin",
             "Angebot angenommen",
             `Das Angebot ${quote.quote_number} wurde angenommen und in eine Rechnung umgewandelt!`,
-            { url: `/quotes?quoteId=${quote.id}` }
+            { url: `/quotes?quoteId=${quote.id}` },
+            "quotes"
         );
     }
 
@@ -791,7 +793,8 @@ export async function updateQuoteStatus(quoteId: string, status: string) {
                 "admin",
                 "Angebot angenommen",
                 `Das Angebot ${quote.quote_number || quoteId} wurde angenommen!`,
-                { url: `/quotes?quoteId=${quoteId}` }
+                { url: `/quotes?quoteId=${quoteId}` },
+                "quotes"
             );
         }
     }
@@ -1646,7 +1649,7 @@ export async function addPortalTicketComment(ticketId: number, comment: string, 
 
     // Add Trigger Push here
     const { data: ticket } = await supabase.from("tickets").select("title").eq("id", ticketId).single();
-    triggerPushNotification("all_admins", "admin", "Neue Kunden-Antwort", `Der Kunde hat auf das Ticket "${ticket?.title || ticketId}" geantwortet.`, { url: `/tickets?ticketId=${ticketId}` }).catch(console.error);
+    triggerPushNotification("all_admins", "admin", "Neue Kunden-Antwort", `Der Kunde hat auf das Ticket "${ticket?.title || ticketId}" geantwortet.`, { url: `/tickets?ticketId=${ticketId}` }, "portal").catch(console.error);
 
     return data;
 }
@@ -1777,7 +1780,7 @@ export async function updateUserRoles(userId: string, roles: string[]) {
     if (error) throw new Error(error.message);
 }
 
-export async function updateUserProfileAndRoles(userId: string, updates: { roles: string[]; address?: string; postal_code?: string; city?: string; iban: string }) {
+export async function updateUserProfileAndRoles(userId: string, updates: { roles: string[]; address?: string; postal_code?: string; city?: string; iban: string; push_preferences?: Record<string, boolean> }) {
     const { data, error } = await supabase
         .from("users")
         .update(updates)

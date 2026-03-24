@@ -705,7 +705,8 @@ function TicketDetailsModal({
           "admin",
           "Ticket zugewiesen",
           `Dir wurde das Ticket "${ticket.title}" zugewiesen.`,
-          { type: "ticket_assigned", ticketId: ticket.id, url: `/tickets?ticketId=${ticket.id}` }
+          { type: "ticket_assigned", ticketId: ticket.id, url: `/tickets?ticketId=${ticket.id}` },
+          "tickets"
         );
       }
     } catch (err: any) {
