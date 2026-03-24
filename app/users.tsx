@@ -18,7 +18,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
-import { showAlert } from "@/lib/alert";
+import { showAlert, showConfirm } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
 
 export default function UsersScreen() {
@@ -529,14 +529,12 @@ export default function UsersScreen() {
                 }}
                 activeOpacity={0.7}
                 onPress={() => {
-                  if (Platform.OS === 'web') {
-                    if (window.confirm("Bist du sicher, dass du diesen Benutzer löschen möchtest?")) {
-                      deleteUserMutation.mutate(user.id);
-                    }
-                  } else {
-                     // Non-web confirm not possible here without Alert component, just mutating for now
-                     deleteUserMutation.mutate(user.id);
-                  }
+                  showConfirm(
+                    "Benutzer löschen",
+                    "Bist du sicher, dass du diesen Benutzer löschen möchtest?",
+                    () => deleteUserMutation.mutate(user.id),
+                    "Löschen"
+                  );
                 }}
               >
                 <IconSymbol name="trash.fill" size={14} color={colors.error} />
@@ -648,13 +646,12 @@ export default function UsersScreen() {
                     }}
                     activeOpacity={0.7}
                     onPress={() => {
-                      if (Platform.OS === 'web') {
-                        if (window.confirm("Bist du sicher, dass du diesen Benutzer löschen möchtest?")) {
-                          deleteUserMutation.mutate(user.id);
-                        }
-                      } else {
-                         deleteUserMutation.mutate(user.id);
-                      }
+                      showConfirm(
+                        "Benutzer löschen",
+                        "Bist du sicher, dass du diesen Benutzer löschen möchtest?",
+                        () => deleteUserMutation.mutate(user.id),
+                        "Löschen"
+                      );
                     }}
                   >
                     <IconSymbol name="trash.fill" size={14} color={colors.error} />
