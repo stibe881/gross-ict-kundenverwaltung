@@ -1872,9 +1872,11 @@ export async function deleteUser(id: string) {
             throw new Error(data?.error || "Fehler beim Löschen des Benutzers");
         }
     } catch (err: any) {
-        console.error("[deleteUser] API Call Failed:", err);
+        // Fallback: If server is unreachable, delete directly from users table (legacy behavior)
         if (err.message === "Failed to fetch" || err.message?.includes("Network")) {
-            throw new Error("Fehler: Server nicht erreichbar. Bitte stellen Sie sicher, dass Sie mit dem Firmennetzwerk verbunden sind oder der Server läuft.");
+            const { error: dbError } = await supabase.from("users").delete().eq("id", id);
+            if (dbError) throw new Error(dbError.message);
+            return;
         }
         throw new Error(err.message || "Fehler beim Löschen des Benutzers");
     }
