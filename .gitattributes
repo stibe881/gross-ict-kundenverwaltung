@@ -1,0 +1,2 @@
+# Force LF line endings for shell scripts (EAS builds run on macOS)
+*.sh text eol=lf
