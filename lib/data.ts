@@ -1869,6 +1869,12 @@ export async function deleteUser(id: string) {
             throw new Error(data?.error || "Fehler beim Löschen des Benutzers");
         }
     } catch (err: any) {
+        // Fallback: If server is unreachable, delete directly from users table
+        if (err.message === "Failed to fetch" || err.message?.includes("Network")) {
+            const { error: dbError } = await supabase.from("users").delete().eq("id", id);
+            if (dbError) throw new Error(dbError.message);
+            return;
+        }
         throw new Error(err.message || "Fehler beim Löschen des Benutzers");
     }
 }
