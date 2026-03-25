@@ -347,18 +347,16 @@ export function generateInvoicePDF(data: InvoiceData): string {
 
   doc.text("ZAHLUNGSEMPFÄNGER", col1X, fy + 10);
   doc.text("BANKVERBINDUNG", col2X, fy + 10);
-  doc.text("IBAN / SWIFT", col3X, fy + 10);
+  doc.text("IBAN", col3X, fy + 10);
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(255, 255, 255); // #fff
 
-  doc.text("Stefan Gross", col1X, fy + 15);
-  doc.text("Bank Cler AG", col2X, fy + 15);
-  doc.text("Konto: 2610.4169.200", col2X, fy + 20);
+  doc.text("Gross ICT", col1X, fy + 15);
+  doc.text("Luzerner Kantonalbank AG", col2X, fy + 15);
   
-  doc.text("CH39 0844 0261 0416 9200 1", col3X, fy + 15);
-  doc.text("SWIFT: BCLRCHBB", col3X, fy + 20);
+  doc.text("CH32 0077 8229 1386 9200 1", col3X, fy + 15);
 
   // Buffer and Base64 return
   const dataUri = doc.output("datauristring");

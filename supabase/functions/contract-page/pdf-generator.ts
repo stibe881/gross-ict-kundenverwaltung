@@ -467,29 +467,23 @@ function drawInvoiceFooter(doc: any, settings?: InvoiceData["settings"]) {
 
   doc.text("ZAHLUNGSEMPFÄNGER", col1X, FOOTER_Y + 8);
   doc.text("BANKVERBINDUNG", col2X, FOOTER_Y + 8);
-  doc.text("IBAN / SWIFT", col3X, FOOTER_Y + 8);
+  doc.text("IBAN", col3X, FOOTER_Y + 8);
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text(settings?.accountHolder || "Stefan Gross", col1X, FOOTER_Y + 13);
+  doc.text("Gross ICT", col1X, FOOTER_Y + 13);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(203, 213, 225);
-  doc.text("Gross ICT", col1X, FOOTER_Y + 18);
+  doc.text("Neuhushof 3, 6144 Zell LU", col1X, FOOTER_Y + 18);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text(settings?.bankName || "Bank Cler AG", col2X, FOOTER_Y + 13);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(203, 213, 225);
-  doc.text(`Konto: ${settings?.accountNumber || "2610.4169.200"}`, col2X, FOOTER_Y + 18);
+  doc.text("Luzerner Kantonalbank AG", col2X, FOOTER_Y + 13);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text(settings?.iban || "CH39 0844 0261 0416 9200 1", col3X, FOOTER_Y + 13);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(203, 213, 225);
-  doc.text(`SWIFT: ${settings?.swiftBic || "BCLRCHBB"}`, col3X, FOOTER_Y + 18);
+  doc.text("CH32 0077 8229 1386 9200 1", col3X, FOOTER_Y + 13);
 }
 
 function checkInvoicePageBreak(doc: any, y: number, needed: number, settings?: InvoiceData["settings"]): number {
@@ -769,25 +763,21 @@ function drawQuoteFooter(doc: any) {
 
   doc.text("ZAHLUNGSEMPFÄNGER", col1X, FOOTER_Y + 8);
   doc.text("BANKVERBINDUNG", col2X, FOOTER_Y + 8);
-  doc.text("IBAN / SWIFT", col3X, FOOTER_Y + 8);
+  doc.text("IBAN", col3X, FOOTER_Y + 8);
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("Stefan Gross", col1X, FOOTER_Y + 13);
+  doc.text("Gross ICT", col1X, FOOTER_Y + 13);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(203, 213, 225);
-  doc.text("Gross ICT", col1X, FOOTER_Y + 18);
+  doc.text("Neuhushof 3, 6144 Zell LU", col1X, FOOTER_Y + 18);
 
-  doc.text("Bank Cler AG", col2X, FOOTER_Y + 13);
-  doc.text("Konto: 2610.4169.200", col2X, FOOTER_Y + 18);
+  doc.text("Luzerner Kantonalbank AG", col2X, FOOTER_Y + 13);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("CH39 0844 0261 0416 9200 1", col3X, FOOTER_Y + 13);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(203, 213, 225);
-  doc.text("SWIFT: BCLRCHBB", col3X, FOOTER_Y + 18);
+  doc.text("CH32 0077 8229 1386 9200 1", col3X, FOOTER_Y + 13);
 }
 
 function checkQuotePageBreak(doc: any, y: number, needed: number): number {

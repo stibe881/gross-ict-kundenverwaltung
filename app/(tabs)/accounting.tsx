@@ -272,7 +272,12 @@ export default function AccountingScreen() {
     .filter((e: any) => e.is_deductible && (e.amount || 0) > 0)
     .reduce((s: number, e: any) => s + (e.amount || 0), 0);
   const profit = totalRevenue - totalExpenses;
-  const netIncome = totalRevenue - deductibleExpenses;
+  const grossNetIncome = totalRevenue - deductibleExpenses;
+  const ownerAhvIvEo = grossNetIncome > 0 ? grossNetIncome * 0.106 : 0;
+  const ownerFak = grossNetIncome > 0 ? grossNetIncome * 0.014 : 0;
+  const ownerEinkommenssteuer = grossNetIncome > 0 ? grossNetIncome * 0.15 : 0;
+  const ownerTotalAbzuege = ownerAhvIvEo + ownerFak + ownerEinkommenssteuer;
+  const netIncome = grossNetIncome - ownerTotalAbzuege;
 
   // Umsatz-Schwelle MwSt (CHF 100'000)
   const MWST_THRESHOLD = 100000;
@@ -553,9 +558,33 @@ export default function AccountingScreen() {
         >
           {formatCurrency(netIncome)}
         </Text>
-        <Text className="text-xs text-muted mt-2">
-          Alle Einnahmen abzüglich geschäftsrelevanter (abzugsfähiger) Ausgaben
+        <Text className="text-xs text-muted mt-2 mb-3">
+          Einnahmen abzgl. abzugsfähiger Ausgaben & Sozialabgaben/Steuern
         </Text>
+        {grossNetIncome > 0 && (
+          <View className="border-t border-border pt-3 gap-1">
+            <View className="flex-row justify-between">
+              <Text className="text-xs text-muted">Gewinn vor Abzügen</Text>
+              <Text className="text-xs text-foreground font-semibold">{formatCurrency(grossNetIncome)}</Text>
+            </View>
+            <View className="flex-row justify-between">
+              <Text className="text-xs text-muted">↳ AHV/IV/EO (10.6%)</Text>
+              <Text className="text-xs text-error">-{formatCurrency(ownerAhvIvEo)}</Text>
+            </View>
+            <View className="flex-row justify-between">
+              <Text className="text-xs text-muted">↳ FAK Luzern (1.4%)</Text>
+              <Text className="text-xs text-error">-{formatCurrency(ownerFak)}</Text>
+            </View>
+            <View className="flex-row justify-between">
+              <Text className="text-xs text-muted">↳ Einkommenssteuer (ca. 15%)</Text>
+              <Text className="text-xs text-error">-{formatCurrency(ownerEinkommenssteuer)}</Text>
+            </View>
+            <View className="flex-row justify-between border-t border-border pt-1 mt-1">
+              <Text className="text-xs text-muted font-semibold">Total Abzüge (ca. 27%)</Text>
+              <Text className="text-xs text-error font-semibold">-{formatCurrency(ownerTotalAbzuege)}</Text>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Quick Stats */}

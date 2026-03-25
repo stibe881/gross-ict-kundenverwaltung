@@ -1072,14 +1072,14 @@ export async function uploadDocument(customerId: string, uri: string, filename: 
         else if (ext === "png") mimeType = "image/png";
         else if (ext === "jpg" || ext === "jpeg") mimeType = "image/jpeg";
 
-        const { data, error } = await supabase.storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
             .from("customer_documents")
             .upload(path, fileBody, {
                 contentType: mimeType,
                 upsert: true,
             });
 
-        if (error) throw new Error(error.message);
+        if (uploadError) throw new Error(uploadError.message);
 
         // Get public URL
         const { data: publicUrlData } = supabase.storage
@@ -2829,6 +2829,7 @@ export async function getUsefulLinks() {
             .from("useful_links")
             .select("*")
             .eq("visibility", "public")
+            .is("customer_id", null)
             .order("sort_order", { ascending: true })
             .order("created_at", { ascending: false });
         if (error) throw new Error(error.message);
@@ -2848,6 +2849,7 @@ export async function getUsefulLinks() {
     const { data, error } = await supabase
         .from("useful_links")
         .select("*")
+        .is("customer_id", null)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: false });
 
@@ -2920,6 +2922,81 @@ export async function updateUsefulLink(id: string, updates: any) {
 }
 
 export async function deleteUsefulLink(id: string) {
+    const { error } = await supabase
+        .from("useful_links")
+        .delete()
+        .eq("id", id);
+
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+// ==================== CUSTOMER LINKS ====================
+
+export async function getCustomerLinks(customerId: string) {
+    const { data, error } = await supabase
+        .from("useful_links")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createCustomerLink(link: {
+    customer_id: string;
+    title: string;
+    url: string;
+    description?: string;
+}) {
+    const { data: session } = await supabase.auth.getSession();
+    const user = session?.session?.user;
+
+    let finalUrl = link.url.trim();
+    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+        finalUrl = 'https://' + finalUrl;
+    }
+
+    const { data, error } = await supabase
+        .from("useful_links")
+        .insert([{
+            title: link.title,
+            url: finalUrl,
+            description: link.description || null,
+            customer_id: link.customer_id,
+            visibility: "private",
+            icon: "link",
+            user_id: user?.id,
+        }])
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateCustomerLink(id: string, updates: { title?: string; url?: string; description?: string }) {
+    if (updates.url) {
+        let finalUrl = updates.url.trim();
+        if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+            finalUrl = 'https://' + finalUrl;
+        }
+        updates.url = finalUrl;
+    }
+
+    const { data, error } = await supabase
+        .from("useful_links")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteCustomerLink(id: string) {
     const { error } = await supabase
         .from("useful_links")
         .delete()

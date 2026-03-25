@@ -253,8 +253,8 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  const bankLine1 = "Zahlungsempfänger: Stefan Gross  ·  Bankname: Bank Cler AG  ·  Kontonr.: 2610.4165.2001";
-  const bankLine2 = "IBAN: CH3906440261041652001    SWIFT/BIC: BCLRCHBB";
+  const bankLine1 = "Zahlungsempfänger: Gross ICT  ·  Bank: Luzerner Kantonalbank AG";
+  const bankLine2 = "IBAN: CH32 0077 8229 1386 9200 1";
   doc.text(bankLine1, marginLeft, footerY + 10);
   doc.text(bankLine2, marginLeft, footerY + 14);
 
@@ -394,11 +394,9 @@ function generateInvoiceHTML(data: InvoiceData): string {
   <div class="footer">
     <div class="bank-title">Bankverbindung:</div>
     <div class="bank-details">
-      Zahlungsempfänger: <strong>Stefan Gross</strong> &nbsp;·&nbsp;
-      Bankname: <strong>Bank Cler AG</strong> &nbsp;·&nbsp;
-      Kontonr.: <strong>2610.4165.2001</strong><br>
-      IBAN: <strong>CH3906440261041652001</strong> &nbsp;&nbsp;
-      SWIFT/BIC: <strong>BCLRCHBB</strong>
+      Zahlungsempfänger: <strong>Gross ICT</strong> &nbsp;·&nbsp;
+      Bank: <strong>Luzerner Kantonalbank AG</strong><br>
+      IBAN: <strong>CH32 0077 8229 1386 9200 1</strong>
     </div>
   </div>
 </body>

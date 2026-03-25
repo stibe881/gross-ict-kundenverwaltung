@@ -597,9 +597,9 @@ function renderPage(contract: any, supabaseUrl: string, employee: any = null): s
 
     <div class="pc-footer">
       <table class="pc-footer-table"><tr>
-        <td style="width:33%;"><div class="pc-ft-label">Kontakt</div><span class="pc-ft-val">Stefan Gross</span><br>info@gross-ict.ch</td>
-        <td style="width:33%;"><div class="pc-ft-label">Bankverbindung</div><span class="pc-ft-val">Bank Cler AG</span><br>Konto: 2610.4165.2001</td>
-        <td style="width:34%;"><div class="pc-ft-label">IBAN / SWIFT</div><span class="pc-ft-val">CH39 0644 0261 0416 5200 1</span><br>SWIFT: BCLRCHBB</td>
+        <td style="width:33%;"><div class="pc-ft-label">Kontakt</div><span class="pc-ft-val">Gross ICT</span><br>info@gross-ict.ch</td>
+        <td style="width:33%;"><div class="pc-ft-label">Bankverbindung</div><span class="pc-ft-val">Luzerner Kantonalbank AG</span></td>
+        <td style="width:34%;"><div class="pc-ft-label">IBAN</div><span class="pc-ft-val">CH32 0077 8229 1386 9200 1</span></td>
       </tr></table>
     </div>
   </div>

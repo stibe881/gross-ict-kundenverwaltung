@@ -29,7 +29,7 @@ import { QuoteFormModal } from "@/components/quote-form-modal";
 import { TicketFormModal } from "@/components/ticket-form-modal";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 
-type Tab = "tickets" | "rechnungen" | "vertraege" | "angebote" | "kontakte";
+type Tab = "tickets" | "rechnungen" | "vertraege" | "angebote" | "links" | "kontakte";
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -49,6 +49,8 @@ export default function CustomerDetailScreen() {
   const [showNewQuote, setShowNewQuote] = useState(false);
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [showNewInvoice, setShowNewInvoice] = useState(false);
+  const [showAddLink, setShowAddLink] = useState(false);
+  const [newLink, setNewLink] = useState({ title: "", url: "", description: "" });
 
   // ── Data ──
   const { data: customer, isLoading: loading } = useQuery({
@@ -84,6 +86,12 @@ export default function CustomerDetailScreen() {
   const { data: quotes = [] } = useQuery({
     queryKey: ["quotes", "customer", id],
     queryFn: () => Data.getCustomerQuotes(id as string),
+    enabled: !!id,
+  });
+
+  const { data: customerLinks = [] } = useQuery({
+    queryKey: ["customer-links", id],
+    queryFn: () => Data.getCustomerLinks(id as string),
     enabled: !!id,
   });
 
@@ -147,6 +155,26 @@ export default function CustomerDetailScreen() {
     onError: (error: any) => showAlert("Fehler", error.message),
   });
 
+  const createLinkMutation = useMutation({
+    mutationFn: (link: any) => Data.createCustomerLink({ customer_id: id as string, ...link }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer-links", id] });
+      setShowAddLink(false);
+      setNewLink({ title: "", url: "", description: "" });
+      showAlert("Erfolg", "Link hinzugefügt");
+    },
+    onError: (error: any) => showAlert("Fehler", error.message),
+  });
+
+  const deleteLinkMutation = useMutation({
+    mutationFn: (linkId: string) => Data.deleteCustomerLink(linkId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer-links", id] });
+      showToast("Link gelöscht");
+    },
+    onError: (error: any) => showAlert("Fehler", error.message),
+  });
+
   const startEditContact = (contact: any) => {
     setEditingContact(contact.id);
     setEditContactData({
@@ -191,6 +219,7 @@ export default function CustomerDetailScreen() {
     { key: "rechnungen", label: "Rechnungen", icon: "chart.bar.fill", count: invoices.length },
     { key: "vertraege", label: "Verträge", icon: "doc.text.fill", count: contracts.length },
     { key: "angebote", label: "Angebote", icon: "doc.badge.clock.fill", count: quotes.length },
+    { key: "links", label: "Links", icon: "link", count: customerLinks.length + quotes.length },
     { key: "kontakte", label: "Kontakte", icon: "person.2.fill", count: (customerContacts.length || 0) + (contactPerson ? 1 : 0) },
   ];
 
@@ -565,6 +594,147 @@ export default function CustomerDetailScreen() {
             ))}
           </View>
         );
+
+      case "links": {
+        // Auto-generate links from quotes
+        const quoteLinks = quotes.map((q: any) => ({
+          id: `quote-${q.id}`,
+          title: `Angebot ${q.quote_number || q.id?.substring(0, 6).toUpperCase()}`,
+          url: `https://angebote.gross-ict.ch/?id=${q.id}`,
+          description: q.title || null,
+          created_at: q.created_at,
+          _isQuoteLink: true,
+          _quoteStatus: q.status,
+        }));
+
+        // Merge and sort by date (newest first)
+        const allLinks = [...customerLinks, ...quoteLinks].sort(
+          (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+
+        const addLinkForm = showAddLink ? (
+          <View className="bg-surface rounded-xl border border-primary/30 p-4 mb-3">
+            <Text className="text-sm font-bold text-foreground mb-3">Neuer Kundenlink</Text>
+            <View className="gap-2">
+              <TextInput
+                className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                placeholder="Titel (z.B. Webseite, Portal)" placeholderTextColor={colors.muted}
+                value={newLink.title}
+                onChangeText={(t) => setNewLink({ ...newLink, title: t })}
+              />
+              <TextInput
+                className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                placeholder="URL (z.B. https://kunde.ch)" placeholderTextColor={colors.muted}
+                autoCapitalize="none" keyboardType="url"
+                value={newLink.url}
+                onChangeText={(t) => setNewLink({ ...newLink, url: t })}
+              />
+              <TextInput
+                className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                placeholder="Beschreibung (optional)" placeholderTextColor={colors.muted}
+                value={newLink.description}
+                onChangeText={(t) => setNewLink({ ...newLink, description: t })}
+              />
+              <View className="flex-row gap-2 mt-1">
+                <TouchableOpacity
+                  className="flex-1 bg-surface border border-border py-2 rounded-lg"
+                  onPress={() => { setShowAddLink(false); setNewLink({ title: "", url: "", description: "" }); }}
+                >
+                  <Text className="text-foreground font-semibold text-center text-sm">Abbrechen</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-1 bg-primary py-2 rounded-lg"
+                  onPress={() => {
+                    if (!newLink.title.trim() || !newLink.url.trim()) {
+                      showAlert("Fehler", "Titel und URL sind erforderlich");
+                      return;
+                    }
+                    createLinkMutation.mutate(newLink);
+                  }}
+                >
+                  {createLinkMutation.isPending ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <Text className="font-semibold text-center text-sm" style={{ color: colors.background }}>Speichern</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : null;
+
+        const addLinkButton = (
+          <TouchableOpacity
+            className="flex-row items-center justify-center gap-1.5 bg-primary/10 border border-primary/30 py-2.5 rounded-xl mb-3"
+            onPress={() => setShowAddLink(true)}
+            activeOpacity={0.7}
+          >
+            <IconSymbol name="plus.circle.fill" size={16} color={colors.primary} />
+            <Text className="text-sm font-semibold" style={{ color: colors.primary }}>Link hinzuf&#252;gen</Text>
+          </TouchableOpacity>
+        );
+
+        if (allLinks.length === 0 && !showAddLink) {
+          return (
+            <View>
+              {addLinkButton}
+              {renderEmpty("Keine Links erfasst", "link")}
+            </View>
+          );
+        }
+
+        return (
+          <View>
+            {!showAddLink && addLinkButton}
+            {addLinkForm}
+            <View className="gap-3">
+              {allLinks.map((link: any) => (
+                <TouchableOpacity
+                  key={link.id}
+                  className="bg-surface rounded-xl border border-border p-4"
+                  activeOpacity={0.7}
+                  onPress={() => Linking.openURL(link.url)}
+                >
+                  <View className="flex-row items-center gap-3">
+                    <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: link._isQuoteLink ? "#8b5cf615" : colors.primary + "15" }}>
+                      <IconSymbol name={link._isQuoteLink ? "doc.badge.clock.fill" as any : "link"} size={18} color={link._isQuoteLink ? "#8b5cf6" : colors.primary} />
+                    </View>
+                    <View className="flex-1">
+                      <View className="flex-row items-center gap-2">
+                        <Text className="text-base font-semibold text-foreground" numberOfLines={1}>{link.title}</Text>
+                        {link._isQuoteLink && (
+                          <View className="px-1.5 py-0.5 rounded" style={{ backgroundColor: "#8b5cf620" }}>
+                            <Text className="text-[9px] font-bold" style={{ color: "#8b5cf6" }}>ANGEBOT</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text className="text-xs text-primary" numberOfLines={1}>{link.url}</Text>
+                      {link.description ? (
+                        <Text className="text-xs text-muted mt-1" numberOfLines={2}>{link.description}</Text>
+                      ) : null}
+                      <Text className="text-[10px] text-muted mt-1">
+                        Erstellt: {formatDate(link.created_at)}
+                      </Text>
+                    </View>
+                    {!link._isQuoteLink && (
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          showConfirm("Link l\u00f6schen", `"${link.title}" wirklich l\u00f6schen?`, () => deleteLinkMutation.mutate(link.id), "L\u00f6schen");
+                        }}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={{ padding: 8 }}
+                      >
+                        <IconSymbol name="trash.fill" size={14} color={colors.error} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        );
+      }
 
       case "kontakte": {
         const allContacts = [

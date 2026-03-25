@@ -97,10 +97,9 @@ Deno.serve(async (req) => {
     }
 
     // Bankverbindung aus Settings
-    const bankName = invoiceSettingsData?.bank_name || "Bank Cler AG";
-    const accountHolder = invoiceSettingsData?.account_holder || "Stefan Gross";
-    const iban = invoiceSettingsData?.iban || "CH39 0844 0261 0416 9200 1";
-    const accountNumber = invoiceSettingsData?.account_number || "";
+    const bankName = invoiceSettingsData?.bank_name || "Luzerner Kantonalbank AG";
+    const accountHolder = invoiceSettingsData?.account_holder || "Gross ICT";
+    const iban = invoiceSettingsData?.iban || "CH32 0077 8229 1386 9200 1";
 
     const levelColor = LEVEL_COLORS[dunningLevel];
 
@@ -124,10 +123,9 @@ Deno.serve(async (req) => {
         </table>
         <p>Bitte überweisen Sie den ausstehenden Betrag auf folgendes Konto:</p>
         <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
-          <p style="margin: 0 0 4px;"><strong>Kontoinhaber:</strong> ${accountHolder}</p>
+          <p style="margin: 0 0 4px;"><strong>Zahlungsempfänger:</strong> ${accountHolder}</p>
           <p style="margin: 0 0 4px;"><strong>Bank:</strong> ${bankName}</p>
-          <p style="margin: 0 0 4px;"><strong>IBAN:</strong> ${iban}</p>
-          ${accountNumber ? `<p style="margin: 0;"><strong>Konto:</strong> ${accountNumber}</p>` : ""}
+          <p style="margin: 0;"><strong>IBAN:</strong> ${iban}</p>
         </div>
         <p>${invoiceSettingsData?.closing_text || "Freundliche Grüsse"}<br/><strong>Gross ICT</strong></p>
       </div>

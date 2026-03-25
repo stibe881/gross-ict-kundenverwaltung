@@ -112,6 +112,7 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
     @keyframes slide-in-row { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
     @keyframes count-up { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
     @keyframes border-glow { 0%,100%{border-color:var(--border)} 50%{border-color:var(--border-hover)} }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .animate-in { opacity:0; transform:translateY(30px); transition:opacity 0.8s cubic-bezier(0.16,1,0.3,1),transform 0.8s cubic-bezier(0.16,1,0.3,1); }
     .animate-in.visible { opacity:1; transform:translateY(0); }
     .animate-in[data-delay="1"] { transition-delay:0.1s; }
@@ -347,9 +348,15 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
       .footer-inner { flex-direction:column; gap:8px; }
       .pricing-header { padding:20px 16px; }
       .pricing-footer { padding:20px 16px; }
-      .pricing-table { min-width:0; }
-      .pricing-table thead th { padding:10px 10px; font-size:9px; letter-spacing:1px; }
-      .pricing-table tbody td { padding:12px 10px; font-size:13px; }
+      .pricing-table { min-width:0; width:100%; table-layout:fixed; }
+      .pricing-table thead th { padding:10px 8px; font-size:8px; letter-spacing:0.5px; }
+      .pricing-table thead th:nth-child(3) { display:none; }
+      .pricing-table tbody td { padding:12px 8px; font-size:12px; }
+      .pricing-table tbody td:nth-child(3) { display:none; }
+      .pricing-table-wrap { overflow-x:hidden; }
+      .pricing-total-row { font-size:13px; }
+      .pricing-total-row.grand { font-size:16px; }
+      .pricing-total-row.grand .amount { font-size:18px; }
       .container { padding:0 16px; }
       .overview-grid { grid-template-columns:1fr 1fr; gap:12px; }
     }
@@ -658,38 +665,52 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
   </script>
 
   <script>
-    function downloadPdf() {
-      const html = document.getElementById('pdf-template').innerHTML;
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = 'none';
-      document.body.appendChild(iframe);
-      
-      const iframeDoc = iframe.contentWindow.document;
-      iframeDoc.open();
-      iframeDoc.write(html);
-      iframeDoc.close();
-      
-      iframe.onload = function() {
-        setTimeout(function() {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-          setTimeout(function() { document.body.removeChild(iframe); }, 3000);
-        }, 500);
-      };
-      
-      // Fallback
-      setTimeout(function() {
-        try {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-        } catch(e){}
-        setTimeout(function(){ try{document.body.removeChild(iframe);}catch(e){} }, 3000);
-      }, 2000);
+    async function downloadPdf() {
+      const btn = document.querySelector('[onclick="downloadPdf()"]') || document.querySelector('.btn-secondary');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<svg style="width:20px;height:20px;animation:spin 1s linear infinite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> PDF wird erstellt...';
+      }
+      try {
+        const res = await fetch('${supabaseUrl}/functions/v1/contract-page?id=${quote.id}&action=generate-quote-pdf');
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: 'Unbekannter Fehler' }));
+          throw new Error(err.error || 'HTTP ' + res.status);
+        }
+        const data = await res.json();
+        if (!data.pdf) throw new Error('Kein PDF erhalten');
+
+        // Convert base64 to Blob and download
+        const byteChars = atob(data.pdf);
+        const byteArray = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) {
+          byteArray[i] = byteChars.charCodeAt(i);
+        }
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+
+        // Try to download as file
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Angebot_${(quote.quote_number || "").replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        // Also open in new tab for mobile (where download might not work)
+        if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+          window.open(url, '_blank');
+        }
+
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (err) {
+        alert('PDF konnte nicht erstellt werden: ' + (err.message || err));
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Angebot als PDF herunterladen';
+        }
+      }
     }
 
     // === Particles ===

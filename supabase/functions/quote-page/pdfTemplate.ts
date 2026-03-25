@@ -212,17 +212,15 @@ export function generateQuotePDFHTML(quote: any): string {
       <tr>
         <td style="width:33%;">
           <div class="footer-label">Zahlungsempfänger</div>
-          <span class="footer-val">Stefan Gross</span>
+          <span class="footer-val">Gross ICT</span>
         </td>
         <td style="width:33%;">
           <div class="footer-label">Bankverbindung</div>
-          <span class="footer-val">Bank Cler AG</span><br>
-          Konto: 2610.4169.200
+          <span class="footer-val">Luzerner Kantonalbank AG</span>
         </td>
         <td style="width:34%;">
-          <div class="footer-label">IBAN / SWIFT</div>
-          <span class="footer-val">CH39 0844 0261 0416 9200 1</span><br>
-          SWIFT: BCLRCHBB
+          <div class="footer-label">IBAN</div>
+          <span class="footer-val">CH32 0077 8229 1386 9200 1</span>
         </td>
       </tr>
     </table>

@@ -45,10 +45,9 @@ export async function sendInvoiceEmail(options: SendInvoiceEmailOptions) {
         </table>
         <p>Bitte überweisen Sie den Betrag bis zum <strong>${dueDate}</strong> auf folgendes Konto:</p>
         <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
-          <p style="margin: 0 0 4px;"><strong>Kontoinhaber:</strong> Stefan Gross</p>
-          <p style="margin: 0 0 4px;"><strong>Bank:</strong> Bank Cler AG</p>
-          <p style="margin: 0 0 4px;"><strong>IBAN:</strong> CH39 0844 0261 0416 9200 1</p>
-          <p style="margin: 0;"><strong>Konto:</strong> 2610.4169.200</p>
+          <p style="margin: 0 0 4px;"><strong>Zahlungsempfänger:</strong> Gross ICT</p>
+          <p style="margin: 0 0 4px;"><strong>Bank:</strong> Luzerner Kantonalbank AG</p>
+          <p style="margin: 0;"><strong>IBAN:</strong> CH32 0077 8229 1386 9200 1</p>
         </div>
         <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
         <p>Freundliche Grüsse<br/><strong>Gross ICT</strong></p>
@@ -120,10 +119,9 @@ export async function sendReminderEmail(options: SendReminderEmailOptions) {
         </table>
         <p>Bitte überweisen Sie den ausstehenden Betrag auf folgendes Konto:</p>
         <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
-          <p style="margin: 0 0 4px;"><strong>Kontoinhaber:</strong> Stefan Gross</p>
-          <p style="margin: 0 0 4px;"><strong>Bank:</strong> Bank Cler AG</p>
-          <p style="margin: 0 0 4px;"><strong>IBAN:</strong> CH39 0844 0261 0416 9200 1</p>
-          <p style="margin: 0;"><strong>Konto:</strong> 2610.4169.200</p>
+          <p style="margin: 0 0 4px;"><strong>Zahlungsempfänger:</strong> Gross ICT</p>
+          <p style="margin: 0 0 4px;"><strong>Bank:</strong> Luzerner Kantonalbank AG</p>
+          <p style="margin: 0;"><strong>IBAN:</strong> CH32 0077 8229 1386 9200 1</p>
         </div>
         <p>Sollten Sie die Zahlung bereits veranlasst haben, betrachten Sie diese Erinnerung bitte als gegenstandslos.</p>
         <p>Freundliche Grüsse<br/><strong>Gross ICT</strong></p>
