@@ -9,7 +9,9 @@ import {
   useWindowDimensions,
   Image,
   TextInput,
+  RefreshControl,
 } from "react-native";
+import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { supabase } from "@/lib/supabase";
@@ -38,6 +40,7 @@ export default function DashboardScreen() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const colors = useColors();
+  const { refreshing, onRefresh } = useGlobalRefresh();
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -363,6 +366,7 @@ export default function DashboardScreen() {
           padding: isWide ? 32 : 16,
           paddingBottom: 100,
         }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View
           style={

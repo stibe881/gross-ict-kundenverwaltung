@@ -10,7 +10,9 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  RefreshControl,
 } from "react-native";
+import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -26,6 +28,7 @@ export default function UsersScreen() {
   const { containerStyle, contentPadding } = useResponsiveLayout();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { refreshing, onRefresh } = useGlobalRefresh();
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editRoles, setEditRoles] = useState<string[]>([]);
   const [editStreet, setEditStreet] = useState("");
@@ -344,6 +347,7 @@ export default function UsersScreen() {
           { key: "auto_invoices", label: "Auto-Mails & Mahnungen", desc: "Automatischer Versand an Kunden", icon: "paperplane.fill", color: "#EF4444" },
           { key: "quotes", label: "Angebote", desc: "Angebot vom Kunden geöffnet/angenommen", icon: "doc.on.doc.fill", color: "#0EA5E9" },
           { key: "tasks", label: "Aufgaben", desc: "Aufgaben-Zuweisung, Erinnerungen", icon: "checklist", color: "#8B5CF6" },
+          { key: "sticky_notes", label: "Sticky Notes", desc: "Neue Notizen auf dem Whiteboard", icon: "note.text", color: "#EAB308" },
           { key: "portal", label: "Kundenportal", desc: "Kunden-Antworten auf Tickets", icon: "person.2.fill", color: "#14B8A6" },
         ].map((cat) => {
           const isEnabled = editPushPrefs[cat.key] !== false;
@@ -677,6 +681,7 @@ export default function UsersScreen() {
         className="flex-1"
         contentContainerStyle={{ padding: contentPadding }}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={containerStyle}>
           {/* Header */}

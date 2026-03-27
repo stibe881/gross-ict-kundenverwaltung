@@ -8,7 +8,9 @@ import {
     TextInput,
     ActivityIndicator,
     Modal,
+    RefreshControl,
 } from "react-native";
+import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -29,6 +31,7 @@ export default function KnowledgeBaseScreen() {
     const colors = useColors();
     const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
     const queryClient = useQueryClient();
+    const { refreshing, onRefresh } = useGlobalRefresh();
 
     const [search, setSearch] = useState("");
     const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -307,6 +310,7 @@ export default function KnowledgeBaseScreen() {
                             renderItem={renderArticleItem}
                             keyExtractor={(item) => item.id}
                             showsVerticalScrollIndicator={false}
+                            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                         />
                     ) : (
                         <View className="flex-1 items-center justify-center">

@@ -12,7 +12,9 @@ import {
   Platform,
   useWindowDimensions,
   KeyboardAvoidingView,
+  RefreshControl,
 } from "react-native";
+import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -33,6 +35,7 @@ export default function TicketsScreen() {
   const colors = useColors();
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const queryClient = useQueryClient();
+  const { refreshing, onRefresh } = useGlobalRefresh();
   const [filter, setFilter] = useState<"all" | TicketStatus>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("unassigned");
   const [searchQuery, setSearchQuery] = useState("");
@@ -530,7 +533,10 @@ export default function TicketsScreen() {
             </View>
           ) : filteredTickets.length > 0 ? (
             isDesktop ? (
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView 
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+              >
                 {renderDesktopTable()}
               </ScrollView>
             ) : (
@@ -539,6 +545,7 @@ export default function TicketsScreen() {
                 renderItem={renderTicketCard}
                 keyExtractor={(item) => item.id.toString()}
                 showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
               />
             )
           ) : (

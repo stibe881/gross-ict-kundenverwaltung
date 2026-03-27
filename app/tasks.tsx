@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,10 +9,11 @@ import {
   Modal,
   Platform,
   KeyboardAvoidingView,
+  RefreshControl,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -23,8 +24,93 @@ export default function TasksScreen() {
   const router = useRouter();
   const colors = useColors();
   const queryClient = useQueryClient();
-  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
+
+  const { refreshing, onRefresh } = useGlobalRefresh();
+
+  type StickyNoteColor = "yellow" | "blue" | "green" | "pink";
+  type StickyNote = { id: string, text: string, color?: StickyNoteColor };
+
+  const generateUUID = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+  };
+
+  const NOTE_COLORS: Record<StickyNoteColor, { bg: string, border: string, text: string, icon: string, shadow: string }> = {
+    yellow: { bg: "#FFF8D6", border: "#E5D06A", text: "#5A4C1B", icon: "#C4B066", shadow: "#E5D06A" },
+    blue: { bg: "#E6F7FF", border: "#B0DEFA", text: "#1B4A5A", icon: "#8AC2E4", shadow: "#B0DEFA" },
+    green: { bg: "#F1FCE8", border: "#C6EAA5", text: "#3A5A1B", icon: "#A2CC7B", shadow: "#C6EAA5" },
+    pink: { bg: "#FFF0F5", border: "#F4C5D6", text: "#5A1B3A", icon: "#DE9BB6", shadow: "#F4C5D6" },
+  };
+
+  const { data: dbStickyNotes = [], isLoading: isStickyLoading } = useQuery({
+    queryKey: ["stickyNotes"],
+    queryFn: Data.getStickyNotes,
+  });
+
+  const createNoteMutation = useMutation({
+    mutationFn: Data.createStickyNote,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["stickyNotes"] }),
+    onError: (err: any) => console.warn("Failed to create note:", err.message),
+  });
+
+  const updateNoteMutation = useMutation({
+    mutationFn: ({ id, text, color }: { id: string, text: string, color: string }) => Data.updateStickyNote(id, text, color),
+    onError: (err: any) => console.warn("Failed to update note:", err.message),
+  });
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: Data.deleteStickyNote,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["stickyNotes"] }),
+    onError: (err: any) => console.warn("Failed to delete note:", err.message),
+  });
+
+  // Local state for instant typing feel, synced with DB
+  const [localNotes, setLocalNotes] = useState<StickyNote[]>([]);
+  const typingTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!isStickyLoading) setLocalNotes(dbStickyNotes);
+  }, [dbStickyNotes, isStickyLoading]);
+
+  const addStickyNote = () => {
+    const newId = generateUUID();
+    const newNote = { id: newId, text: "", color: "yellow" as StickyNoteColor };
+    setLocalNotes([newNote, ...localNotes]);
+    createNoteMutation.mutate({ id: newId, text: "", color: "yellow" });
+  };
+
+  const updateStickyNote = (id: string, text: string) => {
+    setLocalNotes(notes => notes.map(n => n.id === id ? { ...n, text } : n));
+    
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+        // Because of closure scope, we search localNotes from the previous render, 
+        // but it's okay since color doesn't change rapidly as text.
+        setLocalNotes(currentNotes => {
+           const note = currentNotes.find(n => n.id === id);
+           if (note) updateNoteMutation.mutate({ id, text, color: note.color as string });
+           return currentNotes;
+        });
+    }, 500);
+  };
+
+  const changeStickyNoteColor = (id: string, color: StickyNoteColor) => {
+    setLocalNotes(notes => notes.map(n => n.id === id ? { ...n, color } : n));
+    setLocalNotes(currentNotes => {
+       const note = currentNotes.find(n => n.id === id);
+       updateNoteMutation.mutate({ id, text: note?.text || "", color });
+       return currentNotes;
+    });
+  };
+
+  const deleteStickyNote = (id: string) => {
+    setLocalNotes(notes => notes.filter(n => n.id !== id));
+    deleteNoteMutation.mutate(id);
+  };
 
   const { taskId } = useLocalSearchParams();
 
@@ -95,7 +181,67 @@ export default function TasksScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 100 }}>
+      <ScrollView 
+        contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {/* Sticky Notes Horizontal List */}
+        <View style={{ marginBottom: 8 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+             <Text style={{ fontSize: 16, fontWeight: "800", color: colors.foreground }}>Kurz-Notizen</Text>
+             <TouchableOpacity onPress={addStickyNote} style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.surface, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
+                <IconSymbol name="plus" size={14} color={colors.primary} />
+                <Text style={{ fontSize: 13, color: colors.primary, fontWeight: "700" }}>Neu</Text>
+             </TouchableOpacity>
+          </View>
+          
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
+            {localNotes.length === 0 ? (
+               <TouchableOpacity onPress={addStickyNote} style={{ width: 160, height: 140, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, borderStyle: "dashed", alignItems: "center", justifyContent: "center" }}>
+                 <IconSymbol name="plus" size={24} color={colors.muted} />
+                 <Text style={{ marginTop: 8, fontSize: 13, color: colors.muted, fontWeight: "500" }}>Notiz hinzufügen</Text>
+               </TouchableOpacity>
+            ) : (
+              localNotes.map((note) => {
+                const scheme = NOTE_COLORS[note.color || "yellow"];
+                return (
+                <View key={note.id} style={{ width: 170, backgroundColor: scheme.bg, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: scheme.border, shadowColor: scheme.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 1 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <IconSymbol name="note.text" size={14} color={scheme.icon} />
+                    <TouchableOpacity onPress={() => deleteStickyNote(note.id)} style={{ padding: 4, marginRight: -8, marginTop: -8 }}>
+                       <IconSymbol name="xmark" size={14} color={scheme.icon} />
+                    </TouchableOpacity>
+                  </View>
+                  <TextInput
+                    multiline
+                    placeholder="Notiz..."
+                    placeholderTextColor={scheme.icon}
+                    value={note.text}
+                    onChangeText={(t) => updateStickyNote(note.id, t)}
+                    style={{ fontSize: 15, color: scheme.text, minHeight: 60, textAlignVertical: "top", padding: 0 }}
+                  />
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8, gap: 4 }}>
+                    {(Object.keys(NOTE_COLORS) as StickyNoteColor[]).map((c) => (
+                      <TouchableOpacity 
+                        key={c} 
+                        onPress={() => changeStickyNoteColor(note.id, c)}
+                        style={{ 
+                          width: 20, 
+                          height: 20, 
+                          borderRadius: 10, 
+                          backgroundColor: NOTE_COLORS[c].bg,
+                          borderWidth: 1,
+                          borderColor: note.color === c ? NOTE_COLORS[c].text : NOTE_COLORS[c].border,
+                        }} 
+                      />
+                    ))}
+                  </View>
+                </View>
+              )})
+            )}
+          </ScrollView>
+        </View>
+
         {tasks.length === 0 ? (
           <View style={{ padding: 40, alignItems: "center" }}>
             <IconSymbol name="checklist" size={48} color={colors.muted} />

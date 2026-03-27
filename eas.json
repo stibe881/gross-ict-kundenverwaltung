@@ -11,7 +11,13 @@
         "preview": {
             "distribution": "internal"
         },
-        "production": {}
+        "production": {
+            "env": {
+                "EXPO_PUBLIC_API_BASE_URL": "http://172.16.76.60:3000",
+                "EXPO_PUBLIC_SUPABASE_URL": "https://bvluvvyvftygnxtmboxw.supabase.co",
+                "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHV2dnl2ZnR5Z254dG1ib3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyMzU1NTQsImV4cCI6MjA4NTgxMTU1NH0.sw1wb1pLj9Ne-ZoGbQcR6mA5yDHe2PZbImEzt76lP-o"
+            }
+        }
     },
     "submit": {
         "production": {

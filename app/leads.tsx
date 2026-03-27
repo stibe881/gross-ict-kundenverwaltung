@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Linking,
+  RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -21,6 +22,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
 import Svg, { Circle, G } from "react-native-svg";
+import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 
 type LeadStatus = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
 
@@ -34,6 +36,8 @@ export default function LeadsScreen() {
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("date");
+  const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
+  const { refreshing, onRefresh } = useGlobalRefresh();
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads"],
@@ -120,7 +124,11 @@ export default function LeadsScreen() {
 
   return (
     <ScreenContainer>
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: contentPadding }}>
+      <ScrollView 
+        className="flex-1" 
+        contentContainerStyle={{ padding: contentPadding }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <View style={containerStyle}>
           {/* Header */}
           <View className="flex-row items-center justify-between mb-4">
@@ -387,24 +395,42 @@ export default function LeadsScreen() {
               <View style={isWide ? { flexDirection: 'row', flexWrap: 'wrap', gap: 16 } : { gap: 16 }}>
                 {(Object.keys(groupedLeads) as Array<keyof typeof groupedLeads>).map((stage) => (
                   <View key={stage} className="bg-surface rounded-xl p-4 border border-border" style={isWide ? { flex: 1, minWidth: '45%' } : undefined}>
-                    <View className="flex-row items-center justify-between mb-3">
+                    <TouchableOpacity 
+                      className="flex-row items-center justify-between mb-3"
+                      activeOpacity={isWide ? 1 : 0.7}
+                      onPress={() => {
+                        if (!isWide) {
+                          setExpandedStages(prev => ({ ...prev, [stage]: !prev[stage] }));
+                        }
+                      }}
+                    >
                       <Text className="text-lg font-bold text-foreground">
                         {getStatusLabel(stage)}
                       </Text>
-                      <View
-                        className="px-3 py-1 rounded-full"
-                        style={{ backgroundColor: getStatusColor(stage) + "20" }}
-                      >
-                        <Text
-                          className="text-sm font-semibold"
-                          style={{ color: getStatusColor(stage) }}
+                      <View className="flex-row items-center gap-2">
+                        <View
+                          className="px-3 py-1 rounded-full"
+                          style={{ backgroundColor: getStatusColor(stage) + "20" }}
                         >
-                          {totalCounts[stage]}
-                        </Text>
+                          <Text
+                            className="text-sm font-semibold"
+                            style={{ color: getStatusColor(stage) }}
+                          >
+                            {totalCounts[stage]}
+                          </Text>
+                        </View>
+                        {!isWide && (
+                          <IconSymbol 
+                            name={expandedStages[stage] ? "chevron.up" : "chevron.down"} 
+                            size={18} 
+                            color={colors.muted} 
+                          />
+                        )}
                       </View>
-                    </View>
+                    </TouchableOpacity>
 
-                    {groupedLeads[stage].length > 0 ? (
+                    {(isWide || expandedStages[stage]) && (
+                      groupedLeads[stage].length > 0 ? (
                       <ScrollView
                         style={groupedLeads[stage].length > 10 ? { maxHeight: 600 } : undefined}
                         nestedScrollEnabled
@@ -478,35 +504,119 @@ export default function LeadsScreen() {
                       <Text className="text-sm text-muted text-center py-2">
                         Keine Leads in dieser Phase
                       </Text>
-                    )}
+                    ))}
                   </View>
                 ))}
               </View>
 
               {/* Gewonnen/Verloren */}
-              < View className="flex-row gap-3 mt-4" >
+              <View className={isWide ? "flex-row gap-3 mt-4" : "flex-col gap-3 mt-4"}>
+                {/* Gewonnen Box */}
                 <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <View className="flex-row items-center justify-between mb-2">
-                    <Text className="text-base font-semibold text-foreground">Gewonnen</Text>
-                    <View className="px-2 py-1 rounded-full bg-success">
-                      <Text className="text-xs font-semibold text-white">
-                        {leads.filter((l: any) => l.status === "won").length}
-                      </Text>
+                  <TouchableOpacity 
+                    className="flex-row items-center justify-between mb-4"
+                    activeOpacity={isWide ? 1 : 0.7}
+                    onPress={() => {
+                      if (!isWide) {
+                        setExpandedStages(prev => ({ ...prev, won: !prev.won }));
+                      }
+                    }}
+                  >
+                    <View>
+                      <Text className="text-base font-semibold text-foreground">Gewonnen</Text>
+                      <Text className="text-xs text-muted mt-1">Erfolgreich abgeschlossen</Text>
                     </View>
-                  </View>
-                  <Text className="text-sm text-muted">Erfolgreich abgeschlossen</Text>
+                    <View className="flex-row items-center gap-2">
+                      <View className="px-2 py-1 rounded-full bg-success">
+                        <Text className="text-xs font-semibold text-white">
+                          {leads.filter((l: any) => l.status === "won").length}
+                        </Text>
+                      </View>
+                      {!isWide && (
+                        <IconSymbol 
+                          name={expandedStages["won"] ? "chevron.up" : "chevron.down"} 
+                          size={18} 
+                          color={colors.muted} 
+                        />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                  
+                  {(isWide || expandedStages["won"]) && leads.filter((l: any) => l.status === "won").length > 0 && (
+                    <ScrollView nestedScrollEnabled style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
+                      <View className="gap-2">
+                        {sortLeads(leads.filter((l: any) => l.status === "won")).map((lead: any) => (
+                           <TouchableOpacity
+                             key={lead.id}
+                             className="bg-background rounded-lg p-3 border border-border"
+                             activeOpacity={0.7}
+                             onPress={() => setSelectedLead(lead)}
+                           >
+                             <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                               {lead.company || lead.name || "-"}
+                             </Text>
+                             <Text className="text-xs text-success mt-1">
+                               CHF {(lead.value || 0).toLocaleString("de-CH")}
+                             </Text>
+                           </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  )}
                 </View>
 
+                {/* Verloren Box */}
                 <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <View className="flex-row items-center justify-between mb-2">
-                    <Text className="text-base font-semibold text-foreground">Verloren</Text>
-                    <View className="px-2 py-1 rounded-full bg-error">
-                      <Text className="text-xs font-semibold text-white">
-                        {leads.filter((l: any) => l.status === "lost").length}
-                      </Text>
+                  <TouchableOpacity 
+                    className="flex-row items-center justify-between mb-4"
+                    activeOpacity={isWide ? 1 : 0.7}
+                    onPress={() => {
+                      if (!isWide) {
+                        setExpandedStages(prev => ({ ...prev, lost: !prev.lost }));
+                      }
+                    }}
+                  >
+                    <View>
+                      <Text className="text-base font-semibold text-foreground">Verloren</Text>
+                      <Text className="text-xs text-muted mt-1">Nicht erfolgreich</Text>
                     </View>
-                  </View>
-                  <Text className="text-sm text-muted">Nicht erfolgreich</Text>
+                    <View className="flex-row items-center gap-2">
+                      <View className="px-2 py-1 rounded-full bg-error">
+                        <Text className="text-xs font-semibold text-white">
+                          {leads.filter((l: any) => l.status === "lost").length}
+                        </Text>
+                      </View>
+                      {!isWide && (
+                        <IconSymbol 
+                          name={expandedStages["lost"] ? "chevron.up" : "chevron.down"} 
+                          size={18} 
+                          color={colors.muted} 
+                        />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+
+                  {(isWide || expandedStages["lost"]) && leads.filter((l: any) => l.status === "lost").length > 0 && (
+                    <ScrollView nestedScrollEnabled style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
+                      <View className="gap-2">
+                        {sortLeads(leads.filter((l: any) => l.status === "lost")).map((lead: any) => (
+                           <TouchableOpacity
+                             key={lead.id}
+                             className="bg-background rounded-lg p-3 border border-border opacity-70"
+                             activeOpacity={0.7}
+                             onPress={() => setSelectedLead(lead)}
+                           >
+                             <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                               {lead.company || lead.name || "-"}
+                             </Text>
+                             <Text className="text-xs text-muted mt-1">
+                               CHF {(lead.value || 0).toLocaleString("de-CH")}
+                             </Text>
+                           </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  )}
                 </View>
               </View>
             </>

@@ -13,6 +13,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -34,6 +35,7 @@ export default function QuotesScreen() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [filterStatus, setFilterStatus] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const { refreshing, onRefresh } = useGlobalRefresh();
 
     const {
         data: quotes,
@@ -206,7 +208,7 @@ export default function QuotesScreen() {
                             renderItem={renderQuote}
                             keyExtractor={(item) => item.id}
                             refreshControl={
-                                <RefreshControl refreshing={false} onRefresh={refetch} />
+                                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                             }
                             ListEmptyComponent={
                                 <View className="items-center justify-center py-12">

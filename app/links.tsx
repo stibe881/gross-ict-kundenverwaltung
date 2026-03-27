@@ -9,8 +9,10 @@ import {
     Linking,
     Platform,
     Alert,
-    Image
+    Image,
+    RefreshControl
 } from "react-native";
+import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { Stack, useRouter } from "expo-router";
 import * as ImagePicker from 'expo-image-picker';
 import { ScreenContainer } from "@/components/screen-container";
@@ -24,6 +26,7 @@ export default function LinksScreen() {
     const colors = useColors();
     const router = useRouter();
     const queryClient = useQueryClient();
+    const { refreshing, onRefresh } = useGlobalRefresh();
     const { isWide, contentPadding } = useResponsiveLayout();
 
     const [isEditing, setIsEditing] = useState(false);
@@ -160,6 +163,7 @@ export default function LinksScreen() {
             <ScrollView 
                 className="flex-1"
                 contentContainerStyle={{ padding: contentPadding, paddingBottom: 100 }}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             >
                 <View style={isWide ? { maxWidth: 800, alignSelf: "center", width: "100%" } : undefined}>
                     

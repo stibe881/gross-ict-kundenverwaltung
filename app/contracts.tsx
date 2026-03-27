@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Linking,
+  RefreshControl,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
@@ -21,6 +22,7 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { ContractFormModal } from "@/components/contract-form-modal";
 import { ContractTemplateFormModal } from "@/components/contract-template-form-modal";
+import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
@@ -34,6 +36,7 @@ export default function ContractsScreen() {
   const { containerStyle, contentPadding } = useResponsiveLayout();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { refreshing, onRefresh } = useGlobalRefresh();
   const [filter, setFilter] = useState<"all" | ContractStatus>("all");
 
   // Verträge aus DB laden
@@ -331,6 +334,7 @@ export default function ContractsScreen() {
                   renderItem={renderContractItem}
                   keyExtractor={(item) => item.id.toString()}
                   showsVerticalScrollIndicator={false}
+                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                 />
               ) : (
                 <View className="flex-1 items-center justify-center">
@@ -352,6 +356,7 @@ export default function ContractsScreen() {
                   renderItem={renderTemplateItem}
                   keyExtractor={(item) => item.id}
                   showsVerticalScrollIndicator={false}
+                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                 />
               ) : (
                 <View className="flex-1 items-center justify-center">

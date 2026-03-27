@@ -7,6 +7,7 @@ import { apiCall } from "./_core/api";
 import * as FileSystem from "expo-file-system/legacy";
 import { Buffer } from "buffer";
 import { Platform } from "react-native";
+import { showAlert } from "./alert";
 export { supabase };
 
 export async function triggerPushNotification(
@@ -2118,6 +2119,7 @@ export const EXPENSE_CATEGORIES = [
     { value: "material", label: "Material & Waren" },
     { value: "travel", label: "Reisen & Spesen" },
     { value: "other", label: "Sonstiges" },
+    { value: "social_security", label: "Sozialversicherungen" },
     { value: "telecom", label: "Telefon & Internet" },
     { value: "insurance", label: "Versicherungen" },
     { value: "education", label: "Weiterbildung" },
@@ -3202,3 +3204,108 @@ export async function deleteTicketAttachment(attachmentId: string, filePath: str
     if (dbError) throw new Error(dbError.message);
     return { success: true };
 }
+
+// ==================== STICKY NOTES ====================
+
+export async function getStickyNotes() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return [];
+
+    const { data, error } = await supabase
+        .from('sticky_notes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.warn("getStickyNotes error:", error.message);
+        showAlert("Lade-Fehler", error.message);
+        return [];
+    }
+    return data || [];
+}
+
+export async function createStickyNote(note: { id?: string, text: string, color: string }) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) throw new Error("Nicht eingeloggt");
+
+    const payload: any = {
+        user_id: session.user.id,
+        text: note.text,
+        color: note.color,
+    };
+    if (note.id) payload.id = note.id;
+
+    const { data, error } = await supabase
+        .from('sticky_notes')
+        .insert([payload])
+        .select()
+        .single();
+    
+    if (error) {
+        console.warn("createStickyNote error:", error.message);
+        showAlert("Speicher-Fehler", error.message);
+        throw new Error(error.message);
+    }
+
+    // Neue Sticky Note: Push-Benachrichtigung an alle berechtigten User senden
+    try {
+        const { data: users } = await supabase
+            .from('users')
+            .select('id, roles')
+            .eq('is_active', true)
+            .neq('id', session.user.id);
+
+        if (users && users.length > 0) {
+            // Nur User mit Tasks-Zugriff (admin = alles, technik = tasks implizit erlaubt)
+            const recipientIds = users
+                .filter(u => u.roles?.includes('admin') || u.roles?.includes('technik'))
+                .map(u => u.id);
+
+            if (recipientIds.length > 0) {
+                const { data: creator } = await supabase
+                    .from('users')
+                    .select('name')
+                    .eq('id', session.user.id)
+                    .single();
+                const authorName = creator?.name || 'Ein Benutzer';
+
+                await supabase.functions.invoke('send-push', {
+                    body: {
+                        recipients: recipientIds,
+                        recipientType: "admin",
+                        title: "Neue Notiz",
+                        body: `${authorName} hat eine neue Notiz auf dem Whiteboard erstellt.`,
+                        data: { category: "sticky_notes", url: "/tasks" }
+                    }
+                });
+            }
+        }
+    } catch (pushErr) {
+        console.warn("Fehler beim Senden der Push-Benachrichtigung:", pushErr);
+    }
+
+    return data;
+}
+
+export async function updateStickyNote(id: string, text: string, color: string) {
+    const { data, error } = await supabase
+        .from('sticky_notes')
+        .update({ text, color, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteStickyNote(id: string) {
+    const { error } = await supabase
+        .from('sticky_notes')
+        .delete()
+        .eq('id', id);
+
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+

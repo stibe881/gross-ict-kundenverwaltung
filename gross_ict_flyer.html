@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gross ICT - Flyer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+        :root {
+            --primary-navy: #1a1a2e;
+            --primary-gold: #F2B441;
+            --text-gray: #7A7A7A;
+        }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+            gap: 40px;
+        }
+        .page {
+            width: 210mm;
+            height: 297mm;
+            background: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .front {
+            background: linear-gradient(135deg, #ffffff 0%, #f0f2f5 100%);
+        }
+        .front-header {
+            padding: 60px 50px 20px;
+            text-align: center;
+        }
+        .logo-img {
+            height: 90px;
+            margin-bottom: 50px;
+        }
+        .hero-title {
+            font-size: 42px;
+            font-weight: 700;
+            color: var(--primary-navy);
+            line-height: 1.2;
+            margin-bottom: 20px;
+        }
+        .hero-subtitle {
+            font-size: 22px;
+            color: var(--primary-gold);
+        }
+        .services-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            padding: 40px 60px;
+        }
+        .service-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            border-left: 6px solid var(--primary-gold);
+        }
+        .service-icon {
+            width: 60px;
+            height: 60px;
+            background: var(--primary-navy);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-gold);
+            font-size: 28px;
+        }
+        .service-text h3 {
+            font-size: 24px;
+            color: var(--primary-navy);
+            margin-bottom: 8px;
+        }
+        .service-text p {
+            font-size: 16px;
+            color: var(--text-gray);
+        }
+        .front-footer {
+            background: var(--primary-navy);
+            padding: 30px;
+            text-align: center;
+            color: white;
+            margin-top: auto;
+        }
+        .back {
+            background: var(--primary-navy);
+            color: white;
+        }
+        .back-content {
+            padding: 80px 60px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .back-title {
+            font-size: 38px;
+            color: var(--primary-gold);
+            margin-bottom: 50px;
+            text-align: center;
+        }
+        .benefits-list {
+            list-style: none;
+            margin-bottom: 60px;
+        }
+        .benefits-list li {
+            font-size: 20px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .check-icon {
+            color: var(--primary-gold);
+            font-size: 24px;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: auto;
+        }
+        .cta-section {
+            background: var(--primary-gold);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            color: var(--primary-navy);
+            margin-bottom: 40px;
+        }
+        .back-footer {
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 30px;
+        }
+        .company-name {
+            font-size: 24px;
+            color: var(--primary-gold);
+            margin-bottom: 15px;
+        }
+        .contact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            color: #ccc;
+        }
+        @media print {
+            body { background: none; padding: 0; }
+            .page { box-shadow: none; margin: 0; page-break-after: always; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page front">
+        <div class="front-header">
+            <!-- Fetching the Gross ICT logo directly from the website -->
+            <img src="https://gross-ict.ch/assets/logo-Cz5zVp1M.png" alt="Gross ICT Logo" class="logo-img" onerror="this.src='https://files.manuscdn.com/user_upload_by_module/session_file/310519663166174123/DcecjZFMsTTyplPk.png'">
+            <h1 class="hero-title">Digitale Lösungen, die begeistern</h1>
+            <p class="hero-subtitle">Professionelle Webseiten, Web-Apps & Mobile Apps aus einer Hand</p>
+        </div>
+        <div class="services-container">
+            <div class="service-card">
+                <div class="service-icon">🌐</div>
+                <div class="service-text">
+                    <h3>Webseiten</h3>
+                    <p>Moderne, responsive Webseiten für Ihren perfekten digitalen Auftritt. Wir gestalten Ihre visuelle Visitenkarte mit modernster Technologie.</p>
+                </div>
+            </div>
+            <div class="service-card">
+                <div class="service-icon">⚡</div>
+                <div class="service-text">
+                    <h3>Web-Apps</h3>
+                    <p>Massgeschneiderte cloudbasierte Applikationen zur Digitalisierung und Prozessoptimierung Ihres Unternehmens.</p>
+                </div>
+            </div>
+            <div class="service-card">
+                <div class="service-icon">📱</div>
+                <div class="service-text">
+                    <h3>Mobile Apps</h3>
+                    <p>Native und Cross-Plattform Android & iOS Apps für Smartphones und Tablets, entwickelt für maximale Performance.</p>
+                </div>
+            </div>
+        </div>
+        <div class="front-footer">
+            <h3>Gross ICT - Ihr Technologiepartner in der Zentralschweiz</h3>
+        </div>
+    </div>
+    <div class="page back">
+        <div class="back-content">
+            <h2 class="back-title">Warum Gross ICT?</h2>
+            <ul class="benefits-list">
+                <li><span class="check-icon">✓</span><span><strong>Alles aus einer Hand:</strong> Von der Architektur bis zum laufenden Betrieb.</span></li>
+                <li><span class="check-icon">✓</span><span><strong>Sichtbarer Erfolg:</strong> Wir vereinen Premium-Design mit neuester Software.</span></li>
+                <li><span class="check-icon">✓</span><span><strong>Persönlich & Lokal:</strong> Professioneller IT-Support direkt bei Ihnen.</span></li>
+            </ul>
+            <div class="glass-card">
+                <h3 style="font-size:26px;">Ihr agiler Partner für die<br><span style="color: var(--primary-gold); font-weight: 700;">digitale Transformation.</span></h3>
+            </div>
+            <div class="cta-section">
+                <h2 style="font-size:28px;">Bereit für das nächste Level?</h2>
+                <p>Kontaktieren Sie uns für ein unverbindliches Erstgespräch.</p>
+            </div>
+            <div class="back-footer">
+                <div class="company-name">Gross ICT</div>
+                <div class="contact-grid">
+                    <div>📧 info@gross-ict.ch</div>
+                    <div>🌐 www.gross-ict.ch</div>
+                    <div>📞 +41 79 414 06 16</div>
+                    <div>📍 Neuhushof 3, 6144 Zell LU</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

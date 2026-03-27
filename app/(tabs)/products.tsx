@@ -8,7 +8,9 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  RefreshControl,
 } from "react-native";
+import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -35,6 +37,7 @@ export default function ProductsScreen() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const { refreshing, onRefresh } = useGlobalRefresh();
 
   // Produkte laden
   const { data: products, isLoading, refetch } = useQuery({
@@ -215,6 +218,7 @@ export default function ProductsScreen() {
               keyExtractor={(item) => item.id.toString()}
               showsVerticalScrollIndicator={false}
               style={{ flex: 1 }}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             />
           ) : (
             <View className="flex-1 items-center justify-center">

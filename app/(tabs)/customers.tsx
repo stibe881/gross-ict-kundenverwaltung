@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   ScrollView,
   Text,
@@ -20,6 +20,7 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { CustomerFormModal } from "@/components/customer-form-modal";
+import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 
 export default function CustomersScreen() {
   const router = useRouter();
@@ -33,13 +34,7 @@ export default function CustomersScreen() {
     queryKey: ["customers"],
     queryFn: Data.getCustomersWithCounts,
   });
-  const [refreshing, setRefreshing] = useState(false);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
-  }, [refetch]);
+  const { refreshing, onRefresh } = useGlobalRefresh();
 
   // Kunde löschen
   const deleteCustomer = useMutation({

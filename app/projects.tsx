@@ -14,6 +14,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
+import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { formatDate } from "@/lib/format";
@@ -56,6 +57,7 @@ export default function ProjectsScreen() {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>("kanban");
     const [search, setSearch] = useState("");
+    const { refreshing, onRefresh } = useGlobalRefresh();
 
     const {
         data: projects,
@@ -257,7 +259,7 @@ export default function ProjectsScreen() {
             <ScrollView
                 className="flex-1"
                 showsVerticalScrollIndicator={false}
-                refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             >
                 <View style={{ padding: contentPadding }}>
                     <View style={containerStyle}>
