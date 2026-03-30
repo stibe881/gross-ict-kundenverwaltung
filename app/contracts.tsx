@@ -285,47 +285,55 @@ export default function ContractsScreen() {
           {activeTab === "contracts" ? (
             <>
               {/* Statistik */}
-              <View className="flex-row gap-3 mb-4">
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+              <View className="flex-row flex-wrap gap-3 mb-4">
+                <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
                   <Text className="text-2xl font-bold text-success">
                     {contracts.filter((c) => c.status === "active").length}
                   </Text>
                   <Text className="text-sm text-muted">Aktiv</Text>
                 </View>
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
                   <Text className="text-2xl font-bold text-warning">
                     {contracts.filter((c) => c.status === "cancelled").length}
                   </Text>
                   <Text className="text-sm text-muted">Gekündigt</Text>
                 </View>
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
                   <Text className="text-2xl font-bold text-error">
                     {contracts.filter((c) => c.status === "expired").length}
                   </Text>
                   <Text className="text-sm text-muted">Abgelaufen</Text>
                 </View>
+                <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-2xl font-bold text-success">
+                    {formatCurrency(contracts.filter(c => c.status === "active").reduce((sum, c) => sum + (c.amount || 0), 0))}
+                  </Text>
+                  <Text className="text-sm text-muted">Aktiv (pro Jahr)</Text>
+                </View>
               </View>
 
               {/* Filter */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" style={{ flexGrow: 0 }}>
-                <View className="flex-row gap-2">
-                  {["all", "active", "cancelled", "expired"].map((status) => (
-                    <TouchableOpacity
-                      key={status}
-                      className={`px-4 py-2 rounded-lg ${filter === status ? "bg-primary" : "bg-surface border border-border"
-                        }`}
-                      onPress={() => setFilter(status as any)}
-                    >
-                      <Text
-                        className={`font-semibold ${filter === status ? "text-background" : "text-foreground"
-                          }`}
-                      >
-                        {status === "all" ? "Alle" : getFilterLabel(status)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
+              <View className="mb-4">
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 4 }}>
+                    <View className="flex-row gap-2">
+                      {["all", "active", "cancelled", "expired"].map((status) => (
+                        <TouchableOpacity
+                          key={status}
+                          className={`px-4 py-2 rounded-lg ${filter === status ? "bg-primary" : "bg-surface border border-border"
+                            }`}
+                          onPress={() => setFilter(status as any)}
+                        >
+                          <Text
+                            className={`font-semibold ${filter === status ? "text-background" : "text-foreground"
+                              }`}
+                          >
+                            {status === "all" ? "Alle" : getFilterLabel(status)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+              </View>
 
               {/* Vertragsliste */}
               {filteredContracts.length > 0 ? (
@@ -335,6 +343,7 @@ export default function ContractsScreen() {
                   keyExtractor={(item) => item.id.toString()}
                   showsVerticalScrollIndicator={false}
                   refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                  className="flex-1"
                 />
               ) : (
                 <View className="flex-1 items-center justify-center">
