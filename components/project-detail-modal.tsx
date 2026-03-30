@@ -113,6 +113,11 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     const [addingTask, setAddingTask] = useState(false);
     const [showTaskInput, setShowTaskInput] = useState(false);
 
+    // Edit Task State
+    const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+    const [editTaskTitle, setEditTaskTitle] = useState("");
+    const [savingTask, setSavingTask] = useState(false);
+
     // Documents
     const [linkedQuotes, setLinkedQuotes] = useState<any[]>([]);
     const [linkedInvoices, setLinkedInvoices] = useState<any[]>([]);
@@ -389,6 +394,25 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
             showAlert("Fehler", error.message);
         } finally {
             setAddingTask(false);
+        }
+    };
+
+    const handleStartEditTask = (task: any) => {
+        setEditingTaskId(task.id);
+        setEditTaskTitle(task.title);
+    };
+
+    const handleSaveTaskEdit = async () => {
+        if (!editTaskTitle.trim() || !editingTaskId) return;
+        setSavingTask(true);
+        try {
+            await Data.updateProjectTask(editingTaskId, { title: editTaskTitle.trim() });
+            setEditingTaskId(null);
+            await loadTasks();
+        } catch (error: any) {
+            showAlert("Fehler", error.message);
+        } finally {
+            setSavingTask(false);
         }
     };
 
@@ -1146,28 +1170,56 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                         {/* Open Tasks */}
                         {openTasks.map((task) => {
                             const config = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.open;
-                            return (
-                                <TouchableOpacity
-                                    key={task.id}
-                                    className="bg-surface rounded-lg p-3 mb-2 border border-border flex-row items-center"
-                                    onPress={() => handleToggleTask(task)}
-                                    onLongPress={() => handleDeleteTask(task)}
-                                    activeOpacity={0.7}
-                                >
-                                    <View
-                                        style={{
-                                            width: 24,
-                                            height: 24,
-                                            borderRadius: 12,
-                                            backgroundColor: config.color + "20",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            marginRight: 12,
-                                        }}
-                                    >
-                                        <Text style={{ fontSize: 12, color: config.color }}>{config.icon}</Text>
+                            const isEditing = editingTaskId === task.id;
+
+                            if (isEditing) {
+                                return (
+                                    <View key={task.id} className="bg-surface rounded-lg p-3 mb-2 border" style={{ borderColor: colors.primary }}>
+                                        <TextInput
+                                            value={editTaskTitle}
+                                            onChangeText={setEditTaskTitle}
+                                            placeholder="Aufgabentitel..."
+                                            placeholderTextColor={colors.muted}
+                                            autoFocus
+                                            style={{ color: colors.foreground, fontSize: 14, marginBottom: 10 }}
+                                            onSubmitEditing={handleSaveTaskEdit}
+                                        />
+                                        <View style={{ flexDirection: "row", gap: 8 }}>
+                                            <TouchableOpacity
+                                                onPress={() => setEditingTaskId(null)}
+                                                style={{ flex: 1, borderColor: colors.border, borderWidth: 1, paddingVertical: 6, borderRadius: 8, alignItems: "center" }}
+                                            >
+                                                <Text style={{ color: colors.muted, fontSize: 13 }}>Abbrechen</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                onPress={handleSaveTaskEdit}
+                                                disabled={savingTask || !editTaskTitle.trim()}
+                                                style={{ flex: 1, backgroundColor: colors.primary, opacity: savingTask || !editTaskTitle.trim() ? 0.5 : 1, paddingVertical: 6, borderRadius: 8, alignItems: "center" }}
+                                            >
+                                                {savingTask ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>Speichern</Text>}
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
-                                    <View className="flex-1">
+                                );
+                            }
+
+                            return (
+                                <View key={task.id} className="bg-surface rounded-lg p-3 mb-2 border border-border flex-row items-center">
+                                    <TouchableOpacity onPress={() => handleToggleTask(task)} style={{ marginRight: 12 }}>
+                                        <View
+                                            style={{
+                                                width: 24,
+                                                height: 24,
+                                                borderRadius: 12,
+                                                backgroundColor: config.color + "20",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                            }}
+                                        >
+                                            <Text style={{ fontSize: 12, color: config.color }}>{config.icon}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                    <View style={{ flex: 1 }}>
                                         <Text className="text-sm font-semibold text-foreground">{task.title}</Text>
                                         <View className="flex-row items-center gap-2 mt-1">
                                             <Text className="text-xs" style={{ color: config.color }}>{config.label}</Text>
@@ -1176,7 +1228,15 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                             )}
                                         </View>
                                     </View>
-                                </TouchableOpacity>
+                                    <View style={{ flexDirection: "row", gap: 14, paddingLeft: 8 }}>
+                                        <TouchableOpacity onPress={() => handleStartEditTask(task)}>
+                                            <IconSymbol name="pencil" size={14} color={colors.muted} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={() => handleDeleteTask(task)}>
+                                            <IconSymbol name="trash" size={14} color={colors.muted} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
                             );
                         })}
 
@@ -1187,34 +1247,26 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                     Erledigt ({doneTasks.length})
                                 </Text>
                                 {doneTasks.map((task) => (
-                                    <TouchableOpacity
-                                        key={task.id}
-                                        className="bg-surface rounded-lg p-3 mb-2 border border-border flex-row items-center"
-                                        style={{ opacity: 0.6 }}
-                                        onPress={() => handleToggleTask(task)}
-                                        onLongPress={() => handleDeleteTask(task)}
-                                        activeOpacity={0.7}
-                                    >
-                                        <View
-                                            style={{
-                                                width: 24,
-                                                height: 24,
-                                                borderRadius: 12,
-                                                backgroundColor: "#10B98120",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                marginRight: 12,
-                                            }}
-                                        >
-                                            <Text style={{ fontSize: 12, color: "#10B981" }}>●</Text>
-                                        </View>
-                                        <Text
-                                            className="text-sm text-muted flex-1"
-                                            style={{ textDecorationLine: "line-through" }}
-                                        >
-                                            {task.title}
-                                        </Text>
-                                    </TouchableOpacity>
+                                    <View key={task.id} className="bg-surface rounded-lg p-3 mb-2 border border-border flex-row items-center" style={{ opacity: 0.65 }}>
+                                        <TouchableOpacity onPress={() => handleToggleTask(task)} style={{ marginRight: 12 }}>
+                                            <View
+                                                style={{
+                                                    width: 24,
+                                                    height: 24,
+                                                    borderRadius: 12,
+                                                    backgroundColor: "#10B98120",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                }}
+                                            >
+                                                <Text style={{ fontSize: 12, color: "#10B981" }}>●</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                        <Text className="text-sm text-muted flex-1" style={{ textDecorationLine: "line-through" }}>{task.title}</Text>
+                                        <TouchableOpacity onPress={() => handleDeleteTask(task)} style={{ paddingLeft: 8 }}>
+                                            <IconSymbol name="trash" size={14} color={colors.muted} />
+                                        </TouchableOpacity>
+                                    </View>
                                 ))}
                             </View>
                         )}
