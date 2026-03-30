@@ -37,20 +37,14 @@ export default function ScannerScreen() {
                     // Safely try to load the native module without triggering RedBox
                     let DocumentScanner = null;
                     
-                    // Prevent Metro from evaluating the require in Expo Go entirely
+                    // Prevent Metro from evaluating the require in Expo Go entirely by doing it at runtime,
+                    // but DO NOT use eval() because Metro needs to see the string literal to bundle it!
                     if (Constants.appOwnership !== 'expo') {
-                        const originalConsoleError = console.error;
-                        console.error = () => {}; // Mute invariant error for a moment
                         try {
-                            // Use eval to hide the require from Metro's static analysis
-                            // This prevents getEnforcing from crashing the bundle on start
-                            const plugin = eval("require('react-native-document-scanner-plugin')");
+                            const plugin = require('react-native-document-scanner-plugin');
                             DocumentScanner = plugin.default || plugin;
                         } catch (e) {
                             console.log("Native document scanner not linked:", e);
-                            // Module not found or unlinked
-                        } finally {
-                            console.error = originalConsoleError;
                         }
                     }
 
