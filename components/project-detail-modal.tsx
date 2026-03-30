@@ -186,12 +186,22 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
         if (!newMilestoneTitle.trim()) return;
         setAddingMilestone(true);
         try {
+            // Convert DD.MM.YYYY → YYYY-MM-DD for Supabase
+            let formattedDueDate: string | null = null;
+            if (newMilestoneDueDate.trim()) {
+                const parts = newMilestoneDueDate.trim().split(".");
+                if (parts.length === 3) {
+                    formattedDueDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+                } else {
+                    formattedDueDate = newMilestoneDueDate; // pass through if already in other format
+                }
+            }
             await Data.createMilestone({
                 project_id: project.id,
                 title: newMilestoneTitle.trim(),
                 status: "pending",
                 sort_order: milestones.length,
-                due_date: newMilestoneDueDate || null,
+                due_date: formattedDueDate,
             });
             setNewMilestoneTitle("");
             setNewMilestoneDueDate("");
