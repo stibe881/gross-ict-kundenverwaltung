@@ -73,6 +73,11 @@ const MAPPING = {
   "link": "link",
   "checklist": "checklist",
   "pin.fill": "push-pin",
+  "clock": "schedule",
+  "arrow.triangle.2.circlepath": "sync",
+  "checkmark.circle.fill": "check-circle",
+  "arrow.clockwise": "refresh",
+  "arrow.up.right": "open-in-new",
 } as IconMapping;
 
 /**
