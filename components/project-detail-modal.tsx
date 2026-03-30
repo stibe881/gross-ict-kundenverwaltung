@@ -115,8 +115,15 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
 
     // Edit Task State
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-    const [editTaskTitle, setEditTaskTitle] = useState("");
     const [savingTask, setSavingTask] = useState(false);
+
+    // Task form fields (shared by new + edit)
+    const [taskFormTitle, setTaskFormTitle] = useState("");
+    const [taskFormDescription, setTaskFormDescription] = useState("");
+    const [taskFormPriority, setTaskFormPriority] = useState("medium");
+    const [taskFormDueDate, setTaskFormDueDate] = useState("");
+    const [taskFormAssignedTo, setTaskFormAssignedTo] = useState("");
+    const [taskFormStatus, setTaskFormStatus] = useState("open");
 
     // Documents
     const [linkedQuotes, setLinkedQuotes] = useState<any[]>([]);
@@ -374,22 +381,28 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
 
     // ---- Task Actions ----
     const handleAddTask = async () => {
-        if (!newTaskTitle.trim()) return;
+        if (!taskFormTitle.trim() || !project) return;
         setAddingTask(true);
         try {
+            let formattedDue: string | null = null;
+            if (taskFormDueDate.trim()) {
+                const p = taskFormDueDate.trim().split('.');
+                formattedDue = p.length === 3 ? `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}` : taskFormDueDate;
+            }
             await Data.createProjectTask({
                 project_id: project.id,
-                title: newTaskTitle.trim(),
+                title: taskFormTitle.trim(),
+                description: taskFormDescription.trim() || null,
+                priority: taskFormPriority,
                 status: "open",
+                due_date: formattedDue,
+                assigned_to: taskFormAssignedTo.trim() || null,
                 sort_order: tasks.length,
             });
-            setNewTaskTitle("");
-            setShowTaskInput(false);
+            setTaskFormTitle(""); setTaskFormDescription("");
+            setTaskFormPriority("medium"); setTaskFormDueDate("");
+            setTaskFormAssignedTo(""); setShowTaskInput(false);
             await loadTasks();
-            // Log activity
-            try {
-                await Data.addProjectActivity(project.id, "task", `Aufgabe "${newTaskTitle.trim()}" erstellt`);
-            } catch (_) { /* non-critical */ }
         } catch (error: any) {
             showAlert("Fehler", error.message);
         } finally {
@@ -399,15 +412,35 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
 
     const handleStartEditTask = (task: any) => {
         setEditingTaskId(task.id);
-        setEditTaskTitle(task.title);
+        setTaskFormTitle(task.title);
+        setTaskFormDescription(task.description || "");
+        setTaskFormPriority(task.priority || "medium");
+        setTaskFormStatus(task.status || "open");
+        setTaskFormAssignedTo(task.assigned_to || "");
+        setTaskFormDueDate(task.due_date ? new Date(task.due_date).toLocaleDateString('de-CH') : "");
     };
 
     const handleSaveTaskEdit = async () => {
-        if (!editTaskTitle.trim() || !editingTaskId) return;
+        if (!taskFormTitle.trim() || !editingTaskId) return;
         setSavingTask(true);
         try {
-            await Data.updateProjectTask(editingTaskId, { title: editTaskTitle.trim() });
+            let formattedDue: string | null = null;
+            if (taskFormDueDate.trim()) {
+                const p = taskFormDueDate.trim().split('.');
+                formattedDue = p.length === 3 ? `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}` : taskFormDueDate;
+            }
+            await Data.updateProjectTask(editingTaskId, {
+                title: taskFormTitle.trim(),
+                description: taskFormDescription.trim() || null,
+                priority: taskFormPriority,
+                status: taskFormStatus,
+                due_date: formattedDue,
+                assigned_to: taskFormAssignedTo.trim() || null,
+            });
             setEditingTaskId(null);
+            setTaskFormTitle(""); setTaskFormDescription("");
+            setTaskFormPriority("medium"); setTaskFormDueDate("");
+            setTaskFormAssignedTo(""); setTaskFormStatus("open");
             await loadTasks();
         } catch (error: any) {
             showAlert("Fehler", error.message);
@@ -1102,139 +1135,220 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     );
 
     const renderTasks = () => {
+        const PRIORITY_COLORS: Record<string, string> = {
+            low: "#6B7280", medium: "#3B82F6", high: "#F59E0B", urgent: "#EF4444",
+        };
+        const PRIORITY_LABELS: Record<string, string> = {
+            low: "Niedrig", medium: "Mittel", high: "Hoch", urgent: "Dringend",
+        };
+        const STATUS_OPTIONS = [
+            { key: "open", label: "Offen", color: "#6B7280" },
+            { key: "in_progress", label: "In Arbeit", color: "#3B82F6" },
+            { key: "done", label: "Erledigt", color: "#10B981" },
+        ];
+
         const openTasks = tasks.filter(t => t.status !== "done");
         const doneTasks = tasks.filter(t => t.status === "done");
 
+        const TaskForm = ({ isEdit }: { isEdit: boolean }) => (
+            <View
+                style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: isEdit ? colors.primary : colors.border }}
+            >
+                <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, marginBottom: 12 }}>
+                    {isEdit ? "Aufgabe bearbeiten" : "Neue Aufgabe"}
+                </Text>
+
+                {/* Title */}
+                <TextInput
+                    value={taskFormTitle}
+                    onChangeText={setTaskFormTitle}
+                    placeholder="Titel (Pflichtfeld)..."
+                    placeholderTextColor={colors.muted}
+                    style={{ backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border, borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14, marginBottom: 10 }}
+                    autoFocus={!isEdit}
+                />
+
+                {/* Description */}
+                <TextInput
+                    value={taskFormDescription}
+                    onChangeText={setTaskFormDescription}
+                    placeholder="Beschreibung (optional)..."
+                    placeholderTextColor={colors.muted}
+                    multiline
+                    style={{ backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border, borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 13, minHeight: 60, textAlignVertical: "top", marginBottom: 10 }}
+                />
+
+                {/* Priority selector */}
+                <Text style={{ fontSize: 11, color: colors.muted, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>Priorität</Text>
+                <View style={{ flexDirection: "row", gap: 6, marginBottom: 10 }}>
+                    {Object.entries(PRIORITY_LABELS).map(([key, label]) => (
+                        <TouchableOpacity
+                            key={key}
+                            onPress={() => setTaskFormPriority(key)}
+                            style={{
+                                paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+                                backgroundColor: taskFormPriority === key ? PRIORITY_COLORS[key] + "25" : colors.background,
+                                borderWidth: 1, borderColor: taskFormPriority === key ? PRIORITY_COLORS[key] : colors.border,
+                            }}
+                        >
+                            <Text style={{ fontSize: 11, fontWeight: "600", color: taskFormPriority === key ? PRIORITY_COLORS[key] : colors.muted }}>{label}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                {/* Status selector (edit only) */}
+                {isEdit && (
+                    <>
+                        <Text style={{ fontSize: 11, color: colors.muted, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>Status</Text>
+                        <View style={{ flexDirection: "row", gap: 6, marginBottom: 10 }}>
+                            {STATUS_OPTIONS.map(({ key, label, color }) => (
+                                <TouchableOpacity
+                                    key={key}
+                                    onPress={() => setTaskFormStatus(key)}
+                                    style={{
+                                        paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+                                        backgroundColor: taskFormStatus === key ? color + "25" : colors.background,
+                                        borderWidth: 1, borderColor: taskFormStatus === key ? color : colors.border,
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 11, fontWeight: "600", color: taskFormStatus === key ? color : colors.muted }}>{label}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </>
+                )}
+
+                {/* Due date + Assigned row */}
+                <View style={{ flexDirection: "row", gap: 8, marginBottom: 14 }}>
+                    <TextInput
+                        value={taskFormDueDate}
+                        onChangeText={setTaskFormDueDate}
+                        placeholder="Fällig (DD.MM.YYYY)"
+                        placeholderTextColor={colors.muted}
+                        style={{ flex: 1, backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border, borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 13 }}
+                    />
+                    <TextInput
+                        value={taskFormAssignedTo}
+                        onChangeText={setTaskFormAssignedTo}
+                        placeholder="Zugewiesen an"
+                        placeholderTextColor={colors.muted}
+                        style={{ flex: 1, backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border, borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 13 }}
+                    />
+                </View>
+
+                {/* Buttons */}
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TouchableOpacity
+                        onPress={() => { setShowTaskInput(false); setEditingTaskId(null); setTaskFormTitle(""); setTaskFormDescription(""); setTaskFormPriority("medium"); setTaskFormDueDate(""); setTaskFormAssignedTo(""); setTaskFormStatus("open"); }}
+                        style={{ flex: 1, borderColor: colors.border, borderWidth: 1, paddingVertical: 9, borderRadius: 8, alignItems: "center" }}
+                    >
+                        <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "600" }}>Abbrechen</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={isEdit ? handleSaveTaskEdit : handleAddTask}
+                        disabled={(isEdit ? savingTask : addingTask) || !taskFormTitle.trim()}
+                        style={{ flex: 2, backgroundColor: colors.primary, opacity: ((isEdit ? savingTask : addingTask) || !taskFormTitle.trim()) ? 0.5 : 1, paddingVertical: 9, borderRadius: 8, alignItems: "center" }}
+                    >
+                        {(isEdit ? savingTask : addingTask) ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>{isEdit ? "Speichern" : "Erstellen"}</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+
         return (
             <>
-                {/* Add Task */}
-                <View className="flex-row justify-between items-center mb-3">
-                    <Text className="text-base font-bold text-foreground">
-                        Aufgaben ({openTasks.length} offen)
+                {/* Header */}
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <Text style={{ fontSize: 15, fontWeight: "700", color: colors.foreground }}>
+                        Aufgaben <Text style={{ color: colors.muted, fontWeight: "500", fontSize: 13 }}>({openTasks.length} offen)</Text>
                     </Text>
                     <TouchableOpacity
-                        onPress={() => setShowTaskInput(!showTaskInput)}
-                        style={{ backgroundColor: colors.primary + "20" }}
-                        className="w-8 h-8 rounded-full items-center justify-center"
+                        onPress={() => { setShowTaskInput(!showTaskInput); setEditingTaskId(null); setTaskFormTitle(""); setTaskFormDescription(""); setTaskFormPriority("medium"); setTaskFormDueDate(""); setTaskFormAssignedTo(""); setTaskFormStatus("open"); }}
+                        style={{ backgroundColor: colors.primary + "20", width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" }}
                     >
-                        <IconSymbol
-                            name={showTaskInput ? "xmark" : "plus"}
-                            size={16}
-                            color={colors.primary}
-                        />
+                        <IconSymbol name={showTaskInput ? "xmark" : "plus"} size={16} color={colors.primary} />
                     </TouchableOpacity>
                 </View>
 
-                {showTaskInput && (
-                    <View className="flex-row gap-2 mb-4">
-                        <TextInput
-                            value={newTaskTitle}
-                            onChangeText={setNewTaskTitle}
-                            placeholder="Neue Aufgabe..."
-                            placeholderTextColor={colors.muted}
-                            style={{
-                                backgroundColor: colors.surface,
-                                color: colors.foreground,
-                                borderColor: colors.border,
-                                flex: 1,
-                            }}
-                            className="p-3 rounded-lg border text-base"
-                            onSubmitEditing={handleAddTask}
-                        />
-                        <TouchableOpacity
-                            onPress={handleAddTask}
-                            disabled={addingTask || !newTaskTitle.trim()}
-                            style={{
-                                backgroundColor: colors.primary,
-                                opacity: addingTask || !newTaskTitle.trim() ? 0.5 : 1,
-                            }}
-                            className="w-12 rounded-lg items-center justify-center"
-                        >
-                            {addingTask ? (
-                                <ActivityIndicator color="#fff" size="small" />
-                            ) : (
-                                <IconSymbol name="checkmark" size={18} color="#fff" />
-                            )}
-                        </TouchableOpacity>
-                    </View>
-                )}
+                {/* New Task Form */}
+                {showTaskInput && !editingTaskId && <TaskForm isEdit={false} />}
 
                 {loadingTasks ? (
                     <ActivityIndicator color={colors.primary} />
-                ) : tasks.length === 0 ? (
-                    <View className="items-center py-12">
-                        <Text className="text-muted text-sm">Noch keine Aufgaben. Tippe + um eine hinzuzufügen.</Text>
+                ) : tasks.length === 0 && !showTaskInput ? (
+                    <View style={{ alignItems: "center", paddingVertical: 40 }}>
+                        <IconSymbol name="checklist" size={32} color={colors.muted} />
+                        <Text style={{ color: colors.muted, fontSize: 14, marginTop: 10 }}>Noch keine Aufgaben</Text>
+                        <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>Tippe + um eine hinzuzufügen</Text>
                     </View>
                 ) : (
                     <>
                         {/* Open Tasks */}
                         {openTasks.map((task) => {
                             const config = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.open;
+                            const priColor = PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.medium;
+                            const priLabel = PRIORITY_LABELS[task.priority] || PRIORITY_LABELS.medium;
                             const isEditing = editingTaskId === task.id;
 
                             if (isEditing) {
                                 return (
-                                    <View key={task.id} className="bg-surface rounded-lg p-3 mb-2 border" style={{ borderColor: colors.primary }}>
-                                        <TextInput
-                                            value={editTaskTitle}
-                                            onChangeText={setEditTaskTitle}
-                                            placeholder="Aufgabentitel..."
-                                            placeholderTextColor={colors.muted}
-                                            autoFocus
-                                            style={{ color: colors.foreground, fontSize: 14, marginBottom: 10 }}
-                                            onSubmitEditing={handleSaveTaskEdit}
-                                        />
-                                        <View style={{ flexDirection: "row", gap: 8 }}>
-                                            <TouchableOpacity
-                                                onPress={() => setEditingTaskId(null)}
-                                                style={{ flex: 1, borderColor: colors.border, borderWidth: 1, paddingVertical: 6, borderRadius: 8, alignItems: "center" }}
-                                            >
-                                                <Text style={{ color: colors.muted, fontSize: 13 }}>Abbrechen</Text>
-                                            </TouchableOpacity>
-                                            <TouchableOpacity
-                                                onPress={handleSaveTaskEdit}
-                                                disabled={savingTask || !editTaskTitle.trim()}
-                                                style={{ flex: 1, backgroundColor: colors.primary, opacity: savingTask || !editTaskTitle.trim() ? 0.5 : 1, paddingVertical: 6, borderRadius: 8, alignItems: "center" }}
-                                            >
-                                                {savingTask ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>Speichern</Text>}
-                                            </TouchableOpacity>
-                                        </View>
+                                    <View key={task.id}>
+                                        <TaskForm isEdit={true} />
                                     </View>
                                 );
                             }
 
                             return (
-                                <View key={task.id} className="bg-surface rounded-lg p-3 mb-2 border border-border flex-row items-center">
-                                    <TouchableOpacity onPress={() => handleToggleTask(task)} style={{ marginRight: 12 }}>
-                                        <View
-                                            style={{
-                                                width: 24,
-                                                height: 24,
-                                                borderRadius: 12,
-                                                backgroundColor: config.color + "20",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                            }}
-                                        >
-                                            <Text style={{ fontSize: 12, color: config.color }}>{config.icon}</Text>
-                                        </View>
-                                    </TouchableOpacity>
-                                    <View style={{ flex: 1 }}>
-                                        <Text className="text-sm font-semibold text-foreground">{task.title}</Text>
-                                        <View className="flex-row items-center gap-2 mt-1">
-                                            <Text className="text-xs" style={{ color: config.color }}>{config.label}</Text>
-                                            {task.due_date && (
-                                                <Text className="text-xs text-muted">Fällig: {formatDate(task.due_date)}</Text>
-                                            )}
-                                        </View>
-                                    </View>
-                                    <View style={{ flexDirection: "row", gap: 14, paddingLeft: 8 }}>
-                                        <TouchableOpacity onPress={() => handleStartEditTask(task)}>
-                                            <IconSymbol name="pencil" size={14} color={colors.muted} />
+                                <View key={task.id} style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: colors.border, borderLeftWidth: 3, borderLeftColor: priColor }}>
+                                    <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                                        {/* Status toggle */}
+                                        <TouchableOpacity onPress={() => handleToggleTask(task)} style={{ marginRight: 10, marginTop: 2 }}>
+                                            <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: config.color + "20", alignItems: "center", justifyContent: "center" }}>
+                                                <Text style={{ fontSize: 11, color: config.color }}>{config.icon}</Text>
+                                            </View>
                                         </TouchableOpacity>
-                                        <TouchableOpacity onPress={() => handleDeleteTask(task)}>
-                                            <IconSymbol name="trash" size={14} color={colors.muted} />
-                                        </TouchableOpacity>
+                                        {/* Content */}
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }}>{task.title}</Text>
+                                            {task.description ? (
+                                                <Text style={{ fontSize: 12, color: colors.muted, marginTop: 3, lineHeight: 16 }} numberOfLines={2}>{task.description}</Text>
+                                            ) : null}
+                                            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 7 }}>
+                                                {/* Priority badge */}
+                                                <View style={{ backgroundColor: priColor + "20", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10 }}>
+                                                    <Text style={{ fontSize: 10, color: priColor, fontWeight: "700" }}>{priLabel}</Text>
+                                                </View>
+                                                {/* Status badge */}
+                                                <View style={{ backgroundColor: config.color + "15", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10 }}>
+                                                    <Text style={{ fontSize: 10, color: config.color, fontWeight: "600" }}>{config.label}</Text>
+                                                </View>
+                                                {task.due_date && (
+                                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                                                        <IconSymbol name="calendar" size={10} color={colors.muted} />
+                                                        <Text style={{ fontSize: 10, color: colors.muted }}>{formatDate(task.due_date)}</Text>
+                                                    </View>
+                                                )}
+                                                {task.assigned_to && (
+                                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                                                        <IconSymbol name="person" size={10} color={colors.muted} />
+                                                        <Text style={{ fontSize: 10, color: colors.muted }}>{task.assigned_to}</Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        </View>
+                                        {/* Actions */}
+                                        <View style={{ flexDirection: "row", gap: 14, paddingLeft: 8 }}>
+                                            <TouchableOpacity onPress={() => handleStartEditTask(task)}>
+                                                <IconSymbol name="pencil" size={14} color={colors.muted} />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => handleDeleteTask(task)}>
+                                                <IconSymbol name="trash" size={14} color={colors.muted} />
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
                                 </View>
                             );
@@ -1242,29 +1356,20 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
 
                         {/* Done Tasks */}
                         {doneTasks.length > 0 && (
-                            <View className="mt-4">
-                                <Text className="text-xs font-semibold text-muted uppercase mb-2">
+                            <View style={{ marginTop: 16 }}>
+                                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
                                     Erledigt ({doneTasks.length})
                                 </Text>
                                 {doneTasks.map((task) => (
-                                    <View key={task.id} className="bg-surface rounded-lg p-3 mb-2 border border-border flex-row items-center" style={{ opacity: 0.65 }}>
-                                        <TouchableOpacity onPress={() => handleToggleTask(task)} style={{ marginRight: 12 }}>
-                                            <View
-                                                style={{
-                                                    width: 24,
-                                                    height: 24,
-                                                    borderRadius: 12,
-                                                    backgroundColor: "#10B98120",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                }}
-                                            >
-                                                <Text style={{ fontSize: 12, color: "#10B981" }}>●</Text>
+                                    <View key={task.id} style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 12, marginBottom: 6, borderWidth: 1, borderColor: colors.border, opacity: 0.6, flexDirection: "row", alignItems: "center" }}>
+                                        <TouchableOpacity onPress={() => handleToggleTask(task)} style={{ marginRight: 10 }}>
+                                            <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: "#10B98120", alignItems: "center", justifyContent: "center" }}>
+                                                <Text style={{ fontSize: 11, color: "#10B981" }}>✓</Text>
                                             </View>
                                         </TouchableOpacity>
-                                        <Text className="text-sm text-muted flex-1" style={{ textDecorationLine: "line-through" }}>{task.title}</Text>
+                                        <Text style={{ flex: 1, fontSize: 13, color: colors.muted, textDecorationLine: "line-through" }}>{task.title}</Text>
                                         <TouchableOpacity onPress={() => handleDeleteTask(task)} style={{ paddingLeft: 8 }}>
-                                            <IconSymbol name="trash" size={14} color={colors.muted} />
+                                            <IconSymbol name="trash" size={13} color={colors.muted} />
                                         </TouchableOpacity>
                                     </View>
                                 ))}
