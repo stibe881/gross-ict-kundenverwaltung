@@ -544,6 +544,34 @@ export async function createTicket(ticket: any) {
         .single();
 
     if (error) throw new Error(error.message);
+
+    // Push Notifizierung: Neues Ticket
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const currentUserId = session?.user?.id;
+        
+        let authorName = 'Ein Benutzer';
+        if (currentUserId) {
+            if (session?.user?.user_metadata?.customer_id) {
+                const { data: cUser } = await supabase.from('customer_portal_users').select('name').eq('id', currentUserId).single();
+                if (cUser?.name) authorName = cUser.name;
+            } else {
+                const { data: aUser } = await supabase.from('users').select('name').eq('id', currentUserId).single();
+                if (aUser?.name) authorName = aUser.name;
+            }
+        }
+        await triggerPushNotification(
+            "all_admins",
+            "admin",
+            "Neues Ticket erstellt",
+            `${authorName} hat ein neues Ticket "${data.title}" erstellt.`,
+            { url: `/tickets?ticketId=${data.id}` },
+            "portal"
+        );
+    } catch (e) {
+        console.warn("Fehler beim Ticket Create Push:", e);
+    }
+
     return data;
 }
 
@@ -556,6 +584,23 @@ export async function updateTicket(id: string, updates: any) {
         .single();
 
     if (error) throw new Error(error.message);
+
+    // Push Notifizierung bei Zuweisung
+    if (updates.assigned_to) {
+        try {
+            await triggerPushNotification(
+                [updates.assigned_to],
+                "admin",
+                "Ticket zugewiesen",
+                `Ihnen wurde das Ticket "${data.title}" zugewiesen.`,
+                { url: `/tickets?ticketId=${data.id}` },
+                "portal"
+            );
+        } catch (e) {
+            console.warn("Fehler beim Ticket Update Push:", e);
+        }
+    }
+
     return data;
 }
 
