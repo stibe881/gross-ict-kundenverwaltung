@@ -45,7 +45,8 @@ export default function TabLayout() {
   const showCustomers = isAdmin || roles.includes("administration");
   const showAccounting = isAdmin || roles.includes("finanzen");
   const showTickets = isAdmin || roles.includes("technik");
-  const showProductsScanner = isAdmin;
+  const showProductsScanner = isAdmin || roles.includes("finanzen");
+  const showProjects = isAdmin || roles.includes("administration") || roles.includes("technik") || roles.includes("finanzen");
 
   const checkLoginStatus = async () => {
     try {
@@ -137,11 +138,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="accounting"
+        name="products"
         options={{
-          href: showAccounting ? undefined : null,
-          title: "Buchhaltung",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
+          href: showProjects ? "/projects" : null,
+          title: "Projekte",
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="folder.fill" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -153,11 +154,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="products"
+        name="accounting"
         options={{
-          href: showProductsScanner ? undefined : null,
-          title: "Produkte",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="cube.box.fill" color={color} />,
+          href: showAccounting ? undefined : null,
+          title: "Buchhaltung",
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
         }}
       />
       <Tabs.Screen

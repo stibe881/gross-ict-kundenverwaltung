@@ -8,6 +8,7 @@ import {
     ScrollView,
     ActivityIndicator,
     Switch,
+    Linking,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -500,19 +501,22 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
             projectData.status === "in_progress" ? "#3B82F6" :
                 projectData.status === "cancelled" ? "#EF4444" : "#6B7280";
 
-        const InfoRow = ({ label, value, icon }: { label: string; value?: string | null; icon: string }) => {
+        const InfoRow = ({ label, value, icon, onPress }: { label: string; value?: string | null; icon: string; onPress?: () => void }) => {
             if (!value) return null;
-            return (
+            const content = (
                 <View className="flex-row items-start py-2.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.border + "40" }}>
                     <View style={{ width: 32, alignItems: "center", paddingTop: 2 }}>
-                        <IconSymbol name={icon as any} size={14} color={colors.muted} />
+                        <IconSymbol name={icon as any} size={14} color={onPress ? colors.primary : colors.muted} />
                     </View>
                     <View className="flex-1">
                         <Text className="text-xs text-muted mb-0.5">{label}</Text>
-                        <Text className="text-sm font-medium text-foreground">{value}</Text>
+                        <Text className="text-sm font-medium" style={{ color: onPress ? colors.primary : colors.foreground }}>{value}</Text>
                     </View>
+                    {onPress && <IconSymbol name="arrow.up.right" size={12} color={colors.primary} style={{ marginTop: 4 }} />}
                 </View>
             );
+            if (onPress) return <TouchableOpacity onPress={onPress} activeOpacity={0.7}>{content}</TouchableOpacity>;
+            return content;
         };
 
         return (
@@ -633,6 +637,15 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                         value={project.start_date ? `${formatDate(project.start_date)}${project.end_date ? ` – ${formatDate(project.end_date)}` : ""}` : undefined}
                         icon="calendar"
                     />
+                    {linkedQuotes.length > 0 && linkedQuotes.map((q: any) => (
+                        <InfoRow
+                            key={q.id}
+                            label="Kundenlink"
+                            value={`Angebot ${q.quote_number || q.id?.substring(0, 6).toUpperCase()}`}
+                            icon="link"
+                            onPress={() => Linking.openURL(`https://angebote.gross-ict.ch/?id=${q.id}`)}
+                        />
+                    ))}
                 </View>
 
                 {/* Notizen */}
@@ -937,7 +950,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                     ) : (
                                         <TouchableOpacity
                                             className="flex-1 pb-4 ml-2"
-                                            onPress={() => handleToggleMilestone(milestone)}
+                                            onPress={() => handleStartEditMilestone(milestone)}
                                             activeOpacity={0.7}
                                         >
                                             <View className="bg-surface rounded-lg p-3 border border-border">
@@ -959,8 +972,8 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                                         )}
                                                     </View>
                                                     <View style={{ flexDirection: "row", gap: 12, paddingLeft: 8 }}>
-                                                        <TouchableOpacity onPress={() => handleStartEditMilestone(milestone)}>
-                                                            <IconSymbol name="pencil" size={14} color={colors.muted} />
+                                                        <TouchableOpacity onPress={() => handleToggleMilestone(milestone)}>
+                                                            <IconSymbol name="arrow.clockwise" size={14} color={colors.muted} />
                                                         </TouchableOpacity>
                                                         <TouchableOpacity onPress={() => handleDeleteMilestone(milestone)}>
                                                             <IconSymbol name="trash" size={14} color={colors.muted} />
@@ -1304,9 +1317,10 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
 
                             return (
                                 <View key={task.id} style={{ backgroundColor: colors.surface, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: colors.border, borderLeftWidth: 3, borderLeftColor: priColor }}>
+                                    <TouchableOpacity onPress={() => handleStartEditTask(task)} activeOpacity={0.7}>
                                     <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
                                         {/* Status toggle */}
-                                        <TouchableOpacity onPress={() => handleToggleTask(task)} style={{ marginRight: 10, marginTop: 2 }}>
+                                        <TouchableOpacity onPress={() => { handleToggleTask(task); }} style={{ marginRight: 10, marginTop: 2 }}>
                                             <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: config.color + "20", alignItems: "center", justifyContent: "center" }}>
                                                 <Text style={{ fontSize: 11, color: config.color }}>{config.icon}</Text>
                                             </View>
@@ -1340,16 +1354,12 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                                 )}
                                             </View>
                                         </View>
-                                        {/* Actions */}
-                                        <View style={{ flexDirection: "row", gap: 14, paddingLeft: 8 }}>
-                                            <TouchableOpacity onPress={() => handleStartEditTask(task)}>
-                                                <IconSymbol name="pencil" size={14} color={colors.muted} />
-                                            </TouchableOpacity>
-                                            <TouchableOpacity onPress={() => handleDeleteTask(task)}>
-                                                <IconSymbol name="trash" size={14} color={colors.muted} />
-                                            </TouchableOpacity>
-                                        </View>
+                                        {/* Delete only */}
+                                        <TouchableOpacity onPress={() => handleDeleteTask(task)} style={{ paddingLeft: 8 }}>
+                                            <IconSymbol name="trash" size={14} color={colors.muted} />
+                                        </TouchableOpacity>
                                     </View>
+                                    </TouchableOpacity>
                                 </View>
                             );
                         })}
