@@ -1323,6 +1323,57 @@ export async function deleteMilestone(id: string) {
     if (error) throw new Error(error.message);
 }
 
+// ==================== MEILENSTEIN-NOTIZEN ====================
+
+export async function getMilestoneNotes(milestoneId: string) {
+    const { data, error } = await supabase
+        .from("milestone_notes")
+        .select("*")
+        .eq("milestone_id", milestoneId)
+        .order("created_at", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function addMilestoneNote(milestoneId: string, text: string, isPublic: boolean) {
+    let createdBy = "System";
+    try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const user = sessionData?.session?.user;
+        if (user) {
+            const { data: profile } = await supabase.from("users").select("name").eq("id", user.id).single();
+            createdBy = profile?.name || user.user_metadata?.full_name || user.email?.split("@")[0] || "System";
+        }
+    } catch { /* non-critical */ }
+
+    const { data, error } = await supabase
+        .from("milestone_notes")
+        .insert({ milestone_id: milestoneId, text, is_public: isPublic, created_by: createdBy })
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateMilestoneNote(id: string, updates: { text?: string; is_public?: boolean }) {
+    const { data, error } = await supabase
+        .from("milestone_notes")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteMilestoneNote(id: string) {
+    const { error } = await supabase.from("milestone_notes").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
 // ==================== PROJEKT-AKTIVITÄTEN (TIMELINE) ====================
 
 export async function getProjectActivities(projectId: string) {

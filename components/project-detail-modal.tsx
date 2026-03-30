@@ -90,9 +90,15 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
     const [editMilestoneTitle, setEditMilestoneTitle] = useState("");
     const [editMilestoneDueDate, setEditMilestoneDueDate] = useState("");
-    const [editMilestoneNotes, setEditMilestoneNotes] = useState("");
-    const [editMilestoneIsPublic, setEditMilestoneIsPublic] = useState(false);
     const [savingMilestone, setSavingMilestone] = useState(false);
+
+    // Milestone Notes State
+    const [milestoneNotes, setMilestoneNotes] = useState<Record<string, any[]>>({});
+    const [loadingNotes, setLoadingNotes] = useState<Record<string, boolean>>({});
+    const [newNoteText, setNewNoteText] = useState("");
+    const [newNoteIsPublic, setNewNoteIsPublic] = useState(false);
+    const [addingMilestoneNote, setAddingMilestoneNote] = useState(false);
+    const [expandedMilestoneId, setExpandedMilestoneId] = useState<string | null>(null);
 
     // Timeline
     const [activities, setActivities] = useState<any[]>([]);
@@ -253,19 +259,17 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     const handleStartEditMilestone = (milestone: any) => {
         setEditingMilestoneId(milestone.id);
         setEditMilestoneTitle(milestone.title);
-        // If due_date is stored as YYYY-MM-DD or ISO, formatting it to DD.MM.YYYY might be needed if user expects it from placeholder. 
-        // We'll just display it as is or use formatDate. If they type DD.MM.YYYY we assume the backend handles or they enter YYYY-MM-DD.
-        // Actually formatDate(milestone.due_date) formats it to DD.MM.YYYY based on existing code.
-        setEditMilestoneDueDate(milestone.due_date ? new Date(milestone.due_date).toLocaleDateString('de-CH') : ""); 
-        setEditMilestoneNotes(milestone.notes || "");
-        setEditMilestoneIsPublic(milestone.is_note_public || false);
+        setEditMilestoneDueDate(milestone.due_date ? new Date(milestone.due_date).toLocaleDateString('de-CH') : "");
+        // Also load notes for this milestone if not yet loaded
+        if (!milestoneNotes[milestone.id]) {
+            loadMilestoneNotes(milestone.id);
+        }
     };
 
     const handleSaveMilestoneEdit = async () => {
         if (!editMilestoneTitle.trim() || !editingMilestoneId) return;
         setSavingMilestone(true);
         try {
-            // Convert DD.MM.YYYY back to YYYY-MM-DD if possible, else rely on user input
             let formattedDate = editMilestoneDueDate;
             if (formattedDate && formattedDate.includes('.')) {
                 const parts = formattedDate.split('.');
@@ -273,20 +277,78 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                     formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
                 }
             }
-
             await Data.updateMilestone(editingMilestoneId, {
                 title: editMilestoneTitle.trim(),
                 due_date: formattedDate || null,
-                notes: editMilestoneNotes || null,
-                is_note_public: editMilestoneIsPublic
             });
             setEditingMilestoneId(null);
+            setNewNoteText("");
+            setNewNoteIsPublic(false);
             await loadMilestones();
             onUpdate();
         } catch (error: any) {
             showAlert("Fehler", error.message);
         } finally {
             setSavingMilestone(false);
+        }
+    };
+
+    const loadMilestoneNotes = async (milestoneId: string) => {
+        setLoadingNotes(prev => ({ ...prev, [milestoneId]: true }));
+        try {
+            const notes = await Data.getMilestoneNotes(milestoneId);
+            setMilestoneNotes(prev => ({ ...prev, [milestoneId]: notes }));
+        } catch (e) {
+            console.error("Failed to load milestone notes:", e);
+        } finally {
+            setLoadingNotes(prev => ({ ...prev, [milestoneId]: false }));
+        }
+    };
+
+    const handleAddMilestoneNote = async (milestoneId: string) => {
+        if (!newNoteText.trim()) return;
+        setAddingMilestoneNote(true);
+        try {
+            await Data.addMilestoneNote(milestoneId, newNoteText.trim(), newNoteIsPublic);
+            setNewNoteText("");
+            setNewNoteIsPublic(false);
+            await loadMilestoneNotes(milestoneId);
+        } catch (error: any) {
+            showAlert("Fehler", error.message);
+        } finally {
+            setAddingMilestoneNote(false);
+        }
+    };
+
+    const handleToggleNoteVisibility = async (milestoneId: string, note: any) => {
+        try {
+            await Data.updateMilestoneNote(note.id, { is_public: !note.is_public });
+            await loadMilestoneNotes(milestoneId);
+        } catch (error: any) {
+            showAlert("Fehler", error.message);
+        }
+    };
+
+    const handleDeleteMilestoneNote = (milestoneId: string, note: any) => {
+        showConfirm(
+            "Notiz löschen",
+            "Diese Notiz wirklich löschen?",
+            async () => {
+                await Data.deleteMilestoneNote(note.id);
+                await loadMilestoneNotes(milestoneId);
+            },
+            "Löschen"
+        );
+    };
+
+    const handleExpandMilestone = (milestoneId: string) => {
+        if (expandedMilestoneId === milestoneId) {
+            setExpandedMilestoneId(null);
+        } else {
+            setExpandedMilestoneId(milestoneId);
+            if (!milestoneNotes[milestoneId]) {
+                loadMilestoneNotes(milestoneId);
+            }
         }
     };
 
@@ -721,31 +783,8 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                                     className="p-3 rounded-lg border text-sm mb-3"
                                                 />
 
-                                                <TextInput
-                                                    value={editMilestoneNotes}
-                                                    onChangeText={setEditMilestoneNotes}
-                                                    placeholder="Interne oder öffentliche Notizen..."
-                                                    placeholderTextColor={colors.muted}
-                                                    multiline
-                                                    style={{
-                                                        backgroundColor: colors.background,
-                                                        color: colors.foreground,
-                                                        borderColor: colors.border,
-                                                        minHeight: 60,
-                                                        textAlignVertical: "top",
-                                                    }}
-                                                    className="p-3 rounded-lg border text-sm mb-3"
-                                                />
+                                                {/* Notes managed separately below */}
 
-                                                <View className="flex-row justify-between items-center mb-4">
-                                                    <Text className="text-sm text-foreground">Für Kunden sichtbar?</Text>
-                                                    <Switch
-                                                        value={editMilestoneIsPublic}
-                                                        onValueChange={setEditMilestoneIsPublic}
-                                                        trackColor={{ false: colors.border, true: colors.primary + "80" }}
-                                                        thumbColor={editMilestoneIsPublic ? colors.primary : "#f4f3f4"}
-                                                    />
-                                                </View>
 
                                                 <View style={{ flexDirection: "row", gap: 8 }}>
                                                     <TouchableOpacity
@@ -772,6 +811,70 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                                         )}
                                                     </TouchableOpacity>
                                                 </View>
+
+                                                {/* Notes section inside edit form */}
+                                                <View style={{ marginTop: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
+                                                    <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Notizen</Text>
+                                                    {loadingNotes[milestone.id] ? (
+                                                        <ActivityIndicator color={colors.primary} size="small" />
+                                                    ) : (
+                                                        (milestoneNotes[milestone.id] || []).map((note: any) => (
+                                                            <View key={note.id} style={{ backgroundColor: colors.background, borderRadius: 8, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: colors.border }}>
+                                                                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                                                    <Text style={{ fontSize: 13, color: colors.foreground, flex: 1, lineHeight: 18 }}>{note.text}</Text>
+                                                                    <TouchableOpacity onPress={() => handleDeleteMilestoneNote(milestone.id, note)} style={{ paddingLeft: 8 }}>
+                                                                        <IconSymbol name="trash" size={13} color={colors.muted} />
+                                                                    </TouchableOpacity>
+                                                                </View>
+                                                                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                                                                    <Text style={{ fontSize: 10, color: colors.muted }}>{note.created_by}</Text>
+                                                                    <TouchableOpacity
+                                                                        onPress={() => handleToggleNoteVisibility(milestone.id, note)}
+                                                                        style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: note.is_public ? colors.primary + "20" : colors.border + "60" }}
+                                                                    >
+                                                                        <Text style={{ fontSize: 10, color: note.is_public ? colors.primary : colors.muted, fontWeight: "600" }}>
+                                                                            {note.is_public ? "👁️ Öffentlich" : "🔒 Intern"}
+                                                                        </Text>
+                                                                    </TouchableOpacity>
+                                                                </View>
+                                                            </View>
+                                                        ))
+                                                    )}
+
+                                                    {/* Add note input */}
+                                                    <TextInput
+                                                        value={newNoteText}
+                                                        onChangeText={setNewNoteText}
+                                                        placeholder="Neue Notiz..."
+                                                        placeholderTextColor={colors.muted}
+                                                        multiline
+                                                        style={{ backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border, minHeight: 50, textAlignVertical: "top" }}
+                                                        className="p-3 rounded-lg border text-sm mt-1 mb-2"
+                                                    />
+                                                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                                                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                                            <Switch
+                                                                value={newNoteIsPublic}
+                                                                onValueChange={setNewNoteIsPublic}
+                                                                trackColor={{ false: colors.border, true: colors.primary + "80" }}
+                                                                thumbColor={newNoteIsPublic ? colors.primary : "#f4f3f4"}
+                                                            />
+                                                            <Text style={{ fontSize: 12, color: colors.muted }}>{newNoteIsPublic ? "Für Kunden sichtbar" : "Nur intern"}</Text>
+                                                        </View>
+                                                        <TouchableOpacity
+                                                            onPress={() => handleAddMilestoneNote(milestone.id)}
+                                                            disabled={addingMilestoneNote || !newNoteText.trim()}
+                                                            style={{ backgroundColor: colors.primary, opacity: addingMilestoneNote || !newNoteText.trim() ? 0.5 : 1, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 }}
+                                                        >
+                                                            {addingMilestoneNote ? (
+                                                                <ActivityIndicator size="small" color="#fff" />
+                                                            ) : (
+                                                                <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>+ Hinzufügen</Text>
+                                                            )}
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                </View>
+
                                             </View>
                                         </View>
                                     ) : (
@@ -833,6 +936,39 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                                         </Text>
                                                     )}
                                                 </View>
+
+                                                {/* Notes preview — tap to expand */}
+                                                <TouchableOpacity
+                                                    onPress={() => handleExpandMilestone(milestone.id)}
+                                                    style={{ marginTop: 10, flexDirection: "row", alignItems: "center", gap: 6 }}
+                                                >
+                                                    <IconSymbol name="note.text" size={12} color={colors.muted} />
+                                                    <Text style={{ fontSize: 11, color: colors.muted }}>
+                                                        {expandedMilestoneId === milestone.id ? "Notizen verbergen" : `Notizen ${milestoneNotes[milestone.id]?.length ? `(${milestoneNotes[milestone.id].length})` : "anzeigen"}`}
+                                                    </Text>
+                                                </TouchableOpacity>
+
+                                                {expandedMilestoneId === milestone.id && (
+                                                    <View style={{ marginTop: 8 }}>
+                                                        {loadingNotes[milestone.id] ? (
+                                                            <ActivityIndicator size="small" color={colors.primary} />
+                                                        ) : (milestoneNotes[milestone.id] || []).length === 0 ? (
+                                                            <Text style={{ fontSize: 12, color: colors.muted, fontStyle: "italic" }}>Noch keine Notizen. Bearbeite den Meilenstein zum Hinzufügen.</Text>
+                                                        ) : (
+                                                            (milestoneNotes[milestone.id] || []).map((note: any) => (
+                                                                <View key={note.id} style={{ backgroundColor: colors.background, borderRadius: 8, padding: 10, marginBottom: 6, borderWidth: 1, borderColor: colors.border }}>
+                                                                    <Text style={{ fontSize: 13, color: colors.foreground, lineHeight: 18 }}>{note.text}</Text>
+                                                                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
+                                                                        <Text style={{ fontSize: 10, color: colors.muted }}>{note.created_by}</Text>
+                                                                        <Text style={{ fontSize: 10, color: note.is_public ? colors.primary : colors.muted, fontWeight: "600" }}>
+                                                                            {note.is_public ? "👁️ Öffentlich" : "🔒 Intern"}
+                                                                        </Text>
+                                                                    </View>
+                                                                </View>
+                                                            ))
+                                                        )}
+                                                    </View>
+                                                )}
                                             </View>
                                         </TouchableOpacity>
                                     )}

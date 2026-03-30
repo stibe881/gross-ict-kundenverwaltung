@@ -925,6 +925,41 @@ export type Database = {
           },
         ]
       }
+      milestone_notes: {
+        Row: {
+          id: string
+          milestone_id: string
+          text: string
+          is_public: boolean
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          milestone_id: string
+          text: string
+          is_public?: boolean
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          milestone_id?: string
+          text?: string
+          is_public?: boolean
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestone_notes_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "project_milestones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_tasks: {
         Row: {
           assigned_to: string | null
