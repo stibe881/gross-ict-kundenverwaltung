@@ -1288,6 +1288,7 @@ export async function getProjectMilestones(projectId: string) {
         .from("project_milestones")
         .select("*")
         .eq("project_id", projectId)
+        .order("due_date", { ascending: true, nullsFirst: false })
         .order("sort_order", { ascending: true });
 
     if (error) throw new Error(error.message);
