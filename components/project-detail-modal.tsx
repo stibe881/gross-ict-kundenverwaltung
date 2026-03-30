@@ -7,6 +7,7 @@ import {
     Modal,
     ScrollView,
     ActivityIndicator,
+    Switch,
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -84,6 +85,14 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     const [newMilestoneTitle, setNewMilestoneTitle] = useState("");
     const [newMilestoneDueDate, setNewMilestoneDueDate] = useState("");
     const [addingMilestone, setAddingMilestone] = useState(false);
+
+    // Edit Milestone State
+    const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
+    const [editMilestoneTitle, setEditMilestoneTitle] = useState("");
+    const [editMilestoneDueDate, setEditMilestoneDueDate] = useState("");
+    const [editMilestoneNotes, setEditMilestoneNotes] = useState("");
+    const [editMilestoneIsPublic, setEditMilestoneIsPublic] = useState(false);
+    const [savingMilestone, setSavingMilestone] = useState(false);
 
     // Timeline
     const [activities, setActivities] = useState<any[]>([]);
@@ -229,6 +238,46 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
             },
             "Löschen"
         );
+    };
+
+    const handleStartEditMilestone = (milestone: any) => {
+        setEditingMilestoneId(milestone.id);
+        setEditMilestoneTitle(milestone.title);
+        // If due_date is stored as YYYY-MM-DD or ISO, formatting it to DD.MM.YYYY might be needed if user expects it from placeholder. 
+        // We'll just display it as is or use formatDate. If they type DD.MM.YYYY we assume the backend handles or they enter YYYY-MM-DD.
+        // Actually formatDate(milestone.due_date) formats it to DD.MM.YYYY based on existing code.
+        setEditMilestoneDueDate(milestone.due_date ? new Date(milestone.due_date).toLocaleDateString('de-CH') : ""); 
+        setEditMilestoneNotes(milestone.notes || "");
+        setEditMilestoneIsPublic(milestone.is_note_public || false);
+    };
+
+    const handleSaveMilestoneEdit = async () => {
+        if (!editMilestoneTitle.trim() || !editingMilestoneId) return;
+        setSavingMilestone(true);
+        try {
+            // Convert DD.MM.YYYY back to YYYY-MM-DD if possible, else rely on user input
+            let formattedDate = editMilestoneDueDate;
+            if (formattedDate && formattedDate.includes('.')) {
+                const parts = formattedDate.split('.');
+                if (parts.length === 3) {
+                    formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
+            }
+
+            await Data.updateMilestone(editingMilestoneId, {
+                title: editMilestoneTitle.trim(),
+                due_date: formattedDate || null,
+                notes: editMilestoneNotes || null,
+                is_note_public: editMilestoneIsPublic
+            });
+            setEditingMilestoneId(null);
+            await loadMilestones();
+            onUpdate();
+        } catch (error: any) {
+            showAlert("Fehler", error.message);
+        } finally {
+            setSavingMilestone(false);
+        }
     };
 
     // ---- Activity Actions ----
@@ -607,6 +656,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                             const isLast = index === milestones.length - 1;
                             const statusColor = MILESTONE_COLORS[milestone.status] || "#6B7280";
                             const icon = MILESTONE_ICONS[milestone.status] || "clock";
+                            const isEditing = editingMilestoneId === milestone.id;
 
                             return (
                                 <View key={milestone.id} className="flex-row">
@@ -634,40 +684,148 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                             />
                                         )}
                                     </View>
-                                    <TouchableOpacity
-                                        className="flex-1 pb-4 ml-2"
-                                        onPress={() => handleToggleMilestone(milestone)}
-                                        onLongPress={() => handleDeleteMilestone(milestone)}
-                                        activeOpacity={0.7}
-                                    >
-                                        <View className="bg-surface rounded-lg p-3 border border-border">
-                                            <Text
-                                                className="text-sm font-semibold"
-                                                style={{
-                                                    color: colors.foreground,
-                                                    textDecorationLine: milestone.status === "completed" ? "line-through" : "none",
-                                                }}
+
+                                    {isEditing ? (
+                                        <View className="flex-1 pb-4 ml-2">
+                                            <View
+                                                className="bg-surface rounded-lg p-4 border"
+                                                style={{ borderColor: colors.primary }}
                                             >
-                                                {milestone.title}
-                                            </Text>
-                                            {milestone.description && (
-                                                <Text className="text-xs text-muted mt-1">
-                                                    {milestone.description}
-                                                </Text>
-                                            )}
-                                            <View className="flex-row justify-between mt-2">
-                                                <Text className="text-xs" style={{ color: statusColor }}>
-                                                    {milestone.status === "completed" ? "Abgeschlossen" :
-                                                        milestone.status === "in_progress" ? "In Arbeit" : "Ausstehend"}
-                                                </Text>
-                                                {milestone.due_date && (
-                                                    <Text className="text-xs text-muted">
-                                                        <IconSymbol name="calendar" size={10} color={colors.muted} /> {formatDate(milestone.due_date)}
-                                                    </Text>
-                                                )}
+                                                <Text className="text-sm font-bold text-foreground mb-3">Meilenstein bearbeiten</Text>
+
+                                                <TextInput
+                                                    value={editMilestoneTitle}
+                                                    onChangeText={setEditMilestoneTitle}
+                                                    placeholder="Titel..."
+                                                    placeholderTextColor={colors.muted}
+                                                    style={{ backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border }}
+                                                    className="p-3 rounded-lg border text-sm mb-3"
+                                                />
+
+                                                <TextInput
+                                                    value={editMilestoneDueDate}
+                                                    onChangeText={setEditMilestoneDueDate}
+                                                    placeholder="Fällig am (DD.MM.YYYY)"
+                                                    placeholderTextColor={colors.muted}
+                                                    style={{ backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border }}
+                                                    className="p-3 rounded-lg border text-sm mb-3"
+                                                />
+
+                                                <TextInput
+                                                    value={editMilestoneNotes}
+                                                    onChangeText={setEditMilestoneNotes}
+                                                    placeholder="Interne oder öffentliche Notizen..."
+                                                    placeholderTextColor={colors.muted}
+                                                    multiline
+                                                    style={{
+                                                        backgroundColor: colors.background,
+                                                        color: colors.foreground,
+                                                        borderColor: colors.border,
+                                                        minHeight: 60,
+                                                        textAlignVertical: "top",
+                                                    }}
+                                                    className="p-3 rounded-lg border text-sm mb-3"
+                                                />
+
+                                                <View className="flex-row justify-between items-center mb-4">
+                                                    <Text className="text-sm text-foreground">Für Kunden sichtbar?</Text>
+                                                    <Switch
+                                                        value={editMilestoneIsPublic}
+                                                        onValueChange={setEditMilestoneIsPublic}
+                                                        trackColor={{ false: colors.border, true: colors.primary + "80" }}
+                                                        thumbColor={editMilestoneIsPublic ? colors.primary : "#f4f3f4"}
+                                                    />
+                                                </View>
+
+                                                <View style={{ flexDirection: "row", gap: 8 }}>
+                                                    <TouchableOpacity
+                                                        onPress={() => setEditingMilestoneId(null)}
+                                                        style={{ flex: 1, borderColor: colors.border, borderWidth: 1 }}
+                                                        className="px-4 py-2 rounded-lg items-center"
+                                                    >
+                                                        <Text style={{ color: colors.foreground }} className="text-sm font-semibold">Abbrechen</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        onPress={handleSaveMilestoneEdit}
+                                                        disabled={savingMilestone || !editMilestoneTitle.trim()}
+                                                        style={{
+                                                            flex: 1,
+                                                            backgroundColor: colors.primary,
+                                                            opacity: savingMilestone || !editMilestoneTitle.trim() ? 0.5 : 1,
+                                                        }}
+                                                        className="px-4 py-2 rounded-lg items-center"
+                                                    >
+                                                        {savingMilestone ? (
+                                                            <ActivityIndicator size="small" color="#fff" />
+                                                        ) : (
+                                                            <Text className="text-sm font-semibold text-white">Speichern</Text>
+                                                        )}
+                                                    </TouchableOpacity>
+                                                </View>
                                             </View>
                                         </View>
-                                    </TouchableOpacity>
+                                    ) : (
+                                        <TouchableOpacity
+                                            className="flex-1 pb-4 ml-2"
+                                            onPress={() => handleToggleMilestone(milestone)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View className="bg-surface rounded-lg p-3 border border-border">
+                                                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text
+                                                            className="text-sm font-semibold"
+                                                            style={{
+                                                                color: colors.foreground,
+                                                                textDecorationLine: milestone.status === "completed" ? "line-through" : "none",
+                                                            }}
+                                                        >
+                                                            {milestone.title}
+                                                        </Text>
+                                                        {milestone.description && (
+                                                            <Text className="text-xs text-muted mt-1">
+                                                                {milestone.description}
+                                                            </Text>
+                                                        )}
+                                                    </View>
+                                                    <View style={{ flexDirection: "row", gap: 12, paddingLeft: 8 }}>
+                                                        <TouchableOpacity onPress={() => handleStartEditMilestone(milestone)}>
+                                                            <IconSymbol name="pencil" size={14} color={colors.muted} />
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity onPress={() => handleDeleteMilestone(milestone)}>
+                                                            <IconSymbol name="trash" size={14} color={colors.muted} />
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                </View>
+
+                                                {milestone.notes ? (
+                                                    <View
+                                                        style={{ marginTop: 10, padding: 10, backgroundColor: colors.background, borderRadius: 6, borderWidth: 1, borderColor: colors.border }}
+                                                    >
+                                                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                                                            <Text style={{ fontSize: 11, fontWeight: "600", color: colors.muted }}>Notizen</Text>
+                                                            <Text style={{ fontSize: 10, color: milestone.is_note_public ? colors.primary : colors.muted }}>
+                                                                {milestone.is_note_public ? "👁️ Öffentlich" : "🔒 Intern"}
+                                                            </Text>
+                                                        </View>
+                                                        <Text style={{ fontSize: 13, color: colors.foreground }}>{milestone.notes}</Text>
+                                                    </View>
+                                                ) : null}
+
+                                                <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 10 }}>
+                                                    <Text style={{ fontSize: 11, fontWeight: "500", color: statusColor }}>
+                                                        {milestone.status === "completed" ? "Abgeschlossen" :
+                                                            milestone.status === "in_progress" ? "In Arbeit" : "Ausstehend"}
+                                                    </Text>
+                                                    {milestone.due_date && (
+                                                        <Text style={{ fontSize: 11, fontWeight: "500", color: colors.muted }}>
+                                                            {formatDate(milestone.due_date)}
+                                                        </Text>
+                                                    )}
+                                                </View>
+                                            </View>
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
                             );
                         })}

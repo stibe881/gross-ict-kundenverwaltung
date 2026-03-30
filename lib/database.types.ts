@@ -882,6 +882,8 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          is_note_public: boolean | null
+          notes: string | null
           project_id: string
           sort_order: number | null
           status: string
@@ -893,6 +895,8 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_note_public?: boolean | null
+          notes?: string | null
           project_id: string
           sort_order?: number | null
           status?: string
@@ -904,6 +908,8 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_note_public?: boolean | null
+          notes?: string | null
           project_id?: string
           sort_order?: number | null
           status?: string

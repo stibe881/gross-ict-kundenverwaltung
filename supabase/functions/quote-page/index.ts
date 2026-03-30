@@ -497,6 +497,10 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
             + dueDateHtml
             + completedHtml
             + '</div>'
+            + (m.notes && m.is_note_public ? '<div style="margin-top:10px;padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;font-size:13px;color:var(--text-body);line-height:1.6;">'
+              + '<div style="font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);margin-bottom:6px;font-weight:600;">Hinweis</div>'
+              + escHtml(m.notes)
+              + '</div>' : '')
             + '</div>'
             + '</div>';
         }).join('')}
