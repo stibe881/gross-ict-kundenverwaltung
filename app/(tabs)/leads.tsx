@@ -653,6 +653,11 @@ export default function LeadsScreen() {
             setSelectedLead(null);
             queryClient.invalidateQueries({ queryKey: ["leads"] });
           }}
+          onEdit={() => {
+            setEditingLead(selectedLead);
+            setShowAddModal(true);
+            setSelectedLead(null);
+          }}
         />
       )}
     </ScreenContainer>
@@ -776,9 +781,11 @@ function ConvertLeadModal({
 function LeadDetailsModal({
   lead,
   onClose,
+  onEdit,
 }: {
   lead: any;
   onClose: () => void;
+  onEdit?: () => void;
 }) {
   const colors = useColors();
   const router = useRouter();
@@ -959,6 +966,16 @@ function LeadDetailsModal({
           <View className="flex-row items-center justify-between p-4 border-b border-border">
             <Text className="text-2xl font-bold text-foreground">Lead-Details</Text>
             <View className="flex-row items-center justify-end gap-4">
+              {onEdit && (
+                <TouchableOpacity
+                  className="bg-surface border border-border px-3 py-1.5 rounded-lg flex-row items-center gap-1.5"
+                  onPress={onEdit}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol name="pencil" size={16} color={colors.foreground} />
+                  <Text className="text-sm font-semibold text-foreground">Bearbeiten</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity 
                 className="bg-primary/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1.5"
                 onPress={() => {

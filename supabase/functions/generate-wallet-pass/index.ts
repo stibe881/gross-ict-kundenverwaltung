@@ -25,18 +25,18 @@ async function generatePassBuffer(name: string, position: string, phone: string,
       formatVersion: 1,
       passTypeIdentifier: "pass.ch.gross-ict.visitenkarte",
       teamIdentifier: "QF59FHQ44R",
-      serialNumber: `pass-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      serialNumber: `pass-${Buffer.from(name + email).toString('base64').replace(/[^a-zA-Z0-9]/g, '')}`,
       organizationName: "Gross ICT",
       description: "Gross ICT Visitenkarte",
       logoText: "Gross ICT",
       foregroundColor: "rgb(255, 255, 255)",
       backgroundColor: "rgb(0, 0, 0)",
       labelColor: "rgb(212, 164, 50)",
-      barcode: {
+      barcodes: [{
         format: "PKBarcodeFormatQR",
         message: vcardUrl,
         messageEncoding: "iso-8859-1"
-      },
+      }],
       generic: {
         primaryFields: [{ key: "name", value: name || "Mitarbeiter" }],
         secondaryFields: [{ key: "position", value: position || "-", label: "POSITION" }],

@@ -385,37 +385,17 @@ export default function DashboardScreen() {
               paddingTop: isWide ? 8 : 0,
             }}
           >
-            <View style={{ flex: 1 }}>
-              {isWeb ? (
-                <Image
-                  source={require("@/assets/images/android-icon-foreground.png")}
-                  style={{ width: isWide ? 220 : 180, height: isWide ? 48 : 40 }}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 }}>
-                  <Image
-                    source={require("@/assets/images/icon.png")}
-                    style={{ width: 32, height: 32, borderRadius: 8 }}
-                    resizeMode="contain"
-                  />
-                  <Text
-                    style={{
-                      fontSize: 22,
-                      fontWeight: "800",
-                      color: colors.foreground,
-                      letterSpacing: -0.5,
-                    }}
-                  >
-                    Gross • ICT
-                  </Text>
-                </View>
-              )}
+            <View style={{ flex: 1, paddingBottom: 4 }}>
+              <Image
+                source={require("@/assets/images/android-icon-foreground.png")}
+                style={{ width: isWide ? 220 : 160, height: isWide ? 48 : 36, marginLeft: -12 }}
+                resizeMode="contain"
+              />
               <Text
                 style={{
                   fontSize: isWide ? 16 : 14,
                   color: colors.muted,
-                  marginTop: 6,
+                  marginTop: 2,
                 }}
               >
                 Willkommen, {userName}

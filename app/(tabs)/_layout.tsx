@@ -138,9 +138,9 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="products"
+        name="projects"
         options={{
-          href: showProjects ? "/projects" : null,
+          href: showProjects ? undefined : null,
           title: "Projekte",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="folder.fill" color={color} />,
         }}
@@ -169,6 +169,18 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="camera.fill" color={color} />,
         }}
       />
+      {/* Hidden Screens inside Tabs (so they get the bottom menu) */}
+      <Tabs.Screen name="products" options={{ href: null, title: "Produkte" }} />
+      <Tabs.Screen name="leads" options={{ href: null, title: "Akquise" }} />
+      <Tabs.Screen name="quotes" options={{ href: null, title: "Angebote" }} />
+      <Tabs.Screen name="contracts" options={{ href: null, title: "Verträge" }} />
+      <Tabs.Screen name="knowledge-base" options={{ href: null, title: "Knowledge Base" }} />
+      <Tabs.Screen name="links" options={{ href: null, title: "Links" }} />
+      <Tabs.Screen name="newsletter" options={{ href: null, title: "Newsletter" }} />
+      <Tabs.Screen name="tasks" options={{ href: null, title: "Aufgaben" }} />
+      <Tabs.Screen name="dunning-settings" options={{ href: null, title: "Mahnwesen Settings" }} />
+      <Tabs.Screen name="business-card" options={{ href: null, title: "Visitenkarte" }} />
+      <Tabs.Screen name="users" options={{ href: null, title: "Mitarbeitende" }} />
     </Tabs>
   );
 }

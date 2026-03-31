@@ -402,8 +402,6 @@ export default function RootLayout() {
           <ToastProvider>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="users" />
-              <Stack.Screen name="links" />
               <Stack.Screen name="oauth/callback" />
             </Stack>
             <StatusBar style="auto" />

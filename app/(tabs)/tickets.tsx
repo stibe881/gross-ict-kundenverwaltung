@@ -36,10 +36,12 @@ export default function TicketsScreen() {
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const queryClient = useQueryClient();
   const { refreshing, onRefresh } = useGlobalRefresh();
-  const [filter, setFilter] = useState<"all" | TicketStatus>("all");
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("unassigned");
+  const [filter, setFilter] = useState<"all" | TicketStatus>("open");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showAssigneeFilterPicker, setShowAssigneeFilterPicker] = useState(false);
+  const [showStatusFilterPicker, setShowStatusFilterPicker] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
@@ -433,29 +435,66 @@ export default function TicketsScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Search Bar */}
-          <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginBottom: 14, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.border }}>
-            <IconSymbol name="magnifyingglass" size={18} color={colors.muted} />
-            <TextInput
-              style={{ flex: 1, marginLeft: 10, fontSize: 15, color: colors.foreground }}
-              placeholder="Ticket suchen..."
-              placeholderTextColor={colors.muted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <IconSymbol name="xmark.circle.fill" size={18} color={colors.muted} />
+          {/* Search & Filters Row */}
+          <View style={{ flexDirection: isDesktop ? "row" : "column", gap: 10, marginBottom: 14 }}>
+            {/* Search Bar */}
+            <View style={{ flex: isDesktop ? 1 : undefined, backgroundColor: colors.surface, borderRadius: 12, padding: 12, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.border }}>
+              <IconSymbol name="magnifyingglass" size={18} color={colors.muted} />
+              <TextInput
+                style={{ flex: 1, marginLeft: 10, fontSize: 15, color: colors.foreground }}
+                placeholder="Ticket suchen..."
+                placeholderTextColor={colors.muted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <IconSymbol name="xmark.circle.fill" size={18} color={colors.muted} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Filter Dropdowns Container */}
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              {/* Assignee Filter Dropdown */}
+              <TouchableOpacity
+                style={{ flex: 1, minWidth: isDesktop ? 220 : undefined, backgroundColor: colors.surface, borderRadius: 12, padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderColor: colors.border }}
+                onPress={() => setShowAssigneeFilterPicker(true)}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <IconSymbol name="person.2.fill" size={14} color={colors.primary} />
+                  <Text style={{ fontSize: 13, color: colors.foreground, fontWeight: "500" }} numberOfLines={1}>
+                    {assigneeFilter === "all" ? "Alle Mitarbeiter" : assigneeFilter === "unassigned" ? "Nicht zugewiesen" : allUsers.find((u:any) => u.id === assigneeFilter)?.name || "Mitarbeiter"}
+                  </Text>
+                </View>
+                <IconSymbol name="chevron.down" size={12} color={colors.muted} />
               </TouchableOpacity>
-            )}
+
+              {/* Status Filter Dropdown */}
+              <TouchableOpacity
+                style={{ flex: 1, minWidth: isDesktop ? 220 : undefined, backgroundColor: colors.surface, borderRadius: 12, padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderColor: colors.border }}
+                onPress={() => setShowStatusFilterPicker(true)}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <IconSymbol name="circle.fill" size={12} color={filter === "all" ? colors.muted : filter === "open" ? colors.error : filter === "in_progress" ? colors.primary : filter === "waiting" ? colors.warning : colors.success} />
+                  <Text style={{ fontSize: 13, color: colors.foreground, fontWeight: "500" }} numberOfLines={1}>
+                    {filter === "all" ? "Alle Status" : filter === "open" ? "Offen" : filter === "in_progress" ? "In Bearbeitung" : filter === "waiting" ? "Wartend" : "Geschlossen"}
+                  </Text>
+                </View>
+                <IconSymbol name="chevron.down" size={12} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Stat Cards */}
-          <View style={{ flexDirection: "row", gap: 10, marginBottom: 14 }}>
+          <View style={{ flexDirection: "row", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
             {statCards.map((stat) => (
               <TouchableOpacity
                 key={stat.label}
                 style={{
+                  minWidth: isDesktop ? 0 : "46%",
                   flex: 1,
                   backgroundColor: filter === (stat.label === "Offen" ? "open" : stat.label === "In Arbeit" ? "in_progress" : stat.label === "Wartend" ? "waiting" : "closed")
                     ? stat.color + "15"
@@ -482,49 +521,6 @@ export default function TicketsScreen() {
               </TouchableOpacity>
             ))}
           </View>
-
-          {/* Assignee Filter */}
-          {allUsers.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 14 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  style={{
-                    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
-                    backgroundColor: assigneeFilter === "unassigned" ? colors.primary : colors.surface,
-                    borderWidth: 1, borderColor: assigneeFilter === "unassigned" ? colors.primary : colors.border,
-                  }}
-                  onPress={() => setAssigneeFilter("unassigned")}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: assigneeFilter === "unassigned" ? colors.background : colors.foreground }}>Nicht zugewiesen</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
-                    backgroundColor: assigneeFilter === "all" ? colors.primary : colors.surface,
-                    borderWidth: 1, borderColor: assigneeFilter === "all" ? colors.primary : colors.border,
-                  }}
-                  onPress={() => setAssigneeFilter("all")}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: assigneeFilter === "all" ? colors.background : colors.foreground }}>Alle</Text>
-                </TouchableOpacity>
-                {allUsers.map((user: any) => (
-                  <TouchableOpacity
-                    key={user.id}
-                    style={{
-                      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
-                      backgroundColor: assigneeFilter === user.id ? colors.primary : colors.surface,
-                      borderWidth: 1, borderColor: assigneeFilter === user.id ? colors.primary : colors.border,
-                    }}
-                    onPress={() => setAssigneeFilter(assigneeFilter === user.id ? "all" : user.id)}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: assigneeFilter === user.id ? colors.background : colors.foreground }}>
-                      {user.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          )}
 
           {/* Ticket List / Table */}
           {isLoading ? (
@@ -582,6 +578,129 @@ export default function TicketsScreen() {
           onClose={() => setSelectedTicket(null)}
           currentUserName={currentUserName}
         />
+      )}
+      {/* Assignee Filter Modal */}
+      {showAssigneeFilterPicker && (
+        <Modal visible={true} transparent animationType="fade" onRequestClose={() => setShowAssigneeFilterPicker(false)}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+            <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: isWide ? "center" : "flex-end", alignItems: "center" }}>
+              <TouchableOpacity activeOpacity={1} style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setShowAssigneeFilterPicker(false)} />
+              
+              <View style={{ backgroundColor: colors.background, borderRadius: isWide ? 24 : 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, width: isWide ? 400 : "100%", maxHeight: "80%", overflow: "hidden" }}>
+                <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ fontSize: 18, fontWeight: "700", color: colors.foreground }}>Filter nach Mitarbeiter</Text>
+                  <TouchableOpacity onPress={() => setShowAssigneeFilterPicker(false)}>
+                    <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView contentContainerStyle={{ padding: 16 }}>
+                  <TouchableOpacity
+                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+                    onPress={() => { setAssigneeFilter("all"); setShowAssigneeFilterPicker(false); }}
+                  >
+                    <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: assigneeFilter === "all" ? "700" : "500" }}>Alle Mitarbeiter</Text>
+                    {assigneeFilter === "all" && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+                    onPress={() => { setAssigneeFilter("unassigned"); setShowAssigneeFilterPicker(false); }}
+                  >
+                    <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: assigneeFilter === "unassigned" ? "700" : "500" }}>Nicht zugewiesen</Text>
+                    {assigneeFilter === "unassigned" && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
+                  </TouchableOpacity>
+
+                  {allUsers.map((u: any) => (
+                    <TouchableOpacity
+                      key={u.id}
+                      style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+                      onPress={() => { setAssigneeFilter(u.id); setShowAssigneeFilterPicker(false); }}
+                    >
+                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: assigneeFilter === u.id ? "700" : "500" }}>{u.name}</Text>
+                      {assigneeFilter === u.id && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      )}
+
+      {/* Status Filter Modal */}
+      {showStatusFilterPicker && (
+        <Modal visible={true} transparent animationType="fade" onRequestClose={() => setShowStatusFilterPicker(false)}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+            <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: isWide ? "center" : "flex-end", alignItems: "center" }}>
+              <TouchableOpacity activeOpacity={1} style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setShowStatusFilterPicker(false)} />
+              
+              <View style={{ backgroundColor: colors.background, borderRadius: isWide ? 24 : 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, width: isWide ? 400 : "100%", maxHeight: "80%", overflow: "hidden" }}>
+                <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ fontSize: 18, fontWeight: "700", color: colors.foreground }}>Filter nach Status</Text>
+                  <TouchableOpacity onPress={() => setShowStatusFilterPicker(false)}>
+                    <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView contentContainerStyle={{ padding: 16 }}>
+                  <TouchableOpacity
+                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+                    onPress={() => { setFilter("all"); setShowStatusFilterPicker(false); }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <IconSymbol name="circle.fill" size={12} color={colors.muted} />
+                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: filter === "all" ? "700" : "500" }}>Alle Status</Text>
+                    </View>
+                    {filter === "all" && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+                    onPress={() => { setFilter("open"); setShowStatusFilterPicker(false); }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <IconSymbol name="circle.fill" size={12} color={colors.error} />
+                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: filter === "open" ? "700" : "500" }}>Offen</Text>
+                    </View>
+                    {filter === "open" && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+                    onPress={() => { setFilter("in_progress"); setShowStatusFilterPicker(false); }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <IconSymbol name="circle.fill" size={12} color={colors.primary} />
+                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: filter === "in_progress" ? "700" : "500" }}>In Bearbeitung</Text>
+                    </View>
+                    {filter === "in_progress" && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+                    onPress={() => { setFilter("waiting"); setShowStatusFilterPicker(false); }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <IconSymbol name="circle.fill" size={12} color={colors.warning} />
+                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: filter === "waiting" ? "700" : "500" }}>Wartend</Text>
+                    </View>
+                    {filter === "waiting" && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+                    onPress={() => { setFilter("closed"); setShowStatusFilterPicker(false); }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <IconSymbol name="circle.fill" size={12} color={colors.success} />
+                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: filter === "closed" ? "700" : "500" }}>Geschlossen</Text>
+                    </View>
+                    {filter === "closed" && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       )}
     </ScreenContainer>
   );
@@ -826,443 +945,395 @@ function TicketDetailsModal({
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const ageLabel = diffDays === 0 ? "Heute" : diffDays === 1 ? "Gestern" : `vor ${diffDays} Tagen`;
 
+  const { isWide } = useResponsiveLayout();
+
+  const renderMetadataSection = () => (
+    <View style={{ gap: 16 }}>
+      {/* ── Info Cards ── */}
+      <View style={{ gap: 10 }}>
+        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <IconSymbol name="person.2.fill" size={13} color={colors.muted} />
+            <Text style={{ fontSize: 10, fontWeight: "600", color: colors.muted, textTransform: "uppercase" }}>Kunde</Text>
+          </View>
+          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }} numberOfLines={2}>{customerName}</Text>
+        </View>
+
+        {(!ticket.customer_id && (ticket.contact_name || ticket.contact_email)) && (
+          <View style={{ backgroundColor: colors.primary + "10", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.primary + "30" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
+              <IconSymbol name="globe" size={16} color={colors.primary} />
+              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary, textTransform: "uppercase" }}>Gastanfrage</Text>
+            </View>
+            <View style={{ gap: 6 }}>
+              {ticket.contact_name && <Text style={{ fontSize: 14, color: colors.foreground }}><Text style={{ fontWeight: "600" }}>Name:</Text> {ticket.contact_name}</Text>}
+              {ticket.contact_company && <Text style={{ fontSize: 14, color: colors.foreground }}><Text style={{ fontWeight: "600" }}>Firma:</Text> {ticket.contact_company}</Text>}
+              {ticket.contact_email && <Text style={{ fontSize: 14, color: colors.foreground }}><Text style={{ fontWeight: "600" }}>E-Mail:</Text> {ticket.contact_email}</Text>}
+              {ticket.contact_phone && <Text style={{ fontSize: 14, color: colors.foreground }}><Text style={{ fontWeight: "600" }}>Telefon:</Text> {ticket.contact_phone}</Text>}
+            </View>
+          </View>
+        )}
+
+        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border, flexDirection: "row", justifyContent: "space-between" }}>
+          <View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <IconSymbol name="calendar" size={13} color={colors.muted} />
+              <Text style={{ fontSize: 10, fontWeight: "600", color: colors.muted, textTransform: "uppercase" }}>Erstellt</Text>
+            </View>
+            <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }}>{formatDate(ticket.created_at)}</Text>
+          </View>
+          <Text style={{ fontSize: 12, color: colors.muted, alignSelf: "flex-end" }}>{ageLabel}</Text>
+        </View>
+      </View>
+
+      {/* ── Status, Priorität, Assignee ── */}
+      <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border }}>
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, textTransform: "uppercase", marginBottom: 6 }}>Zugewiesen an</Text>
+          <TouchableOpacity
+            style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}
+            onPress={() => setShowAssignPicker(!showAssignPicker)}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: assignedUser ? colors.primary : colors.muted + "30", alignItems: "center", justifyContent: "center" }}>
+                {assignedUser ? (
+                  <Text style={{ color: "#FFF", fontSize: 10, fontWeight: "700" }}>
+                    {(assignedUser.name || "?").split(" ").map((p: string) => p[0]).join("").toUpperCase().slice(0, 2)}
+                  </Text>
+                ) : (
+                  <IconSymbol name="person.fill.badge.plus" size={12} color={colors.muted} />
+                )}
+              </View>
+              <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "500" }}>{assignedUser ? assignedUser.name : "Niemand"}</Text>
+            </View>
+            <IconSymbol name={showAssignPicker ? "chevron.up" : "chevron.down"} size={14} color={colors.muted} />
+          </TouchableOpacity>
+          {showAssignPicker && (
+            <View style={{ marginTop: 8, gap: 4 }}>
+              <TouchableOpacity onPress={() => handleAssign(null)} style={{ paddingVertical: 8 }}><Text style={{ color: colors.muted, fontStyle: "italic" }}>Nicht zugewiesen</Text></TouchableOpacity>
+              {users.map((u) => (
+                <TouchableOpacity key={u.id} onPress={() => handleAssign(u.id)} style={{ paddingVertical: 8, flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={{ color: colors.foreground, fontWeight: assignedTo === u.id ? "700" : "400" }}>{u.name}</Text>
+                  {assignedTo === u.id && <IconSymbol name="checkmark" size={14} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={{ height: 1, backgroundColor: colors.border, marginBottom: 12 }} />
+
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, textTransform: "uppercase", marginBottom: 6 }}>Status</Text>
+          <TouchableOpacity
+            style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}
+            onPress={() => setShowStatusPicker(!showStatusPicker)}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: sCfg.color }} />
+              <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "600" }}>{sCfg.label}</Text>
+            </View>
+            <IconSymbol name={showStatusPicker ? "chevron.up" : "chevron.down"} size={14} color={colors.muted} />
+          </TouchableOpacity>
+          {showStatusPicker && (
+            <View style={{ marginTop: 8, gap: 4 }}>
+              {statusOptions.map((opt) => (
+                <TouchableOpacity key={opt.key} onPress={() => { handleStatusChange(opt.key); setShowStatusPicker(false); }} style={{ paddingVertical: 8, flexDirection: "row", justifyContent: "space-between" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: opt.color }} />
+                    <Text style={{ color: colors.foreground, fontWeight: currentStatus === opt.key ? "700" : "400" }}>{opt.label}</Text>
+                  </View>
+                  {currentStatus === opt.key && <IconSymbol name="checkmark" size={14} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={{ height: 1, backgroundColor: colors.border, marginBottom: 12 }} />
+
+        <View>
+          <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, textTransform: "uppercase", marginBottom: 6 }}>Priorität</Text>
+          <TouchableOpacity
+            style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}
+            onPress={() => setShowPriorityPicker(!showPriorityPicker)}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: pCfg.color }} />
+              <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "600" }}>{pCfg.label}</Text>
+            </View>
+            <IconSymbol name={showPriorityPicker ? "chevron.up" : "chevron.down"} size={14} color={colors.muted} />
+          </TouchableOpacity>
+          {showPriorityPicker && (
+            <View style={{ marginTop: 8, gap: 4 }}>
+              {priorityOptions.map((opt) => (
+                <TouchableOpacity key={opt.key} onPress={() => { handlePriorityChange(opt.key); setShowPriorityPicker(false); }} style={{ paddingVertical: 8, flexDirection: "row", justifyContent: "space-between" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: opt.color }} />
+                    <Text style={{ color: colors.foreground, fontWeight: currentPriority === opt.key ? "700" : "400" }}>{opt.label}</Text>
+                  </View>
+                  {currentPriority === opt.key && <IconSymbol name="checkmark" size={14} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Footer Actions am Desktop unten rechts */}
+      {isWide && renderFooterActions()}
+    </View>
+  );
+
+  const renderFooterActions = () => (
+    <View style={{ flexDirection: isWide ? "column" : "row", gap: 10 }}>
+      {currentStatus === "closed" && (
+        <TouchableOpacity
+          style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primary + "10", borderWidth: 1, borderColor: colors.primary + "25", paddingVertical: 12, borderRadius: 12 }}
+          onPress={handleCreateInvoice}
+          activeOpacity={0.8}
+        >
+          <IconSymbol name="doc.text.fill" size={14} color={colors.primary} />
+          <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 13 }}>Rechnung</Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity
+        style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.error + "10", borderWidth: 1, borderColor: colors.error + "25", paddingVertical: 12, borderRadius: 12 }}
+        onPress={handleDelete}
+        activeOpacity={0.8}
+      >
+        <IconSymbol name="trash.fill" size={14} color={colors.error} />
+        <Text style={{ color: colors.error, fontWeight: "600", fontSize: 14 }}>Löschen</Text>
+      </TouchableOpacity>
+      
+      {!isWide && (
+        <TouchableOpacity
+          style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, borderRadius: 12 }}
+          onPress={onClose}
+          activeOpacity={0.8}
+        >
+          <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 14 }}>Schliessen</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  const renderMainContent = () => (
+    <View style={{ gap: 16 }}>
+      {/* ── Tabs (Kommentare vs Aufwände) ── */}
+      <View style={{ flexDirection: "row", backgroundColor: colors.surface, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border }}>
+        <TouchableOpacity
+          style={{ flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8, backgroundColor: activeTab === "comments" ? colors.primary + "20" : "transparent" }}
+          onPress={() => setActiveTab("comments")}
+        >
+          <Text style={{ fontSize: 13, fontWeight: activeTab === "comments" ? "700" : "500", color: activeTab === "comments" ? colors.primary : colors.muted }}>Kommentare ({comments?.length || 0})</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8, backgroundColor: activeTab === "items" ? colors.primary + "20" : "transparent" }}
+          onPress={() => setActiveTab("items")}
+        >
+          <Text style={{ fontSize: 13, fontWeight: activeTab === "items" ? "700" : "500", color: activeTab === "items" ? colors.primary : colors.muted }}>Aufwände & Positionen</Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeTab === "comments" ? (
+        <View>
+          {ticket.description && (
+            <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 16 }}>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted, textTransform: "uppercase", marginBottom: 8 }}>Beschreibung vom {formatDate(ticket.created_at)}</Text>
+              <Text style={{ fontSize: 15, color: colors.foreground, lineHeight: 22 }}>{ticket.description}</Text>
+            </View>
+          )}
+          {comments && comments.length > 0 ? (
+            <View style={{ gap: 8, marginBottom: 12 }}>
+              {comments.map((c: any) => (
+                <View key={c.id} style={{
+                  backgroundColor: colors.surface, borderRadius: 12,
+                  padding: 14, borderWidth: 1, borderColor: colors.border,
+                  borderLeftWidth: 3, borderLeftColor: c.is_internal ? colors.warning : colors.success,
+                }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary + "20", alignItems: "center", justifyContent: "center" }}>
+                        <Text style={{ fontSize: 10, fontWeight: "700", color: colors.primary }}>
+                          {(c.user_name || "S")[0].toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: colors.primary }}>
+                        {c.user_name || "System"}
+                      </Text>
+                      <View style={{
+                        paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
+                        backgroundColor: c.is_internal ? colors.warning + "18" : colors.success + "18",
+                      }}>
+                        <Text style={{ fontSize: 9, fontWeight: "700", color: c.is_internal ? colors.warning : colors.success }}>
+                          {c.is_internal ? "INTERN" : "EXTERN"}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={{ fontSize: 11, color: colors.muted }}>
+                      {formatDateTime(c.created_at)}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 14, color: colors.foreground, lineHeight: 20 }}>{c.comment}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 20, alignItems: "center", marginBottom: 12, borderWidth: 1, borderColor: colors.border }}>
+              <IconSymbol name="doc.text.fill" size={28} color={colors.muted} />
+              <Text style={{ fontSize: 13, color: colors.muted, marginTop: 6 }}>Noch keine Kommentare</Text>
+            </View>
+          )}
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <TouchableOpacity
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 6,
+                paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+                backgroundColor: isInternalComment ? colors.warning + "15" : colors.success + "15",
+                borderWidth: 1, borderColor: isInternalComment ? colors.warning + "30" : colors.success + "30",
+              }}
+              onPress={() => setIsInternalComment(!isInternalComment)}
+              activeOpacity={0.7}
+            >
+              <IconSymbol
+                name={isInternalComment ? "lock.fill" : "globe"}
+                size={12}
+                color={isInternalComment ? colors.warning : colors.success}
+              />
+              <Text style={{ fontSize: 12, fontWeight: "600", color: isInternalComment ? colors.warning : colors.success }}>
+                {isInternalComment ? "Nur intern" : "Kunde sichtbar"}
+              </Text>
+            </TouchableOpacity>
+            <Text style={{ fontSize: 11, color: colors.muted }}>Tippen um zu wechseln</Text>
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <TextInput
+              style={{
+                flex: 1, backgroundColor: colors.surface,
+                borderWidth: 1, borderColor: colors.border,
+                borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+                color: colors.foreground, fontSize: 14,
+              }}
+              placeholder="Kommentar schreiben..."
+              placeholderTextColor={colors.muted}
+              value={newComment}
+              onChangeText={setNewComment}
+              multiline
+            />
+            <TouchableOpacity
+              style={{
+                backgroundColor: colors.primary, borderRadius: 12,
+                paddingHorizontal: 16, justifyContent: "center",
+                opacity: addingComment || !newComment.trim() ? 0.5 : 1,
+              }}
+              onPress={handleAddComment}
+              activeOpacity={0.7}
+              disabled={addingComment || !newComment.trim()}
+            >
+              {addingComment ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <IconSymbol name="paperplane.fill" size={18} color="#FFF" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <TicketItemsList
+          ticketId={ticket.id}
+          ticketItems={ticketItems}
+          products={products}
+          colors={colors}
+          onRefresh={refetchTicketItems}
+        />
+      )}
+    </View>
+  );
+
   return (
-    <Modal visible={true} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={true} animationType={isWide ? "fade" : "slide"} transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
         keyboardVerticalOffset={0}
       >
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-background rounded-t-3xl" style={{ maxHeight: "92%", flex: 1 }}>
-          {/* ── Hero Header ── */}
-          <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <View style={{ flex: 1, marginRight: 16 }}>
-                {/* Badges row */}
-                <View style={{ flexDirection: "row", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-                  <View style={{ backgroundColor: sCfg.color, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8 }}>
-                    <Text style={{ color: "#FFF", fontSize: 11, fontWeight: "700" }}>{sCfg.label}</Text>
-                  </View>
-                  <View style={{ backgroundColor: pCfg.color + "18", paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 4 }}>
-                    <Text style={{ color: pCfg.color, fontSize: 11, fontWeight: "700" }}>{pCfg.label}</Text>
-                  </View>
-                </View>
-                <Text style={{ fontSize: 20, fontWeight: "800", color: colors.foreground, lineHeight: 26 }}>
-                  {ticket.title}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={{ marginTop: 4 }}>
-                <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* ── Scrollable Content ── */}
-          <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
-            <View style={{ gap: 16, paddingBottom: 20 }}>
-
-              {/* ── Info Cards Grid ── */}
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <IconSymbol name="person.2.fill" size={13} color={colors.muted} />
-                    <Text style={{ fontSize: 10, fontWeight: "600", color: colors.muted, textTransform: "uppercase" }}>Kunde</Text>
-                  </View>
-                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }} numberOfLines={2}>{customerName}</Text>
-                </View>
-                <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <IconSymbol name="person.fill.badge.plus" size={13} color={colors.muted} />
-                    <Text style={{ fontSize: 10, fontWeight: "600", color: colors.muted, textTransform: "uppercase" }}>Zugewiesen</Text>
-                  </View>
-                  <Text style={{ fontSize: 14, fontWeight: "600", color: assignedUser ? colors.foreground : colors.muted }} numberOfLines={1}>
-                    {assignedUser ? assignedUser.name : "Niemand"}
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: isWide ? 'center' : 'flex-end', alignItems: 'center' }}>
+          <TouchableOpacity activeOpacity={1} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} onPress={onClose} />
+          
+          <View 
+            style={{ 
+              backgroundColor: colors.background, 
+              borderRadius: isWide ? 24 : 0,
+              borderTopLeftRadius: 24, 
+              borderTopRightRadius: 24,
+              width: isWide ? 900 : '100%',
+              maxWidth: '100%',
+              height: isWide ? '85%' : '90%',
+              overflow: 'hidden'
+            }}
+          >
+              {/* ── Hero Header ── */}
+              <View style={{ padding: 24, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <View style={{ flex: 1, marginRight: 16 }}>
+                  <Text style={{ fontSize: 24, fontWeight: "800", color: colors.foreground, lineHeight: 30 }}>
+                    {ticket.title}
                   </Text>
                 </View>
-              </View>
-
-              {/* Gast-Informationen (von Webseite) */}
-              {(!ticket.customer_id && (ticket.contact_name || ticket.contact_email)) && (
-                <View style={{ backgroundColor: colors.primary + "10", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.primary + "30" }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                    <IconSymbol name="globe" size={16} color={colors.primary} />
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary, textTransform: "uppercase" }}>Webseite / Gastanfrage</Text>
-                  </View>
-                  <View style={{ gap: 6 }}>
-                    {ticket.contact_name && <Text style={{ fontSize: 14, color: colors.foreground }}><Text style={{ fontWeight: "600" }}>Name:</Text> {ticket.contact_name}</Text>}
-                    {ticket.contact_company && <Text style={{ fontSize: 14, color: colors.foreground }}><Text style={{ fontWeight: "600" }}>Firma:</Text> {ticket.contact_company}</Text>}
-                    {ticket.contact_email && <Text style={{ fontSize: 14, color: colors.foreground }}><Text style={{ fontWeight: "600" }}>E-Mail:</Text> {ticket.contact_email}</Text>}
-                    {ticket.contact_phone && <Text style={{ fontSize: 14, color: colors.foreground }}><Text style={{ fontWeight: "600" }}>Telefon:</Text> {ticket.contact_phone}</Text>}
-                  </View>
-                </View>
-              )}
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <IconSymbol name="calendar" size={13} color={colors.muted} />
-                    <Text style={{ fontSize: 10, fontWeight: "600", color: colors.muted, textTransform: "uppercase" }}>Erstellt</Text>
-                  </View>
-                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }}>{formatDate(ticket.created_at)}</Text>
-                  <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>{ageLabel}</Text>
-                </View>
-                <View style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                    <IconSymbol name="doc.text.fill" size={13} color={colors.muted} />
-                    <Text style={{ fontSize: 10, fontWeight: "600", color: colors.muted, textTransform: "uppercase" }}>Kommentare</Text>
-                  </View>
-                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }}>{comments?.length || 0}</Text>
-                </View>
-              </View>
-
-              {/* ── Description ── */}
-              {ticket.description ? (
-                <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border }}>
-                  <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted, textTransform: "uppercase", marginBottom: 6 }}>Beschreibung</Text>
-                  <Text style={{ fontSize: 14, color: colors.foreground, lineHeight: 20 }}>{ticket.description}</Text>
-                </View>
-              ) : null}
-
-              {/* ── Zugewiesen an (Picker) ── */}
-              <View>
-                <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, marginBottom: 8 }}>Zugewiesen an</Text>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: colors.surface,
-                    borderWidth: 1, borderColor: colors.border,
-                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
-                    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                  }}
-                  onPress={() => setShowAssignPicker(!showAssignPicker)}
-                  activeOpacity={0.7}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                    <View style={{
-                      width: 28, height: 28, borderRadius: 14,
-                      backgroundColor: assignedUser ? colors.primary : colors.muted + "30",
-                      alignItems: "center", justifyContent: "center",
-                    }}>
-                      {assignedUser ? (
-                        <Text style={{ color: "#FFF", fontSize: 11, fontWeight: "700" }}>
-                          {(assignedUser.name || "?").split(" ").map((p: string) => p[0]).join("").toUpperCase().slice(0, 2)}
-                        </Text>
-                      ) : (
-                        <IconSymbol name="person.fill.badge.plus" size={14} color={colors.muted} />
-                      )}
-                    </View>
-                    <Text style={{ color: colors.foreground, fontSize: 14 }}>
-                      {assignedUser ? assignedUser.name : "Nicht zugewiesen"}
-                    </Text>
-                  </View>
-                  <IconSymbol name="chevron.down" size={14} color={colors.muted} />
-                </TouchableOpacity>
-
-                {showAssignPicker && (
-                  <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginTop: 4, overflow: "hidden" }}>
-                    <TouchableOpacity
-                      style={{ paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}
-                      onPress={() => handleAssign(null)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={{ fontSize: 14, color: colors.muted, fontStyle: "italic" }}>Nicht zugewiesen</Text>
-                    </TouchableOpacity>
-                    {users.map((user: any) => (
-                      <TouchableOpacity
-                        key={user.id}
-                        style={{
-                          paddingHorizontal: 14, paddingVertical: 12,
-                          borderBottomWidth: 1, borderBottomColor: colors.border,
-                          flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                          backgroundColor: assignedTo === user.id ? colors.primary + "10" : "transparent",
-                        }}
-                        onPress={() => handleAssign(user.id)}
-                        activeOpacity={0.7}
-                      >
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                          <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
-                            <Text style={{ color: "#FFF", fontSize: 10, fontWeight: "700" }}>
-                              {(user.name || "?").split(" ").map((p: string) => p[0]).join("").toUpperCase().slice(0, 2)}
-                            </Text>
-                          </View>
-                          <Text style={{ fontSize: 14, color: colors.foreground }}>{user.name}</Text>
-                        </View>
-                        {assignedTo === user.id && (
-                          <IconSymbol name="checkmark" size={14} color={colors.primary} />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                {isWide && (
+                  <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{top:10, bottom:10, left:10, right:10}}>
+                    <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
+                  </TouchableOpacity>
+                )}
+                {!isWide && (
+                  <TouchableOpacity onPress={onClose} activeOpacity={0.7} hitSlop={{top:10, bottom:10, left:10, right:10}} style={{ backgroundColor: colors.surface, padding: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.border }}>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground }}>Schliessen</Text>
+                  </TouchableOpacity>
                 )}
               </View>
 
-              {/* ── Status ── */}
-              <View>
-                <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, marginBottom: 8 }}>Status ändern</Text>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
-                    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                  }}
-                  onPress={() => setShowStatusPicker(!showStatusPicker)}
-                  activeOpacity={0.7}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: sCfg.color }} />
-                    <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "600" }}>{sCfg.label}</Text>
-                  </View>
-                  <IconSymbol name="chevron.down" size={14} color={colors.muted} />
-                </TouchableOpacity>
-                {showStatusPicker && (
-                  <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginTop: 4, overflow: "hidden" }}>
-                    {statusOptions.map((opt) => (
-                      <TouchableOpacity
-                        key={opt.key}
-                        style={{
-                          paddingHorizontal: 14, paddingVertical: 12,
-                          borderBottomWidth: 1, borderBottomColor: colors.border,
-                          flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                          backgroundColor: currentStatus === opt.key ? opt.color + "10" : "transparent",
-                        }}
-                        onPress={() => { handleStatusChange(opt.key); setShowStatusPicker(false); }}
-                        activeOpacity={0.7}
-                      >
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: opt.color }} />
-                          <Text style={{ fontSize: 14, color: colors.foreground, fontWeight: currentStatus === opt.key ? "700" : "400" }}>{opt.label}</Text>
-                        </View>
-                        {currentStatus === opt.key && <IconSymbol name="checkmark" size={14} color={opt.color} />}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
+              {/* ── Content ── */}
+              <ScrollView 
+                style={{ flex: 1 }} 
+                contentContainerStyle={{ padding: isWide ? 24 : 16 }}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={{ flexDirection: isWide ? "row" : "column", gap: 24 }}>
+                  {/* On Mobile: Metadata first */}
+                  {!isWide && renderMetadataSection()}
 
-              {/* ── Priorität ── */}
-              <View>
-                <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, marginBottom: 8 }}>Priorität ändern</Text>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-                    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
-                    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                  }}
-                  onPress={() => setShowPriorityPicker(!showPriorityPicker)}
-                  activeOpacity={0.7}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: pCfg.color }} />
-                    <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: "600" }}>{pCfg.label}</Text>
-                  </View>
-                  <IconSymbol name="chevron.down" size={14} color={colors.muted} />
-                </TouchableOpacity>
-                {showPriorityPicker && (
-                  <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginTop: 4, overflow: "hidden" }}>
-                    {priorityOptions.map((opt) => (
-                      <TouchableOpacity
-                        key={opt.key}
-                        style={{
-                          paddingHorizontal: 14, paddingVertical: 12,
-                          borderBottomWidth: 1, borderBottomColor: colors.border,
-                          flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                          backgroundColor: currentPriority === opt.key ? opt.color + "10" : "transparent",
-                        }}
-                        onPress={() => { handlePriorityChange(opt.key); setShowPriorityPicker(false); }}
-                        activeOpacity={0.7}
-                      >
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: opt.color }} />
-                          <Text style={{ fontSize: 14, color: colors.foreground, fontWeight: currentPriority === opt.key ? "700" : "400" }}>{opt.label}</Text>
-                        </View>
-                        {currentPriority === opt.key && <IconSymbol name="checkmark" size={14} color={opt.color} />}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              {/* ── Tabs (Kommentare vs. Aufwände) ── */}
-              <View style={{ flexDirection: "row", backgroundColor: colors.surface, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border, marginBottom: 8 }}>
-                <TouchableOpacity
-                  style={{ flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8, backgroundColor: activeTab === "comments" ? colors.primary + "20" : "transparent" }}
-                  onPress={() => setActiveTab("comments")}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: activeTab === "comments" ? "700" : "500", color: activeTab === "comments" ? colors.primary : colors.muted }}>Kommentare</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{ flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8, backgroundColor: activeTab === "items" ? colors.primary + "20" : "transparent" }}
-                  onPress={() => setActiveTab("items")}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: activeTab === "items" ? "700" : "500", color: activeTab === "items" ? colors.primary : colors.muted }}>Aufwände & Positionen</Text>
-                </TouchableOpacity>
-              </View>
-
-              {activeTab === "comments" ? (
-                /* ── Kommentare & Historie ── */
-                <View>
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>Kommentare & Historie</Text>
-                    <Text style={{ fontSize: 11, color: colors.muted }}>{comments?.length || 0} Einträge</Text>
+                  {/* Main Content (Left column on Wide) */}
+                  <View style={{ flex: isWide ? 2 : undefined }}>
+                    {renderMainContent()}
                   </View>
 
-                  {comments && comments.length > 0 ? (
-                    <View style={{ gap: 8, marginBottom: 12 }}>
-                      {comments.map((c: any) => (
-                        <View key={c.id} style={{
-                          backgroundColor: colors.surface, borderRadius: 12,
-                          padding: 14, borderWidth: 1, borderColor: colors.border,
-                          borderLeftWidth: 3, borderLeftColor: c.is_internal ? colors.warning : colors.success,
-                        }}>
-                          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary + "20", alignItems: "center", justifyContent: "center" }}>
-                                <Text style={{ fontSize: 10, fontWeight: "700", color: colors.primary }}>
-                                  {(c.user_name || "S")[0].toUpperCase()}
-                                </Text>
-                              </View>
-                              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.primary }}>
-                                {c.user_name || "System"}
-                              </Text>
-                              <View style={{
-                                paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6,
-                                backgroundColor: c.is_internal ? colors.warning + "18" : colors.success + "18",
-                              }}>
-                                <Text style={{ fontSize: 9, fontWeight: "700", color: c.is_internal ? colors.warning : colors.success }}>
-                                  {c.is_internal ? "INTERN" : "EXTERN"}
-                                </Text>
-                              </View>
-                            </View>
-                            <Text style={{ fontSize: 11, color: colors.muted }}>
-                              {formatDateTime(c.created_at)}
-                            </Text>
-                          </View>
-                          <Text style={{ fontSize: 14, color: colors.foreground, lineHeight: 20 }}>{c.comment}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  ) : (
-                    <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 20, alignItems: "center", marginBottom: 12, borderWidth: 1, borderColor: colors.border }}>
-                      <IconSymbol name="doc.text.fill" size={28} color={colors.muted} />
-                      <Text style={{ fontSize: 13, color: colors.muted, marginTop: 6 }}>Noch keine Kommentare</Text>
+                  {/* On Wide: Metadata on the right */}
+                  {isWide && (
+                    <View style={{ flex: 1 }}>
+                      {renderMetadataSection()}
                     </View>
                   )}
-
-                  {/* Sichtbarkeit Toggle */}
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <TouchableOpacity
-                      style={{
-                        flexDirection: "row", alignItems: "center", gap: 6,
-                        paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-                        backgroundColor: isInternalComment ? colors.warning + "15" : colors.success + "15",
-                        borderWidth: 1, borderColor: isInternalComment ? colors.warning + "30" : colors.success + "30",
-                      }}
-                      onPress={() => setIsInternalComment(!isInternalComment)}
-                      activeOpacity={0.7}
-                    >
-                      <IconSymbol
-                        name={isInternalComment ? "lock.fill" : "globe"}
-                        size={12}
-                        color={isInternalComment ? colors.warning : colors.success}
-                      />
-                      <Text style={{ fontSize: 12, fontWeight: "600", color: isInternalComment ? colors.warning : colors.success }}>
-                        {isInternalComment ? "Nur intern" : "Kunde sichtbar"}
-                      </Text>
-                    </TouchableOpacity>
-                    <Text style={{ fontSize: 11, color: colors.muted }}>Tippen um zu wechseln</Text>
-                  </View>
-
-                  {/* Neuer Kommentar */}
-                  <View style={{ flexDirection: "row", gap: 8 }}>
-                    <TextInput
-                      style={{
-                        flex: 1, backgroundColor: colors.surface,
-                        borderWidth: 1, borderColor: colors.border,
-                        borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-                        color: colors.foreground, fontSize: 14,
-                      }}
-                      placeholder="Kommentar schreiben..."
-                      placeholderTextColor={colors.muted}
-                      value={newComment}
-                      onChangeText={setNewComment}
-                      multiline
-                    />
-                    <TouchableOpacity
-                      style={{
-                        backgroundColor: colors.primary, borderRadius: 12,
-                        paddingHorizontal: 16, justifyContent: "center",
-                        opacity: addingComment || !newComment.trim() ? 0.5 : 1,
-                      }}
-                      onPress={handleAddComment}
-                      activeOpacity={0.7}
-                      disabled={addingComment || !newComment.trim()}
-                    >
-                      {addingComment ? (
-                        <ActivityIndicator color="#FFF" size="small" />
-                      ) : (
-                        <IconSymbol name="paperplane.fill" size={18} color="#FFF" />
-                      )}
-                    </TouchableOpacity>
-                  </View>
                 </View>
-              ) : (
-                <TicketItemsList
-                  ticketId={ticket.id}
-                  ticketItems={ticketItems}
-                  products={products}
-                  colors={colors}
-                  onRefresh={refetchTicketItems}
-                />
-              )}
+                
+                {/* On Mobile: Footer actions at the bottom of the scroll */}
+                {!isWide && (
+                  <View style={{ marginTop: 24, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 20 }}>
+                     {renderFooterActions()}
+                  </View>
+                )}
+              </ScrollView>
             </View>
-          </ScrollView>
-
-          {/* ── Footer Actions ── */}
-          <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: colors.border, flexDirection: "row", gap: 10 }}>
-            {currentStatus === "closed" && (
-              <TouchableOpacity
-                style={{
-                  flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
-                  backgroundColor: colors.primary + "10", borderWidth: 1, borderColor: colors.primary + "25",
-                  paddingVertical: 12, borderRadius: 12,
-                }}
-                onPress={handleCreateInvoice}
-                activeOpacity={0.8}
-              >
-                <IconSymbol name="doc.text.fill" size={14} color={colors.primary} />
-                <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 13 }}>Rechnung</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={{
-                flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
-                backgroundColor: colors.error + "10", borderWidth: 1, borderColor: colors.error + "25",
-                paddingVertical: 12, borderRadius: 12,
-              }}
-              onPress={handleDelete}
-              activeOpacity={0.8}
-            >
-              <IconSymbol name="trash.fill" size={14} color={colors.error} />
-              <Text style={{ color: colors.error, fontWeight: "600", fontSize: 14 }}>Löschen</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={{
-                flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-                paddingVertical: 12, borderRadius: 12,
-              }}
-              onPress={onClose}
-              activeOpacity={0.8}
-            >
-              <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 14 }}>Schliessen</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
   );
+
 }
 
 function TicketItemsList({ ticketId, ticketItems, products, colors, onRefresh }: any) {
