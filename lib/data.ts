@@ -1985,7 +1985,7 @@ export async function deleteUser(id: string) {
 export async function getLeads() {
     const { data, error } = await supabase
         .from("leads")
-        .select("*")
+        .select("*, lead_reminders(*)")
         .order("created_at", { ascending: false });
 
     if (error) throw new Error(error.message);
@@ -2069,7 +2069,7 @@ export async function createLeadReminder(reminder: { lead_id: string; remind_at:
     if (!userId) throw new Error("Not authenticated");
 
     const { data, error } = await supabase
-        .from("leadReminders")
+        .from("lead_reminders")
         .insert([{ ...reminder, user_id: userId }])
         .select()
         .single();
@@ -2079,7 +2079,7 @@ export async function createLeadReminder(reminder: { lead_id: string; remind_at:
 
 export async function getLeadReminders(leadId: string) {
     const { data, error } = await supabase
-        .from("leadReminders")
+        .from("lead_reminders")
         .select("*")
         .eq("lead_id", leadId)
         .order("remind_at", { ascending: true });
@@ -2088,7 +2088,7 @@ export async function getLeadReminders(leadId: string) {
 }
 
 export async function deleteLeadReminder(id: string) {
-    const { error } = await supabase.from("leadReminders").delete().eq("id", id);
+    const { error } = await supabase.from("lead_reminders").delete().eq("id", id);
     if (error) throw new Error(error.message);
     return { success: true };
 }

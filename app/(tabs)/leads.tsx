@@ -458,6 +458,33 @@ export default function LeadsScreen() {
                               <Text className="text-sm font-semibold text-success">
                                 CHF {(lead.value || 0).toLocaleString("de-CH")}
                               </Text>
+                              
+                              {(() => {
+                                const pendingReminders = lead.lead_reminders?.filter((r: any) => !r.is_processed)
+                                  .sort((a: any, b: any) => new Date(a.remind_at).getTime() - new Date(b.remind_at).getTime()) || [];
+                                if (pendingReminders.length > 0) {
+                                  const nextReminder = pendingReminders[0];
+                                  const rDate = new Date(nextReminder.remind_at);
+                                  const dateStr = `${rDate.getDate().toString().padStart(2, '0')}.${(rDate.getMonth() + 1).toString().padStart(2, '0')}.${rDate.getFullYear()}`;
+                                  
+                                  const today = new Date();
+                                  today.setHours(0, 0, 0, 0);
+                                  const isOverdue = rDate < today;
+                                  
+                                  const itemColor = isOverdue ? colors.error : colors.primary;
+                                  
+                                  return (
+                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8, padding: 6, borderRadius: 6, backgroundColor: itemColor + "15", borderWidth: 1, borderColor: itemColor + "30" }}>
+                                      <IconSymbol name="calendar" size={12} color={itemColor} />
+                                      <Text style={{ fontSize: 12, fontWeight: "600", color: itemColor, flex: 1 }} numberOfLines={1}>
+                                        {dateStr}{nextReminder.note ? ` - ${nextReminder.note}` : ''}
+                                      </Text>
+                                    </View>
+                                  );
+                                }
+                                return null;
+                              })()}
+
                               <View className="flex-row gap-2 mt-2">
                                 <TouchableOpacity
                                   className="flex-1 bg-primary/20 py-1 rounded"

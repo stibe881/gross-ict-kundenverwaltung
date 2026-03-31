@@ -57,6 +57,8 @@ export function LeadFormModal({
     position: "",
     extraAmount: "",
     extraDescription: "",
+    reminderDate: "",
+    reminderNote: "",
   });
 
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
@@ -97,6 +99,8 @@ export function LeadFormModal({
         position: lead.position || "",
         extraAmount: lead.extra_amount?.toString() || "",
         extraDescription: lead.extra_description || "",
+        reminderDate: "",
+        reminderNote: "",
       });
       // Load existing items
       Data.getLeadItems(lead.id).then((items) => {
@@ -126,6 +130,8 @@ export function LeadFormModal({
         position: "",
         extraAmount: "",
         extraDescription: "",
+        reminderDate: "",
+        reminderNote: "",
       });
       setSelectedProducts([]);
     }
@@ -205,6 +211,20 @@ export function LeadFormModal({
 
       if (lead) {
         await Data.updateLead(lead.id, payload, items);
+        
+        // Add reminder if specified
+        if (formData.reminderDate && formData.reminderNote) {
+          const parts = formData.reminderDate.split(".");
+          const dbDate = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : formData.reminderDate;
+          const remindAt = new Date(`${dbDate}T12:00:00`);
+          if (!isNaN(remindAt.getTime())) {
+            await Data.createLeadReminder({
+              lead_id: lead.id,
+              remind_at: remindAt.toISOString(),
+              note: formData.reminderNote,
+            });
+          }
+        }
       } else {
         const newLead = await Data.createLead(payload, items);
         await Data.addLeadActivity({
@@ -213,6 +233,26 @@ export function LeadFormModal({
           content: "Lead erstellt",
           user_name: "System",
         });
+
+        // Add reminder if specified
+        if (formData.reminderDate && formData.reminderNote) {
+          const parts = formData.reminderDate.split(".");
+          const dbDate = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : formData.reminderDate;
+          const remindAt = new Date(`${dbDate}T12:00:00`);
+          if (!isNaN(remindAt.getTime())) {
+            await Data.createLeadReminder({
+              lead_id: newLead.id,
+              remind_at: remindAt.toISOString(),
+              note: formData.reminderNote,
+            });
+            await Data.addLeadActivity({
+              lead_id: newLead.id,
+              type: "system",
+              content: `Erinnerung hinzugefügt für ${formData.reminderDate}`,
+              user_name: "System",
+            });
+          }
+        }
       }
 
       onSuccess?.();
@@ -638,6 +678,46 @@ export function LeadFormModal({
                     </TouchableOpacity>
                   ))}
                 </View>
+              </View>
+
+              {/* Terminierung / Wiedervorlage */}
+              <View className="bg-surface rounded-xl p-4 border border-border mt-2">
+                <Text className="text-base font-bold text-foreground mb-3">
+                  <IconSymbol name="calendar" size={16} color={colors.foreground} /> Terminierung (optional)
+                </Text>
+                <View className="flex-row gap-3">
+                  <View style={{ width: 140 }}>
+                    <Text className="text-sm font-semibold text-foreground mb-2">
+                      Datum
+                    </Text>
+                    <TextInput
+                      className="bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                      placeholder="TT.MM.JJJJ"
+                      placeholderTextColor={colors.muted}
+                      value={formData.reminderDate}
+                      onChangeText={(text) =>
+                        setFormData({ ...formData, reminderDate: text })
+                      }
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-foreground mb-2">
+                      Grund / Notiz
+                    </Text>
+                    <TextInput
+                      className="bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                      placeholder="z.B. Nochmals anrufen"
+                      placeholderTextColor={colors.muted}
+                      value={formData.reminderNote}
+                      onChangeText={(text) =>
+                        setFormData({ ...formData, reminderNote: text })
+                      }
+                    />
+                  </View>
+                </View>
+                <Text className="text-xs text-muted mt-2">
+                  Füllen Sie beide Felder aus, um eine automatische Wiedervorlage für diesen Lead zu erstellen.
+                </Text>
               </View>
 
               {/* Notizen */}

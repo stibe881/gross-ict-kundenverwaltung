@@ -349,6 +349,7 @@ export default function UsersScreen() {
           { key: "tasks", label: "Aufgaben", desc: "Aufgaben-Zuweisung, Erinnerungen", icon: "checklist", color: "#8B5CF6" },
           { key: "sticky_notes", label: "Sticky Notes", desc: "Neue Notizen auf dem Whiteboard", icon: "note.text", color: "#EAB308" },
           { key: "portal", label: "Kundenportal", desc: "Kunden-Antworten auf Tickets", icon: "person.2.fill", color: "#14B8A6" },
+          { key: "lead_reminders", label: "Lead Terminierungen", desc: "Erinnerungen für Kontakt-Wiedervorlage", icon: "calendar", color: "#F97316" },
         ].map((cat) => {
           const isEnabled = editPushPrefs[cat.key] !== false;
           return (

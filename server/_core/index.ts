@@ -746,7 +746,7 @@ async function startServer() {
               to: email,
               leadName: leadName,
               note: reminder.note,
-              leadUrl: `${frontendUrl}/akquisen/${reminder.lead_id}`
+              leadUrl: `${frontendUrl}/leads`
             }).catch(e => console.error("[Reminders] Failed to send email:", e));
           }
 
@@ -755,8 +755,8 @@ async function startServer() {
             "admin",
             `Erinnerung: Akquise ${leadName}`,
             reminder.note,
-            { url: `/akquisen/${reminder.lead_id}` },
-            "tasks"
+            { url: `/leads` },
+            "lead_reminders"
           );
 
           await markLeadReminderProcessed(reminder.id);
