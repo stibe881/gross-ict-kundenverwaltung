@@ -88,7 +88,7 @@ export function generateAnnualReportJSPDF(data: AnnualReportData): any {
   doc.text("Gross ICT  ·  Neuhushof 3  ·  6144 Zell LU  ·  Schweiz", pageWidth - marginX, y, { align: "right" });
   
   doc.setFont("helvetica", "normal");
-  doc.text("Stefan Gross  ·  +41 79 414 06 16  ·  info@gross-ict.ch", pageWidth - marginX, y + 5, { align: "right" });
+  doc.text("Stefan Gross  ·  +41 41 562 34 16  ·  info@gross-ict.ch", pageWidth - marginX, y + 5, { align: "right" });
 
   y += 10;
   doc.setDrawColor(...cBorder);

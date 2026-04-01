@@ -108,7 +108,7 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.text(compText1, pageWidth - marginX, y, { align: "right" });
   
   doc.setFont("helvetica", "normal");
-  const compText2 = "Stefan Gross  ·  +41 79 414 06 16  ·  info@gross-ict.ch";
+  const compText2 = "+41 41 562 34 16  ·  info@gross-ict.ch";
   doc.text(compText2, pageWidth - marginX, y + 5, { align: "right" });
 
   y += 10;

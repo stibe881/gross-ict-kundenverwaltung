@@ -74,10 +74,18 @@ const MAPPING = {
   "checklist": "checklist",
   "pin.fill": "push-pin",
   "clock": "schedule",
+  "clock.fill": "schedule",
   "arrow.triangle.2.circlepath": "sync",
   "checkmark.circle.fill": "check-circle",
   "arrow.clockwise": "refresh",
   "arrow.up.right": "open-in-new",
+  "exclamationmark.triangle.fill": "warning",
+  "exclamationmark.triangle": "warning",
+  "exclamationmark.circle.fill": "error",
+  "xmark.octagon.fill": "block",
+  "doc.text": "description",
+  "eye": "visibility",
+  "banknote.fill": "payments",
 } as IconMapping;
 
 /**

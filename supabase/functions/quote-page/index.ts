@@ -637,7 +637,8 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
   <footer class="site-footer">
     <div class="container footer-inner">
       <span>© ${new Date().getFullYear()} Gross ICT · Neuhushof 3 · 6144 Zell LU</span>
-      <span><a href="tel:+41794140616">+41 79 414 06 16</a> · <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a></span>
+      <span><a href="tel:+41415623416">+41 41 562 34 16</a> · <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a></span><br>
+      <span>UID: CHE-142.161.164</span>
     </div>
   </footer>
 

@@ -901,8 +901,8 @@ function TicketDetailsModal({
       const rawVatAmount = invoiceItems.reduce((sum: number, i: any) => sum + (i.total * (i.vat_rate / 100)), 0);
 
       const draftInvoice = {
-        invoice_number: `ENTWURF-${Date.now().toString().slice(-6)}`,
-        status: "sent",
+        invoice_number: await Data.getNextInvoiceNumber(),
+        status: "draft",
         customer_id: ticket.customer_id,
         invoice_date: new Date().toISOString().split("T")[0],
         due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],

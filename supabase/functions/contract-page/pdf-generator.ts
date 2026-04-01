@@ -75,7 +75,7 @@ function drawFooter(doc: any, startDate: string, signatureDate?: string) {
 
   doc.setFont("helvetica", "normal");
   doc.text("info@gross-ict.ch", col2X, FOOTER_Y + 13);
-  doc.text("+41 79 414 06 16", col2X, FOOTER_Y + 18);
+  doc.text("+41 41 562 34 16", col2X, FOOTER_Y + 18);
 
   doc.setFont("helvetica", "bold");
   doc.text("Neuhushof 3", col3X, FOOTER_Y + 13);
@@ -140,7 +140,7 @@ export function generateContractPDF(data: ContractData): string {
   doc.setTextColor(...cTextMuted);
   doc.text("Gross ICT  ·  Neuhushof 3  ·  6144 Zell LU  ·  Schweiz", PAGE_WIDTH - MARGIN_X, y, { align: "right" });
   doc.setFont("helvetica", "normal");
-  doc.text("Stefan Gross  ·  +41 79 414 06 16  ·  info@gross-ict.ch", PAGE_WIDTH - MARGIN_X, y + 5, { align: "right" });
+  doc.text("Stefan Gross  ·  +41 41 562 34 16  ·  info@gross-ict.ch", PAGE_WIDTH - MARGIN_X, y + 5, { align: "right" });
 
   y += 10;
   doc.setDrawColor(...cBorder);
@@ -476,6 +476,7 @@ function drawInvoiceFooter(doc: any, settings?: InvoiceData["settings"]) {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(203, 213, 225);
   doc.text("Neuhushof 3, 6144 Zell LU", col1X, FOOTER_Y + 18);
+  doc.text("UID: CHE-142.161.164", col1X, FOOTER_Y + 23);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
@@ -521,7 +522,7 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.setTextColor(...cTextMuted);
   doc.text("Gross ICT  ·  Neuhushof 3  ·  6144 Zell LU  ·  Schweiz", PAGE_WIDTH - MARGIN_X, y, { align: "right" });
   doc.setFont("helvetica", "normal");
-  doc.text("Stefan Gross  ·  +41 79 414 06 16  ·  info@gross-ict.ch", PAGE_WIDTH - MARGIN_X, y + 5, { align: "right" });
+  doc.text("+41 41 562 34 16  ·  info@gross-ict.ch", PAGE_WIDTH - MARGIN_X, y + 5, { align: "right" });
   y += 10;
   doc.setDrawColor(...cBorder);
   doc.setLineWidth(0.5);
@@ -772,6 +773,7 @@ function drawQuoteFooter(doc: any) {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(203, 213, 225);
   doc.text("Neuhushof 3, 6144 Zell LU", col1X, FOOTER_Y + 18);
+  doc.text("UID: CHE-142.161.164", col1X, FOOTER_Y + 23);
 
   doc.text("Luzerner Kantonalbank AG", col2X, FOOTER_Y + 13);
 
@@ -814,7 +816,7 @@ export function generateQuotePDF(data: QuoteData): string {
   doc.setTextColor(...cTextMuted);
   doc.text("Gross ICT  ·  Neuhushof 3  ·  6144 Zell LU  ·  Schweiz", PAGE_WIDTH - MARGIN_X, y, { align: "right" });
   doc.setFont("helvetica", "normal");
-  doc.text(`${data.creatorName || "Stefan Gross"}  ·  +41 79 414 06 16  ·  info@gross-ict.ch`, PAGE_WIDTH - MARGIN_X, y + 5, { align: "right" });
+  doc.text("+41 41 562 34 16  ·  info@gross-ict.ch", PAGE_WIDTH - MARGIN_X, y + 5, { align: "right" });
   y += 10;
   doc.setDrawColor(...cBorder);
   doc.setLineWidth(0.5);

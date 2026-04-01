@@ -157,7 +157,7 @@ export function generateQuotePDFHTML(quote: any): string {
     </table>
     <div class="company-bar">
       <strong>Gross ICT</strong> · Neuhushof 3 · 6144 Zell LU · Schweiz<br>
-      ${creatorName} · +41 79 414 06 16 · info@gross-ict.ch
+      +41 41 562 34 16 · info@gross-ict.ch
     </div>
     <table class="addr-meta-table">
       <tr>
@@ -210,17 +210,21 @@ export function generateQuotePDFHTML(quote: any): string {
   <div id="pdf-footer" class="footer">
     <table class="footer-table">
       <tr>
-        <td style="width:33%;">
+        <td style="width:25%;">
           <div class="footer-label">Zahlungsempfänger</div>
           <span class="footer-val">Gross ICT</span>
         </td>
-        <td style="width:33%;">
+        <td style="width:25%;">
           <div class="footer-label">Bankverbindung</div>
           <span class="footer-val">Luzerner Kantonalbank AG</span>
         </td>
-        <td style="width:34%;">
+        <td style="width:25%;">
           <div class="footer-label">IBAN</div>
           <span class="footer-val">CH32 0077 8229 1386 9200 1</span>
+        </td>
+        <td style="width:25%;">
+          <div class="footer-label">UID</div>
+          <span class="footer-val">CHE-142.161.164</span>
         </td>
       </tr>
     </table>

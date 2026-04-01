@@ -1,6 +1,7 @@
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Platform } from "react-native";
+import { supabase } from "./supabase";
 
 // ──────────────────────────────────────────────────────────────
 // Shared: PDF aus Base64 öffnen (Web: neuer Tab, Native: Share)
@@ -42,7 +43,15 @@ async function fetchPDFFromEdgeFunction(params: string): Promise<string> {
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
   const url = `${supabaseUrl}/functions/v1/contract-page?${params}`;
 
-  const response = await fetch(url);
+  // Get the current session token for authorization
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: "Unbekannter Fehler" }));
     throw new Error(errorData.error || `HTTP ${response.status}`);

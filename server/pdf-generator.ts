@@ -107,7 +107,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   doc.text("Stefan Gross", companyRightX, y, { align: "right" });
   y += 4;
   doc.setFont("helvetica", "normal");
-  doc.text("+41794140616", companyRightX, y, { align: "right" });
+  doc.text("+41 41 562 34 16", companyRightX, y, { align: "right" });
   y += 4;
   doc.text("stefan.gross@hotmail.ch", companyRightX, y, { align: "right" });
 
@@ -255,8 +255,10 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   doc.setFont("helvetica", "normal");
   const bankLine1 = "Zahlungsempfänger: Gross ICT  ·  Bank: Luzerner Kantonalbank AG";
   const bankLine2 = "IBAN: CH32 0077 8229 1386 9200 1";
+  const bankLine3 = "UID: CHE-142.161.164";
   doc.text(bankLine1, marginLeft, footerY + 10);
   doc.text(bankLine2, marginLeft, footerY + 14);
+  doc.text(bankLine3, marginLeft, footerY + 18);
 
   // PDF als Buffer zurückgeben
   const arrayBuffer = doc.output("arraybuffer");
@@ -352,7 +354,7 @@ function generateInvoiceHTML(data: InvoiceData): string {
     <div>Schweiz</div>
     <div class="separator"></div>
     <div class="name">Stefan Gross</div>
-    <div>+41794140616</div>
+    <div>+41 41 562 34 16</div>
     <div>stefan.gross@hotmail.ch</div>
   </div>
   <div class="meta-section">
@@ -396,7 +398,8 @@ function generateInvoiceHTML(data: InvoiceData): string {
     <div class="bank-details">
       Zahlungsempfänger: <strong>Gross ICT</strong> &nbsp;·&nbsp;
       Bank: <strong>Luzerner Kantonalbank AG</strong><br>
-      IBAN: <strong>CH32 0077 8229 1386 9200 1</strong>
+      IBAN: <strong>CH32 0077 8229 1386 9200 1</strong><br>
+      UID: <strong>CHE-142.161.164</strong>
     </div>
   </div>
 </body>
