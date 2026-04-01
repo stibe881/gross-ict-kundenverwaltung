@@ -38,25 +38,6 @@ export async function triggerPushNotification(
         } else {
             console.log("[Push] Edge Function response:", JSON.stringify(result));
         }
-
-        // Also save to notifications table for the CURRENT user (sender)
-        // so it appears in their own dashboard activity feed
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                const { error: insErr } = await supabase.from("notifications").insert({
-                    user_id: session.user.id,
-                    title: title,
-                    message: body,
-                    is_read: true,
-                });
-                console.log("[Push] Activity saved for user:", session.user.id, insErr ? "ERROR: " + insErr.message : "OK");
-            } else {
-                console.log("[Push] No session, cannot save activity");
-            }
-        } catch (e) {
-            console.warn("[Push] Failed to save activity:", e);
-        }
     } catch (e) {
         console.error("[Push] Failed to send:", e);
     }
@@ -2202,6 +2183,16 @@ export async function addLeadActivity(activity: {
 
     if (error) throw new Error(error.message);
     return data;
+}
+
+export async function deleteLeadActivity(id: string) {
+    const { error } = await supabase
+        .from("lead_activities")
+        .delete()
+        .eq("id", id);
+
+    if (error) throw new Error(error.message);
+    return { success: true };
 }
 
 // ==================== AUSGABEN ====================

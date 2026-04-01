@@ -119,18 +119,25 @@ serve(async (req) => {
       });
     }
 
-    // Save notification history (non-blocking)
+    // Save to notifications table so it appears in the app dashboard (non-blocking)
     try {
-      const histories = filteredUsers.map(u => ({
-        user_id: u.id,
-        title,
-        body,
-        data: data || {},
-        read: false,
-      }));
-      await supabaseAdmin.from("notification_history").insert(histories);
-    } catch (histErr) {
-      console.warn("[send-push] Could not save notification history:", histErr);
+      const records = filteredUsers.map(u => {
+        const base = {
+            title,
+            message: body,
+            type: "info",
+            link: data?.url || null,
+            is_read: false,
+        };
+        if (recipientType === "customer") {
+            return { ...base, customer_portal_user_id: u.id };
+        } else {
+            return { ...base, user_id: u.id };
+        }
+      });
+      await supabaseAdmin.from("notifications").insert(records);
+    } catch (dbErr) {
+      console.warn("[send-push] Could not save notifications to DB:", dbErr);
     }
 
     // Expand comma-separated tokens into individual messages

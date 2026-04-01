@@ -216,7 +216,7 @@ export function LeadFormModal({
         if (formData.reminderDate && formData.reminderNote) {
           const parts = formData.reminderDate.split(".");
           const dbDate = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : formData.reminderDate;
-          const remindAt = new Date(`${dbDate}T12:00:00`);
+          const remindAt = new Date(`${dbDate}T08:00:00`);
           if (!isNaN(remindAt.getTime())) {
             await Data.createLeadReminder({
               lead_id: lead.id,
@@ -238,7 +238,7 @@ export function LeadFormModal({
         if (formData.reminderDate && formData.reminderNote) {
           const parts = formData.reminderDate.split(".");
           const dbDate = parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : formData.reminderDate;
-          const remindAt = new Date(`${dbDate}T12:00:00`);
+          const remindAt = new Date(`${dbDate}T08:00:00`);
           if (!isNaN(remindAt.getTime())) {
             await Data.createLeadReminder({
               lead_id: newLead.id,

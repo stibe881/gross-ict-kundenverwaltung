@@ -103,14 +103,14 @@ export default function LeadsScreen() {
 
   const groupedLeads = {
     new: sortLeads(filteredLeads.filter((l: any) => l.status === "new")),
-    contacted: sortLeads(filteredLeads.filter((l: any) => l.status === "contacted")),
+    contacted: sortLeads(filteredLeads.filter((l: any) => l.status === "contacted" && !l.lead_reminders?.some((r: any) => !r.is_processed))),
     qualified: sortLeads(filteredLeads.filter((l: any) => l.status === "qualified")),
     proposal: sortLeads(filteredLeads.filter((l: any) => l.status === "proposal")),
   };
 
   const totalCounts = {
     new: leads.filter((l: any) => l.status === "new").length,
-    contacted: leads.filter((l: any) => l.status === "contacted").length,
+    contacted: leads.filter((l: any) => l.status === "contacted" && !l.lead_reminders?.some((r: any) => !r.is_processed)).length,
     qualified: leads.filter((l: any) => l.status === "qualified").length,
     proposal: leads.filter((l: any) => l.status === "proposal").length,
   };
@@ -379,6 +379,66 @@ export default function LeadsScreen() {
                         </TouchableOpacity>
                       </TouchableOpacity>
                     ))}
+                  </View>
+                </ScrollView>
+              </View>
+            );
+          })()}
+
+          {/* Follow up (Terminierungen) Kachel */}
+          {!isLoading && (() => {
+            const followUpLeads = leads.filter((l: any) => 
+               l.lead_reminders?.some((r: any) => !r.is_processed)
+            );
+            // Sort by earliest reminder
+            followUpLeads.sort((a: any, b: any) => {
+               const aDates = a.lead_reminders.filter((r:any) => !r.is_processed).map((r:any) => new Date(r.remind_at).getTime());
+               const bDates = b.lead_reminders.filter((r:any) => !r.is_processed).map((r:any) => new Date(r.remind_at).getTime());
+               return Math.min(...aDates) - Math.min(...bDates);
+            });
+            if (followUpLeads.length === 0) return null;
+            return (
+              <View className="bg-surface rounded-xl p-4 border border-border mb-4" style={{ minHeight: 140, maxHeight: 220 }}>
+                <View className="flex-row items-center justify-between mb-3">
+                  <View className="flex-row items-center gap-2">
+                    <IconSymbol name="bell.fill" size={18} color={colors.primary} />
+                    <Text className="text-sm font-semibold text-foreground">Follow up</Text>
+                  </View>
+                  <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '20' }}>
+                    <Text className="text-xs font-semibold" style={{ color: colors.primary }}>{followUpLeads.length}</Text>
+                  </View>
+                </View>
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={followUpLeads.length > 3}>
+                  <View className="gap-2">
+                    {followUpLeads.map((lead: any) => {
+                      const pendingReminders = lead.lead_reminders?.filter((r: any) => !r.is_processed)
+                        .sort((a: any, b: any) => new Date(a.remind_at).getTime() - new Date(b.remind_at).getTime()) || [];
+                      const nextReminder = pendingReminders[0];
+                      const rDate = new Date(nextReminder.remind_at);
+                      const isOverdue = rDate < new Date(new Date().setHours(0,0,0,0));
+                      const itemColor = isOverdue ? colors.error : colors.primary;
+
+                      return (
+                      <TouchableOpacity
+                        key={lead.id}
+                        className="flex-row items-center bg-background rounded-lg px-3 py-2 border border-border"
+                        activeOpacity={0.7}
+                        onPress={() => setSelectedLead(lead)}
+                      >
+                        <View className="flex-1 mr-2">
+                          <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{lead.company || lead.name || '-'}</Text>
+                          {nextReminder?.note ? <Text className="text-xs text-muted" numberOfLines={1}>{nextReminder.note}</Text> : null}
+                        </View>
+                        <Text className="text-xs font-semibold mr-3" style={{ color: itemColor }}>
+                          {rDate.getDate().toString().padStart(2, '0')}.{(rDate.getMonth() + 1).toString().padStart(2, '0')}.{rDate.getFullYear()}
+                        </Text>
+                        <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: getPriorityColor(lead.priority) + '20' }}>
+                          <Text className="text-[10px] font-semibold" style={{ color: getPriorityColor(lead.priority) }}>
+                            {getPriorityLabel(lead.priority)}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    )})}
                   </View>
                 </ScrollView>
               </View>
@@ -827,6 +887,8 @@ function LeadDetailsModal({
   const [reminderDate, setReminderDate] = useState("");
   const [reminderTime, setReminderTime] = useState("");
 
+  const [isAdmin, setIsAdmin] = useState(false);
+
   // Echten Benutzernamen laden
   useEffect(() => {
     Data.supabase.auth.getSession().then(({ data: { session } }) => {
@@ -837,6 +899,12 @@ function LeadDetailsModal({
           || session.user.email?.split('@')[0]
           || 'Admin';
         setCurrentUserName(name);
+
+        Data.getUserProfile(session.user.id).then((profile: any) => {
+          if (profile?.roles?.includes("admin")) {
+            setIsAdmin(true);
+          }
+        }).catch(console.error);
       }
     });
   }, []);
@@ -1394,7 +1462,26 @@ function LeadDetailsModal({
                           })}
                         </Text>
                       </View>
-                      <Text className="text-sm text-foreground">{activity.content}</Text>
+                      <View className="flex-row items-start justify-between">
+                        <Text className="text-sm text-foreground flex-1 pr-2">{activity.content}</Text>
+                        {isAdmin && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              showConfirm("Aktivität löschen", "Möchten Sie diese Aktivität wirklich löschen?", async () => {
+                                try {
+                                  await Data.deleteLeadActivity(activity.id);
+                                  refetchActivities();
+                                } catch(e: any) {
+                                  showAlert("Fehler", e.message);
+                                }
+                              });
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <IconSymbol name="trash" size={14} color={colors.error} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                   ))
                 )}

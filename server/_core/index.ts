@@ -734,7 +734,9 @@ async function startServer() {
         try {
           const { data: userAuth, error: authError } = await supabase.auth.admin.getUserById(reminder.user_id);
           const email = userAuth?.user?.email;
-          const leadName = reminder.leads?.company_name || `${reminder.leads?.first_name || ""} ${reminder.leads?.last_name || ""}`.trim() || 'Unbekannt';
+          let leadObj = reminder.leads;
+          if (Array.isArray(leadObj) && leadObj.length > 0) leadObj = leadObj[0];
+          const leadName = leadObj?.company || leadObj?.name || 'Unbekannt';
           const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || `http://localhost:3000`; // Assuming local or production URL from env
           // Wait, the UI base url is where they view it. Usually we can construct the frontend url:
           // In notification.ts they just use relative path `/tickets?ticketId=xyz`.
