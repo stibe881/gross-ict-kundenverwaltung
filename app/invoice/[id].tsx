@@ -168,8 +168,9 @@ export default function InvoiceDetailScreen() {
 
     const getStatusLabel = (status: string) => {
         switch (status) {
+            case "draft": return "Entwurf";
             case "open": return "Offen";
-            case "sent": return "Gesendet";
+            case "sent": return "Geöffnet";
             case "paid": return "Bezahlt";
             case "overdue": return "Überfällig";
             case "cancelled": return "Storniert";
@@ -179,6 +180,7 @@ export default function InvoiceDetailScreen() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
+            case "draft": return "bg-muted";
             case "open": return "bg-warning";
             case "sent": return "bg-primary";
             case "paid": return "bg-success";
@@ -460,7 +462,7 @@ export default function InvoiceDetailScreen() {
                                             edited: "pencil",
                                             sent: "paperplane",
                                             reminder_sent: "exclamationmark.triangle",
-                                            opened: "eye",
+                                            viewed: "eye",
                                             payment_added: "banknote",
                                         };
                                         const iconName = iconNames[activity.type] || "circle.fill";
@@ -640,7 +642,7 @@ export default function InvoiceDetailScreen() {
                         <View className="gap-2 mb-4">
                             {[
                                 { status: "open", label: "Offen", color: "#f59e0b", icon: "clock.fill" },
-                                { status: "sent", label: "Gesendet", color: "#3b82f6", icon: "paperplane.fill" },
+                                { status: "sent", label: "Geöffnet", color: "#06b6d4", icon: "eye.fill" },
                                 { status: "paid", label: "Bezahlt", color: "#22c55e", icon: "checkmark.circle.fill" },
                                 { status: "overdue", label: "Überfällig", color: "#ef4444", icon: "exclamationmark.triangle.fill" },
                                 { status: "cancelled", label: "Storniert", color: "#6b7280", icon: "xmark.circle.fill" },

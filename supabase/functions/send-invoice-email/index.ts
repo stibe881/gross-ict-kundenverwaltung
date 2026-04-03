@@ -162,6 +162,13 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "E-Mail konnte nicht gesendet werden" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Status auf 'open' setzen (Rechnung ist nun offen/ausstehend)
+    await supabase
+      .from("invoices")
+      .update({ status: "open" })
+      .eq("id", id)
+      .in("status", ["draft"]); // Nur aus 'draft' heraus updaten, nicht überschreiben wenn schon weiter
+
     // Aktivität loggen
     await supabase.from("invoice_activities").insert({
       invoice_id: id,

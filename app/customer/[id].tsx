@@ -204,6 +204,9 @@ export default function CustomerDetailScreen() {
   const totalPaid = invoices
     .filter((inv: any) => inv.status === "paid")
     .reduce((sum: number, inv: any) => sum + (getInvoiceTotal(inv) || 0), 0);
+  const totalUnpaid = invoices
+    .filter((inv: any) => ["open", "sent", "overdue"].includes(inv.status))
+    .reduce((sum: number, inv: any) => sum + Math.max(0, (getInvoiceTotal(inv) || 0) - (inv.paid_amount || 0)), 0);
 
   const contactPerson = customer?.first_name || customer?.last_name
     ? `${customer?.first_name || ""} ${customer?.last_name || ""}`.trim()
@@ -234,9 +237,9 @@ export default function CustomerDetailScreen() {
     p === "low" ? colors.success : p === "medium" ? colors.warning : colors.error;
 
   const invoiceStatusLabel = (s: string) =>
-    s === "draft" ? "ENTWURF" : s === "open" ? "OFFEN" : s === "paid" ? "BEZAHLT" : s === "overdue" ? "ÜBERFÄLLIG" : "STORNIERT";
+    s === "draft" ? "ENTWURF" : s === "open" ? "OFFEN" : s === "sent" ? "GEÖFFNET" : s === "paid" ? "BEZAHLT" : s === "overdue" ? "ÜBERFÄLLIG" : "STORNIERT";
   const invoiceStatusColor = (s: string) =>
-    s === "paid" ? colors.success : s === "overdue" ? colors.error : s === "open" ? colors.primary : colors.muted;
+    s === "paid" ? colors.success : s === "overdue" ? colors.error : s === "sent" ? "#06b6d4" : s === "open" ? colors.primary : colors.muted;
 
   const contractStatusLabel = (s: string) =>
     s === "active" ? "AKTIV" : s === "cancelled" ? "GEKÜNDIGT" : "ABGELAUFEN";
@@ -1294,6 +1297,14 @@ export default function CustomerDetailScreen() {
                       </Text>
                       <Text className="text-[9px] font-semibold text-muted uppercase mt-0.5">CHF Bezahlt</Text>
                     </View>
+                    {totalUnpaid > 0 && (
+                      <View className="flex-1 bg-background rounded-lg border border-border px-3 py-3 items-center" style={isWide ? { minWidth: 80, flex: undefined } : {}}>
+                        <Text className="text-2xl font-bold" style={{ color: colors.error }}>
+                          {formatKPI(totalUnpaid)}
+                        </Text>
+                        <Text className="text-[9px] font-semibold text-muted uppercase mt-0.5">CHF Offen</Text>
+                      </View>
+                    )}
                     <View className="flex-1 bg-background rounded-lg border border-border px-3 py-3 items-center" style={isWide ? { minWidth: 80, flex: undefined } : {}}>
                       <Text className="text-2xl font-bold text-foreground">
                         {contactPerson ? 1 : 0}

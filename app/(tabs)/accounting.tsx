@@ -255,7 +255,7 @@ export default function AccountingScreen() {
   const totalRevenue = invoicesRevenue + extraIncomes;
 
   const totalOpen = yearInvoices
-    .filter((i: any) => i.status === "open")
+    .filter((i: any) => i.status === "open" || i.status === "sent")
     .reduce((s: number, i: any) => {
       return s + Math.max(0, getInvoiceTotal(i) - (i.paid_amount || 0));
     }, 0);
@@ -342,8 +342,12 @@ export default function AccountingScreen() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case "draft":
+        return "Entwurf";
       case "open":
         return "Offen";
+      case "sent":
+        return "Geöffnet";
       case "paid":
         return "Bezahlt";
       case "overdue":
@@ -355,18 +359,15 @@ export default function AccountingScreen() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): string => {
     switch (status) {
-      case "open":
-        return "bg-warning";
-      case "paid":
-        return "bg-success";
-      case "overdue":
-        return "bg-error";
-      case "cancelled":
-        return "bg-muted";
-      default:
-        return "bg-muted";
+      case "open":     return "#f59e0b"; // amber/warning
+      case "sent":     return "#3b82f6"; // blue
+      case "paid":     return "#22c55e"; // green/success
+      case "overdue":  return "#ef4444"; // red/error
+      case "draft":    return "#6b7280"; // gray
+      case "cancelled": return "#6b7280";
+      default:         return "#6b7280";
     }
   };
 
@@ -680,7 +681,9 @@ export default function AccountingScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
               {[
                 { label: "Alle", value: "all" },
+                { label: "Entwurf", value: "draft" },
                 { label: "Offen", value: "open" },
+                { label: "Geöffnet", value: "sent" },
                 { label: "Bezahlt", value: "paid" },
                 { label: "Überfällig", value: "overdue" },
                 { label: "Storniert", value: "cancelled" },
@@ -754,9 +757,9 @@ export default function AccountingScreen() {
                     {invoice.invoice_number}
                   </Text>
                   <View
-                    className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}
+                    style={{ backgroundColor: getStatusColor(invoice.status), paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}
                   >
-                    <Text className="text-xs font-semibold text-white">
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#ffffff' }}>
                       {getStatusLabel(invoice.status)}
                     </Text>
                   </View>

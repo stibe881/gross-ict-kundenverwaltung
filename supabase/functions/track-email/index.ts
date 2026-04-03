@@ -64,7 +64,39 @@ Deno.serve(async (req) => {
     );
 
     if (type === "invoice") {
-      // Log activity
+      // Anti-False-Positive: Prüfen ob die Rechnung erst vor weniger als 2 Minuten
+      // gesendet wurde. E-Mail-Server (Resend, Gmail etc.) fetchen Tracking-Pixel
+      // sofort nach der Zustellung für Spam-Checks – das ist kein echtes Öffnen.
+      const { data: lastSent } = await supabase
+        .from("invoice_activities")
+        .select("created_at")
+        .eq("invoice_id", id)
+        .eq("type", "sent")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+      if (lastSent && new Date(lastSent.created_at) > twoMinutesAgo) {
+        // Zu kurz nach dem Senden – wahrscheinlich Server-Prefetch, ignorieren
+        console.log(`[track-email] Invoice ${id}: Pixel within 2min of send, ignoring (server prefetch)`);
+        return new Response(new Uint8Array(PIXEL), {
+          headers: { "Content-Type": "image/gif", "Cache-Control": "no-cache, no-store", ...corsHeaders },
+        });
+      }
+
+      // Prüfen ob bereits als geöffnet markiert (kein zweites 'viewed' loggen für Push)
+      const { data: alreadyViewed } = await supabase
+        .from("invoice_activities")
+        .select("id")
+        .eq("invoice_id", id)
+        .eq("type", "viewed")
+        .limit(1)
+        .maybeSingle();
+
+      const isFirstView = !alreadyViewed;
+
+      // Aktivität loggen
       await supabase.from("invoice_activities").insert({
         invoice_id: id,
         type: "viewed",
@@ -72,23 +104,32 @@ Deno.serve(async (req) => {
         user_name: "System",
       });
 
-      // Get invoice details for push notification
-      const { data: invoice } = await supabase
+      // Status auf 'sent' setzen (Empfänger hat die E-Mail geöffnet)
+      await supabase
         .from("invoices")
-        .select("invoice_number, customer:customers(company_name, first_name, last_name)")
+        .update({ status: "sent" })
         .eq("id", id)
-        .single();
+        .in("status", ["open"]); // Nur wenn aktuell 'open', nicht z.B. 'paid' zurücksetzen
 
-      if (invoice) {
-        const customerName = invoice.customer?.company_name ||
-          `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "Kunde";
-        sendPushToAdmins(
-          supabase,
-          "📧 Rechnung geöffnet",
-          `${customerName} hat die Rechnung ${invoice.invoice_number} geöffnet.`,
-          "/(tabs)/accounting",
-          "invoices"
-        );
+      // Push nur beim ersten echten Öffnen senden
+      if (isFirstView) {
+        const { data: invoice } = await supabase
+          .from("invoices")
+          .select("invoice_number, customer:customers(company_name, first_name, last_name)")
+          .eq("id", id)
+          .single();
+
+        if (invoice) {
+          const customerName = invoice.customer?.company_name ||
+            `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "Kunde";
+          sendPushToAdmins(
+            supabase,
+            "📧 Rechnung geöffnet",
+            `${customerName} hat die Rechnung ${invoice.invoice_number} geöffnet.`,
+            `/invoice/${id}`,
+            "invoices"
+          );
+        }
       }
     }
 

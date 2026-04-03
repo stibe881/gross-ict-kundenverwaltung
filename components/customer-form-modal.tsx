@@ -44,6 +44,12 @@ const emptyContact = (): ContactEntry => ({
   is_primary: false,
 });
 
+// Infer customer type from existing data: if company_name is set → business
+function inferCustomerType(customer?: any): "business" | "private" {
+  if (!customer) return "business";
+  return customer.company_name ? "business" : "private";
+}
+
 export function CustomerFormModal({
   visible,
   onClose,
@@ -52,6 +58,10 @@ export function CustomerFormModal({
 }: CustomerFormModalProps) {
   const colors = useColors();
   const isEditing = !!editCustomer;
+
+  const [customerType, setCustomerType] = useState<"business" | "private">(
+    inferCustomerType(editCustomer)
+  );
 
   const [formData, setFormData] = useState({
     firstName: editCustomer?.first_name || "",
@@ -73,6 +83,7 @@ export function CustomerFormModal({
   // Reset form when modal opens with edit data
   const handleOpen = () => {
     if (editCustomer) {
+      setCustomerType(inferCustomerType(editCustomer));
       setFormData({
         firstName: editCustomer.first_name || "",
         lastName: editCustomer.last_name || "",
@@ -95,8 +106,9 @@ export function CustomerFormModal({
       const customerData = {
         first_name: data.firstName,
         last_name: data.lastName,
-        company_name: data.companyName,
-        position: data.position,
+        // Für Privatkunden keinen Firmennamen speichern
+        company_name: customerType === "business" ? data.companyName : null,
+        position: customerType === "business" ? data.position : null,
         email: data.email,
         phone: data.phone,
         address: data.address,
@@ -112,8 +124,8 @@ export function CustomerFormModal({
         result = await Data.createCustomer(customerData);
       }
 
-      // Upload logo if changed
-      if (logoChanged && result?.id) {
+      // Upload logo if changed (nur für Firmenkunden)
+      if (customerType === "business" && logoChanged && result?.id) {
         if (logoUri) {
           try {
             await Data.uploadCustomerLogo(result.id, logoUri);
@@ -130,8 +142,8 @@ export function CustomerFormModal({
         }
       }
 
-      // Create contacts
-      if (contacts.length > 0 && result?.id) {
+      // Create contacts (nur für Firmenkunden)
+      if (customerType === "business" && contacts.length > 0 && result?.id) {
         for (const contact of contacts) {
           if (contact.first_name || contact.last_name || contact.email) {
             try {
@@ -160,6 +172,7 @@ export function CustomerFormModal({
   });
 
   const resetForm = () => {
+    setCustomerType("business");
     setFormData({
       firstName: "",
       lastName: "",
@@ -205,9 +218,16 @@ export function CustomerFormModal({
   };
 
   const handleSubmit = () => {
-    if (!formData.email || (!formData.firstName && !formData.companyName)) {
-      showAlert("Fehler", "Bitte füllen Sie mindestens E-Mail und Name/Firma aus");
-      return;
+    if (customerType === "business") {
+      if (!formData.email || !formData.companyName) {
+        showAlert("Fehler", "Bitte füllen Sie mindestens E-Mail und Firmenname aus");
+        return;
+      }
+    } else {
+      if (!formData.firstName || !formData.lastName) {
+        showAlert("Fehler", "Bitte füllen Sie Vor- und Nachname aus");
+        return;
+      }
     }
     createCustomer.mutate(formData);
   };
@@ -272,75 +292,124 @@ export function CustomerFormModal({
           <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
             <View className="gap-4">
 
-              {/* Logo Upload */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">Firmenlogo</Text>
+              {/* Kundentyp-Toggle */}
+              <View className="flex-row bg-surface rounded-xl border border-border p-1 gap-1">
                 <TouchableOpacity
-                  className="flex-row items-center gap-3"
-                  onPress={pickLogo}
-                  activeOpacity={0.7}
+                  className="flex-1 py-2.5 rounded-lg flex-row items-center justify-center gap-2"
+                  style={{ backgroundColor: customerType === "business" ? colors.primary : "transparent" }}
+                  onPress={() => setCustomerType("business")}
+                  activeOpacity={0.8}
                 >
-                  {logoUri ? (
-                    <Image
-                      source={{ uri: logoUri }}
-                      style={{ width: 64, height: 64, borderRadius: 12 }}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <View
-                      className="w-16 h-16 rounded-xl items-center justify-center border-2 border-dashed"
-                      style={{ borderColor: colors.border }}
-                    >
-                      <IconSymbol name="camera.fill" size={24} color={colors.muted} />
-                    </View>
-                  )}
-                  <View className="flex-1">
-                    <Text className="text-sm text-foreground font-medium">
-                      {logoUri ? "Logo ändern" : "Logo hochladen"}
-                    </Text>
-                    <Text className="text-xs text-muted">Tippe um ein Bild auszuwählen</Text>
-                  </View>
-                  {logoUri && (
-                    <TouchableOpacity
-                      onPress={() => { setLogoUri(null); setLogoChanged(true); }}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      <IconSymbol name="trash.fill" size={16} color={colors.error} />
-                    </TouchableOpacity>
-                  )}
+                  <IconSymbol
+                    name="building.2.fill"
+                    size={14}
+                    color={customerType === "business" ? "#111" : colors.muted}
+                  />
+                  <Text
+                    className="text-sm font-semibold"
+                    style={{ color: customerType === "business" ? "#111" : colors.muted }}
+                  >
+                    Firmenkunde
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-1 py-2.5 rounded-lg flex-row items-center justify-center gap-2"
+                  style={{ backgroundColor: customerType === "private" ? colors.primary : "transparent" }}
+                  onPress={() => setCustomerType("private")}
+                  activeOpacity={0.8}
+                >
+                  <IconSymbol
+                    name="person.fill"
+                    size={14}
+                    color={customerType === "private" ? "#111" : colors.muted}
+                  />
+                  <Text
+                    className="text-sm font-semibold"
+                    style={{ color: customerType === "private" ? "#111" : colors.muted }}
+                  >
+                    Privatkunde
+                  </Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Firmenname */}
-              {renderInput("Firmenname", formData.companyName,
-                (text) => setFormData({ ...formData, companyName: text }),
-                { placeholder: "z.B. Musterfirma GmbH" }
+              {/* Firmenfelder (nur bei Firmenkunde) */}
+              {customerType === "business" && (
+                <>
+                  {/* Logo Upload */}
+                  <View>
+                    <Text className="text-sm font-semibold text-foreground mb-2">Firmenlogo</Text>
+                    <TouchableOpacity
+                      className="flex-row items-center gap-3"
+                      onPress={pickLogo}
+                      activeOpacity={0.7}
+                    >
+                      {logoUri ? (
+                        <Image
+                          source={{ uri: logoUri }}
+                          style={{ width: 64, height: 64, borderRadius: 12 }}
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <View
+                          className="w-16 h-16 rounded-xl items-center justify-center border-2 border-dashed"
+                          style={{ borderColor: colors.border }}
+                        >
+                          <IconSymbol name="camera.fill" size={24} color={colors.muted} />
+                        </View>
+                      )}
+                      <View className="flex-1">
+                        <Text className="text-sm text-foreground font-medium">
+                          {logoUri ? "Logo ändern" : "Logo hochladen"}
+                        </Text>
+                        <Text className="text-xs text-muted">Tippe um ein Bild auszuwählen</Text>
+                      </View>
+                      {logoUri && (
+                        <TouchableOpacity
+                          onPress={() => { setLogoUri(null); setLogoChanged(true); }}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <IconSymbol name="trash.fill" size={16} color={colors.error} />
+                        </TouchableOpacity>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Firmenname */}
+                  {renderInput("Firmenname *", formData.companyName,
+                    (text) => setFormData({ ...formData, companyName: text }),
+                    { placeholder: "z.B. Musterfirma GmbH" }
+                  )}
+                </>
               )}
 
-              {/* Vorname & Nachname */}
+              {/* Vor- & Nachname */}
               <View className="flex-row gap-3">
                 <View className="flex-1">
-                  {renderInput("Vorname", formData.firstName,
+                  {renderInput(
+                    customerType === "private" ? "Vorname *" : "Vorname",
+                    formData.firstName,
                     (text) => setFormData({ ...formData, firstName: text }),
                     { placeholder: "Max" }
                   )}
                 </View>
                 <View className="flex-1">
-                  {renderInput("Nachname", formData.lastName,
+                  {renderInput(
+                    customerType === "private" ? "Nachname *" : "Nachname",
+                    formData.lastName,
                     (text) => setFormData({ ...formData, lastName: text }),
                     { placeholder: "Mustermann" }
                   )}
                 </View>
               </View>
 
-              {/* Position */}
-              {renderInput("Position", formData.position,
+              {/* Position (nur Firmenkunde) */}
+              {customerType === "business" && renderInput("Position", formData.position,
                 (text) => setFormData({ ...formData, position: text }),
                 { placeholder: "z.B. Geschäftsführer, IT-Leiter" }
               )}
 
               {/* E-Mail */}
-              {renderInput("E-Mail *", formData.email,
+              {renderInput("E-Mail", formData.email,
                 (text) => setFormData({ ...formData, email: text }),
                 { placeholder: "max@musterfirma.ch", keyboard: "email-address", autoCapitalize: "none" }
               )}
@@ -379,105 +448,107 @@ export function CustomerFormModal({
                 { placeholder: "Schweiz" }
               )}
 
-              {/* ── Kontakte ── */}
-              <View className="border-t border-border pt-4 mt-2">
-                <View className="flex-row items-center justify-between mb-3">
-                  <Text className="text-base font-bold text-foreground">Ansprechpartner</Text>
-                  <TouchableOpacity
-                    className="flex-row items-center gap-1 bg-primary px-3 py-1.5 rounded-lg"
-                    onPress={addContact}
-                    activeOpacity={0.8}
-                  >
-                    <Text className="text-xs font-semibold" style={{ color: "#111" }}>+ Kontakt</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {contacts.length === 0 && (
-                  <Text className="text-sm text-muted text-center py-4">
-                    Noch keine Ansprechpartner hinzugefügt
-                  </Text>
-                )}
-
-                {contacts.map((contact, index) => (
-                  <View
-                    key={index}
-                    className="bg-surface rounded-xl border border-border p-4 mb-3"
-                  >
-                    <View className="flex-row items-center justify-between mb-3">
-                      <Text className="text-sm font-semibold text-foreground">
-                        Kontakt {index + 1}
-                      </Text>
-                      <TouchableOpacity onPress={() => removeContact(index)}>
-                        <IconSymbol name="trash.fill" size={16} color={colors.error} />
-                      </TouchableOpacity>
-                    </View>
-
-                    <View className="gap-3">
-                      <View className="flex-row gap-3">
-                        <View className="flex-1">
-                          <TextInput
-                            className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
-                            placeholder="Vorname"
-                            placeholderTextColor={colors.muted}
-                            value={contact.first_name}
-                            onChangeText={(t) => updateContact(index, "first_name", t)}
-                          />
-                        </View>
-                        <View className="flex-1">
-                          <TextInput
-                            className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
-                            placeholder="Nachname"
-                            placeholderTextColor={colors.muted}
-                            value={contact.last_name}
-                            onChangeText={(t) => updateContact(index, "last_name", t)}
-                          />
-                        </View>
-                      </View>
-                      <TextInput
-                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
-                        placeholder="Position (z.B. CEO, IT-Leiter)"
-                        placeholderTextColor={colors.muted}
-                        value={contact.position}
-                        onChangeText={(t) => updateContact(index, "position", t)}
-                      />
-                      <TextInput
-                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
-                        placeholder="E-Mail"
-                        placeholderTextColor={colors.muted}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        value={contact.email}
-                        onChangeText={(t) => updateContact(index, "email", t)}
-                      />
-                      <TextInput
-                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
-                        placeholder="Telefon"
-                        placeholderTextColor={colors.muted}
-                        keyboardType="phone-pad"
-                        value={contact.phone}
-                        onChangeText={(t) => updateContact(index, "phone", t)}
-                      />
-                      <TouchableOpacity
-                        className="flex-row items-center gap-2"
-                        onPress={() => updateContact(index, "is_primary", !contact.is_primary)}
-                      >
-                        <View
-                          className="w-5 h-5 rounded border items-center justify-center"
-                          style={{
-                            backgroundColor: contact.is_primary ? colors.primary : "transparent",
-                            borderColor: contact.is_primary ? colors.primary : colors.border,
-                          }}
-                        >
-                          {contact.is_primary && (
-                            <IconSymbol name="checkmark" size={12} color="#111" />
-                          )}
-                        </View>
-                        <Text className="text-sm text-foreground">Hauptansprechpartner</Text>
-                      </TouchableOpacity>
-                    </View>
+              {/* Ansprechpartner (nur Firmenkunde) */}
+              {customerType === "business" && (
+                <View className="border-t border-border pt-4 mt-2">
+                  <View className="flex-row items-center justify-between mb-3">
+                    <Text className="text-base font-bold text-foreground">Ansprechpartner</Text>
+                    <TouchableOpacity
+                      className="flex-row items-center gap-1 bg-primary px-3 py-1.5 rounded-lg"
+                      onPress={addContact}
+                      activeOpacity={0.8}
+                    >
+                      <Text className="text-xs font-semibold" style={{ color: "#111" }}>+ Kontakt</Text>
+                    </TouchableOpacity>
                   </View>
-                ))}
-              </View>
+
+                  {contacts.length === 0 && (
+                    <Text className="text-sm text-muted text-center py-4">
+                      Noch keine Ansprechpartner hinzugefügt
+                    </Text>
+                  )}
+
+                  {contacts.map((contact, index) => (
+                    <View
+                      key={index}
+                      className="bg-surface rounded-xl border border-border p-4 mb-3"
+                    >
+                      <View className="flex-row items-center justify-between mb-3">
+                        <Text className="text-sm font-semibold text-foreground">
+                          Kontakt {index + 1}
+                        </Text>
+                        <TouchableOpacity onPress={() => removeContact(index)}>
+                          <IconSymbol name="trash.fill" size={16} color={colors.error} />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View className="gap-3">
+                        <View className="flex-row gap-3">
+                          <View className="flex-1">
+                            <TextInput
+                              className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                              placeholder="Vorname"
+                              placeholderTextColor={colors.muted}
+                              value={contact.first_name}
+                              onChangeText={(t) => updateContact(index, "first_name", t)}
+                            />
+                          </View>
+                          <View className="flex-1">
+                            <TextInput
+                              className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                              placeholder="Nachname"
+                              placeholderTextColor={colors.muted}
+                              value={contact.last_name}
+                              onChangeText={(t) => updateContact(index, "last_name", t)}
+                            />
+                          </View>
+                        </View>
+                        <TextInput
+                          className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                          placeholder="Position (z.B. CEO, IT-Leiter)"
+                          placeholderTextColor={colors.muted}
+                          value={contact.position}
+                          onChangeText={(t) => updateContact(index, "position", t)}
+                        />
+                        <TextInput
+                          className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                          placeholder="E-Mail"
+                          placeholderTextColor={colors.muted}
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                          value={contact.email}
+                          onChangeText={(t) => updateContact(index, "email", t)}
+                        />
+                        <TextInput
+                          className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                          placeholder="Telefon"
+                          placeholderTextColor={colors.muted}
+                          keyboardType="phone-pad"
+                          value={contact.phone}
+                          onChangeText={(t) => updateContact(index, "phone", t)}
+                        />
+                        <TouchableOpacity
+                          className="flex-row items-center gap-2"
+                          onPress={() => updateContact(index, "is_primary", !contact.is_primary)}
+                        >
+                          <View
+                            className="w-5 h-5 rounded border items-center justify-center"
+                            style={{
+                              backgroundColor: contact.is_primary ? colors.primary : "transparent",
+                              borderColor: contact.is_primary ? colors.primary : colors.border,
+                            }}
+                          >
+                            {contact.is_primary && (
+                              <IconSymbol name="checkmark" size={12} color="#111" />
+                            )}
+                          </View>
+                          <Text className="text-sm text-foreground">Hauptansprechpartner</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               <View style={{ height: 20 }} />
             </View>
