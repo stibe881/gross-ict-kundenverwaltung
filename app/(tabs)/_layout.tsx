@@ -25,6 +25,19 @@ export default function TabLayout() {
     checkLoginStatus();
   }, []);
 
+  // Fällige Erinnerungen im Hintergrund verarbeiten (Push + E-Mail)
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const processReminders = async () => {
+      try {
+        await supabase.functions.invoke('process-reminders');
+      } catch (_) { /* Silently ignore */ }
+    };
+    processReminders(); // Sofort beim Start
+    const interval = setInterval(processReminders, 60 * 1000); // Alle 60 Sekunden
+    return () => clearInterval(interval);
+  }, [isLoggedIn]);
+
   // Fetch session and user roles dynamically for Tab visibility
   const { data: sessionData } = useQuery({
     queryKey: ["currentSession"],

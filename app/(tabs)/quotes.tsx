@@ -33,7 +33,7 @@ export default function QuotesScreen() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [filterStatus, setFilterStatus] = useState<string | null>(null);
+    const [filterStatus, setFilterStatus] = useState<string | null>("sent");
     const [searchQuery, setSearchQuery] = useState("");
     const { refreshing, onRefresh } = useGlobalRefresh();
 

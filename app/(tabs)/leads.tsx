@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   ScrollView,
   Text,
@@ -23,6 +24,7 @@ import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
 import Svg, { Circle, G } from "react-native-svg";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
+import { scheduleReminderNotification, cancelReminderNotification } from "@/lib/local-notifications";
 
 type LeadStatus = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
 
@@ -884,8 +886,16 @@ function LeadDetailsModal({
   const [showQuotePicker, setShowQuotePicker] = useState(false);
   const [showAddReminder, setShowAddReminder] = useState(false);
   const [reminderNote, setReminderNote] = useState("");
-  const [reminderDate, setReminderDate] = useState("");
-  const [reminderTime, setReminderTime] = useState("");
+  const [reminderDateTime, setReminderDateTime] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(10, 0, 0, 0);
+    return d;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
+  const [editingReminder, setEditingReminder] = useState<any>(null);
 
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -968,19 +978,21 @@ function LeadDetailsModal({
       lead_id: lead.id,
       ...data,
     }),
-    onSuccess: async () => {
+    onSuccess: async (newReminder) => {
+      const formatted = reminderDateTime.toLocaleString("de-CH", { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      // Lokale iOS-Benachrichtigung planen
+      const leadName = lead.company || lead.name || 'Lead';
+      await scheduleReminderNotification(newReminder.id, leadName, reminderNote.trim(), reminderDateTime);
       await Data.addLeadActivity({
         lead_id: lead.id,
         type: "system",
-        content: `Erinnerung hinzugefügt für ${reminderDate} ${reminderTime}`,
+        content: `Erinnerung hinzugefügt für ${formatted}`,
         user_name: currentUserName,
       });
       refetchReminders();
       refetchActivities();
       setShowAddReminder(false);
       setReminderNote("");
-      setReminderDate("");
-      setReminderTime("");
     },
     onError: (e: any) => {
       showAlert("Fehler", "Erinnerung konnte nicht erstellt werden: " + e.message);
@@ -989,23 +1001,55 @@ function LeadDetailsModal({
 
   const deleteReminder = useMutation({
     mutationFn: (id: string) => Data.deleteLeadReminder(id),
-    onSuccess: () => refetchReminders(),
+    onSuccess: (_, id) => {
+      // Geplante lokale Benachrichtigung stornieren
+      cancelReminderNotification(id);
+      refetchReminders();
+    },
+  });
+
+  const updateReminder = useMutation({
+    mutationFn: (data: { id: string; remind_at: string; note: string }) =>
+      Data.updateLeadReminder(data.id, { remind_at: data.remind_at, note: data.note }),
+    onSuccess: async (_, variables) => {
+      const formatted = reminderDateTime.toLocaleString("de-CH", { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      // Alte Benachrichtigung ersetzen
+      const leadName = lead.company || lead.name || 'Lead';
+      await scheduleReminderNotification(variables.id, leadName, variables.note, reminderDateTime);
+      await Data.addLeadActivity({
+        lead_id: lead.id,
+        type: "system",
+        content: `Erinnerung aktualisiert für ${formatted}`,
+        user_name: currentUserName,
+      });
+      refetchReminders();
+      refetchActivities();
+      setShowAddReminder(false);
+      setReminderNote("");
+      setEditingReminder(null);
+    },
+    onError: (e: any) => {
+      showAlert("Fehler", "Erinnerung konnte nicht aktualisiert werden: " + e.message);
+    }
   });
 
   const handleCreateReminder = () => {
-    if (!reminderNote.trim() || !reminderDate || !reminderTime) {
-      showAlert("Fehler", "Bitte Notiz, Datum (JJJJ-MM-TT) und Zeit (HH:MM) eingeben.");
+    if (!reminderNote.trim()) {
+      showAlert("Fehler", "Bitte eine Notiz eingeben.");
       return;
     }
-    const remindAt = new Date(`${reminderDate}T${reminderTime}:00`);
-    if (isNaN(remindAt.getTime())) {
-      showAlert("Fehler", "Ungültiges Datum oder Zeitformat.");
-      return;
+    if (editingReminder) {
+      updateReminder.mutate({
+        id: editingReminder.id,
+        remind_at: reminderDateTime.toISOString(),
+        note: reminderNote.trim(),
+      });
+    } else {
+      addReminder.mutate({
+        remind_at: reminderDateTime.toISOString(),
+        note: reminderNote.trim(),
+      });
     }
-    addReminder.mutate({
-      remind_at: remindAt.toISOString(),
-      note: reminderNote.trim(),
-    });
   };
 
   const handleAddActivity = async () => {
@@ -1331,11 +1375,12 @@ function LeadDetailsModal({
                 <TouchableOpacity
                   className="bg-primary/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1"
                   onPress={() => {
-                    // Set default to tomorrow 10:00
                     const tmrw = new Date();
                     tmrw.setDate(tmrw.getDate() + 1);
-                    setReminderDate(tmrw.toISOString().split('T')[0]);
-                    setReminderTime("10:00");
+                    tmrw.setHours(10, 0, 0, 0);
+                    setReminderDateTime(tmrw);
+                    setReminderNote("");
+                    setEditingReminder(null);
                     setShowAddReminder(true);
                   }}
                   activeOpacity={0.7}
@@ -1347,30 +1392,89 @@ function LeadDetailsModal({
               
               {showAddReminder && (
                 <View className="bg-surface rounded-xl p-4 border border-border mb-4">
-                  <Text className="text-sm font-semibold text-foreground mb-3">Erinnerung einstellen</Text>
-                  
-                  <View className="flex-row gap-2 mb-3">
-                    <View className="flex-1">
-                      <Text className="text-xs text-muted mb-1">Datum (JJJJ-MM-TT)</Text>
-                      <TextInput
-                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
-                        value={reminderDate}
-                        onChangeText={setReminderDate}
-                        placeholder="2026-03-24"
-                        placeholderTextColor={colors.muted}
-                      />
+                  <Text className="text-sm font-semibold text-foreground mb-3">
+                    {editingReminder ? "Erinnerung bearbeiten" : "Erinnerung einstellen"}
+                  </Text>
+
+                  {/* Datum & Zeit Picker */}
+                  <Text className="text-xs text-muted mb-1">Datum & Zeit</Text>
+                  {Platform.OS === 'web' ? (
+                    <input
+                      type="datetime-local"
+                      value={`${reminderDateTime.getFullYear()}-${String(reminderDateTime.getMonth()+1).padStart(2,'0')}-${String(reminderDateTime.getDate()).padStart(2,'0')}T${String(reminderDateTime.getHours()).padStart(2,'0')}:${String(reminderDateTime.getMinutes()).padStart(2,'0')}`}
+                      onChange={(e) => {
+                        const val = (e.target as HTMLInputElement).value;
+                        if (val) setReminderDateTime(new Date(val));
+                      }}
+                      style={{
+                        backgroundColor: colors.background,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: 8,
+                        padding: '8px 12px',
+                        color: colors.foreground,
+                        fontSize: 14,
+                        width: '100%',
+                        marginBottom: 12,
+                        boxSizing: 'border-box' as any,
+                      }}
+                    />
+                  ) : (
+                    <View className="flex-row gap-2 mb-3">
+                      <TouchableOpacity
+                        className="flex-1 bg-background border border-border rounded-lg px-3 py-2 flex-row items-center gap-2"
+                        onPress={() => setShowDatePicker(true)}
+                        activeOpacity={0.7}
+                      >
+                        <IconSymbol name="calendar" size={16} color={colors.primary} />
+                        <Text style={{ color: colors.foreground, fontSize: 14 }}>
+                          {reminderDateTime.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        className="flex-1 bg-background border border-border rounded-lg px-3 py-2 flex-row items-center gap-2"
+                        onPress={() => setShowTimePicker(true)}
+                        activeOpacity={0.7}
+                      >
+                        <IconSymbol name="clock" size={16} color={colors.primary} />
+                        <Text style={{ color: colors.foreground, fontSize: 14 }}>
+                          {reminderDateTime.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
-                    <View className="flex-1">
-                      <Text className="text-xs text-muted mb-1">Zeit (HH:MM)</Text>
-                      <TextInput
-                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
-                        value={reminderTime}
-                        onChangeText={setReminderTime}
-                        placeholder="10:00"
-                        placeholderTextColor={colors.muted}
-                      />
-                    </View>
-                  </View>
+                  )}
+
+                  {showDatePicker && Platform.OS !== 'web' && (
+                    <DateTimePicker
+                      value={reminderDateTime}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      locale="de-CH"
+                      onChange={(_, date) => {
+                        setShowDatePicker(false);
+                        if (date) {
+                          const updated = new Date(reminderDateTime);
+                          updated.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+                          setReminderDateTime(updated);
+                        }
+                      }}
+                    />
+                  )}
+                  {showTimePicker && Platform.OS !== 'web' && (
+                    <DateTimePicker
+                      value={reminderDateTime}
+                      mode="time"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      is24Hour
+                      onChange={(_, date) => {
+                        setShowTimePicker(false);
+                        if (date) {
+                          const updated = new Date(reminderDateTime);
+                          updated.setHours(date.getHours(), date.getMinutes());
+                          setReminderDateTime(updated);
+                        }
+                      }}
+                    />
+                  )}
 
                   <Text className="text-xs text-muted mb-1">Notiz</Text>
                   <TextInput
@@ -1395,9 +1499,9 @@ function LeadDetailsModal({
                       className="flex-1 bg-primary py-2 rounded-lg flex-row justify-center items-center gap-2"
                       onPress={handleCreateReminder}
                       activeOpacity={0.8}
-                      disabled={addReminder.isPending}
+                      disabled={addReminder.isPending || updateReminder.isPending}
                     >
-                      {addReminder.isPending ? <ActivityIndicator size="small" color="#fff" /> : <Text className="text-background font-semibold text-center">Speichern</Text>}
+                      {(addReminder.isPending || updateReminder.isPending) ? <ActivityIndicator size="small" color="#fff" /> : <Text className="text-background font-semibold text-center">Speichern</Text>}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1420,12 +1524,25 @@ function LeadDetailsModal({
                         </Text>
                         <Text className="text-sm text-foreground">{r.note}</Text>
                       </View>
-                      <TouchableOpacity
-                        onPress={() => deleteReminder.mutate(r.id)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <IconSymbol name="trash" size={16} color={colors.error} />
-                      </TouchableOpacity>
+                      <View className="flex-row items-center gap-3">
+                        <TouchableOpacity
+                          onPress={() => {
+                            setEditingReminder(r);
+                            setReminderNote(r.note);
+                            setReminderDateTime(new Date(r.remind_at));
+                            setShowAddReminder(true);
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <IconSymbol name="pencil" size={16} color={colors.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => deleteReminder.mutate(r.id)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <IconSymbol name="trash" size={16} color={colors.error} />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   ))}
                 </View>

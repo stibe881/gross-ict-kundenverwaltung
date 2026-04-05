@@ -121,6 +121,51 @@ export async function updateCustomer(id: string, customer: any) {
 }
 
 export async function deleteCustomer(id: string) {
+    // 1. Quote-Items der Kunden-Angebote löschen
+    const { data: customerQuotes } = await supabase
+        .from("quotes")
+        .select("id")
+        .eq("customer_id", id);
+
+    if (customerQuotes && customerQuotes.length > 0) {
+        const quoteIds = customerQuotes.map((q: any) => q.id);
+        await supabase.from("quote_items").delete().in("quote_id", quoteIds);
+    }
+
+    // 2. Angebote löschen
+    await supabase.from("quotes").delete().eq("customer_id", id);
+
+    // 3. Rechnungs-Positionen und Aktivitäten löschen
+    const { data: customerInvoices } = await supabase
+        .from("invoices")
+        .select("id")
+        .eq("customer_id", id);
+
+    if (customerInvoices && customerInvoices.length > 0) {
+        const invoiceIds = customerInvoices.map((inv: any) => inv.id);
+        await supabase.from("invoice_items").delete().in("invoice_id", invoiceIds);
+        await supabase.from("invoice_activities").delete().in("invoice_id", invoiceIds);
+    }
+
+    // 4. Rechnungen löschen
+    await supabase.from("invoices").delete().eq("customer_id", id);
+
+    // 5. Tickets löschen
+    await supabase.from("tickets").delete().eq("customer_id", id);
+
+    // 6. Verträge löschen
+    await supabase.from("contracts").delete().eq("customer_id", id);
+
+    // 7. Kommunikationen löschen
+    await supabase.from("communications").delete().eq("customer_id", id);
+
+    // 8. Kunden-Kontakte löschen
+    await supabase.from("customer_contacts").delete().eq("customer_id", id);
+
+    // 9. Kunden-Benutzer löschen
+    await supabase.from("customer_users").delete().eq("customer_id", id);
+
+    // 10. Kunden löschen
     const { error } = await supabase.from("customers").delete().eq("id", id);
     if (error) throw new Error(error.message);
     return { success: true };
@@ -2072,6 +2117,17 @@ export async function deleteLeadReminder(id: string) {
     const { error } = await supabase.from("lead_reminders").delete().eq("id", id);
     if (error) throw new Error(error.message);
     return { success: true };
+}
+
+export async function updateLeadReminder(id: string, updates: { remind_at: string; note: string }) {
+    const { data, error } = await supabase
+        .from("lead_reminders")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
 }
 export async function deleteLead(id: string) {
     // Items get cascade-deleted by FK constraint

@@ -28,6 +28,7 @@ export default function CustomersScreen() {
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("active");
 
   // Kunden laden
   const { data: customers, isLoading, refetch } = useQuery({
@@ -64,12 +65,16 @@ export default function CustomersScreen() {
   const filteredCustomers = customers
     ?.filter((customer: any) => {
       const query = searchQuery.toLowerCase();
-      return (
+      const matchesSearch =
         customer.first_name?.toLowerCase().includes(query) ||
         customer.last_name?.toLowerCase().includes(query) ||
         customer.company_name?.toLowerCase().includes(query) ||
-        customer.email?.toLowerCase().includes(query)
-      );
+        customer.email?.toLowerCase().includes(query);
+      const matchesStatus =
+        filterStatus === "all" ||
+        (filterStatus === "active" && customer.status === "active") ||
+        (filterStatus === "inactive" && customer.status !== "active");
+      return matchesSearch && matchesStatus;
     })
     .sort((a: any, b: any) => getDisplayName(a).localeCompare(getDisplayName(b), "de"));
 
@@ -212,20 +217,36 @@ export default function CustomersScreen() {
             />
           </View>
 
-          {/* Statistik-Karten */}
-          <View className="flex-row gap-3 mb-4">
-            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-              <Text className="text-2xl font-bold text-foreground">
-                {customers?.length || 0}
-              </Text>
-              <Text className="text-sm text-muted">Gesamt</Text>
-            </View>
-            <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-              <Text className="text-2xl font-bold text-success">
-                {customers?.filter((c) => c.status === "active").length || 0}
-              </Text>
-              <Text className="text-sm text-muted">Aktiv</Text>
-            </View>
+          {/* Filter */}
+          <View className="flex-row gap-2 mb-4">
+            {([
+              { key: "all", label: "Alle" },
+              { key: "active", label: "Aktiv" },
+              { key: "inactive", label: "Inaktiv" },
+            ] as const).map(({ key, label }) => (
+              <TouchableOpacity
+                key={key}
+                onPress={() => setFilterStatus(key)}
+                style={{
+                  backgroundColor: filterStatus === key ? colors.primary : colors.surface,
+                  borderColor: colors.border,
+                }}
+                className="px-4 py-1.5 rounded-full border"
+              >
+                <Text
+                  style={{
+                    color: filterStatus === key ? "#fff" : colors.foreground,
+                    fontSize: 13,
+                    fontWeight: "600",
+                  }}
+                >
+                  {label}
+                  {key === "all" && customers ? ` (${customers.length})` : ""}
+                  {key === "active" && customers ? ` (${customers.filter((c: any) => c.status === "active").length})` : ""}
+                  {key === "inactive" && customers ? ` (${customers.filter((c: any) => c.status !== "active").length})` : ""}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {/* Kundenliste */}
