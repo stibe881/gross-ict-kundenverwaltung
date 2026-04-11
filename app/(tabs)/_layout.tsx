@@ -189,7 +189,7 @@ export default function TabLayout() {
       <Tabs.Screen name="contracts" options={{ href: null, title: "Verträge" }} />
       <Tabs.Screen name="knowledge-base" options={{ href: null, title: "Knowledge Base" }} />
       <Tabs.Screen name="links" options={{ href: null, title: "Links" }} />
-      <Tabs.Screen name="newsletter" options={{ href: null, title: "Newsletter" }} />
+      <Tabs.Screen name="marketing" options={{ href: null, title: "Marketing" }} />
       <Tabs.Screen name="tasks" options={{ href: null, title: "Aufgaben" }} />
       <Tabs.Screen name="dunning-settings" options={{ href: null, title: "Mahnwesen Settings" }} />
       <Tabs.Screen name="business-card" options={{ href: null, title: "Visitenkarte" }} />

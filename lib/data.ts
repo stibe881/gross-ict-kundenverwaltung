@@ -1865,6 +1865,7 @@ export const ROLE_DEFINITIONS = [
     { key: "finanzen", label: "Finanzen", color: "#22C55E", description: "Buchhaltung" },
     { key: "technik", label: "Technik", color: "#F59E0B", description: "Tickets, Wissensdatenbank, Projekte, Verträge, Links" },
     { key: "projekte", label: "Projekte", color: "#14B8A6", description: "Projekte" },
+    { key: "marketing", label: "Marketing", color: "#EC4899", description: "Marketingkampagnen, Newsletter & Analytics" },
 ];
 
 // Role → allowed dashboard tile IDs
@@ -1875,10 +1876,11 @@ export const ROLE_TILE_ACCESS: Record<string, string[]> = {
     finanzen: ["accounting"],
     technik: ["tickets", "knowledge-base", "projects", "contracts", "links", "tasks"],
     projekte: ["projects"],
+    marketing: ["marketing", "newsletter"],
 };
 
 // Konfiguration tiles are always visible for all roles (except restricted ones)
-const ALWAYS_VISIBLE_TILES = ["business-card", "newsletter"];
+const ALWAYS_VISIBLE_TILES = ["business-card", "newsletter", "marketing"];
 
 export function getAllowedTileIds(userRoles: string[]): string[] | null {
     // Admin role = access to everything
@@ -3453,3 +3455,577 @@ export async function deleteStickyNote(id: string) {
     return { success: true };
 }
 
+// ==================== MARKETING / NEWSLETTER ====================
+
+export async function getNewsletterCampaigns() {
+    const { data, error } = await supabase
+        .from('newsletter_campaigns')
+        .select('*')
+        .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function getNewsletterCampaignById(id: string) {
+    const { data, error } = await supabase
+        .from('newsletter_campaigns')
+        .select('*')
+        .eq('id', id)
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function createNewsletterCampaign(campaign: {
+    title: string;
+    subject: string;
+    content: string;
+    status?: string;
+    scheduled_at?: string | null;
+}) {
+    const { data, error } = await supabase
+        .from('newsletter_campaigns')
+        .insert([{ ...campaign, status: campaign.status || 'draft' }])
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateNewsletterCampaign(id: string, updates: Partial<{
+    title: string;
+    subject: string;
+    content: string;
+    status: string;
+    scheduled_at: string | null;
+    sent_at: string | null;
+    recipients_count: number;
+    opened_count: number;
+    clicked_count: number;
+}>) {
+    const { data, error } = await supabase
+        .from('newsletter_campaigns')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteNewsletterCampaign(id: string) {
+    await supabase.from('newsletter_recipients').delete().eq('campaign_id', id);
+    const { error } = await supabase.from('newsletter_campaigns').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+export async function sendNewsletterEmail(id: string) {
+    const { data, error } = await supabase.functions.invoke('send-newsletter', {
+        body: { campaign_id: id }
+    });
+    
+    if (error) {
+        throw new Error("Fehler beim Aufruf der Versand-Funktion: " + error.message);
+    }
+    
+    if (data && data.error) {
+        throw new Error(data.error);
+    }
+    
+    return data;
+}
+
+export async function getNewsletterRecipientsByCampaign(campaignId: string) {
+    const { data, error } = await supabase
+        .from('newsletter_recipients')
+        .select('*, customer:customers(company_name, first_name, last_name)')
+        .eq('campaign_id', campaignId)
+        .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function getMarketingStats() {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const [campaignsRes, leadsRes] = await Promise.all([
+        supabase.from('newsletter_campaigns').select('status, recipients_count, opened_count, clicked_count'),
+        supabase.from('leads').select('source, status, created_at').gte('created_at', thirtyDaysAgo),
+    ]);
+
+    const campaigns = campaignsRes.data || [];
+    const leads = leadsRes.data || [];
+
+    const sentCampaigns = campaigns.filter((c: any) => c.status === 'sent');
+    const totalSent = sentCampaigns.reduce((s: number, c: any) => s + (c.recipients_count || 0), 0);
+    const totalOpened = sentCampaigns.reduce((s: number, c: any) => s + (c.opened_count || 0), 0);
+    const totalClicked = sentCampaigns.reduce((s: number, c: any) => s + (c.clicked_count || 0), 0);
+    const avgOpenRate = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
+    const avgClickRate = totalSent > 0 ? Math.round((totalClicked / totalSent) * 100) : 0;
+
+    // Lead source breakdown
+    const sourceMap: Record<string, { total: number; won: number }> = {};
+    for (const lead of leads as any[]) {
+        const src = lead.source || 'unbekannt';
+        if (!sourceMap[src]) sourceMap[src] = { total: 0, won: 0 };
+        sourceMap[src].total++;
+        if (lead.status === 'won') sourceMap[src].won++;
+    }
+    const leadSources = Object.entries(sourceMap).map(([source, stats]) => ({
+        source,
+        total: stats.total,
+        won: stats.won,
+        convRate: stats.total > 0 ? Math.round((stats.won / stats.total) * 100) : 0,
+    })).sort((a, b) => b.total - a.total);
+
+    return {
+        totalCampaigns: campaigns.length,
+        sentCampaigns: sentCampaigns.length,
+        draftCampaigns: campaigns.filter((c: any) => c.status === 'draft').length,
+        scheduledCampaigns: campaigns.filter((c: any) => c.status === 'scheduled').length,
+        totalSent,
+        avgOpenRate,
+        avgClickRate,
+        newLeads30Days: leads.length,
+        leadSources,
+    };
+}
+
+export async function getNewsletterSubscribers() {
+    const { data, error } = await supabase
+        .from('customers')
+        .select(`
+            id, company_name, first_name, last_name, email, status, created_at, newsletter_opt_out,
+            customer_newsletter_categories(category_id)
+        `)
+        .not('email', 'is', null)
+        .order('company_name', { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data || [])
+        .filter((c: any) => c.email && c.email.trim() !== '')
+        .map((c: any) => ({
+            ...c,
+            categoryIds: c.customer_newsletter_categories?.map((cc: any) => cc.category_id) || []
+        }));
+}
+
+export async function getNewsletterCategories() {
+    const { data, error } = await supabase
+        .from('newsletter_categories')
+        .select('*')
+        .order('name', { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createNewsletterCategory(name: string, description?: string) {
+    const { data, error } = await supabase
+        .from('newsletter_categories')
+        .insert([{ name, description }])
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateNewsletterCategory(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from('newsletter_categories')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteNewsletterCategory(id: string) {
+    const { error } = await supabase.from('newsletter_categories').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+export async function setCustomerNewsletterCategories(customerId: string, categoryIds: string[]) {
+    // Zuerst alle alten löschen
+    await supabase.from('customer_newsletter_categories').delete().eq('customer_id', customerId);
+    if (categoryIds.length === 0) return { success: true };
+    
+    // Neue einfügen
+    const inserts = categoryIds.map(id => ({ customer_id: customerId, category_id: id }));
+    const { error } = await supabase.from('customer_newsletter_categories').insert(inserts);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+// ─── Marketing Kampagnen (Multi-Channel) ─────────────────────────────────────
+
+export async function getMarketingCampaigns() {
+    const { data, error } = await supabase
+        .from('marketing_campaigns')
+        .select('*')
+        .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createMarketingCampaign(campaign: {
+    title: string;
+    channel: string;
+    status?: string;
+    budget?: number | null;
+    spent?: number;
+    leads_generated?: number;
+    revenue_generated?: number;
+    start_date?: string | null;
+    end_date?: string | null;
+    description?: string;
+    target_audience?: string;
+    goal?: string;
+}) {
+    const { data, error } = await supabase
+        .from('marketing_campaigns')
+        .insert([{ ...campaign, status: campaign.status || 'planned' }])
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateMarketingCampaign(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from('marketing_campaigns')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteMarketingCampaign(id: string) {
+    const { error } = await supabase.from('marketing_campaigns').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+// ─── Marketing Events / Veranstaltungen ──────────────────────────────────────
+
+export async function getMarketingEvents() {
+    const { data, error } = await supabase
+        .from('marketing_events')
+        .select('*')
+        .order('event_date', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createMarketingEvent(event: {
+    title: string;
+    event_type: string;
+    event_date: string;
+    status?: string;
+    end_date?: string | null;
+    location?: string;
+    description?: string;
+    budget?: number | null;
+    attendees_expected?: number;
+    leads_generated?: number;
+    notes?: string;
+}) {
+    const { data, error } = await supabase
+        .from('marketing_events')
+        .insert([{ ...event, status: event.status || 'planned' }])
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateMarketingEvent(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from('marketing_events')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteMarketingEvent(id: string) {
+    const { error } = await supabase.from('marketing_events').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+// ─── Kundenstimmen / Testimonials ────────────────────────────────────────────
+
+export async function getTestimonials() {
+    const { data, error } = await supabase
+        .from('customer_testimonials')
+        .select('*, customer:customers(company_name, first_name, last_name)')
+        .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createTestimonial(testimonial: {
+    customer_name: string;
+    company?: string;
+    role?: string;
+    testimonial_text: string;
+    rating?: number;
+    is_published?: boolean;
+    use_for_website?: boolean;
+    category?: string;
+    customer_id?: string | null;
+}) {
+    const { data, error } = await supabase
+        .from('customer_testimonials')
+        .insert([testimonial])
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateTestimonial(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from('customer_testimonials')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteTestimonial(id: string) {
+    const { error } = await supabase.from('customer_testimonials').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+// ─── Erweiterter Marketing-Überblick ─────────────────────────────────────────
+
+export async function getFullMarketingStats() {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const [campaignsRes, nlCampaignsRes, eventsRes, leadsRes, testimonialsRes] = await Promise.all([
+        supabase.from('marketing_campaigns').select('status, budget, spent, leads_generated, revenue_generated, channel'),
+        supabase.from('newsletter_campaigns').select('status, recipients_count, opened_count, clicked_count'),
+        supabase.from('marketing_events').select('status, event_date, leads_generated, budget, attendees_actual'),
+        supabase.from('leads').select('source, status, created_at').gte('created_at', thirtyDaysAgo),
+        supabase.from('customer_testimonials').select('rating, is_published'),
+    ]);
+
+    const campaigns = campaignsRes.data || [];
+    const nlCampaigns = nlCampaignsRes.data || [];
+    const events = eventsRes.data || [];
+    const leads = leadsRes.data || [];
+    const testimonials = testimonialsRes.data || [];
+
+    // Newsletter stats
+    const sentNl = nlCampaigns.filter((c: any) => c.status === 'sent');
+    const totalSent = sentNl.reduce((s: number, c: any) => s + (c.recipients_count || 0), 0);
+    const totalOpened = sentNl.reduce((s: number, c: any) => s + (c.opened_count || 0), 0);
+    const totalClicked = sentNl.reduce((s: number, c: any) => s + (c.clicked_count || 0), 0);
+    const avgOpenRate = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
+    const avgClickRate = totalSent > 0 ? Math.round((totalClicked / totalSent) * 100) : 0;
+
+    // Campaign stats
+    const activeCampaigns = campaigns.filter((c: any) => c.status === 'active').length;
+    const totalBudget = campaigns.reduce((s: number, c: any) => s + (c.budget || 0), 0);
+    const totalSpent = campaigns.reduce((s: number, c: any) => s + (c.spent || 0), 0);
+    const totalRevenue = campaigns.reduce((s: number, c: any) => s + (c.revenue_generated || 0), 0);
+    const totalCampaignLeads = campaigns.reduce((s: number, c: any) => s + (c.leads_generated || 0), 0);
+    const roi = totalSpent > 0 ? Math.round(((totalRevenue - totalSpent) / totalSpent) * 100) : 0;
+
+    // Channel breakdown
+    const channelMap: Record<string, number> = {};
+    for (const c of campaigns as any[]) {
+        channelMap[c.channel] = (channelMap[c.channel] || 0) + 1;
+    }
+
+    // Events
+    const upcomingEvents = events.filter((e: any) => e.status === 'planned' && new Date(e.event_date) >= now);
+    const pastEvents = events.filter((e: any) => e.status === 'completed');
+    const totalEventLeads = events.reduce((s: number, e: any) => s + (e.leads_generated || 0), 0);
+
+    // Lead source breakdown
+    const sourceMap: Record<string, { total: number; won: number }> = {};
+    for (const lead of leads as any[]) {
+        const src = lead.source || 'unbekannt';
+        if (!sourceMap[src]) sourceMap[src] = { total: 0, won: 0 };
+        sourceMap[src].total++;
+        if (lead.status === 'won') sourceMap[src].won++;
+    }
+    const leadSources = Object.entries(sourceMap).map(([source, stats]) => ({
+        source,
+        total: stats.total,
+        won: stats.won,
+        convRate: stats.total > 0 ? Math.round((stats.won / stats.total) * 100) : 0,
+    })).sort((a, b) => b.total - a.total);
+
+    // Testimonials
+    const avgRating = testimonials.length > 0
+        ? +(testimonials.reduce((s: number, t: any) => s + (t.rating || 5), 0) / testimonials.length).toFixed(1)
+        : 0;
+    const publishedTestimonials = testimonials.filter((t: any) => t.is_published).length;
+
+    return {
+        // Newsletter
+        nlTotalCampaigns: nlCampaigns.length,
+        nlSentCampaigns: sentNl.length,
+        nlDraftCampaigns: nlCampaigns.filter((c: any) => c.status === 'draft').length,
+        nlScheduledCampaigns: nlCampaigns.filter((c: any) => c.status === 'scheduled').length,
+        totalSent, avgOpenRate, avgClickRate,
+        // Campaigns
+        totalCampaigns: campaigns.length,
+        activeCampaigns,
+        totalBudget, totalSpent, totalRevenue, roi,
+        totalCampaignLeads,
+        channelBreakdown: Object.entries(channelMap).map(([channel, count]) => ({ channel, count })),
+        // Events
+        totalEvents: events.length,
+        upcomingEvents: upcomingEvents.length,
+        completedEvents: pastEvents.length,
+        totalEventLeads,
+        // Leads
+        newLeads30Days: leads.length,
+        leadSources,
+        // Testimonials
+        totalTestimonials: testimonials.length,
+        publishedTestimonials,
+        avgRating,
+    };
+}
+
+// ─── Marketing Settings (GA4 Config etc.) ────────────────────────────────────
+
+export async function getMarketingSettings(): Promise<Record<string, string>> {
+    const { data, error } = await supabase.from('marketing_settings').select('key, value');
+    if (error) return {}; // graceful: table might not exist yet
+    const result: Record<string, string> = {};
+    for (const row of data || []) {
+        result[row.key] = row.value || '';
+    }
+    return result;
+}
+
+export async function setMarketingSetting(key: string, value: string) {
+    const { error } = await supabase
+        .from('marketing_settings')
+        .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    if (error) throw new Error(error.message);
+}
+
+// ─── Google Analytics 4 (via Supabase Edge Function) ─────────────────────────
+
+export async function fetchGA4Analytics(propertyId: string) {
+    // Ruft die sichere Edge Function auf – der Service Account JSON liegt als Secret in Supabase,
+    // nicht im App-Code. supabase.functions.invoke() übernimmt Auth automatisch.
+    const { data, error } = await supabase.functions.invoke('ga4-analytics', {
+        body: { propertyId },
+    });
+
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+
+    const { overview, sources, pages } = data;
+
+    // ── Übersichts-Totale aggregieren ────────────────────────────────────────
+    const rows = overview?.rows || [];
+    const totals = { users: 0, sessions: 0, pageviews: 0, bounceRate: 0, newUsers: 0, avgSessionDuration: 0 };
+
+    for (const row of rows) {
+        const v = row.metricValues || [];
+        totals.users += parseInt(v[0]?.value || '0');
+        totals.sessions += parseInt(v[1]?.value || '0');
+        totals.pageviews += parseInt(v[2]?.value || '0');
+        totals.bounceRate += parseFloat(v[3]?.value || '0');
+        totals.newUsers += parseInt(v[4]?.value || '0');
+        totals.avgSessionDuration += parseFloat(v[5]?.value || '0');
+    }
+    if (rows.length > 0) {
+        totals.bounceRate = Math.round((totals.bounceRate / rows.length) * 100);
+        totals.avgSessionDuration = Math.round(totals.avgSessionDuration / rows.length);
+    }
+
+    // ── Tages-Trend ──────────────────────────────────────────────────────────
+    const trend = rows.map((row: any) => ({
+        date: row.dimensionValues?.[0]?.value || '',
+        users: parseInt(row.metricValues?.[0]?.value || '0'),
+        sessions: parseInt(row.metricValues?.[1]?.value || '0'),
+        pageviews: parseInt(row.metricValues?.[2]?.value || '0'),
+    })).sort((a: any, b: any) => a.date.localeCompare(b.date));
+
+    // ── Traffic-Quellen ──────────────────────────────────────────────────────
+    const sourcesParsed = (sources?.rows || []).map((row: any) => ({
+        channel: row.dimensionValues?.[0]?.value || 'Unknown',
+        sessions: parseInt(row.metricValues?.[0]?.value || '0'),
+        users: parseInt(row.metricValues?.[1]?.value || '0'),
+    })).sort((a: any, b: any) => b.sessions - a.sessions);
+
+    // ── Top Seiten ────────────────────────────────────────────────────────────
+    const pagesParsed = (pages?.rows || []).map((row: any) => ({
+        path: row.dimensionValues?.[0]?.value || '/',
+        pageviews: parseInt(row.metricValues?.[0]?.value || '0'),
+        users: parseInt(row.metricValues?.[1]?.value || '0'),
+    }));
+
+    return { totals, trend, sources: sourcesParsed, pages: pagesParsed };
+}
+
+
+// ─── Content Planner ──────────────────────────────────────────────────────────
+
+export async function getMarketingContent() {
+    const { data, error } = await supabase
+        .from('marketing_content')
+        .select('*')
+        .order('planned_date', { ascending: true, nullsFirst: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createMarketingContent(content: {
+    title: string;
+    platform: string;
+    content_type?: string;
+    status?: string;
+    planned_date?: string | null;
+    content?: string;
+    hashtags?: string;
+    link_url?: string;
+    campaign_id?: string | null;
+    notes?: string;
+}) {
+    const { data, error } = await supabase
+        .from('marketing_content')
+        .insert([{ ...content, status: content.status || 'draft', content_type: content.content_type || 'post' }])
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateMarketingContent(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from('marketing_content')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteMarketingContent(id: string) {
+    const { error } = await supabase.from('marketing_content').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}

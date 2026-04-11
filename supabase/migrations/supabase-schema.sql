@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS customers (
   country TEXT DEFAULT 'CH',
   notes TEXT,
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  newsletter_opt_out BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -161,6 +162,22 @@ CREATE TABLE IF NOT EXISTS expenses (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Newsletter-Kategorien
+CREATE TABLE IF NOT EXISTS newsletter_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Verknüpfung: Kunden <-> Newsletter-Kategorien
+CREATE TABLE IF NOT EXISTS customer_newsletter_categories (
+  customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
+  category_id UUID REFERENCES newsletter_categories(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (customer_id, category_id)
+);
+
 -- Newsletter-Kampagnen
 CREATE TABLE IF NOT EXISTS newsletter_campaigns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -173,6 +190,7 @@ CREATE TABLE IF NOT EXISTS newsletter_campaigns (
   recipients_count INTEGER DEFAULT 0,
   opened_count INTEGER DEFAULT 0,
   clicked_count INTEGER DEFAULT 0,
+  target_category_ids UUID[] DEFAULT '{}',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

@@ -270,14 +270,6 @@ export default function DashboardScreen() {
           color: "#8B5CF6",
           route: "/links",
         },
-        {
-          id: "newsletter",
-          title: "Newsletter",
-          subtitle: "Bald verfügbar",
-          icon: "envelope.fill",
-          color: "#A855F7",
-          route: "/newsletter",
-        },
       ],
     },
     {
@@ -298,6 +290,19 @@ export default function DashboardScreen() {
           icon: "checklist",
           color: "#8B5CF6",
           route: "/tasks",
+        },
+      ],
+    },
+    {
+      label: "Marketing",
+      tiles: [
+        {
+          id: "marketing",
+          title: "Marketing",
+          subtitle: "Kampagnen & Analysen",
+          icon: "megaphone.fill",
+          color: "#EC4899",
+          route: "/marketing",
         },
       ],
     },
