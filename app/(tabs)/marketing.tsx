@@ -18,7 +18,7 @@ import { NewsletterBuilder } from "@/components/newsletter-builder";
 import { NEWSLETTER_TEMPLATES } from "@/lib/newsletter-templates";
 const PINK = "#EC4899";
 
-type Tab = "overview" | "newsletter" | "campaigns" | "events" | "testimonials" | "content" | "analytics";
+type Tab = "overview" | "brainstorming" | "newsletter" | "campaigns" | "events" | "testimonials" | "content" | "analytics";
 
 // ─── Lookup Tables ─────────────────────────────────────────────────────────────
 
@@ -451,6 +451,7 @@ function NewsletterSubscribersSection() {
   const { data: subscribers = [], isLoading } = useQuery({ queryKey: ["newsletterSubscribers"], queryFn: Data.getNewsletterSubscribers });
   const { data: categories = [] } = useQuery({ queryKey: ["newsletterCategories"], queryFn: Data.getNewsletterCategories });
   const updateCatMutation = useMutation({ mutationFn: ({ id, cats }: { id: string, cats: string[] }) => Data.setCustomerNewsletterCategories(id, cats), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["newsletterSubscribers"] }) });
+  const toggleOptOutMutation = useMutation({ mutationFn: ({ id, optOut }: { id: string, optOut: boolean }) => Data.setCustomerNewsletterOptOut(id, optOut), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["newsletterSubscribers"] }) });
   
   const filtered = subscribers.filter((s: any) => { const q = search.toLowerCase(); return (s.company_name || "").toLowerCase().includes(q) || (s.email || "").toLowerCase().includes(q); });
   const getName = (s: any) => s.company_name || `${s.first_name || ""} ${s.last_name || ""}`.trim() || "Unbekannt";
@@ -485,6 +486,12 @@ function NewsletterSubscribersSection() {
                   </Text>
                   <Text style={{ fontSize: 11, color: colors.muted }} numberOfLines={1}>{s.email}</Text>
                 </View>
+                <TouchableOpacity 
+                   onPress={() => toggleOptOutMutation.mutate({ id: s.id, optOut: !s.newsletter_opt_out })}
+                   style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: s.newsletter_opt_out ? PINK + '1A' : colors.error + '1A', borderRadius: 6 }}
+                >
+                   <Text style={{ fontSize: 11, fontWeight: '700', color: s.newsletter_opt_out ? PINK : colors.error }}>{s.newsletter_opt_out ? "Aktivieren" : "Deaktivieren"}</Text>
+                </TouchableOpacity>
               </View>
               {!s.newsletter_opt_out && categories.length > 0 && (
                 <View style={{ paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.border }}>
@@ -1216,6 +1223,137 @@ function AnalyticsTab() {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ─── BRAINSTORMING TAB ────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function BrainstormingFormModal({ visible, idea, onClose, onSuccess }: { visible: boolean; idea: any; onClose: () => void; onSuccess: () => void }) {
+  const colors = useColors();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("campaign");
+  const [status, setStatus] = useState("idea");
+  const [audience, setAudience] = useState("");
+  const [budget, setBudget] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setTitle(idea?.title || "");
+      setDescription(idea?.description || "");
+      setCategory(idea?.category || "campaign");
+      setStatus(idea?.status || "idea");
+      setAudience(idea?.target_audience || "");
+      setBudget(idea?.estimated_budget?.toString() || "");
+    }
+  }, [visible, idea]);
+
+  const handleSave = async () => {
+    if (!title.trim()) { showAlert("Pflichtfeld", "Bitte einen Titel eingeben."); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        title: title.trim(), description: description.trim(), category, status,
+        target_audience: audience.trim(), estimated_budget: budget ? parseFloat(budget) : null
+      };
+      if (idea?.id) await Data.updateMarketingIdea(idea.id, payload);
+      else await Data.createMarketingIdea(payload);
+      onSuccess();
+    } catch (e: any) { showAlert("Fehler", e.message); } finally { setSaving(false); }
+  };
+
+  const cats = [
+    { key: "campaign", label: "Kampagne" },
+    { key: "event", label: "Event" },
+    { key: "content", label: "Content" },
+    { key: "social_media", label: "Social Media" },
+    { key: "newsletter", label: "Newsletter" },
+    { key: "other", label: "Sonstiges" }
+  ];
+  const states = [
+    { key: "idea", label: "Idee" },
+    { key: "planned", label: "Geplant" },
+    { key: "in_progress", label: "In Prüfung" },
+    { key: "implemented", label: "Umgesetzt" },
+    { key: "rejected", label: "Verworfen" }
+  ];
+
+  return (
+    <BottomSheet visible={visible} title={idea ? "Idee bearbeiten" : "Neue Brainstorming Idee"} onClose={onClose}>
+      <FL label="Kategorie" />
+      <Pills options={cats} value={category} onChange={setCategory} color="#eab308" />
+      
+      <FL label="Titel / Schlagwort *" />
+      <SI value={title} onChange={setTitle} placeholder="z.B. Sommerkampagne KMU" />
+      
+      <FL label="Status" />
+      <Pills options={states} value={status} onChange={setStatus} color="#eab308" />
+
+      <FL label="Beschreibung / Details" />
+      <SI value={description} onChange={setDescription} multiline placeholder="Worum geht es bei dieser Idee?" />
+
+      <FL label="Zielgruppe" />
+      <SI value={audience} onChange={setAudience} placeholder="z.B. Bestehende Kunden, Startups" />
+
+      <FL label="Geschätztes Budget (Optional)" />
+      <SI value={budget} onChange={setBudget} keyboardType="numeric" placeholder="in CHF" />
+
+      <SaveBtn onPress={handleSave} loading={saving} color="#eab308" />
+    </BottomSheet>
+  );
+}
+
+function BrainstormingTab() {
+  const colors = useColors();
+  const { isWide } = useResponsiveLayout();
+  const [modalObj, setModalObj] = useState<any>(null);
+  
+  const { data: ideas, isLoading, refetch } = useQuery({ queryKey: ["marketingIdeas"], queryFn: Data.getMarketingIdeas });
+
+  if (isLoading) return <View style={{ paddingVertical: 60, alignItems: "center" }}><ActivityIndicator size="large" color="#eab308" /></View>;
+
+  const STATUS_COLORS: Record<string, string> = { idea: "#0EA5E9", planned: "#F59E0B", in_progress: "#8B5CF6", implemented: "#22C55E", rejected: "#EF4444" };
+  const STATUS_LABELS: Record<string, string> = { idea: "Idee 💡", planned: "Geplant 📅", in_progress: "In Prüfung 🔍", implemented: "Umgesetzt ✅", rejected: "Verworfen ❌" };
+  const CAT_LABELS: Record<string, string> = { campaign: "Kampagne", event: "Event", content: "Content", social_media: "Social Media", newsletter: "Newsletter", other: "Sonstiges" };
+
+  return (
+    <View style={{ gap: 16 }}>
+      <SectionButton label="Neue Idee notieren" onPress={() => setModalObj({})} color="#eab308" />
+      
+      {!ideas || ideas.length === 0 ? (
+        <EmptyState icon="lightbulb.fill" color="#eab308" title="Noch keine Geistesblitze" sub="Sammle hier erste Ideen für kommende Marketing-Aktionen." />
+      ) : (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+          {ideas.map((idea: any) => (
+            <TouchableOpacity key={idea.id} style={{ width: isWide ? "48%" : "100%" }} activeOpacity={0.7} onPress={() => setModalObj(idea)}>
+              <Card style={{ flex: 1, borderLeftWidth: 4, borderLeftColor: STATUS_COLORS[idea.status] || colors.muted }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <Badge label={CAT_LABELS[idea.category] || "Idee"} color="#eab308" />
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: STATUS_COLORS[idea.status] || colors.muted }}>{STATUS_LABELS[idea.status]}</Text>
+                </View>
+                <Text style={{ fontSize: 18, fontWeight: "700", color: colors.foreground, marginBottom: 6 }}>{idea.title}</Text>
+                {idea.description ? (
+                  <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 12 }} numberOfLines={3}>{idea.description}</Text>
+                ) : null}
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: "auto", borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 }}>
+                  <View style={{ flexDirection: "row", gap: 12 }}>
+                     <Text style={{ fontSize: 11, color: colors.muted }}>Von: {idea.creator?.name || "System"}</Text>
+                     {idea.target_audience && <Text style={{ fontSize: 11, color: colors.muted }}>Ziel: {idea.target_audience}</Text>}
+                  </View>
+                  {idea.estimated_budget && <Text style={{ fontSize: 12, fontWeight: "600", color: colors.foreground }}>~ {idea.estimated_budget} CHF</Text>}
+                </View>
+              </Card>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {modalObj && <BrainstormingFormModal visible={!!modalObj} idea={Object.keys(modalObj).length > 0 ? modalObj : null} onClose={() => setModalObj(null)} onSuccess={() => { setModalObj(null); refetch(); }} />}
+    </View>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ─── MAIN SCREEN ──────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1227,6 +1365,7 @@ export default function MarketingScreen() {
   const { data: stats, isLoading: statsLoading } = useQuery({ queryKey: ["fullMarketingStats"], queryFn: Data.getFullMarketingStats, refetchInterval: 60000 });
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: "overview", label: "Übersicht", icon: "chart.bar.fill" },
+    { id: "brainstorming", label: "Brainstorming", icon: "lightbulb.fill" },
     { id: "newsletter", label: "Newsletter", icon: "envelope.fill" },
     { id: "campaigns", label: "Kampagnen", icon: "megaphone.fill" },
     { id: "events", label: "Veranstaltungen", icon: "calendar" },
@@ -1234,7 +1373,7 @@ export default function MarketingScreen() {
     { id: "content", label: "Content-Plan", icon: "calendar.badge.plus" },
     { id: "analytics", label: "Google Analytics", icon: "chart.line.uptrend.xyaxis" },
   ];
-  const tabColor: Record<Tab, string> = { overview: PINK, newsletter: "#8B5CF6", campaigns: "#EC4899", events: "#0EA5E9", testimonials: "#F59E0B", content: "#22C55E", analytics: "#4285F4" };
+  const tabColor: Record<Tab, string> = { overview: PINK, brainstorming: "#eab308", newsletter: "#8B5CF6", campaigns: "#EC4899", events: "#0EA5E9", testimonials: "#F59E0B", content: "#22C55E", analytics: "#4285F4" };
   const activeColor = tabColor[activeTab] || PINK;
   return (
     <ScreenContainer>
@@ -1267,6 +1406,7 @@ export default function MarketingScreen() {
           </ScrollView>
           {/* Content */}
           {activeTab === "overview" && <OverviewTab stats={stats} isLoading={statsLoading} />}
+          {activeTab === "brainstorming" && <BrainstormingTab />}
           {activeTab === "newsletter" && <NewsletterTab />}
           {activeTab === "campaigns" && <CampaignsTab />}
           {activeTab === "events" && <EventsTab />}

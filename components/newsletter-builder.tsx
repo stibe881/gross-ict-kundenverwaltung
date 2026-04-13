@@ -34,7 +34,15 @@ export function generateBlockHtml(block: NewsletterBlock): string {
       case 'text':
         return `<p style="color: #121619; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">${(block.text || '').replace(/\n/g, '<br>')}</p>`;
       case 'button':
-        return `<div style="margin: 25px 0; text-align: center;"><a href="${block.url || '#'}" style="display: inline-block; background-color: #e6b24a; color: #121619; padding: 14px 30px; text-decoration: none; font-weight: bold; border-radius: 6px;">${block.text || 'Klick mich'}</a></div>`;
+        return `<table border="0" cellspacing="0" cellpadding="0" style="margin: 25px auto;">
+  <tr>
+    <td align="center" style="border-radius: 6px; background-color: #e6b24a;">
+      <a href="${block.url || '#'}" target="_blank" style="font-size: 15px; font-family: 'Segoe UI', Helvetica, Arial, sans-serif; color: #121619; text-decoration: none; border-radius: 6px; padding: 14px 30px; border: 1px solid #e6b24a; display: inline-block; font-weight: bold;">
+        ${block.text || 'Klick mich'}
+      </a>
+    </td>
+  </tr>
+</table>`;
       case 'image':
         let imgHtml = `<img src="${block.src || 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600&h=300&fit=crop'}" style="display: block; width: 100%; max-width: 100%; border-radius: 8px;" />`;
         if (block.url) {

@@ -37,7 +37,7 @@ export default function ContractsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { refreshing, onRefresh } = useGlobalRefresh();
-  const [filter, setFilter] = useState<"all" | ContractStatus>("all");
+  const [filter, setFilter] = useState<"all" | ContractStatus | "signed" | "pending">("all");
 
   // Verträge aus DB laden
   const { data: contracts = [], isLoading: contractsLoading } = useQuery({
@@ -119,6 +119,8 @@ export default function ContractsScreen() {
       case "active": return "Aktiv";
       case "cancelled": return "Gekündigt";
       case "expired": return "Abgelaufen";
+      case "signed": return "Unterzeichnet";
+      case "pending": return "Warten auf Unterschrift";
       default: return "Unbekannt";
     }
   };
@@ -132,7 +134,11 @@ export default function ContractsScreen() {
   };
 
   const filteredContracts: any[] =
-    filter === "all" ? contracts : contracts.filter((c) => c.status === filter);
+    filter === "all" ? contracts : contracts.filter((c) => {
+      if (filter === "signed") return !!c.signature_date;
+      if (filter === "pending") return !c.signature_date && (c.status === "pending_signature" || c.status === "active");
+      return c.status === filter;
+    });
 
   const renderContractItem = ({ item }: { item: any }) => (
     <TouchableOpacity
@@ -316,7 +322,7 @@ export default function ContractsScreen() {
               <View className="mb-4">
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 4 }}>
                     <View className="flex-row gap-2">
-                      {["all", "active", "cancelled", "expired"].map((status) => (
+                      {["all", "active", "signed", "pending", "cancelled", "expired"].map((status) => (
                         <TouchableOpacity
                           key={status}
                           className={`px-4 py-2 rounded-lg ${filter === status ? "bg-primary" : "bg-surface border border-border"

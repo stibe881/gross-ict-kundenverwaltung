@@ -175,6 +175,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (type === "newsletter") {
+      // Basic open tracking (increments total opens)
+      // Retrieve current opened_count
+      const { data: campaign } = await supabase
+        .from("newsletter_campaigns")
+        .select("opened_count")
+        .eq("id", id)
+        .single();
+      
+      if (campaign) {
+        await supabase
+          .from("newsletter_campaigns")
+          .update({ opened_count: (campaign.opened_count || 0) + 1 })
+          .eq("id", id);
+      }
+    }
+
     return new Response(new Uint8Array(PIXEL), {
       headers: {
         "Content-Type": "image/gif",

@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
     for (const chunk of batchChunks) {
         const emailsBatch = chunk.map((c: any) => {
             // Opt-Out Link anhängen
-           const unsubscribeUrl = `${supabaseUrl}/functions/v1/newsletter-optout?user=${c.id}`;
+           const unsubscribeUrl = `https://www.gross-ict.ch/abmeldung-newsletter?user=${c.id}`;
            const unsubscribeHtml = `
              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eaeaea; text-align: center; color: #9CA3AF; font-size: 11px; font-family: sans-serif;">
                Sie erhalten diese E-Mail, weil Ihre E-Mail-Adresse bei uns für Updates registriert ist.<br>
@@ -96,9 +96,12 @@ Deno.serve(async (req) => {
            if (!finalHtml.includes("newsletter-optout")) {
               finalHtml += unsubscribeHtml;
            } else {
-              // Replace placeholder fallback if exists
               finalHtml = finalHtml.replace(/\[CUSTOMER_ID\]/g, c.id);
            }
+           
+           // Tracking Pixel
+           const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email?type=newsletter&id=${campaign_id}" width="1" height="1" alt="" style="display:none;" />`;
+           finalHtml += trackingPixel;
 
            return {
              from: "Gross ICT <info@gross-ict.ch>",
@@ -137,7 +140,7 @@ Deno.serve(async (req) => {
       .update({ 
           status: "sent",
           sent_at: new Date().toISOString(),
-          sent_count: sentCount
+          recipients_count: sentCount
       })
       .eq("id", campaign_id);
 

@@ -3611,6 +3611,14 @@ export async function getNewsletterSubscribers() {
         }));
 }
 
+export async function setCustomerNewsletterOptOut(customerId: string, optOut: boolean) {
+    const { error } = await supabase
+        .from('customers')
+        .update({ newsletter_opt_out: optOut })
+        .eq('id', customerId);
+    if (error) throw new Error("Fehler beim Speichern des Newsletter-Status: " + error.message);
+}
+
 export async function getNewsletterCategories() {
     const { data, error } = await supabase
         .from('newsletter_categories')
@@ -4026,6 +4034,60 @@ export async function updateMarketingContent(id: string, updates: any) {
 
 export async function deleteMarketingContent(id: string) {
     const { error } = await supabase.from('marketing_content').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+// ─── Brainstorming ────────────────────────────────────────────────────────────
+
+export async function getMarketingIdeas() {
+    const { data, error } = await supabase
+        .from('marketing_brainstorming')
+        .select(`
+            *,
+            creator:users(name)
+        `)
+        .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createMarketingIdea(idea: {
+    title: string;
+    description?: string;
+    category: string;
+    status?: string;
+    target_audience?: string;
+    estimated_budget?: number | null;
+}) {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { data, error } = await supabase
+        .from('marketing_brainstorming')
+        .insert([{ 
+            ...idea, 
+            status: idea.status || 'idea',
+            created_by: user?.id 
+        }])
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateMarketingIdea(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from('marketing_brainstorming')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteMarketingIdea(id: string) {
+    const { error } = await supabase.from('marketing_brainstorming').delete().eq('id', id);
     if (error) throw new Error(error.message);
     return { success: true };
 }
