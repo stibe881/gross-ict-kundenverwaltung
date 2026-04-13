@@ -1577,7 +1577,7 @@ export default function AccountingScreen() {
       >
         <View style={containerStyle}>
           {/* Header */}
-          <View className="flex-row items-center justify-between mb-4">
+          <View className="flex-row items-center justify-between mb-4" style={{ zIndex: 100 }}>
             <View className="flex-row items-center gap-3">
               <TouchableOpacity
                 onPress={() => router.back()}
