@@ -98,7 +98,7 @@ serve(async (req) => {
             recipientType: "admin",
             title: `Erinnerung: Akquise ${leadName}`,
             body: reminder.note || 'Erinnerung fällig',
-            data: { url: \`/leads\`, category: "lead_reminders" }
+            data: { url: "/leads", category: "lead_reminders" }
         };
 
         const { error: pushError } = await supabaseAdmin.functions.invoke('send-push', {

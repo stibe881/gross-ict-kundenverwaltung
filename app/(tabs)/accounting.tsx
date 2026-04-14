@@ -66,8 +66,8 @@ export default function AccountingScreen() {
   const [initialIsIncome, setInitialIsIncome] = useState(false);
 
   // Invoice Filters & Sorting
-  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<"all" | "open" | "paid" | "overdue" | "cancelled">("all");
-  const [invoiceSort, setInvoiceSort] = useState<"date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "number_desc">("date_desc");
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<"all" | "unpaid" | "open" | "paid" | "overdue" | "cancelled">("unpaid");
+  const [invoiceSort, setInvoiceSort] = useState<"date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "number_desc" | "due_date_asc" | "due_date_desc">("due_date_asc");
 
   // Scanned Receipt Data
   const [scannedReceipt, setScannedReceipt] = useState<{
@@ -200,7 +200,11 @@ export default function AccountingScreen() {
 
     // Filter
     if (invoiceStatusFilter !== "all") {
-      result = result.filter(i => i.status === invoiceStatusFilter);
+      if (invoiceStatusFilter === "unpaid") {
+        result = result.filter(i => i.status !== "paid" && i.status !== "cancelled");
+      } else {
+        result = result.filter(i => i.status === invoiceStatusFilter);
+      }
     }
 
     // Sort
@@ -215,6 +219,14 @@ export default function AccountingScreen() {
         return getInvoiceTotal(a) - getInvoiceTotal(b);
       } else if (invoiceSort === "number_desc") {
         return (b.invoice_number || "").localeCompare(a.invoice_number || "");
+      } else if (invoiceSort === "due_date_asc") {
+        const dateA = a.due_date ? new Date(a.due_date).getTime() : new Date(a.invoice_date).getTime();
+        const dateB = b.due_date ? new Date(b.due_date).getTime() : new Date(b.invoice_date).getTime();
+        return dateA - dateB;
+      } else if (invoiceSort === "due_date_desc") {
+        const dateA = a.due_date ? new Date(a.due_date).getTime() : new Date(a.invoice_date).getTime();
+        const dateB = b.due_date ? new Date(b.due_date).getTime() : new Date(b.invoice_date).getTime();
+        return dateB - dateA;
       }
       return 0;
     });
@@ -680,6 +692,7 @@ export default function AccountingScreen() {
             {/* Horizontal Filter Chips */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
               {[
+                { label: "Noch nicht bezahlt", value: "unpaid" },
                 { label: "Alle", value: "all" },
                 { label: "Entwurf", value: "draft" },
                 { label: "Offen", value: "open" },
@@ -707,6 +720,7 @@ export default function AccountingScreen() {
                 <IconSymbol name="arrow.up.arrow.down" size={12} color={colors.muted} />
               </View>
               {[
+                { label: "Nächste Fälligkeit", value: "due_date_asc" },
                 { label: "Neueste", value: "date_desc" },
                 { label: "Älteste", value: "date_asc" },
                 { label: "Höchster Betrag", value: "amount_desc" },
@@ -772,9 +786,16 @@ export default function AccountingScreen() {
                     {formatDate(invoice.invoice_date)} · Fällig:{" "}
                     {formatDate(invoice.due_date)}
                   </Text>
-                  <Text className="text-base font-bold text-primary">
-                    {formatCurrency(getInvoiceTotal(invoice))}
-                  </Text>
+                  <View className="items-end">
+                    <Text className="text-base font-bold text-primary">
+                      {formatCurrency(getInvoiceTotal(invoice))}
+                    </Text>
+                    {(invoice.paid_amount || 0) > 0 && invoice.status !== 'paid' && (
+                      <Text className="text-xs font-semibold text-warning mt-0.5">
+                        Restbetrag: {formatCurrency(Math.max(0, getInvoiceTotal(invoice) - (invoice.paid_amount || 0)))}
+                      </Text>
+                    )}
+                  </View>
                 </View>
               </TouchableOpacity>
             );

@@ -10,37 +10,39 @@ const PIXEL = Uint8Array.from(atob("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAAB
 
 async function sendPushToAdmins(supabase: any, title: string, body: string, url: string, category?: string) {
   try {
-    const { data: admins } = await supabase
-      .from("users")
-      .select("id, push_token, push_preferences")
-      .not("push_token", "is", null);
+    // Check if we recently sent the exact same notification (within 30 mins) to prevent duplicate spam
+    const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: recent } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("title", title)
+      .eq("message", body)
+      .gte("created_at", thirtyMinsAgo)
+      .limit(1)
+      .maybeSingle();
 
-    if (!admins || admins.length === 0) return;
-
-    const messages: any[] = [];
-    for (const a of admins) {
-      if (!a.push_token) continue;
-      // Check push_preferences (opt-out: missing key = enabled)
-      if (category && a.push_preferences && a.push_preferences[category] === false) continue;
-      const tokens = a.push_token.split(",").map((t: string) => t.trim()).filter(Boolean);
-      for (const t of tokens) {
-        if (t.startsWith("ExponentPushToken")) {
-          messages.push({ to: t, sound: "default", title, body, data: { url, category } });
-        }
-      }
+    if (recent) {
+      console.log(`[track-email] Push skipped due to recent notification for: ${title}`);
+      return;
     }
 
-    if (messages.length > 0) {
-      try {
-        const pushRes = await fetch("https://exp.host/--/api/v2/push/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify(messages),
-        });
-        console.log(`[track-email] Push sent: ${pushRes.status}`, await pushRes.text());
-      } catch (e) {
-        console.warn("[track-email] Push send failed:", e);
-      }
+    // Call the dedicated send-push edge function to handle user preferences, tokens, and DB logging
+    const pushPayload = {
+      recipients: "all_admins",
+      recipientType: "admin",
+      title,
+      body,
+      data: { url, category }
+    };
+
+    const { error: pushError } = await supabase.functions.invoke("send-push", {
+      body: pushPayload,
+    });
+
+    if (pushError) {
+      console.warn("[track-email] send-push invoke failed:", pushError.message);
+    } else {
+      console.log(`[track-email] Triggered send-push for: ${title}`);
     }
   } catch (err) {
     console.warn("[track-email] Push error:", err);
