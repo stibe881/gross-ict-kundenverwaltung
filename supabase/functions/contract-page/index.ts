@@ -786,7 +786,9 @@ Deno.serve(async (req) => {
         ].filter(Boolean);
 
         let docType = "Rechnung";
-        if (invoice.is_dunning_document || (invoice.dunning_level != null && invoice.dunning_level > 0)) {
+        if (invoice.status === "draft") {
+          docType = "Rechnungsentwurf";
+        } else if (invoice.is_dunning_document || (invoice.dunning_level != null && invoice.dunning_level > 0)) {
           if (invoice.dunning_level === 0) docType = "Zahlungserinnerung";
           else if (invoice.dunning_level === 1) docType = "1. Mahnung";
           else if (invoice.dunning_level === 2) docType = "2. Mahnung";
@@ -798,8 +800,8 @@ Deno.serve(async (req) => {
 
         const pdfBase64 = generateInvoicePDF({
           invoiceNumber: invoice.invoice_number,
-          invoiceDate: invoice.invoice_date,
-          dueDate: invoice.due_date,
+          invoiceDate: invoice.status === "draft" ? "" : invoice.invoice_date,
+          dueDate: invoice.status === "draft" ? "" : invoice.due_date,
           customerName,
           customerAddress: addressParts.join("\n"),
           customerNumber: invoice.customer?.customer_number,

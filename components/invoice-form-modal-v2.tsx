@@ -217,7 +217,7 @@ export function InvoiceFormModal({
         subtotal: 0,
         vat_amount: 0,
         total: payloadItems.reduce((s: number, i: any) => s + i.total, 0),
-        status: "open",
+        status: "draft",
       }, payloadItems.map((i: any) => ({
         description: i.description,
         quantity: i.quantity,

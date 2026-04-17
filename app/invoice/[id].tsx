@@ -118,6 +118,35 @@ export default function InvoiceDetailScreen() {
             `Rechnung ${invoice.invoice_number} an ${invoice.customer.email} senden?`,
             async () => {
                 try {
+                    let draftUpdateOk = true;
+                    if (invoice.status === 'draft') {
+                        const newInvoiceDate = new Date();
+                        const oldInvDate = new Date(invoice.invoice_date);
+                        const oldDueDate = new Date(invoice.due_date);
+                        const diffTime = oldDueDate.getTime() - oldInvDate.getTime();
+                        let diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+                        if (isNaN(diffDays) || diffDays < 0) diffDays = 30;
+
+                        const newDueDate = new Date(newInvoiceDate.getTime() + diffDays * 24 * 3600 * 1000);
+                        const newInvoiceDateStr = newInvoiceDate.toISOString().split("T")[0];
+                        const newDueDateStr = newDueDate.toISOString().split("T")[0];
+
+                        const { error: updErr } = await supabase.from("invoices").update({ 
+                            status: 'sent', 
+                            invoice_date: newInvoiceDateStr, 
+                            due_date: newDueDateStr 
+                        }).eq("id", invoice.id);
+                        
+                        if (!updErr) {
+                            invoice.status = 'sent';
+                            invoice.invoice_date = newInvoiceDateStr;
+                            invoice.due_date = newDueDateStr;
+                        } else {
+                            draftUpdateOk = false;
+                        }
+                    }
+                    if (!draftUpdateOk) throw new Error("Status konnte nicht aktualisiert werden");
+
                     // PDF client-seitig generieren (gleich wie Download-Button)
                     const pdfBase64 = await generateInvoicePDFBase64(invoice, invoiceSettings);
                     const { data, error } = await supabase.functions.invoke('send-invoice-email', {
@@ -336,13 +365,13 @@ export default function InvoiceDetailScreen() {
                                 <View className="flex-row justify-between">
                                     <Text className="text-sm text-muted">Rechnungsdatum</Text>
                                     <Text className="text-sm font-semibold text-foreground">
-                                        {formatDate(invoice.invoice_date)}
+                                        {invoice.status === 'draft' ? '-' : formatDate(invoice.invoice_date)}
                                     </Text>
                                 </View>
                                 <View className="flex-row justify-between">
                                     <Text className="text-sm text-muted">Fälligkeitsdatum</Text>
                                     <Text className="text-sm font-semibold text-foreground">
-                                        {formatDate(invoice.due_date)}
+                                        {invoice.status === 'draft' ? '-' : formatDate(invoice.due_date)}
                                     </Text>
                                 </View>
                                 <View className="flex-row justify-between">

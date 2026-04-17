@@ -783,8 +783,8 @@ export default function AccountingScreen() {
                 </Text>
                 <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-border">
                   <Text className="text-xs text-muted">
-                    {formatDate(invoice.invoice_date)} · Fällig:{" "}
-                    {formatDate(invoice.due_date)}
+                    {invoice.status === 'draft' ? "Entwurf" : formatDate(invoice.invoice_date)} · Fällig:{" "}
+                    {invoice.status === 'draft' ? "-" : formatDate(invoice.due_date)}
                   </Text>
                   <View className="items-end">
                     <Text className="text-base font-bold text-primary">

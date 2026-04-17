@@ -411,10 +411,18 @@ export async function createInvoice(invoice: any, items: any[]) {
         if (itemsError) throw new Error(itemsError.message);
     }
 
+    try {
+        await addInvoiceActivity(invoiceData.id, "created", `Rechnung ${invoice.invoice_number} wurde erstellt.`);
+    } catch (_) { /* ignore */ }
+
     return invoiceData;
 }
 
 export async function updateInvoice(id: string, invoice: any, items: any[]) {
+    // Vor dem Update die alten Daten laden, um einen Diff zu erzeugen
+    const { data: oldInvoice } = await supabase.from('invoices').select('*').eq('id', id).single();
+    const { data: oldItems } = await supabase.from('invoice_items').select('*').eq('invoice_id', id);
+
     const { data: invoiceData, error: invoiceError } = await supabase
         .from("invoices")
         .update(invoice)
@@ -444,6 +452,42 @@ export async function updateInvoice(id: string, invoice: any, items: any[]) {
 
         if (itemsError) throw new Error(itemsError.message);
     }
+
+    try {
+        const changedFields: string[] = [];
+        if (oldInvoice) {
+            if (invoice.customer_id && invoice.customer_id !== oldInvoice.customer_id) changedFields.push("Kunde");
+            if (invoice.invoice_number && invoice.invoice_number !== oldInvoice.invoice_number) changedFields.push("Rechnungsnummer");
+            if (invoice.invoice_date && invoice.invoice_date !== oldInvoice.invoice_date) changedFields.push("Rechnungsdatum");
+            if (invoice.due_date && invoice.due_date !== oldInvoice.due_date) changedFields.push("Fälligkeitsdatum");
+            if (invoice.total !== undefined && Number(invoice.total) !== Number(oldInvoice.total)) changedFields.push(`Total (CHF ${oldInvoice.total} -> CHF ${invoice.total})`);
+            if (invoice.notes !== undefined && invoice.notes !== oldInvoice.notes) changedFields.push("Notizen");
+            if (invoice.status && invoice.status !== oldInvoice.status) changedFields.push("Status");
+        }
+
+        let itemsChanged = false;
+        if (oldItems) {
+            if (oldItems.length !== items.length) itemsChanged = true;
+            else {
+               const oldTotal = oldItems.reduce((acc: number, i: any) => acc + Number(i.total), 0);
+               const newTotal = items.reduce((acc: number, i: any) => acc + Number(i.total), 0);
+               if (oldTotal !== newTotal) itemsChanged = true;
+               else {
+                   const oldDesc = oldItems.map((i: any) => i.description).sort().join();
+                   const newDesc = items.map((i: any) => i.description).sort().join();
+                   if (oldDesc !== newDesc) itemsChanged = true;
+               }
+            }
+        }
+        if (itemsChanged) changedFields.push("Positionen");
+
+        let text = `Rechnung ${invoice.invoice_number || invoiceData.invoice_number} wurde bearbeitet.`;
+        if (changedFields.length > 0) {
+            text += ` Geändert: ${changedFields.join(", ")}`;
+        }
+
+        await addInvoiceActivity(id, "edited", text);
+    } catch (_) { /* ignore */ }
 
     return invoiceData;
 }
@@ -498,13 +542,27 @@ export async function addInvoiceActivity(
     description: string,
     userName?: string
 ) {
+    let resolvedName = userName;
+    if (!resolvedName) {
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const user = sessionData?.session?.user;
+            if (user) {
+                const { data: profile } = await supabase.from("users").select("name").eq("id", user.id).single();
+                if (profile && profile.name) resolvedName = profile.name;
+                else if (user.user_metadata) resolvedName = `${user.user_metadata.first_name || user.user_metadata.name || ""} ${user.user_metadata.last_name || ""}`.trim();
+                if (!resolvedName && user.email) resolvedName = user.email.split("@")[0];
+            }
+        } catch (e) {}
+    }
+
     const { data, error } = await supabase
         .from("invoice_activities")
         .insert({
             invoice_id: invoiceId,
             type,
             description,
-            user_name: userName || "System",
+            user_name: resolvedName || "System",
         })
         .select()
         .single();
