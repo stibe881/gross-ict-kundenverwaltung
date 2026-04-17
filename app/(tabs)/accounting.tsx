@@ -277,6 +277,11 @@ export default function AccountingScreen() {
     .reduce((s: number, i: any) => {
       return s + Math.max(0, getInvoiceTotal(i) - (i.paid_amount || 0));
     }, 0);
+  const totalUnsent = yearInvoices
+    .filter((i: any) => i.status === "draft")
+    .reduce((s: number, i: any) => {
+      return s + getInvoiceTotal(i);
+    }, 0);
   const totalExpenses = processedExpenses
     .filter((e: any) => (e.amount || 0) > 0)
     .reduce((s: number, e: any) => s + (e.amount || 0), 0);
@@ -618,9 +623,9 @@ export default function AccountingScreen() {
 
       <View className="flex-row gap-3">
         <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-          <Text className="text-xs text-muted mb-1">Rechnungen</Text>
+          <Text className="text-xs text-muted mb-1">Ungesendet</Text>
           <Text className="text-xl font-bold text-foreground">
-            {yearInvoices.length}
+            {formatCurrency(totalUnsent)}
           </Text>
         </View>
         <View className="flex-1 bg-surface rounded-xl p-4 border border-border">

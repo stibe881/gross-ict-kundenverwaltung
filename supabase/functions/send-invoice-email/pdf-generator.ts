@@ -166,17 +166,21 @@ export function generateInvoicePDF(data: InvoiceData): string {
     metaY += ls;
   }
 
-  doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
-  doc.text("Datum", mLabelX, metaY);
-  doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
-  doc.text(fmtDate(data.invoiceDate), mValueX, metaY, { align: "right" });
-  metaY += ls;
+  if (data.invoiceDate) {
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
+    doc.text("Datum", mLabelX, metaY);
+    doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
+    doc.text(fmtDate(data.invoiceDate), mValueX, metaY, { align: "right" });
+    metaY += ls;
+  }
 
-  doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
-  doc.text("Zahlungsziel", mLabelX, metaY);
-  doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
-  doc.text(fmtDate(data.dueDate), mValueX, metaY, { align: "right" });
-  metaY += ls;
+  if (data.dueDate) {
+    doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
+    doc.text("Zahlungsziel", mLabelX, metaY);
+    doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
+    doc.text(fmtDate(data.dueDate), mValueX, metaY, { align: "right" });
+    metaY += ls;
+  }
 
   doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextMuted);
   doc.text("Zahlungsform", mLabelX, metaY);

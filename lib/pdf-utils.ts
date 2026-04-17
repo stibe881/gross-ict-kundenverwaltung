@@ -1,7 +1,8 @@
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
-import { Alert, Platform } from "react-native";
+import { Platform } from "react-native";
 import { supabase } from "./supabase";
+import { showAlert } from "./alert";
 
 // ──────────────────────────────────────────────────────────────
 // Shared: PDF aus Base64 öffnen (Web: neuer Tab, Native: Share)
@@ -9,16 +10,18 @@ import { supabase } from "./supabase";
 
 async function openPDFFromBase64(base64: string, filename: string): Promise<void> {
   if (Platform.OS === "web") {
-    // Web: Base64 → Blob → Neuer Tab (Drucken + Download möglich)
-    const byteChars = atob(base64);
-    const byteNumbers = new Array(byteChars.length);
-    for (let i = 0; i < byteChars.length; i++) {
-      byteNumbers[i] = byteChars.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: "application/pdf" });
+    // Web: Base64 → Blob via fetch (much faster and memory efficient)
+    const blob = await (await fetch(`data:application/pdf;base64,${base64}`)).blob();
     const blobUrl = URL.createObjectURL(blob);
-    window.open(blobUrl, "_blank");
+    
+    // Use an invisible anchor tag to trigger download and bypass popup blockers
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
     setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
     return;
   }
@@ -77,7 +80,7 @@ export async function downloadContractPDF(contract: { id: string; title: string 
     await openPDFFromBase64(base64, `Vertrag_${safeTitle}.pdf`);
   } catch (err: any) {
     console.error("[PDF] Contract PDF error:", err);
-    Alert.alert("Fehler", "PDF konnte nicht erstellt werden: " + err.message);
+    showAlert("Fehler", "PDF konnte nicht erstellt werden: " + err.message);
   }
 }
 
@@ -93,7 +96,7 @@ export async function downloadInvoicePDF(invoice: { id: string; invoice_number: 
     await openPDFFromBase64(base64, `Rechnung_${invoice.invoice_number}.pdf`);
   } catch (err: any) {
     console.error("[PDF] Invoice PDF error:", err);
-    Alert.alert("Fehler", "Rechnungs-PDF konnte nicht erstellt werden: " + err.message);
+    showAlert("Fehler", "Rechnungs-PDF konnte nicht erstellt werden: " + err.message);
   }
 }
 
@@ -120,6 +123,6 @@ export async function downloadQuotePDF(quote: { id: string; quote_number: string
     await openPDFFromBase64(base64, `Angebot_${quote.quote_number}.pdf`);
   } catch (err: any) {
     console.error("[PDF] Quote PDF error:", err);
-    Alert.alert("Fehler", "Angebots-PDF konnte nicht erstellt werden: " + err.message);
+    showAlert("Fehler", "Angebots-PDF konnte nicht erstellt werden: " + err.message);
   }
 }

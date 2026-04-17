@@ -552,8 +552,8 @@ export function generateInvoicePDF(data: InvoiceData): string {
     ["Rechnungsnr.", data.invoiceNumber],
   ];
   if (data.customerNumber) metaRows.push(["Kundennr.", data.customerNumber]);
-  metaRows.push(["Datum", fmtDate(data.invoiceDate)]);
-  metaRows.push(["Zahlungsziel", fmtDate(data.dueDate)]);
+  if (data.invoiceDate) metaRows.push(["Datum", fmtDate(data.invoiceDate)]);
+  if (data.dueDate) metaRows.push(["Zahlungsziel", fmtDate(data.dueDate)]);
   metaRows.push(["Zahlungsform", "Überweisung"]);
 
   const metaBoxH = 8 + metaRows.length * 6 + 4;
@@ -604,7 +604,7 @@ export function generateInvoicePDF(data: InvoiceData): string {
   const hAligns = ["left", "left", "right", "right", "right"];
   for (let i = 0; i < headers.length; i++) {
     if (hAligns[i] === "right") {
-      doc.text(headers[i], hx + colWidths[i] - 2, y, { align: "right" });
+      doc.text(headers[i], hx + colWidths[i] - 6, y, { align: "right" });
     } else {
       doc.text(headers[i], hx + 2, y);
     }
@@ -643,16 +643,16 @@ export function generateInvoicePDF(data: InvoiceData): string {
 
     // Quantity
     doc.setFont("helvetica", "normal"); doc.setTextColor(...cTextDark);
-    doc.text(`${item.quantity} ${item.unit || "Stk."}`, rx + colWidths[2] - 2, y, { align: "right" });
+    doc.text(`${item.quantity} ${item.unit || "Stk."}`, rx + colWidths[2] - 6, y, { align: "right" });
     rx += colWidths[2];
 
     // Unit price
-    doc.text(fmtCHF(item.unitPrice), rx + colWidths[3] - 2, y, { align: "right" });
+    doc.text(fmtCHF(item.unitPrice), rx + colWidths[3] - 6, y, { align: "right" });
     rx += colWidths[3];
 
     // Total
     doc.setFont("helvetica", "bold");
-    doc.text(fmtCHF(item.total), rx + colWidths[4] - 2, y, { align: "right" });
+    doc.text(fmtCHF(item.total), rx + colWidths[4] - 6, y, { align: "right" });
 
     // Border bottom
     doc.setDrawColor(241, 245, 249);
@@ -672,13 +672,13 @@ export function generateInvoicePDF(data: InvoiceData): string {
     doc.setFont("helvetica", "normal"); doc.setTextColor(55, 65, 81);
     doc.text("Totalbetrag", totalsX, y);
     doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
-    doc.text(`${fmtCHF(data.total)} CHF`, PAGE_WIDTH - MARGIN_X, y, { align: "right" });
+    doc.text(`${fmtCHF(data.total)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y, { align: "right" });
     y += 7;
 
     doc.setFont("helvetica", "normal"); doc.setTextColor(16, 185, 129); // green
     doc.text("Bereits bezahlt", totalsX, y);
     doc.setFont("helvetica", "bold");
-    doc.text(`-${fmtCHF(data.paidAmount)} CHF`, PAGE_WIDTH - MARGIN_X, y, { align: "right" });
+    doc.text(`-${fmtCHF(data.paidAmount)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y, { align: "right" });
     y += 10;
   }
 
@@ -690,7 +690,7 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
   doc.text("Zu bezahlen", totalsX, y + 5);
-  doc.text(`${fmtCHF(remaining > 0 ? remaining : 0)} CHF`, PAGE_WIDTH - MARGIN_X, y + 5, { align: "right" });
+  doc.text(`${fmtCHF(remaining > 0 ? remaining : 0)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 5, { align: "right" });
   y += 24;
 
   // Notes
@@ -892,7 +892,7 @@ export function generateQuotePDF(data: QuoteData): string {
   const hAligns = ["left", "left", "right", "right", "right"];
   for (let i = 0; i < headers.length; i++) {
     if (hAligns[i] === "right") {
-      doc.text(headers[i], hx + colWidths[i] - 2, y, { align: "right" });
+      doc.text(headers[i], hx + colWidths[i] - 6, y, { align: "right" });
     } else {
       doc.text(headers[i], hx + 2, y);
     }
@@ -947,16 +947,16 @@ export function generateQuotePDF(data: QuoteData): string {
     rx += colWidths[1];
 
     // Quantity
-    doc.text(`${item.quantity} ${item.unit || "Stk."}`, rx + colWidths[2] - 2, y, { align: "right" });
+    doc.text(`${item.quantity} ${item.unit || "Stk."}`, rx + colWidths[2] - 6, y, { align: "right" });
     rx += colWidths[2];
 
     // Unit price
-    doc.text(fmtCHF(item.unitPrice), rx + colWidths[3] - 2, y, { align: "right" });
+    doc.text(fmtCHF(item.unitPrice), rx + colWidths[3] - 6, y, { align: "right" });
     rx += colWidths[3];
 
     // Total
     doc.setFont("helvetica", "bold");
-    doc.text(fmtCHF(item.total), rx + colWidths[4] - 2, y, { align: "right" });
+    doc.text(fmtCHF(item.total), rx + colWidths[4] - 6, y, { align: "right" });
 
     doc.setDrawColor(241, 245, 249);
     doc.setLineWidth(0.3);
@@ -977,7 +977,7 @@ export function generateQuotePDF(data: QuoteData): string {
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
   doc.text("Total", totalsX, y + 5);
-  doc.text(`${fmtCHF(nonOptionalSubtotal)} CHF`, PAGE_WIDTH - MARGIN_X, y + 5, { align: "right" });
+  doc.text(`${fmtCHF(nonOptionalSubtotal)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 5, { align: "right" });
   y += 24;
 
   // Optional totals
@@ -986,7 +986,7 @@ export function generateQuotePDF(data: QuoteData): string {
     doc.setFont("helvetica", "normal"); doc.setTextColor(55, 65, 81);
     doc.text("Zwischensumme OPTIONAL", totalsX, y);
     doc.setFont("helvetica", "bold"); doc.setTextColor(...cTextDark);
-    doc.text(fmtCHF(optionalSubtotal), PAGE_WIDTH - MARGIN_X, y, { align: "right" });
+    doc.text(fmtCHF(optionalSubtotal), PAGE_WIDTH - MARGIN_X - 2, y, { align: "right" });
     y += 7;
 
     doc.setDrawColor(...cBorder);

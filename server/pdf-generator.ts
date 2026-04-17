@@ -137,8 +137,8 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     ["Rechnungsnummer", data.invoiceNumber],
   ];
   if (data.customerNumber) metaRows.push(["Kundennummer", data.customerNumber]);
-  metaRows.push(["Ausstellungsdatum", fmtDate(data.invoiceDate)]);
-  metaRows.push(["Zahlungsziel", fmtDate(data.dueDate)]);
+  if (data.invoiceDate) metaRows.push(["Ausstellungsdatum", fmtDate(data.invoiceDate)]);
+  if (data.dueDate) metaRows.push(["Zahlungsziel", fmtDate(data.dueDate)]);
   if (data.serviceDate) metaRows.push(["Leistungsdatum", fmtDate(data.serviceDate)]);
   metaRows.push(["Zahlungsform", data.paymentMethod || "Überweisung"]);
 
