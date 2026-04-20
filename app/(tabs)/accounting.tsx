@@ -298,10 +298,7 @@ export default function AccountingScreen() {
 
   // Umsatz-Schwelle MwSt (CHF 100'000)
   const MWST_THRESHOLD = 100000;
-  const totalAllRevenue = yearInvoices.reduce(
-    (s: number, i: any) => s + getInvoiceTotal(i),
-    0,
-  );
+  const totalAllRevenue = totalRevenue;
   const revenuePercent = Math.min(
     (totalAllRevenue / MWST_THRESHOLD) * 100,
     100,
@@ -341,11 +338,12 @@ export default function AccountingScreen() {
     ];
     return months.map((label, idx) => {
       const rev = yearInvoices
-        .filter(
-          (i: any) =>
-            i.status === "paid" && new Date(i.invoice_date).getMonth() === idx,
-        )
-        .reduce((s: number, i: any) => s + getInvoiceTotal(i), 0) +
+        .filter((i: any) => new Date(i.invoice_date).getMonth() === idx)
+        .reduce((s: number, i: any) => {
+          if (i.paid_amount && i.paid_amount > 0) return s + i.paid_amount;
+          if (i.status === "paid") return s + getInvoiceTotal(i);
+          return s;
+        }, 0) +
         yearExpenses
           .filter((e: any) => new Date(e.expense_date).getMonth() === idx && (e.amount || 0) < 0)
           .reduce((s: number, e: any) => s + Math.abs(e.amount || 0), 0);
