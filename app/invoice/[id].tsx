@@ -132,13 +132,13 @@ export default function InvoiceDetailScreen() {
                         const newDueDateStr = newDueDate.toISOString().split("T")[0];
 
                         const { error: updErr } = await supabase.from("invoices").update({ 
-                            status: 'sent', 
+                            status: 'open', 
                             invoice_date: newInvoiceDateStr, 
                             due_date: newDueDateStr 
                         }).eq("id", invoice.id);
                         
                         if (!updErr) {
-                            invoice.status = 'sent';
+                            invoice.status = 'open';
                             invoice.invoice_date = newInvoiceDateStr;
                             invoice.due_date = newDueDateStr;
                         } else {
@@ -156,6 +156,7 @@ export default function InvoiceDetailScreen() {
                     if (data?.error) throw new Error(data.error);
                     showAlert("Erfolg", `Rechnung wurde an ${invoice.customer.email} gesendet.`);
                     refetch();
+                    queryClient.invalidateQueries({ queryKey: ["invoices"] });
                 } catch (error: any) {
                     showAlert("Fehler", error.message || "E-Mail konnte nicht gesendet werden");
                 }
@@ -187,6 +188,7 @@ export default function InvoiceDetailScreen() {
                     if (data?.error) throw new Error(data.error);
                     showAlert("Erfolg", `${levelLabels[level]} wurde an ${invoice.customer.email} gesendet.`);
                     refetch();
+                    queryClient.invalidateQueries({ queryKey: ["invoices"] });
                 } catch (error: any) {
                     showAlert("Fehler", error.message || "Mahnung konnte nicht gesendet werden");
                 }
@@ -418,6 +420,7 @@ export default function InvoiceDetailScreen() {
                                             try {
                                                 await supabase.from("invoices").update({ dunning_stopped: val }).eq("id", invoice.id);
                                                 refetch();
+                                                queryClient.invalidateQueries({ queryKey: ["invoices"] });
                                             } catch (_e) { /* ignore */ }
                                         }}
                                         trackColor={{ false: colors.border, true: "#ef4444" }}
@@ -528,7 +531,10 @@ export default function InvoiceDetailScreen() {
             <InvoiceFormModal
                 visible={showEditModal}
                 onClose={() => setShowEditModal(false)}
-                onSuccess={() => refetch()}
+                onSuccess={() => {
+                    refetch();
+                    queryClient.invalidateQueries({ queryKey: ["invoices"] });
+                }}
                 editInvoice={invoice}
             />
 
@@ -685,6 +691,7 @@ export default function InvoiceDetailScreen() {
                                         try {
                                             await supabase.from("invoices").update({ status: item.status }).eq("id", invoice.id);
                                             refetch();
+                                            queryClient.invalidateQueries({ queryKey: ["invoices"] });
                                             setShowStatusModal(false);
                                         } catch (e: any) {
                                             showAlert("Fehler", e.message || "Status konnte nicht geändert werden");
