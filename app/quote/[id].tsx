@@ -5,6 +5,7 @@ import {
     ScrollView,
     TouchableOpacity,
     ActivityIndicator,
+    Modal,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -34,6 +35,7 @@ export default function QuoteDetailScreen() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const [showEditModal, setShowEditModal] = useState(false);
+    const [showStatusModal, setShowStatusModal] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
 
     const { data: quote, isLoading } = useQuery({
@@ -253,13 +255,15 @@ export default function QuoteDetailScreen() {
                         <Text className="text-2xl font-bold text-foreground">{quote.quote_number}</Text>
                         <Text className="text-sm text-muted mt-1">{customerName}</Text>
                     </View>
-                    <View
+                    <TouchableOpacity
+                        onPress={() => setShowStatusModal(true)}
+                        activeOpacity={0.7}
                         style={{ backgroundColor: statusConfig.color + "20", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 }}
                     >
                         <Text style={{ color: statusConfig.color, fontWeight: "600", fontSize: 13 }}>
                             {statusConfig.label}
                         </Text>
-                    </View>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Infos */}
@@ -333,46 +337,17 @@ export default function QuoteDetailScreen() {
                 )}
 
                 {/* Status ändern */}
-                {(quote.status === "draft" || quote.status === "sent" || quote.status === "accepted" || quote.status === "rejected") && (
-                    <View className="mt-6">
-                        <Text className="text-sm font-semibold text-muted mb-2">Status ändern</Text>
-                        <View className="flex-row gap-2 flex-wrap">
-                            {quote.status !== "sent" && quote.status !== "accepted" && (
-                                <TouchableOpacity
-                                    onPress={() => statusMutation.mutate({ quoteId: id as string, status: "sent" })}
-                                    style={{ backgroundColor: "rgba(59,130,246,0.12)", borderColor: "#3B82F6", borderWidth: 1 }}
-                                    className="px-4 py-2.5 rounded-lg flex-row items-center"
-                                    activeOpacity={0.7}
-                                >
-                                    <IconSymbol name="paperplane.fill" size={16} color="#3B82F6" />
-                                    <Text style={{ color: "#3B82F6" }} className="font-semibold ml-2 text-sm">Gesendet</Text>
-                                </TouchableOpacity>
-                            )}
-                            {quote.status !== "accepted" && (
-                                <TouchableOpacity
-                                    onPress={() => statusMutation.mutate({ quoteId: id as string, status: "accepted" })}
-                                    style={{ backgroundColor: "rgba(16,185,129,0.12)", borderColor: "#10B981", borderWidth: 1 }}
-                                    className="px-4 py-2.5 rounded-lg flex-row items-center"
-                                    activeOpacity={0.7}
-                                >
-                                    <IconSymbol name="checkmark.circle.fill" size={16} color="#10B981" />
-                                    <Text style={{ color: "#10B981" }} className="font-semibold ml-2 text-sm">Angenommen</Text>
-                                </TouchableOpacity>
-                            )}
-                            {quote.status !== "rejected" && (
-                                <TouchableOpacity
-                                    onPress={() => statusMutation.mutate({ quoteId: id as string, status: "rejected" })}
-                                    style={{ backgroundColor: "rgba(239,68,68,0.12)", borderColor: "#EF4444", borderWidth: 1 }}
-                                    className="px-4 py-2.5 rounded-lg flex-row items-center"
-                                    activeOpacity={0.7}
-                                >
-                                    <IconSymbol name="xmark.circle.fill" size={16} color="#EF4444" />
-                                    <Text style={{ color: "#EF4444" }} className="font-semibold ml-2 text-sm">Abgelehnt</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    </View>
-                )}
+                <View className="mt-6">
+                    <TouchableOpacity
+                        onPress={() => setShowStatusModal(true)}
+                        style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                        className="p-4 rounded-lg flex-row items-center justify-center border"
+                        activeOpacity={0.7}
+                    >
+                        <IconSymbol name="arrow.triangle.2.circlepath" size={18} color={colors.primary} />
+                        <Text className="text-foreground font-semibold ml-2">Status ändern</Text>
+                    </TouchableOpacity>
+                </View>
 
                 {/* Actions */}
                 <View className="mt-6 gap-3">
@@ -505,6 +480,58 @@ export default function QuoteDetailScreen() {
                 }}
                 editQuote={quote}
             />
+
+            {/* Status Modal */}
+            <Modal
+                visible={showStatusModal}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setShowStatusModal(false)}
+            >
+                <View className="flex-1 bg-black/50 justify-end">
+                    <View className="bg-background rounded-t-3xl p-6">
+                        <View className="flex-row items-center justify-between mb-4">
+                            <Text className="text-xl font-bold text-foreground">
+                                Status ändern
+                            </Text>
+                            <TouchableOpacity onPress={() => setShowStatusModal(false)} activeOpacity={0.7}>
+                                <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View className="gap-2 mb-4">
+                            {[
+                                { status: "draft", label: "Entwurf", color: "#6B7280", icon: "doc.text.fill" },
+                                { status: "sent", label: "Gesendet", color: "#3B82F6", icon: "paperplane.fill" },
+                                { status: "accepted", label: "Angenommen", color: "#10B981", icon: "checkmark.circle.fill" },
+                                { status: "rejected", label: "Abgelehnt", color: "#EF4444", icon: "xmark.circle.fill" },
+                                { status: "expired", label: "Abgelaufen", color: "#F59E0B", icon: "clock.fill" },
+                            ].map((item: any) => (
+                                <TouchableOpacity
+                                    key={item.status}
+                                    className="flex-row items-center gap-3 p-4 bg-surface rounded-xl border border-border"
+                                    activeOpacity={0.7}
+                                    style={quote.status === item.status ? { borderColor: item.color, borderWidth: 2 } : undefined}
+                                    onPress={() => {
+                                        setShowStatusModal(false);
+                                        statusMutation.mutate({ quoteId: id as string, status: item.status });
+                                    }}
+                                >
+                                    <View className="w-10 h-10 rounded-lg items-center justify-center" style={{ backgroundColor: item.color + "20" }}>
+                                        <IconSymbol name={item.icon} size={18} color={item.color} />
+                                    </View>
+                                    <View className="flex-1">
+                                        <Text className="text-sm font-bold text-foreground">{item.label}</Text>
+                                    </View>
+                                    {quote.status === item.status && (
+                                        <IconSymbol name="checkmark" size={18} color={item.color} />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </ScreenContainer>
     );
 }

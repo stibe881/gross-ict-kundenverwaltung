@@ -430,3 +430,19 @@ entrypoint = "./functions/analyze-receipt/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/analyze-receipt/*.html" ]
+
+[functions.quote-page]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/quote-page/index.ts"
+
+[functions.accept-quote]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/accept-quote/index.ts"
+
+[functions.contract-page]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/contract-page/index.ts"
+
