@@ -285,7 +285,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
         }
     };
 
-    const allCategories = [...Data.EXPENSE_CATEGORIES, ...customCategories];
+    const allCategories = [...Data.EXPENSE_CATEGORIES, ...customCategories].sort((a, b) => a.label.localeCompare(b.label));
 
     const getCategoryLabel = (value: string) =>
         allCategories.find((c) => c.value === value)?.label || value;

@@ -66,7 +66,7 @@ export default function AccountingScreen() {
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState<string>("all");
   const [expenseEmployeeFilter, setExpenseEmployeeFilter] = useState<string>("all");
   const [customExpenseCategories, setCustomExpenseCategories] = useState<{value: string; label: string}[]>([]);
-  const allExpenseCategories = [...Data.EXPENSE_CATEGORIES, ...customExpenseCategories];
+  const allExpenseCategories = [...Data.EXPENSE_CATEGORIES, ...customExpenseCategories].sort((a, b) => a.label.localeCompare(b.label));
   const [initialIsIncome, setInitialIsIncome] = useState(false);
 
   // Invoice Filters & Sorting
@@ -325,11 +325,11 @@ export default function AccountingScreen() {
       .map(([cat, amount]) => ({
         category: cat,
         label:
-          Data.EXPENSE_CATEGORIES.find((c) => c.value === cat)?.label || cat,
+          allExpenseCategories.find((c) => c.value === cat)?.label || cat,
         amount,
       }))
-      .sort((a, b) => b.amount - a.amount);
-  }, [yearExpenses]);
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [yearExpenses, allExpenseCategories]);
 
   // Umsatz by month
   const revenueByMonth = useMemo(() => {
@@ -2196,7 +2196,7 @@ function BudgetTab({
     try { setCustomCategories(JSON.parse(mktSettings?.custom_expense_categories || "[]")); } catch { setCustomCategories([]); }
   }, [mktSettings]);
 
-  const allCategories = [...Data.EXPENSE_CATEGORIES, ...customCategories];
+  const allCategories = [...Data.EXPENSE_CATEGORIES, ...customCategories].sort((a, b) => a.label.localeCompare(b.label));
 
   // Inline editing state: { category: string; value: string } | null
   const [editing, setEditing] = useState<{ category: string; value: string } | null>(null);
