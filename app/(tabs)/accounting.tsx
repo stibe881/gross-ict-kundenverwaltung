@@ -537,7 +537,7 @@ export default function AccountingScreen() {
     renderYearSelector={renderYearSelector}
     totalRevenue={totalRevenue}
     yearExpenses={yearExpenses}
-    profit={profit}
+    profit={netIncome}
     colors={colors}
   />;
 
@@ -2314,7 +2314,7 @@ function BudgetTab({
       {/* Profit target */}
       <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>💰 Gewinnziel</Text>
+          <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>💰 Reingewinnziel</Text>
           <TouchableOpacity onPress={() => { setProfitInput(profitBudget > 0 ? profitBudget.toString() : ""); setEditingProfit(true); }} activeOpacity={0.7}>
             <IconSymbol name="pencil" size={14} color={colors.primary} />
           </TouchableOpacity>
