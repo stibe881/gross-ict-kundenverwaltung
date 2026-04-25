@@ -2401,13 +2401,16 @@ function BudgetTab({
                 >
                   <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                     <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground, flex: 1 }} numberOfLines={1}>{cat.label}</Text>
-                    <View style={{ alignItems: "flex-end" }}>
-                      <Text style={{ fontSize: 13, fontWeight: "700", color: budget > 0 ? barColor : colors.muted }}>
-                        {formatCurrency(actual)}{budget > 0 ? ` / ${formatCurrency(budget)}` : ""}
-                      </Text>
-                      {isMktCat && budget === 0 && (
-                        <Text style={{ fontSize: 10, color: "#8B5CF6" }}>Marketing: {formatCurrency(mktBudget)}</Text>
-                      )}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <View style={{ alignItems: "flex-end" }}>
+                        <Text style={{ fontSize: 13, fontWeight: "700", color: budget > 0 ? barColor : colors.muted }}>
+                          {formatCurrency(actual)}{budget > 0 ? ` / ${formatCurrency(budget)}` : ""}
+                        </Text>
+                        {isMktCat && budget === 0 && (
+                          <Text style={{ fontSize: 10, color: "#8B5CF6" }}>Marketing: {formatCurrency(mktBudget)}</Text>
+                        )}
+                      </View>
+                      <IconSymbol name="pencil" size={14} color={colors.primary} />
                     </View>
                   </View>
                   {budget > 0 && <ProgressBar pct={pct} color={barColor} />}
