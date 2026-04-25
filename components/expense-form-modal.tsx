@@ -15,6 +15,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import * as Data from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -49,10 +50,15 @@ interface ExpenseFormModalProps {
 
 export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initialScanReceipt, knownSuppliers = [], knownDescriptions = [], initialIsIncome = false }: ExpenseFormModalProps) {
     const colors = useColors();
+    const queryClient = useQueryClient();
     const [loading, setLoading] = useState(false);
     const [showCategoryPicker, setShowCategoryPicker] = useState(false);
     const [showPaymentPicker, setShowPaymentPicker] = useState(false);
     const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
+    const [customCategories, setCustomCategories] = useState<{value: string; label: string}[]>([]);
+    const [showNewCatInput, setShowNewCatInput] = useState(false);
+    const [newCatLabel, setNewCatLabel] = useState("");
+    const [savingCat, setSavingCat] = useState(false);
 
     // Receipt File State
     const [receiptFile, setReceiptFile] = useState<{ uri: string; name: string; type: string; size?: number } | null>(null);
@@ -66,6 +72,9 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
     useEffect(() => {
         if (visible) {
             Data.getAllEmployees().then(setEmployees).catch(() => {});
+            Data.getMarketingSettings().then(s => {
+                try { setCustomCategories(JSON.parse(s.custom_expense_categories || "[]")); } catch { setCustomCategories([]); }
+            }).catch(() => {});
         }
     }, [visible]);
 
@@ -276,8 +285,10 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
         }
     };
 
+    const allCategories = [...Data.EXPENSE_CATEGORIES, ...customCategories];
+
     const getCategoryLabel = (value: string) =>
-        Data.EXPENSE_CATEGORIES.find((c) => c.value === value)?.label || value;
+        allCategories.find((c) => c.value === value)?.label || value;
 
     const getPaymentLabel = (value: string) =>
         Data.PAYMENT_METHODS.find((p) => p.value === value)?.label || value;
@@ -616,7 +627,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
 
                     {showCategoryPicker && (
                         <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
-                            {Data.EXPENSE_CATEGORIES.map((cat) => (
+                            {allCategories.map((cat) => (
                                 <TouchableOpacity
                                     key={cat.value}
                                     style={{
@@ -628,12 +639,65 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                                         justifyContent: "space-between",
                                         alignItems: "center",
                                     }}
-                                    onPress={() => { setForm({ ...form, category: cat.value }); setShowCategoryPicker(false); }}
+                                    onPress={() => { setForm({ ...form, category: cat.value }); setShowCategoryPicker(false); setShowNewCatInput(false); }}
                                 >
                                     <Text style={{ fontSize: 15, color: form.category === cat.value ? colors.primary : colors.foreground }}>{cat.label}</Text>
                                     {form.category === cat.value && <IconSymbol name="checkmark" size={16} color={colors.primary} />}
                                 </TouchableOpacity>
                             ))}
+                            {/* Neue Kategorie */}
+                            {!showNewCatInput ? (
+                                <TouchableOpacity
+                                    style={{ padding: 14, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "transparent" }}
+                                    onPress={() => { setShowNewCatInput(true); setNewCatLabel(""); }}
+                                    activeOpacity={0.7}
+                                >
+                                    <IconSymbol name="plus.circle.fill" size={16} color={colors.primary} />
+                                    <Text style={{ fontSize: 15, color: colors.primary, fontWeight: "600" }}>Neue Kategorie erstellen...</Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <View style={{ padding: 12, gap: 8, backgroundColor: colors.primary + "10" }}>
+                                    <Text style={{ fontSize: 12, color: colors.primary, fontWeight: "700" }}>Name der neuen Kategorie</Text>
+                                    <TextInput
+                                        style={{ backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.primary, color: colors.foreground, padding: 10, fontSize: 15 }}
+                                        placeholder="z.B. Reparaturen"
+                                        placeholderTextColor={colors.muted}
+                                        value={newCatLabel}
+                                        onChangeText={setNewCatLabel}
+                                        autoFocus
+                                    />
+                                    <View style={{ flexDirection: "row", gap: 8 }}>
+                                        <TouchableOpacity
+                                            style={{ flex: 1, backgroundColor: colors.primary, borderRadius: 8, padding: 10, alignItems: "center" }}
+                                            disabled={savingCat}
+                                            onPress={async () => {
+                                                const label = newCatLabel.trim();
+                                                if (!label) return;
+                                                const value = label.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 30);
+                                                setSavingCat(true);
+                                                try {
+                                                    const updated = [...customCategories, { value, label }];
+                                                    await Data.setMarketingSetting("custom_expense_categories", JSON.stringify(updated));
+                                                    queryClient.invalidateQueries({ queryKey: ["marketingSettings"] });
+                                                    setCustomCategories(updated);
+                                                    setForm({ ...form, category: value });
+                                                    setShowNewCatInput(false);
+                                                    setShowCategoryPicker(false);
+                                                } catch (e: any) { Alert.alert("Fehler", e.message); } finally { setSavingCat(false); }
+                                            }}
+                                            activeOpacity={0.8}
+                                        >
+                                            {savingCat ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: "#fff", fontWeight: "700" }}>Erstellen & auswählen</Text>}
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={{ flex: 1, backgroundColor: colors.border, borderRadius: 8, padding: 10, alignItems: "center" }}
+                                            onPress={() => setShowNewCatInput(false)}
+                                        >
+                                            <Text style={{ color: colors.foreground, fontWeight: "600" }}>Abbrechen</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            )}
                         </View>
                     )}
 

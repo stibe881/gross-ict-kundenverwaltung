@@ -33,6 +33,7 @@ import * as FileSystem from "expo-file-system/legacy";
 
 type TabKey =
   | "overview"
+  | "budget"
   | "invoices"
   | "expenses"
   | "vat"
@@ -42,6 +43,7 @@ type TabKey =
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: "overview", label: "Übersicht", icon: "chart.pie.fill" },
+  { key: "budget", label: "Budget", icon: "chart.bar.doc.horizontal.fill" },
   { key: "invoices", label: "Rechnungen", icon: "doc.text.fill" },
   { key: "expenses", label: "Ein-/Ausgaben", icon: "cart.fill" },
   { key: "annual", label: "Jahresabschluss", icon: "calendar" },
@@ -63,6 +65,8 @@ export default function AccountingScreen() {
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState<string>("all");
   const [expenseEmployeeFilter, setExpenseEmployeeFilter] = useState<string>("all");
+  const [customExpenseCategories, setCustomExpenseCategories] = useState<{value: string; label: string}[]>([]);
+  const allExpenseCategories = [...Data.EXPENSE_CATEGORIES, ...customExpenseCategories];
   const [initialIsIncome, setInitialIsIncome] = useState(false);
 
   // Invoice Filters & Sorting
@@ -149,6 +153,13 @@ export default function AccountingScreen() {
       setIsYearClosed(!!res?.is_closed);
     });
   }, [selectedYear]);
+
+  // Load custom expense categories
+  useEffect(() => {
+    Data.getMarketingSettings().then(s => {
+      try { setCustomExpenseCategories(JSON.parse(s.custom_expense_categories || "[]")); } catch { setCustomExpenseCategories([]); }
+    }).catch(() => {});
+  }, []);
 
   // Handle incoming AI scan intent
   useEffect(() => {
@@ -520,6 +531,16 @@ export default function AccountingScreen() {
     </View>
   );
 
+  // ─── renderBudget ──────────────────────────────────────────────────────────
+  const renderBudget = () => <BudgetTab
+    selectedYear={selectedYear}
+    renderYearSelector={renderYearSelector}
+    totalRevenue={totalRevenue}
+    yearExpenses={yearExpenses}
+    profit={profit}
+    colors={colors}
+  />;
+
   const renderOverview = () => (
     <View className="gap-4">
       {renderYearSelector()}
@@ -878,7 +899,7 @@ export default function AccountingScreen() {
                   >
                     <Text className={`text-sm font-semibold ${expenseCategoryFilter === "all" ? 'text-background' : 'text-foreground'}`}>Alle</Text>
                   </TouchableOpacity>
-                  {Data.EXPENSE_CATEGORIES.map((cat) => (
+                  {allExpenseCategories.map((cat) => (
                     <TouchableOpacity
                       key={cat.value}
                       onPress={() => setExpenseCategoryFilter(cat.value)}
@@ -1673,6 +1694,7 @@ export default function AccountingScreen() {
 
           {/* Content */}
           {activeTab === "overview" && renderOverview()}
+          {activeTab === "budget" && renderBudget()}
           {activeTab === "invoices" && renderInvoices()}
           {activeTab === "expenses" && renderExpenses()}
           {activeTab === "vat" && renderVat()}
@@ -2134,6 +2156,268 @@ function DocumentsTab({ colors }: { colors: any }) {
         title={viewerData.title}
         onClose={() => setViewerData({ url: null, title: "" })}
       />
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── BUDGET TAB ───────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function BudgetTab({
+  selectedYear,
+  renderYearSelector,
+  totalRevenue,
+  yearExpenses,
+  profit,
+  colors,
+}: {
+  selectedYear: number;
+  renderYearSelector: () => React.ReactNode;
+  totalRevenue: number;
+  yearExpenses: any[];
+  profit: number;
+  colors: any;
+}) {
+  const queryClient = useQueryClient();
+
+  const { data: budgets = [], isLoading, refetch } = useQuery({
+    queryKey: ["accountingBudgets", selectedYear],
+    queryFn: () => Data.getBudgets(selectedYear),
+  });
+
+  const { data: mktSettings } = useQuery({
+    queryKey: ["marketingSettings"],
+    queryFn: Data.getMarketingSettings,
+  });
+
+  const [customCategories, setCustomCategories] = useState<{value: string; label: string}[]>([]);
+  useEffect(() => {
+    try { setCustomCategories(JSON.parse(mktSettings?.custom_expense_categories || "[]")); } catch { setCustomCategories([]); }
+  }, [mktSettings]);
+
+  const allCategories = [...Data.EXPENSE_CATEGORIES, ...customCategories];
+
+  // Inline editing state: { category: string; value: string } | null
+  const [editing, setEditing] = useState<{ category: string; value: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const getBudget = (cat: string) => budgets.find(b => b.category === cat)?.budget_amount || 0;
+  const getActual = (cat: string) => yearExpenses.filter((e: any) => e.category === cat && (e.amount || 0) > 0).reduce((s: number, e: any) => s + (e.amount || 0), 0);
+
+  // Income budget
+  const incomeBudget = budgets.find(b => b.category === "income")?.budget_amount || 0;
+  const [editingIncome, setEditingIncome] = useState(false);
+  const [incomeInput, setIncomeInput] = useState("");
+
+  // Profit budget
+  const profitBudget = budgets.find(b => b.category === "profit")?.budget_amount || 0;
+  const [editingProfit, setEditingProfit] = useState(false);
+  const [profitInput, setProfitInput] = useState("");
+
+  const handleSave = async (cat: string, val: string) => {
+    setSaving(true);
+    try {
+      await Data.upsertBudget(selectedYear, cat, parseFloat(val.replace(/[^0-9.]/g, "")) || 0);
+      await refetch();
+      setEditing(null);
+      setEditingIncome(false);
+      setEditingProfit(false);
+    } catch (e: any) { Alert.alert("Fehler", e.message); } finally { setSaving(false); }
+  };
+
+  // Totals
+  const totalBudgeted = allCategories.reduce((s, c) => s + getBudget(c.value), 0);
+  const totalActual   = yearExpenses.filter((e: any) => (e.amount || 0) > 0).reduce((s: number, e: any) => s + (e.amount || 0), 0);
+  const budgetPct     = totalBudgeted > 0 ? Math.min(100, Math.round((totalActual / totalBudgeted) * 100)) : 0;
+  const budgetColor   = budgetPct >= 90 ? "#EF4444" : budgetPct >= 70 ? "#F59E0B" : "#22C55E";
+  const mktBudget     = parseFloat(mktSettings?.annual_marketing_budget || "0") || 0;
+
+  const ProgressBar = ({ pct, color }: { pct: number; color: string }) => (
+    <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: "hidden", marginTop: 4 }}>
+      <View style={{ height: 6, width: `${pct}%` as any, backgroundColor: color, borderRadius: 3 }} />
+    </View>
+  );
+
+  if (isLoading) return <View style={{ paddingVertical: 60, alignItems: "center" }}><ActivityIndicator size="large" color={colors.primary} /></View>;
+
+  return (
+    <View style={{ gap: 16 }}>
+      {renderYearSelector()}
+
+      {/* Hero summary */}
+      <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: colors.border, gap: 14 }}>
+        <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground }}>📊 Budgetübersicht {selectedYear}</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <View>
+            <Text style={{ fontSize: 11, color: colors.muted }}>Budget Ausgaben</Text>
+            <Text style={{ fontSize: 22, fontWeight: "800", color: "#8B5CF6" }}>{formatCurrency(totalBudgeted)}</Text>
+          </View>
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={{ fontSize: 11, color: colors.muted }}>Tatsächliche Ausgaben</Text>
+            <Text style={{ fontSize: 22, fontWeight: "800", color: budgetColor }}>{formatCurrency(totalActual)}</Text>
+          </View>
+        </View>
+        <ProgressBar pct={budgetPct} color={budgetColor} />
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text style={{ fontSize: 11, color: budgetColor, fontWeight: "700" }}>{budgetPct}% verbraucht</Text>
+          <Text style={{ fontSize: 11, color: colors.muted }}>Rest: {formatCurrency(Math.max(0, totalBudgeted - totalActual))}</Text>
+        </View>
+      </View>
+
+      {/* Income target */}
+      <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>🎯 Umsatzziel</Text>
+          <TouchableOpacity onPress={() => { setIncomeInput(incomeBudget > 0 ? incomeBudget.toString() : ""); setEditingIncome(true); }} activeOpacity={0.7}>
+            <IconSymbol name="pencil" size={14} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {editingIncome ? (
+          <View style={{ padding: 14, gap: 8 }}>
+            <TextInput
+              style={{ backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.primary, color: colors.foreground, padding: 10, fontSize: 16, fontWeight: "700" }}
+              placeholder="z.B. 120000" placeholderTextColor={colors.muted}
+              value={incomeInput} onChangeText={setIncomeInput} keyboardType="numeric" autoFocus
+            />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity style={{ flex: 1, backgroundColor: colors.primary, borderRadius: 8, padding: 10, alignItems: "center" }} onPress={() => handleSave("income", incomeInput)} disabled={saving} activeOpacity={0.8}>
+                {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: "#fff", fontWeight: "700" }}>Speichern</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={{ flex: 1, backgroundColor: colors.border, borderRadius: 8, padding: 10, alignItems: "center" }} onPress={() => setEditingIncome(false)}>
+                <Text style={{ color: colors.foreground, fontWeight: "600" }}>Abbrechen</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={{ padding: 14, gap: 6 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 11, color: colors.muted }}>Ziel</Text>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#22C55E" }}>{incomeBudget > 0 ? formatCurrency(incomeBudget) : "–"}</Text>
+            </View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 11, color: colors.muted }}>Tatsächlich</Text>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: colors.foreground }}>{formatCurrency(totalRevenue)}</Text>
+            </View>
+            {incomeBudget > 0 && (
+              <>
+                <ProgressBar pct={Math.min(100, Math.round((totalRevenue / incomeBudget) * 100))} color={totalRevenue >= incomeBudget ? "#22C55E" : "#F59E0B"} />
+                <Text style={{ fontSize: 11, color: totalRevenue >= incomeBudget ? "#22C55E" : colors.muted, fontWeight: "700", textAlign: "right" }}>
+                  {Math.round((totalRevenue / incomeBudget) * 100)}% erreicht
+                </Text>
+              </>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Profit target */}
+      <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>💰 Gewinnziel</Text>
+          <TouchableOpacity onPress={() => { setProfitInput(profitBudget > 0 ? profitBudget.toString() : ""); setEditingProfit(true); }} activeOpacity={0.7}>
+            <IconSymbol name="pencil" size={14} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {editingProfit ? (
+          <View style={{ padding: 14, gap: 8 }}>
+            <TextInput
+              style={{ backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.primary, color: colors.foreground, padding: 10, fontSize: 16, fontWeight: "700" }}
+              placeholder="z.B. 50000" placeholderTextColor={colors.muted}
+              value={profitInput} onChangeText={setProfitInput} keyboardType="numeric" autoFocus
+            />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity style={{ flex: 1, backgroundColor: colors.primary, borderRadius: 8, padding: 10, alignItems: "center" }} onPress={() => handleSave("profit", profitInput)} disabled={saving} activeOpacity={0.8}>
+                {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: "#fff", fontWeight: "700" }}>Speichern</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={{ flex: 1, backgroundColor: colors.border, borderRadius: 8, padding: 10, alignItems: "center" }} onPress={() => setEditingProfit(false)}>
+                <Text style={{ color: colors.foreground, fontWeight: "600" }}>Abbrechen</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={{ padding: 14, gap: 6 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 11, color: colors.muted }}>Ziel</Text>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: "#8B5CF6" }}>{profitBudget > 0 ? formatCurrency(profitBudget) : "–"}</Text>
+            </View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={{ fontSize: 11, color: colors.muted }}>Tatsächlich</Text>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: profit >= 0 ? "#22C55E" : "#EF4444" }}>{formatCurrency(profit)}</Text>
+            </View>
+            {profitBudget > 0 && (
+              <>
+                <ProgressBar pct={Math.max(0, Math.min(100, Math.round((profit / profitBudget) * 100)))} color={profit >= profitBudget ? "#22C55E" : "#F59E0B"} />
+                <Text style={{ fontSize: 11, color: profit >= profitBudget ? "#22C55E" : colors.muted, fontWeight: "700", textAlign: "right" }}>
+                  {Math.max(0, Math.round((profit / profitBudget) * 100))}% erreicht
+                </Text>
+              </>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Per-category expense budgets */}
+      <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+        <View style={{ padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>💸 Ausgaben-Budget pro Kategorie</Text>
+          <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>Tippen Sie auf eine Zeile zum Bearbeiten</Text>
+        </View>
+        {allCategories.map((cat, idx) => {
+          const budget = getBudget(cat.value);
+          const actual = getActual(cat.value);
+          const pct    = budget > 0 ? Math.min(100, Math.round((actual / budget) * 100)) : 0;
+          const barColor = pct >= 90 ? "#EF4444" : pct >= 70 ? "#F59E0B" : "#8B5CF6";
+          const isEditingThis = editing?.category === cat.value;
+
+          // Marketing override hint
+          const isMktCat = cat.value === "marketing" && mktBudget > 0;
+
+          return (
+            <View key={cat.value} style={{ borderBottomWidth: idx < allCategories.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
+              {isEditingThis ? (
+                <View style={{ padding: 12, gap: 8, backgroundColor: colors.primary + "08" }}>
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary }}>{cat.label}</Text>
+                  <TextInput
+                    style={{ backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.primary, color: colors.foreground, padding: 10, fontSize: 16, fontWeight: "700" }}
+                    placeholder="Budget in CHF" placeholderTextColor={colors.muted}
+                    value={editing.value} onChangeText={v => setEditing({ ...editing, value: v.replace(/[^0-9.]/g, "") })}
+                    keyboardType="numeric" autoFocus
+                  />
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    <TouchableOpacity style={{ flex: 1, backgroundColor: colors.primary, borderRadius: 8, padding: 10, alignItems: "center" }} onPress={() => handleSave(cat.value, editing.value)} disabled={saving} activeOpacity={0.8}>
+                      {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: "#fff", fontWeight: "700" }}>Speichern</Text>}
+                    </TouchableOpacity>
+                    <TouchableOpacity style={{ flex: 1, backgroundColor: colors.border, borderRadius: 8, padding: 10, alignItems: "center" }} onPress={() => setEditing(null)}>
+                      <Text style={{ color: colors.foreground, fontWeight: "600" }}>Abbrechen</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={{ padding: 12, gap: 4 }}
+                  onPress={() => setEditing({ category: cat.value, value: budget > 0 ? budget.toString() : "" })}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground, flex: 1 }} numberOfLines={1}>{cat.label}</Text>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: budget > 0 ? barColor : colors.muted }}>
+                        {formatCurrency(actual)}{budget > 0 ? ` / ${formatCurrency(budget)}` : ""}
+                      </Text>
+                      {isMktCat && budget === 0 && (
+                        <Text style={{ fontSize: 10, color: "#8B5CF6" }}>Marketing: {formatCurrency(mktBudget)}</Text>
+                      )}
+                    </View>
+                  </View>
+                  {budget > 0 && <ProgressBar pct={pct} color={barColor} />}
+                  {budget === 0 && <Text style={{ fontSize: 10, color: colors.muted }}>Kein Budget gesetzt – tippen zum Festlegen</Text>}
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }

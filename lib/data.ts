@@ -3776,6 +3776,54 @@ export async function deleteMarketingCampaign(id: string) {
     return { success: true };
 }
 
+// ─── Marketing Sponsoring ─────────────────────────────────────────────────────
+
+export async function getMarketingSponsorships() {
+    const { data, error } = await supabase
+        .from('marketing_sponsorships')
+        .select('*')
+        .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createMarketingSponsoring(s: {
+    title: string;
+    partner_name: string;
+    sponsoring_type: string;
+    status?: string;
+    amount?: number | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    description?: string;
+    notes?: string;
+}) {
+    const { data, error } = await supabase
+        .from('marketing_sponsorships')
+        .insert([{ ...s, status: s.status || 'planned' }])
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateMarketingSponsoring(id: string, updates: any) {
+    const { data, error } = await supabase
+        .from('marketing_sponsorships')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteMarketingSponsoring(id: string) {
+    const { error } = await supabase.from('marketing_sponsorships').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
 // ─── Marketing Events / Veranstaltungen ──────────────────────────────────────
 
 export async function getMarketingEvents() {
@@ -4146,6 +4194,37 @@ export async function updateMarketingIdea(id: string, updates: any) {
 
 export async function deleteMarketingIdea(id: string) {
     const { error } = await supabase.from('marketing_brainstorming').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── ACCOUNTING BUDGET ────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export async function getBudgets(year: number) {
+    const { data, error } = await supabase
+        .from('accounting_budgets')
+        .select('*')
+        .eq('year', year);
+    if (error) throw new Error(error.message);
+    return (data || []) as { id: string; year: number; category: string; budget_amount: number; notes?: string }[];
+}
+
+export async function upsertBudget(year: number, category: string, budgetAmount: number, notes?: string) {
+    const { error } = await supabase
+        .from('accounting_budgets')
+        .upsert({ year, category, budget_amount: budgetAmount, notes: notes || null, updated_at: new Date().toISOString() }, { onConflict: 'year,category' });
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+export async function deleteBudget(year: number, category: string) {
+    const { error } = await supabase
+        .from('accounting_budgets')
+        .delete()
+        .eq('year', year)
+        .eq('category', category);
     if (error) throw new Error(error.message);
     return { success: true };
 }

@@ -18,7 +18,7 @@ import { NewsletterBuilder } from "@/components/newsletter-builder";
 import { NEWSLETTER_TEMPLATES } from "@/lib/newsletter-templates";
 const PINK = "#EC4899";
 
-type Tab = "overview" | "brainstorming" | "newsletter" | "campaigns" | "events" | "testimonials" | "content" | "analytics";
+type Tab = "overview" | "brainstorming" | "campaigns" | "sponsoring" | "newsletter" | "content" | "events" | "analytics";
 
 // ─── Lookup Tables ─────────────────────────────────────────────────────────────
 
@@ -169,68 +169,194 @@ function Card({ children, style }: { children: React.ReactNode; style?: any }) {
 // ─── OVERVIEW TAB ─────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function OverviewTab({ stats, isLoading }: { stats: any; isLoading: boolean }) {
-  const colors = useColors(); const { isWide } = useResponsiveLayout();
+function OverviewTab({ stats, isLoading, onTabChange }: { stats: any; isLoading: boolean; onTabChange: (tab: Tab) => void }) {
+  const colors = useColors(); const { isWide } = useResponsiveLayout(); const router = useRouter();
+  const queryClient = useQueryClient();
+
+  // Annual budget from settings
+  const { data: settings } = useQuery({ queryKey: ["marketingSettings"], queryFn: Data.getMarketingSettings });
+  const [editingBudget, setEditingBudget] = useState(false);
+  const [budgetInput, setBudgetInput] = useState("");
+  const [savingBudget, setSavingBudget] = useState(false);
+
+  const annualBudget = parseFloat(settings?.annual_marketing_budget || "0") || 0;
+
+  const handleOpenBudgetEdit = () => {
+    setBudgetInput(annualBudget > 0 ? annualBudget.toString() : "");
+    setEditingBudget(true);
+  };
+  const handleSaveBudget = async () => {
+    setSavingBudget(true);
+    try {
+      await Data.setMarketingSetting("annual_marketing_budget", budgetInput.replace(/[^0-9.]/g, "") || "0");
+      queryClient.invalidateQueries({ queryKey: ["marketingSettings"] });
+      setEditingBudget(false);
+    } catch (e: any) { showAlert("Fehler", e.message); } finally { setSavingBudget(false); }
+  };
+
   if (isLoading) return <View style={{ paddingVertical: 60, alignItems: "center" }}><ActivityIndicator size="large" color={PINK} /></View>;
   const kpis = [
-    { icon: "megaphone.fill", label: "Aktive Kampagnen", value: stats?.activeCampaigns ?? 0, color: PINK, sub: `${stats?.totalCampaigns ?? 0} gesamt` },
-    { icon: "envelope.fill", label: "Newsletter versendet", value: stats?.totalSent?.toLocaleString("de-CH") ?? 0, color: "#8B5CF6", sub: `Ø ${stats?.avgOpenRate ?? 0}% Öffnungsrate` },
-    { icon: "calendar", label: "Bevorstehende Events", value: stats?.upcomingEvents ?? 0, color: "#0EA5E9", sub: `${stats?.completedEvents ?? 0} durchgeführt` },
-    { icon: "arrow.up.right.circle.fill", label: "Neue Leads (30T)", value: stats?.newLeads30Days ?? 0, color: "#22C55E", sub: `${stats?.totalCampaignLeads ?? 0} via Kampagnen` },
-    { icon: "chart.line.uptrend.xyaxis", label: "Marketing ROI", value: `${stats?.roi ?? 0}%`, color: "#F59E0B", sub: `Budget: CHF ${(stats?.totalBudget ?? 0).toLocaleString("de-CH")}` },
-    { icon: "star.fill", label: "Kundenstimmen", value: stats?.totalTestimonials ?? 0, color: "#14B8A6", sub: `Ø ${stats?.avgRating ?? 0} ★ · ${stats?.publishedTestimonials ?? 0} publiziert` },
+    { icon: "megaphone.fill",           label: "Aktive Kampagnen",     value: stats?.activeCampaigns ?? 0,                          color: PINK,       sub: `${stats?.totalCampaigns ?? 0} gesamt`,                                          tab: "campaigns"  as Tab },
+    { icon: "envelope.fill",            label: "Newsletter versendet", value: stats?.totalSent?.toLocaleString("de-CH") ?? 0,        color: "#8B5CF6",  sub: `Ø ${stats?.avgOpenRate ?? 0}% Öffnungsrate`,                                    tab: "newsletter" as Tab },
+    { icon: "calendar",                 label: "Bevorstehende Events", value: stats?.upcomingEvents ?? 0,                           color: "#0EA5E9",  sub: `${stats?.completedEvents ?? 0} durchgeführt`,                               tab: "events"     as Tab },
+    { icon: "arrow.up.right.circle.fill", label: "Neue Leads (30T)",   value: stats?.newLeads30Days ?? 0,                           color: "#22C55E",  sub: `${stats?.totalCampaignLeads ?? 0} via Kampagnen`,                           tab: null, routeTo: "/(tabs)/leads" },
+    { icon: "chart.line.uptrend.xyaxis", label: "Marketing ROI",       value: `${stats?.roi ?? 0}%`,                                color: "#F59E0B",  sub: `Budget: CHF ${(stats?.totalBudget ?? 0).toLocaleString("de-CH")}`,          tab: "analytics" as Tab },
   ];
   return (
     <View style={{ gap: 16 }}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-        {kpis.map((kpi) => (
-          <View key={kpi.label} style={{ flex: 1, minWidth: isWide ? 200 : "47%", backgroundColor: colors.surface, borderRadius: 16, padding: isWide ? 20 : 15, borderWidth: 1, borderColor: colors.border }}>
-            <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: kpi.color + "18", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-              <IconSymbol name={kpi.icon as any} size={18} color={kpi.color} />
-            </View>
-            <Text style={{ fontSize: isWide ? 24 : 22, fontWeight: "800", color: kpi.color }}>{kpi.value}</Text>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.foreground, marginTop: 2 }}>{kpi.label}</Text>
-            <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>{kpi.sub}</Text>
-          </View>
-        ))}
-      </View>
-      {stats && stats.totalSpent > 0 && (
-        <Card>
-          <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, marginBottom: 10 }}>💰 Budget & ROI</Text>
-          {[
-            { label: "Budget gesamt", val: `CHF ${(stats.totalBudget || 0).toLocaleString("de-CH")}`, color: "#8B5CF6" },
-            { label: "Ausgegeben", val: `CHF ${(stats.totalSpent || 0).toLocaleString("de-CH")}`, color: PINK },
-            { label: "Umsatz generiert", val: `CHF ${(stats.totalRevenue || 0).toLocaleString("de-CH")}`, color: "#22C55E" },
-            { label: "ROI gesamt", val: `${stats.roi || 0}%`, color: (stats.roi || 0) >= 0 ? "#22C55E" : "#EF4444" },
-          ].map((r) => <TableRow key={r.label} label={r.label} val={r.val} color={r.color} />)}
-        </Card>
-      )}
-      {stats?.channelBreakdown?.length > 0 && (
-        <Card>
-          <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, marginBottom: 12 }}>📡 Aktive Kanäle</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {stats.channelBreakdown.map(({ channel, count }: any) => {
-              const color = CHANNEL_COLORS[channel] || "#6B7280";
-              return (
-                <View key={channel} style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: color + "15", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 }}>
-                  <IconSymbol name={(CHANNEL_ICONS[channel] || "ellipsis.circle.fill") as any} size={13} color={color} />
-                  <Text style={{ fontSize: 12, fontWeight: "600", color }}>{CHANNEL_LABELS[channel] || channel} ({count})</Text>
+        {kpis.map((kpi) => {
+          const isClickable = !!kpi.tab || !!(kpi as any).routeTo;
+          const inner = (
+            <>
+              <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: kpi.color + "18", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                <IconSymbol name={kpi.icon as any} size={18} color={kpi.color} />
+              </View>
+              <Text style={{ fontSize: isWide ? 24 : 22, fontWeight: "800", color: kpi.color }}>{kpi.value}</Text>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: colors.foreground, marginTop: 2 }}>{kpi.label}</Text>
+              <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>{kpi.sub}</Text>
+              {isClickable && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 6 }}>
+                  <Text style={{ fontSize: 10, color: kpi.color, fontWeight: "700" }}>Öffnen</Text>
+                  <IconSymbol name="chevron.right" size={10} color={kpi.color} />
                 </View>
-              );
-            })}
-          </View>
-        </Card>
-      )}
-      <View style={{ backgroundColor: PINK + "10", borderRadius: 14, padding: 16, borderWidth: 1, borderColor: PINK + "30", flexDirection: "row", gap: 12 }}>
-        <IconSymbol name="lightbulb.fill" size={18} color={PINK} />
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 13, fontWeight: "700", color: PINK, marginBottom: 3 }}>Marketing-Tipp</Text>
-          <Text style={{ fontSize: 12, color: "#9CA3AF", lineHeight: 18 }}>Kunden die über 3+ Berührungspunkte erreicht werden, konvertieren bis zu 90% häufiger. Kombinieren Sie Newsletter, Kampagnen und Social Media.</Text>
-        </View>
+              )}
+            </>
+          );
+          const cardStyle = { flex: 1, minWidth: isWide ? 200 : "47%", backgroundColor: colors.surface, borderRadius: 16, padding: isWide ? 20 : 15, borderWidth: 1, borderColor: isClickable ? kpi.color + "40" : colors.border };
+          const handlePress = () => {
+            if (kpi.tab) onTabChange(kpi.tab);
+            else if ((kpi as any).routeTo) router.push((kpi as any).routeTo);
+          };
+          if (isClickable) {
+            return (
+              <TouchableOpacity key={kpi.label} style={cardStyle} activeOpacity={0.75} onPress={handlePress}>
+                {inner}
+              </TouchableOpacity>
+            );
+          }
+          return <View key={kpi.label} style={cardStyle}>{inner}</View>;
+        })}
       </View>
+
+      {/* Budget Card */}
+      <Card>
+        {/* Header */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground }}>💰 Marketing-Budget</Text>
+          <TouchableOpacity
+            style={{ flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#8B5CF618", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }}
+            onPress={handleOpenBudgetEdit} activeOpacity={0.7}
+          >
+            <IconSymbol name="pencil" size={12} color="#8B5CF6" />
+            <Text style={{ fontSize: 11, fontWeight: "700", color: "#8B5CF6" }}>Jahresbudget</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Inline budget editor */}
+        {editingBudget && (
+          <View style={{ backgroundColor: "#8B5CF610", borderRadius: 12, padding: 12, marginBottom: 14, gap: 10 }}>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: "#8B5CF6" }}>Jahresbudget Marketing (CHF)</Text>
+            <TextInput
+              style={{ backgroundColor: colors.background, borderRadius: 10, borderWidth: 1, borderColor: "#8B5CF6", color: colors.foreground, padding: 12, fontSize: 18, fontWeight: "800" }}
+              placeholder="z.B. 50000"
+              placeholderTextColor={colors.muted}
+              value={budgetInput}
+              onChangeText={setBudgetInput}
+              keyboardType="numeric"
+              autoFocus
+            />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity style={{ flex: 1, backgroundColor: "#8B5CF6", borderRadius: 10, padding: 11, alignItems: "center" }} onPress={handleSaveBudget} disabled={savingBudget} activeOpacity={0.8}>
+                {savingBudget ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: "#fff", fontWeight: "700" }}>Speichern</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={{ flex: 1, backgroundColor: colors.border, borderRadius: 10, padding: 11, alignItems: "center" }} onPress={() => setEditingBudget(false)} activeOpacity={0.8}>
+                <Text style={{ color: colors.foreground, fontWeight: "600" }}>Abbrechen</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Annual budget target row */}
+        {annualBudget > 0 && (
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <Text style={{ fontSize: 11, color: colors.muted }}>Jahresbudget</Text>
+            <Text style={{ fontSize: 18, fontWeight: "800", color: "#8B5CF6" }}>CHF {annualBudget.toLocaleString("de-CH")}</Text>
+          </View>
+        )}
+
+        {(() => {
+          const planned = stats?.totalBudget || 0;
+          const spent   = stats?.totalSpent  || 0;
+          const ref     = annualBudget > 0 ? annualBudget : (planned || 1);
+
+          const pctPlanned = Math.min(100, Math.round((planned / ref) * 100));
+          const pctSpent   = Math.min(100, Math.round((spent   / ref) * 100));
+          const spentColor  = pctSpent  >= 90 ? "#EF4444" : pctSpent  >= 70 ? "#F59E0B" : PINK;
+          const plannedColor = pctPlanned >= 100 ? "#EF4444" : pctPlanned >= 80 ? "#F59E0B" : "#8B5CF6";
+
+          return (
+            <View style={{ gap: 12 }}>
+              {/* Row: Verplant */}
+              <View style={{ gap: 6 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: colors.foreground }}>Verplant (Kampagnen)</Text>
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: plannedColor }}>CHF {planned.toLocaleString("de-CH")}{annualBudget > 0 ? `  (${pctPlanned}%)` : ""}</Text>
+                </View>
+                <View style={{ height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: "hidden" }}>
+                  <View style={{ height: 8, width: `${annualBudget > 0 ? pctPlanned : 100}%` as any, backgroundColor: plannedColor, borderRadius: 4 }} />
+                </View>
+              </View>
+
+              {/* Row: Ausgegeben */}
+              <View style={{ gap: 6 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: colors.foreground }}>Ausgegeben</Text>
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: spentColor }}>CHF {spent.toLocaleString("de-CH")}{annualBudget > 0 ? `  (${pctSpent}%)` : ""}</Text>
+                </View>
+                <View style={{ height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: "hidden" }}>
+                  <View style={{ height: 8, width: `${annualBudget > 0 ? pctSpent : (planned > 0 ? Math.round((spent/planned)*100) : 0)}%` as any, backgroundColor: spentColor, borderRadius: 4 }} />
+                </View>
+              </View>
+
+              {annualBudget > 0 && (
+                <View style={{ borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: colors.border }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 10, backgroundColor: colors.border + "30" }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#8B5CF6" }} />
+                      <Text style={{ fontSize: 11, color: colors.muted }}>Verfügbar (nach Planung)</Text>
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: "800", color: annualBudget - planned >= 0 ? "#8B5CF6" : "#EF4444" }}>
+                      CHF {Math.abs(annualBudget - planned).toLocaleString("de-CH")}{annualBudget - planned < 0 ? " überzogen" : ""}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 10 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#22C55E" }} />
+                      <Text style={{ fontSize: 11, color: colors.muted }}>Verbleibend (nach Ausgaben)</Text>
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: "800", color: annualBudget - spent >= 0 ? "#22C55E" : "#EF4444" }}>
+                      CHF {Math.abs(annualBudget - spent).toLocaleString("de-CH")}{annualBudget - spent < 0 ? " überzogen" : ""}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, gap: 6 }}>
+                <TableRow label="Umsatz generiert" val={`CHF ${(stats?.totalRevenue || 0).toLocaleString("de-CH")}`} color="#22C55E" />
+                <TableRow label="ROI gesamt"       val={`${stats?.roi || 0}%`}                                        color={(stats?.roi || 0) >= 0 ? "#22C55E" : "#EF4444"} />
+              </View>
+            </View>
+          );
+        })()}
+      </Card>
+
+      <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, marginBottom: 8, marginTop: 4 }}>📅 Kampagnen-Zeitachse</Text>
+      <TimelineTab />
     </View>
   );
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── NEWSLETTER TAB ───────────────────────────────────────────────────────────
@@ -512,7 +638,19 @@ function NewsletterSubscribersSection() {
 // ─── KAMPAGNEN TAB ────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function CampaignFormModal({ visible, campaign, onClose, onSuccess }: { visible: boolean; campaign: any; onClose: () => void; onSuccess: () => void }) {
+// Datum-Konverter: ISO (YYYY-MM-DD) ↔ Anzeige (DD.MM.YYYY)
+function toDisplay(iso: string): string {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return d && m && y ? `${d}.${m}.${y}` : iso;
+}
+function toISO(display: string): string {
+  if (!display) return "";
+  const [d, m, y] = display.split(".");
+  return d && m && y ? `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}` : display;
+}
+
+function CampaignFormModal({ visible, campaign, onClose, onSuccess, onDelete }: { visible: boolean; campaign: any; onClose: () => void; onSuccess: () => void; onDelete?: (id: string) => void }) {
   const colors = useColors();
   const [title, setTitle] = useState(""); const [channel, setChannel] = useState("google_ads"); const [status, setStatus] = useState("planned");
   const [budget, setBudget] = useState(""); const [spent, setSpent] = useState(""); const [leadsGenerated, setLeadsGenerated] = useState(""); const [revenueGenerated, setRevenueGenerated] = useState("");
@@ -523,7 +661,7 @@ function CampaignFormModal({ visible, campaign, onClose, onSuccess }: { visible:
       setTitle(campaign?.title || ""); setChannel(campaign?.channel || "google_ads"); setStatus(campaign?.status || "planned");
       setBudget(campaign?.budget?.toString() || ""); setSpent(campaign?.spent?.toString() || "");
       setLeadsGenerated(campaign?.leads_generated?.toString() || ""); setRevenueGenerated(campaign?.revenue_generated?.toString() || "");
-      setStartDate(campaign?.start_date || ""); setEndDate(campaign?.end_date || ""); setDescription(campaign?.description || ""); setGoal(campaign?.goal || "leads"); setShowChecklist(false);
+      setStartDate(toDisplay(campaign?.start_date || "")); setEndDate(toDisplay(campaign?.end_date || "")); setDescription(campaign?.description || ""); setGoal(campaign?.goal || "leads"); setShowChecklist(false);
     }
   }, [visible, campaign]);
   const applyTemplate = (tpl: typeof CAMPAIGN_TEMPLATES[0]) => { setChannel(tpl.data.channel); setGoal(tpl.data.goal); if (!title) setTitle(tpl.data.title); if (!description) setDescription(tpl.data.description); };
@@ -531,7 +669,7 @@ function CampaignFormModal({ visible, campaign, onClose, onSuccess }: { visible:
     if (!title.trim()) { showAlert("Pflichtfeld", "Bitte einen Titel angeben."); return; }
     setSaving(true);
     try {
-      const p = { title, channel, status, budget: budget ? parseFloat(budget) : null, spent: spent ? parseFloat(spent) : 0, leads_generated: leadsGenerated ? parseInt(leadsGenerated) : 0, revenue_generated: revenueGenerated ? parseFloat(revenueGenerated) : 0, start_date: startDate || null, end_date: endDate || null, description, goal };
+      const p = { title, channel, status, budget: budget ? parseFloat(budget) : null, spent: spent ? parseFloat(spent) : 0, leads_generated: leadsGenerated ? parseInt(leadsGenerated) : 0, revenue_generated: revenueGenerated ? parseFloat(revenueGenerated) : 0, start_date: startDate ? toISO(startDate) : null, end_date: endDate ? toISO(endDate) : null, description, goal };
       if (campaign?.id) await Data.updateMarketingCampaign(campaign.id, p); else await Data.createMarketingCampaign(p);
       onSuccess(); onClose();
     } catch (e: any) { showAlert("Fehler", e.message); } finally { setSaving(false); }
@@ -580,9 +718,19 @@ function CampaignFormModal({ visible, campaign, onClose, onSuccess }: { visible:
       <FL label="Bereits ausgegeben (CHF)" /><SI value={spent} onChange={setSpent} placeholder="0.00" keyboardType="numeric" />
       <FL label="Generieter Umsatz (CHF)" /><SI value={revenueGenerated} onChange={setRevenueGenerated} placeholder="0.00" keyboardType="numeric" />
       <FL label="Generierte Leads" /><SI value={leadsGenerated} onChange={setLeadsGenerated} placeholder="0" keyboardType="numeric" />
-      <FL label="Startdatum (JJJJ-MM-TT)" /><SI value={startDate} onChange={setStartDate} placeholder="2026-04-01" />
-      <FL label="Enddatum (JJJJ-MM-TT)" /><SI value={endDate} onChange={setEndDate} placeholder="2026-06-30" />
+      <FL label="Startdatum (TT.MM.JJJJ)" /><SI value={startDate} onChange={setStartDate} placeholder="01.04.2026" />
+      <FL label="Enddatum (TT.MM.JJJJ)" /><SI value={endDate} onChange={setEndDate} placeholder="30.06.2026" />
       <FL label="Beschreibung / Zielgruppe" /><SI value={description} onChange={setDescription} placeholder="Zielgruppe, Massnahmen, Besonderheiten..." multiline />
+      {campaign?.id && onDelete && (
+        <TouchableOpacity
+          style={{ borderRadius: 14, padding: 14, alignItems: "center", marginTop: 12, borderWidth: 1.5, borderColor: colors.error, flexDirection: "row", justifyContent: "center", gap: 8 }}
+          onPress={() => showConfirm("Kampagne löschen", `Möchten Sie "${campaign.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`, () => { onDelete(campaign.id); onClose(); })}
+          activeOpacity={0.8}
+        >
+          <IconSymbol name="trash" size={15} color={colors.error} />
+          <Text style={{ color: colors.error, fontWeight: "700", fontSize: 14 }}>Kampagne löschen</Text>
+        </TouchableOpacity>
+      )}
       <SaveBtn onPress={handleSave} loading={saving} label={campaign?.id ? "Speichern" : "Kampagne erstellen"} />
     </BottomSheet>
   );
@@ -718,7 +866,7 @@ function CampaignsTab() {
       })}
       {/* UTM Generator */}
       <UTMGenerator />
-      <CampaignFormModal visible={showForm} campaign={editing} onClose={() => setShowForm(false)} onSuccess={() => queryClient.invalidateQueries({ queryKey: ["marketingCampaigns"] })} />
+      <CampaignFormModal visible={showForm} campaign={editing} onClose={() => setShowForm(false)} onSuccess={() => queryClient.invalidateQueries({ queryKey: ["marketingCampaigns"] })} onDelete={(id) => { deleteMutation.mutate(id); queryClient.invalidateQueries({ queryKey: ["marketingCampaigns"] }); }} />
     </View>
   );
 }
@@ -998,10 +1146,11 @@ function ContentTab() {
 // ─── GOOGLE ANALYTICS TAB ─────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function GA4SetupGuide({ onSaved }: { onSaved: () => void }) {
+function GA4SetupGuide({ onSaved, existingPropertyId }: { onSaved: () => void; existingPropertyId?: string }) {
   const colors = useColors();
-  const [propertyId, setPropertyId] = useState("");
+  const [propertyId, setPropertyId] = useState(existingPropertyId || "");
   const [saving, setSaving] = useState(false);
+  useEffect(() => { if (existingPropertyId) setPropertyId(existingPropertyId); }, [existingPropertyId]);
   const handleSave = async () => {
     if (!propertyId.trim()) { showAlert("Pflichtfeld", "Bitte die GA4 Property ID eingeben."); return; }
     setSaving(true);
@@ -1209,16 +1358,23 @@ function AnalyticsTab() {
   const queryClient = useQueryClient();
   const { data: settings, isLoading: settingsLoading, refetch: refetchSettings } = useQuery({ queryKey: ["marketingSettings"], queryFn: Data.getMarketingSettings });
   const isConfigured = settings?.ga4_enabled === "true" && !!settings?.ga4_property_id;
-  const handleReset = async () => {
-    await Promise.all([Data.setMarketingSetting("ga4_enabled", "false"), Data.setMarketingSetting("ga4_property_id", "")]);
-    queryClient.invalidateQueries({ queryKey: ["marketingSettings"] });
-    queryClient.invalidateQueries({ queryKey: ["ga4Analytics"] });
-    refetchSettings();
+  const handleReset = () => {
+    showConfirm(
+      "Einstellungen zurücksetzen",
+      "Möchten Sie die Google Analytics Verbindung wirklich zurücksetzen? Die Property ID muss danach erneut eingegeben werden.",
+      async () => {
+        await Promise.all([Data.setMarketingSetting("ga4_enabled", "false")]);
+        // Property ID NICHT löschen – bleibt als Vorauswahl erhalten
+        queryClient.invalidateQueries({ queryKey: ["marketingSettings"] });
+        queryClient.invalidateQueries({ queryKey: ["ga4Analytics"] });
+        refetchSettings();
+      }
+    );
   };
   if (settingsLoading) return <View style={{ paddingVertical: 60, alignItems: "center" }}><ActivityIndicator size="large" color="#4285F4" /></View>;
   return isConfigured
     ? <GA4Dashboard propertyId={settings!.ga4_property_id} onReset={handleReset} />
-    : <GA4SetupGuide onSaved={() => { queryClient.invalidateQueries({ queryKey: ["marketingSettings"] }); refetchSettings(); }} />;
+    : <GA4SetupGuide existingPropertyId={settings?.ga4_property_id} onSaved={() => { queryClient.invalidateQueries({ queryKey: ["marketingSettings"] }); refetchSettings(); }} />;
 }
 
 
@@ -1354,6 +1510,455 @@ function BrainstormingTab() {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ─── TIMELINE TAB ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const TIMELINE_COLOR = "#F97316";
+const DAY_PX: Record<string, number> = { "3m": 8, "6m": 4.5, "12m": 2.5 };
+
+function TimelineTab() {
+  const colors = useColors();
+  const queryClient = useQueryClient();
+  const [period, setPeriod] = useState<"3m" | "6m" | "12m">("6m");
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+
+  const { data: campaigns = [], isLoading } = useQuery({
+    queryKey: ["marketingCampaigns"],
+    queryFn: Data.getMarketingCampaigns,
+  });
+
+  // --- Time math ---
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const monthsBefore = 1;
+  const monthsAhead = period === "3m" ? 3 : period === "6m" ? 6 : 12;
+  const viewStart = new Date(today.getFullYear(), today.getMonth() - monthsBefore, 1);
+  const viewEnd   = new Date(today.getFullYear(), today.getMonth() + monthsAhead + 1, 0);
+  const dayWidth  = DAY_PX[period];
+  const totalDays = Math.ceil((viewEnd.getTime() - viewStart.getTime()) / 86400000);
+  const totalWidth = totalDays * dayWidth;
+  const todayOff  = Math.max(0, Math.floor((today.getTime() - viewStart.getTime()) / 86400000)) * dayWidth;
+
+  // Month-header segments
+  const months: { label: string; offset: number; width: number }[] = [];
+  let cur = new Date(viewStart.getFullYear(), viewStart.getMonth(), 1);
+  while (cur <= viewEnd) {
+    const mStart = new Date(cur.getFullYear(), cur.getMonth(), 1);
+    const mEnd   = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
+    const clampS = mStart < viewStart ? viewStart : mStart;
+    const clampE = mEnd   > viewEnd   ? viewEnd   : mEnd;
+    const off = Math.floor((clampS.getTime() - viewStart.getTime()) / 86400000) * dayWidth;
+    const w   = Math.ceil((clampE.getTime() - clampS.getTime()) / 86400000) * dayWidth + dayWidth;
+    months.push({ label: mStart.toLocaleDateString("de-CH", { month: "short", year: "2-digit" }), offset: off, width: w });
+    cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+  }
+
+  const withDates    = campaigns.filter((c: any) => c.start_date).sort((a: any, b: any) => a.start_date.localeCompare(b.start_date));
+  const withoutDates = campaigns.filter((c: any) => !c.start_date);
+
+  const LEFT_COL    = 136;
+  const ROW_HEIGHT  = 50;
+  const HDR_HEIGHT  = 34;
+
+  return (
+    <View style={{ gap: 12 }}>
+      {/* Stats */}
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <MiniStat label="Gesamt" val={campaigns.length} color={TIMELINE_COLOR} />
+        <MiniStat label="Mit Zeitplan" val={withDates.length} color="#22C55E" />
+        <MiniStat label="Ohne Datum" val={withoutDates.length} color="#6B7280" />
+      </View>
+
+      {/* Period selector */}
+      <Pills
+        value={period}
+        onChange={(v) => setPeriod(v as any)}
+        options={[{ key: "3m", label: "3 Monate" }, { key: "6m", label: "6 Monate" }, { key: "12m", label: "1 Jahr" }]}
+        color={TIMELINE_COLOR}
+      />
+
+      <SectionButton label="Neue Kampagne" onPress={() => { setEditing(null); setShowForm(true); }} color={TIMELINE_COLOR} />
+
+      {isLoading && <View style={{ paddingVertical: 40, alignItems: "center" }}><ActivityIndicator size="large" color={TIMELINE_COLOR} /></View>}
+
+      {!isLoading && (
+        <Card style={{ padding: 0, overflow: "hidden" }}>
+          {/* Channel legend */}
+          <View style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8 }}>Legende – Kanäle</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+              {Object.entries(CHANNEL_LABELS).map(([k, v]) => (
+                <View key={k} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: CHANNEL_COLORS[k] || "#6B7280" }} />
+                  <Text style={{ fontSize: 11, color: colors.muted }}>{v}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {withDates.length === 0 && (
+            <EmptyState icon="calendar.badge.clock" title="Keine Kampagnen mit Datum" sub="Fügen Sie Start- und Enddaten zu Ihren Kampagnen hinzu, um sie hier anzuzeigen." color={TIMELINE_COLOR} />
+          )}
+
+          {withDates.length > 0 && (
+            <View style={{ flexDirection: "row" }}>
+              {/* ── Fixed left column ── */}
+              <View style={{ width: LEFT_COL, borderRightWidth: 1, borderRightColor: colors.border }}>
+                {/* Header */}
+                <View style={{ height: HDR_HEIGHT, borderBottomWidth: 1, borderBottomColor: colors.border, justifyContent: "center", paddingHorizontal: 10 }}>
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: colors.muted, textTransform: "uppercase", letterSpacing: 0.6 }}>Kampagne</Text>
+                </View>
+                {/* Rows */}
+                {withDates.map((c: any) => {
+                  const chColor = CHANNEL_COLORS[c.channel] || "#6B7280";
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={{ height: ROW_HEIGHT, justifyContent: "center", paddingHorizontal: 10, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: colors.border + "60", gap: 3 }}
+                      onPress={() => { setEditing(c); setShowForm(true); }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                        <View style={{ width: 7, height: 7, borderRadius: 3, backgroundColor: chColor, flexShrink: 0 }} />
+                        <Text style={{ fontSize: 11, fontWeight: "600", color: colors.foreground, flex: 1 }} numberOfLines={2}>{c.title}</Text>
+                      </View>
+                      <View style={{ paddingLeft: 12 }}>
+                        <Badge label={CAMPAIGN_STATUS_LABEL[c.status] || c.status} color={CAMPAIGN_STATUS_COLOR[c.status] || "#6B7280"} />
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* ── Scrollable timeline ── */}
+              <ScrollView horizontal showsHorizontalScrollIndicator style={{ flex: 1 }}>
+                <View style={{ width: totalWidth }}>
+                  {/* Month headers */}
+                  <View style={{ height: HDR_HEIGHT, borderBottomWidth: 1, borderBottomColor: colors.border, position: "relative" }}>
+                    {months.map((m, i) => (
+                      <View key={i} style={{ position: "absolute", left: m.offset, width: m.width, height: HDR_HEIGHT, justifyContent: "center", alignItems: "center", borderRightWidth: 1, borderRightColor: colors.border + "50" }}>
+                        <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted }}>{m.label}</Text>
+                      </View>
+                    ))}
+                    {/* TODAY label */}
+                    {todayOff >= 0 && todayOff <= totalWidth && (
+                      <View style={{ position: "absolute", left: todayOff, top: 0, bottom: 0, width: 2, backgroundColor: "#EF4444", zIndex: 10 }}>
+                        <View style={{ position: "absolute", top: 4, left: 3, backgroundColor: "#EF4444", borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 }}>
+                          <Text style={{ fontSize: 8, color: "#fff", fontWeight: "800" }}>HEUTE</Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Campaign rows */}
+                  {withDates.map((c: any) => {
+                    const start = new Date(c.start_date); start.setHours(0, 0, 0, 0);
+                    const end   = c.end_date
+                      ? (() => { const d = new Date(c.end_date); d.setHours(0, 0, 0, 0); return d; })()
+                      : new Date(start.getFullYear(), start.getMonth(), start.getDate() + 14);
+
+                    const barStartDay = Math.floor((start.getTime() - viewStart.getTime()) / 86400000);
+                    const barEndDay   = Math.ceil((end.getTime()   - viewStart.getTime()) / 86400000);
+                    const barLeft     = Math.max(0, barStartDay) * dayWidth;
+                    const barW        = Math.max(dayWidth * 3, (Math.min(barEndDay, totalDays) - Math.max(barStartDay, 0)) * dayWidth);
+                    const chColor     = CHANNEL_COLORS[c.channel] || "#6B7280";
+                    const isActive    = c.status === "active";
+                    const isOutside   = barEndDay < 0 || barStartDay > totalDays;
+
+                    return (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={{ height: ROW_HEIGHT, justifyContent: "center", borderBottomWidth: 1, borderBottomColor: colors.border + "60", position: "relative" }}
+                        onPress={() => { setEditing(c); setShowForm(true); }}
+                        activeOpacity={0.7}
+                      >
+                        {/* Today vertical line */}
+                        {todayOff >= 0 && todayOff <= totalWidth && (
+                          <View style={{ position: "absolute", left: todayOff, top: 0, bottom: 0, width: 1.5, backgroundColor: "#EF444435", zIndex: 0 }} />
+                        )}
+                        {/* Campaign bar */}
+                        {!isOutside && (
+                          <View style={{
+                            position: "absolute",
+                            left: barLeft,
+                            width: barW,
+                            height: 28,
+                            backgroundColor: chColor,
+                            borderRadius: 7,
+                            justifyContent: "center",
+                            paddingHorizontal: 8,
+                            opacity: isActive ? 1 : 0.72,
+                            zIndex: 1,
+                            shadowColor: chColor,
+                            shadowOpacity: 0.35,
+                            shadowRadius: 4,
+                            shadowOffset: { width: 0, height: 2 },
+                          }}>
+                            <Text style={{ fontSize: 10, fontWeight: "700", color: "#fff" }} numberOfLines={1}>{c.title}</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </View>
+          )}
+        </Card>
+      )}
+
+      {/* Campaigns without dates */}
+      {!isLoading && withoutDates.length > 0 && (
+        <Card>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <IconSymbol name="exclamationmark.triangle.fill" size={14} color="#F59E0B" />
+            <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>Ohne Datum ({withoutDates.length})</Text>
+          </View>
+          {withoutDates.map((c: any, idx: number) => {
+            const chColor = CHANNEL_COLORS[c.channel] || "#6B7280";
+            return (
+              <TouchableOpacity
+                key={c.id}
+                style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, borderBottomWidth: idx < withoutDates.length - 1 ? 1 : 0, borderBottomColor: colors.border }}
+                onPress={() => { setEditing(c); setShowForm(true); }}
+                activeOpacity={0.7}
+              >
+                <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: chColor }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{c.title}</Text>
+                  <Text style={{ fontSize: 11, color: colors.muted }}>{CHANNEL_LABELS[c.channel] || c.channel}</Text>
+                </View>
+                <Badge label={CAMPAIGN_STATUS_LABEL[c.status] || c.status} color={CAMPAIGN_STATUS_COLOR[c.status] || "#6B7280"} />
+                <IconSymbol name="chevron.right" size={13} color={colors.muted} />
+              </TouchableOpacity>
+            );
+          })}
+          <View style={{ backgroundColor: "#F59E0B15", borderRadius: 8, padding: 10, marginTop: 10, flexDirection: "row", gap: 6, alignItems: "center" }}>
+            <IconSymbol name="lightbulb.fill" size={13} color="#F59E0B" />
+            <Text style={{ flex: 1, fontSize: 11, color: "#F59E0B", lineHeight: 16 }}>Datum hinzufügen, um diese Kampagnen auf der Zeitachse anzuzeigen.</Text>
+          </View>
+        </Card>
+      )}
+
+      <CampaignFormModal
+        visible={showForm}
+        campaign={editing}
+        onClose={() => setShowForm(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["marketingCampaigns"] })}
+        onDelete={(id) => { deleteMutation.mutate(id); queryClient.invalidateQueries({ queryKey: ["marketingCampaigns"] }); }}
+      />
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── SPONSORING TAB ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SPONS_COLOR = "#7C3AED";
+
+const SPONS_TYPE_LABELS: Record<string, string> = {
+  event:     "Event",
+  sport:     "Sport",
+  kultur:    "Kultur / Musik",
+  medien:    "Medien",
+  sozial:    "Soziales / NGO",
+  bildung:   "Bildung",
+  sonstiges: "Sonstiges",
+};
+const SPONS_TYPE_COLORS: Record<string, string> = {
+  event:     "#F97316",
+  sport:     "#22C55E",
+  kultur:    "#EC4899",
+  medien:    "#0EA5E9",
+  sozial:    "#14B8A6",
+  bildung:   "#F59E0B",
+  sonstiges: "#6B7280",
+};
+const SPONS_STATUS_LABEL: Record<string, string> = {
+  planned:   "Geplant",
+  active:    "Aktiv",
+  completed: "Abgeschlossen",
+  cancelled: "Abgebrochen",
+};
+const SPONS_STATUS_COLOR: Record<string, string> = {
+  planned:   "#F59E0B",
+  active:    "#22C55E",
+  completed: "#6B7280",
+  cancelled: "#EF4444",
+};
+
+function SponsoringFormModal({ visible, item, onClose, onSuccess }: { visible: boolean; item: any; onClose: () => void; onSuccess: () => void }) {
+  const colors = useColors();
+  const [title, setTitle]           = useState("");
+  const [partnerName, setPartnerName] = useState("");
+  const [type, setType]             = useState("event");
+  const [status, setStatus]         = useState("planned");
+  const [amount, setAmount]         = useState("");
+  const [startDate, setStartDate]   = useState("");
+  const [endDate, setEndDate]       = useState("");
+  const [description, setDescription] = useState("");
+  const [notes, setNotes]           = useState("");
+  const [saving, setSaving]         = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setTitle(item?.title || "");
+      setPartnerName(item?.partner_name || "");
+      setType(item?.sponsoring_type || "event");
+      setStatus(item?.status || "planned");
+      setAmount(item?.amount?.toString() || "");
+      setStartDate(toDisplay(item?.start_date || ""));
+      setEndDate(toDisplay(item?.end_date || ""));
+      setDescription(item?.description || "");
+      setNotes(item?.notes || "");
+    }
+  }, [visible, item]);
+
+  const handleSave = async () => {
+    if (!title.trim()) { showAlert("Pflichtfeld", "Bitte einen Titel angeben."); return; }
+    if (!partnerName.trim()) { showAlert("Pflichtfeld", "Bitte einen Partner angeben."); return; }
+    setSaving(true);
+    try {
+      const p = { title, partner_name: partnerName, sponsoring_type: type, status, amount: amount ? parseFloat(amount) : null, start_date: startDate ? toISO(startDate) : null, end_date: endDate ? toISO(endDate) : null, description, notes };
+      if (item?.id) await Data.updateMarketingSponsoring(item.id, p); else await Data.createMarketingSponsoring(p);
+      onSuccess(); onClose();
+    } catch (e: any) { showAlert("Fehler", e.message); } finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    showConfirm("Sponsoring löschen", `Möchten Sie "${item?.title}" wirklich löschen?`, async () => {
+      try { await Data.deleteMarketingSponsoring(item.id); onSuccess(); onClose(); } catch (e: any) { showAlert("Fehler", e.message); }
+    });
+  };
+
+  const typeOptions = Object.entries(SPONS_TYPE_LABELS).map(([k, l]) => ({ key: k, label: l }));
+  const statusOptions = Object.entries(SPONS_STATUS_LABEL).map(([k, l]) => ({ key: k, label: l }));
+
+  return (
+    <BottomSheet visible={visible} title={item?.id ? "Sponsoring bearbeiten" : "Neues Sponsoring"} onClose={onClose}>
+      <FL label="Titel *" /><SI value={title} onChange={setTitle} placeholder="z.B. Stadtfest Basel 2026" />
+      <FL label="Partner / Organisation *" /><SI value={partnerName} onChange={setPartnerName} placeholder="z.B. Stadtfest Basel" />
+      <FL label="Kategorie" /><Pills value={type} onChange={setType} options={typeOptions} />
+      <FL label="Status" /><Pills value={status} onChange={setStatus} options={statusOptions} />
+      <FL label="Betrag (CHF)" /><SI value={amount} onChange={setAmount} placeholder="0.00" keyboardType="numeric" />
+      <FL label="Startdatum (TT.MM.JJJJ)" /><SI value={startDate} onChange={setStartDate} placeholder="01.06.2026" />
+      <FL label="Enddatum (TT.MM.JJJJ)" /><SI value={endDate} onChange={setEndDate} placeholder="31.08.2026" />
+      <FL label="Beschreibung" /><SI value={description} onChange={setDescription} placeholder="Ziele, Gegenleistungen, Konditionen..." multiline />
+      <FL label="Interne Notizen" /><SI value={notes} onChange={setNotes} placeholder="Ansprechperson, Besonderheiten..." multiline />
+      {item?.id && (
+        <TouchableOpacity
+          style={{ borderRadius: 14, padding: 14, alignItems: "center", marginTop: 12, borderWidth: 1.5, borderColor: colors.error, flexDirection: "row", justifyContent: "center", gap: 8 }}
+          onPress={handleDelete} activeOpacity={0.8}
+        >
+          <IconSymbol name="trash" size={15} color={colors.error} />
+          <Text style={{ color: colors.error, fontWeight: "700", fontSize: 14 }}>Sponsoring löschen</Text>
+        </TouchableOpacity>
+      )}
+      <SaveBtn onPress={handleSave} loading={saving} label={item?.id ? "Speichern" : "Sponsoring erstellen"} />
+    </BottomSheet>
+  );
+}
+
+function SponsoringTab() {
+  const colors = useColors();
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing]   = useState<any>(null);
+  const [filter, setFilter]     = useState("all");
+
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ["marketingSponsorships"],
+    queryFn: Data.getMarketingSponsorships,
+  });
+
+  const filtered = filter === "all" ? items : items.filter((s: any) => s.status === filter);
+  const totalAmount = items.reduce((s: number, i: any) => s + (i.amount || 0), 0);
+  const active = items.filter((i: any) => i.status === "active").length;
+
+  const filterOptions = [
+    { key: "all",       label: "Alle" },
+    { key: "planned",   label: "Geplant" },
+    { key: "active",    label: "Aktiv" },
+    { key: "completed", label: "Abgeschlossen" },
+    { key: "cancelled", label: "Abgebrochen" },
+  ];
+
+  return (
+    <View style={{ gap: 12 }}>
+      {/* Stats */}
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <MiniStat label="Gesamt"        val={items.length}                                color={SPONS_COLOR} />
+        <MiniStat label="Aktiv"         val={active}                                      color="#22C55E" />
+        <MiniStat label="Budget (CHF)"  val={totalAmount.toLocaleString("de-CH")}         color="#F59E0B" />
+      </View>
+
+      <Pills value={filter} onChange={setFilter} options={filterOptions} color={SPONS_COLOR} />
+
+      <SectionButton label="Neues Sponsoring" onPress={() => { setEditing(null); setShowForm(true); }} color={SPONS_COLOR} />
+
+      {isLoading && <View style={{ paddingVertical: 40, alignItems: "center" }}><ActivityIndicator size="large" color={SPONS_COLOR} /></View>}
+
+      {!isLoading && filtered.length === 0 && (
+        <EmptyState icon="star.fill" title="Keine Sponsorings" sub="Erstellen Sie Ihr erstes Sponsoring-Engagement." color={SPONS_COLOR} />
+      )}
+
+      {!isLoading && filtered.map((s: any) => {
+        const typeColor   = SPONS_TYPE_COLORS[s.sponsoring_type]   || "#6B7280";
+        const statusColor = SPONS_STATUS_COLOR[s.status]           || "#6B7280";
+        return (
+          <TouchableOpacity
+            key={s.id}
+            style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border, gap: 10 }}
+            onPress={() => { setEditing(s); setShowForm(true); }}
+            activeOpacity={0.8}
+          >
+            {/* Header row */}
+            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: typeColor + "18", alignItems: "center", justifyContent: "center" }}>
+                <IconSymbol name="star.fill" size={18} color={typeColor} />
+              </View>
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground }} numberOfLines={1}>{s.title}</Text>
+                <Text style={{ fontSize: 12, color: colors.muted }}>{s.partner_name}</Text>
+              </View>
+              <Badge label={SPONS_STATUS_LABEL[s.status] || s.status} color={statusColor} />
+            </View>
+
+            {/* Meta row */}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: typeColor + "15", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 11, fontWeight: "600", color: typeColor }}>{SPONS_TYPE_LABELS[s.sponsoring_type] || s.sponsoring_type}</Text>
+              </View>
+              {s.amount > 0 && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#F59E0B18", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#F59E0B" }}>CHF {(s.amount || 0).toLocaleString("de-CH")}</Text>
+                </View>
+              )}
+              {s.start_date && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.muted + "18", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                  <IconSymbol name="calendar" size={11} color={colors.muted} />
+                  <Text style={{ fontSize: 11, color: colors.muted }}>{toDisplay(s.start_date)}{s.end_date ? ` – ${toDisplay(s.end_date)}` : ""}</Text>
+                </View>
+              )}
+            </View>
+
+            {s.description ? <Text style={{ fontSize: 12, color: colors.muted, lineHeight: 17 }} numberOfLines={2}>{s.description}</Text> : null}
+          </TouchableOpacity>
+        );
+      })}
+
+      <SponsoringFormModal
+        visible={showForm}
+        item={editing}
+        onClose={() => setShowForm(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["marketingSponsorships"] })}
+      />
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ─── MAIN SCREEN ──────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1364,16 +1969,16 @@ export default function MarketingScreen() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const { data: stats, isLoading: statsLoading } = useQuery({ queryKey: ["fullMarketingStats"], queryFn: Data.getFullMarketingStats, refetchInterval: 60000 });
   const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: "overview", label: "Übersicht", icon: "chart.bar.fill" },
-    { id: "brainstorming", label: "Brainstorming", icon: "lightbulb.fill" },
-    { id: "newsletter", label: "Newsletter", icon: "envelope.fill" },
-    { id: "campaigns", label: "Kampagnen", icon: "megaphone.fill" },
-    { id: "events", label: "Veranstaltungen", icon: "calendar" },
-    { id: "testimonials", label: "Referenzen", icon: "star.fill" },
-    { id: "content", label: "Content-Plan", icon: "calendar.badge.plus" },
-    { id: "analytics", label: "Google Analytics", icon: "chart.line.uptrend.xyaxis" },
+    { id: "overview",      label: "Übersicht",       icon: "chart.bar.fill" },
+    { id: "brainstorming", label: "Ideen",            icon: "lightbulb.fill" },
+    { id: "campaigns",     label: "Kampagnen",        icon: "megaphone.fill" },
+    { id: "sponsoring",    label: "Sponsoring",       icon: "star.fill" },
+    { id: "newsletter",    label: "Newsletter",       icon: "envelope.fill" },
+    { id: "content",       label: "Content-Plan",     icon: "calendar.badge.plus" },
+    { id: "events",        label: "Veranstaltungen",  icon: "calendar" },
+    { id: "analytics",     label: "Google Analytics", icon: "chart.line.uptrend.xyaxis" },
   ];
-  const tabColor: Record<Tab, string> = { overview: PINK, brainstorming: "#eab308", newsletter: "#8B5CF6", campaigns: "#EC4899", events: "#0EA5E9", testimonials: "#F59E0B", content: "#22C55E", analytics: "#4285F4" };
+  const tabColor: Record<Tab, string> = { overview: PINK, brainstorming: "#eab308", campaigns: "#EC4899", sponsoring: "#7C3AED", newsletter: "#8B5CF6", content: "#22C55E", events: "#0EA5E9", analytics: "#4285F4" };
   const activeColor = tabColor[activeTab] || PINK;
   return (
     <ScreenContainer>
@@ -1405,14 +2010,14 @@ export default function MarketingScreen() {
             })}
           </ScrollView>
           {/* Content */}
-          {activeTab === "overview" && <OverviewTab stats={stats} isLoading={statsLoading} />}
+          {activeTab === "overview"      && <OverviewTab stats={stats} isLoading={statsLoading} onTabChange={setActiveTab} />}
           {activeTab === "brainstorming" && <BrainstormingTab />}
-          {activeTab === "newsletter" && <NewsletterTab />}
-          {activeTab === "campaigns" && <CampaignsTab />}
-          {activeTab === "events" && <EventsTab />}
-          {activeTab === "testimonials" && <TestimonialsTab />}
-          {activeTab === "content" && <ContentTab />}
-          {activeTab === "analytics" && <AnalyticsTab />}
+          {activeTab === "campaigns"     && <CampaignsTab />}
+          {activeTab === "sponsoring"    && <SponsoringTab />}
+          {activeTab === "newsletter"    && <NewsletterTab />}
+          {activeTab === "content"       && <ContentTab />}
+          {activeTab === "events"        && <EventsTab />}
+          {activeTab === "analytics"     && <AnalyticsTab />}
         </View>
       </ScrollView>
     </ScreenContainer>
