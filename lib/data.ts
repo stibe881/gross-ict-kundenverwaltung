@@ -2316,11 +2316,8 @@ export async function deleteLeadActivity(id: string) {
 export const EXPENSE_CATEGORIES = [
     { value: "accounting", label: "Buchhaltung & Beratung" },
     { value: "office", label: "Büro & Miete" },
-    { value: "vehicle", label: "Fahrzeug & Transport" },
-    { value: "equipment", label: "Geräte & Werkzeug" },
     { value: "software", label: "Lizenzen & Software" },
     { value: "salary", label: "Lohnzahlung" },
-    { value: "material", label: "Material & Waren" },
     { value: "travel", label: "Reisen & Spesen" },
     { value: "other", label: "Sonstiges" },
     { value: "social_security", label: "Sozialversicherungen" },
