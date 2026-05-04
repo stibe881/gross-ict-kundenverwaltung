@@ -611,7 +611,7 @@ export default function UeberwachungScreen() {
                                                 </View>
                                             )}
                                             {/* SSL */}
-                                            {entry.ssl_valid !== undefined && (
+                                            {entry.ssl_valid != null && (
                                                 <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
                                                     <IconSymbol name={entry.ssl_valid ? "lock.fill" : "lock"} size={13} color={entry.ssl_valid ? "#16A34A" : colors.error} />
                                                     <Text style={{ fontSize: 12, color: entry.ssl_valid ? colors.muted : colors.error }}>
