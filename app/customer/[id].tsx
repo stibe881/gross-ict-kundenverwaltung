@@ -29,7 +29,7 @@ import { QuoteFormModal } from "@/components/quote-form-modal";
 import { TicketFormModal } from "@/components/ticket-form-modal";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 
-type Tab = "tickets" | "rechnungen" | "vertraege" | "angebote" | "links" | "kontakte";
+type Tab = "tickets" | "rechnungen" | "vertraege" | "angebote" | "links" | "kontakte" | "uberwachung";
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -94,6 +94,12 @@ export default function CustomerDetailScreen() {
     queryFn: () => Data.getCustomerLinks(id as string),
     enabled: !!id,
   });
+
+  const { data: monitoringUrls = [] } = useQuery({
+    queryKey: ["monitoringUrls"],
+    queryFn: Data.getMonitoringUrls,
+  });
+  const customerUrls = useMemo(() => monitoringUrls.filter((u: any) => u.customer_id === id), [monitoringUrls, id]);
 
   // ── Mutations ──
   const deleteCustomer = useMutation({
@@ -224,6 +230,7 @@ export default function CustomerDetailScreen() {
     { key: "angebote", label: "Angebote", icon: "doc.badge.clock.fill", count: quotes.length },
     { key: "links", label: "Links", icon: "link", count: customerLinks.length + quotes.length },
     { key: "kontakte", label: "Kontakte", icon: "person.2.fill", count: (customerContacts.length || 0) + (contactPerson ? 1 : 0) },
+    { key: "uberwachung", label: "Überwachung", icon: "globe", count: customerUrls.length },
   ];
 
   // ── Status / Priority Labels ──
@@ -738,6 +745,31 @@ export default function CustomerDetailScreen() {
           </View>
         );
       }
+
+      case "uberwachung":
+        if (customerUrls.length === 0) return renderEmpty("Keine überwachten URLs", "globe");
+        return (
+          <View className="gap-3">
+            {customerUrls.map((u: any) => (
+              <TouchableOpacity
+                key={u.id}
+                className="bg-surface rounded-xl border border-border p-4"
+                activeOpacity={0.7}
+                onPress={() => router.push(`/uberwachung?openId=${u.id}`)}
+              >
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-base font-semibold text-foreground" numberOfLines={1}>{u.name}</Text>
+                  <View className="px-2 py-0.5 rounded" style={{ backgroundColor: u.last_status === 'up' ? '#16A34A20' : (u.last_status === 'down' ? '#DC262620' : colors.muted + '20') }}>
+                    <Text className="text-[10px] font-bold" style={{ color: u.last_status === 'up' ? '#16A34A' : (u.last_status === 'down' ? '#DC2626' : colors.muted) }}>
+                      {u.last_status === 'up' ? 'Online' : (u.last_status === 'down' ? 'Offline' : 'Unbekannt')}
+                    </Text>
+                  </View>
+                </View>
+                <Text className="text-sm text-muted">{u.url}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        );
 
       case "kontakte": {
         const allContacts = [

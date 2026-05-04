@@ -11,6 +11,7 @@ import {
     RefreshControl,
     Linking,
     Switch,
+    Modal,
 } from "react-native";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
@@ -35,10 +36,34 @@ interface MonitoringUrl {
     last_response_time: number | null;
     last_status_code: number | null;
     ssl_valid?: boolean;
+    ssl_valid?: boolean;
     ssl_expiry?: string;
     ssl_issuer?: string;
     notes: string | null;
+    expected_keyword?: string;
+    customer_id?: string;
+    domain_expiry?: string;
+    muted_until?: string;
     created_at: string;
+}
+
+function formatDateForInput(dateStr: string | null | undefined) {
+    if (!dateStr) return "";
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+        return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    }
+    return dateStr;
+}
+
+function parseDateFromInput(dateStr: string) {
+    const clean = dateStr.trim();
+    if (!clean) return "";
+    const parts = clean.split(".");
+    if (parts.length === 3) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return clean;
 }
 
 // ── Hilfsfunktionen ────────────────────────────────────────────────────────
@@ -124,8 +149,10 @@ export default function UeberwachungScreen() {
     // Form-State
     const [isEditing, setIsEditing] = useState(false);
     const [editingEntry, setEditingEntry] = useState<MonitoringUrl | null>(null);
-    const [form, setForm] = useState({ name: "", url: "", notes: "", is_active: true });
+    const [form, setForm] = useState({ name: "", url: "", notes: "", is_active: true, expected_keyword: "", customer_id: "", domain_expiry: "" });
     const [isSaving, setIsSaving] = useState(false);
+    const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+    const [customerSearch, setCustomerSearch] = useState("");
 
     // Detail-Modal
     const [selectedEntry, setSelectedEntry] = useState<MonitoringUrl | null>(null);
@@ -139,6 +166,11 @@ export default function UeberwachungScreen() {
     const { data: urls = [], isLoading } = useQuery({
         queryKey: ["monitoringUrls"],
         queryFn: Data.getMonitoringUrls,
+    });
+
+    const { data: customers = [] } = useQuery({
+        queryKey: ["customers"],
+        queryFn: Data.getCustomersWithCounts,
     });
 
     // Auto-open from push notification
@@ -155,13 +187,21 @@ export default function UeberwachungScreen() {
     // ── Formular-Handlers ────────────────────────────────────────────────
 
     const openAddForm = () => {
-        setForm({ name: "", url: "", notes: "", is_active: true });
+        setForm({ name: "", url: "", notes: "", is_active: true, expected_keyword: "", customer_id: "", domain_expiry: "" });
         setEditingEntry(null);
         setIsEditing(true);
     };
 
     const openEditForm = (entry: MonitoringUrl) => {
-        setForm({ name: entry.name, url: entry.url, notes: entry.notes || "", is_active: entry.is_active });
+        setForm({ 
+            name: entry.name, 
+            url: entry.url, 
+            notes: entry.notes || "", 
+            is_active: entry.is_active,
+            expected_keyword: entry.expected_keyword || "",
+            customer_id: entry.customer_id || "",
+            domain_expiry: formatDateForInput(entry.domain_expiry)
+        });
         setEditingEntry(entry);
         setIsEditing(true);
     };
@@ -188,13 +228,19 @@ export default function UeberwachungScreen() {
                     url: finalUrl,
                     notes: form.notes.trim() || undefined,
                     is_active: form.is_active,
+                    expected_keyword: form.expected_keyword.trim() || undefined,
+                    customer_id: form.customer_id || undefined,
+                    domain_expiry: parseDateFromInput(form.domain_expiry) || undefined,
                 });
             } else {
                 await Data.createMonitoringUrl({
                     name: form.name.trim(),
                     url: finalUrl,
                     notes: form.notes.trim() || undefined,
-                    is_active: form.is_active,
+                    check_interval: 5,
+                    expected_keyword: form.expected_keyword.trim() || undefined,
+                    customer_id: form.customer_id || undefined,
+                    domain_expiry: parseDateFromInput(form.domain_expiry) || undefined,
                 });
             }
             queryClient.invalidateQueries({ queryKey: ["monitoringUrls"] });
@@ -373,6 +419,80 @@ export default function UeberwachungScreen() {
                                     </View>
                                 </View>
 
+                                {/* Keyword */}
+                                <View>
+                                    <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 6, fontWeight: "500", marginLeft: 2 }}>
+                                        Suchwort (Content-Matching)
+                                    </Text>
+                                    <View style={{
+                                        backgroundColor: colors.background,
+                                        borderRadius: 10,
+                                        borderWidth: 1,
+                                        borderColor: form.expected_keyword ? colors.primary + "60" : colors.border,
+                                        padding: Platform.OS === "web" ? 12 : 14,
+                                    }}>
+                                        <TextInput
+                                            value={form.expected_keyword}
+                                            onChangeText={t => setForm(p => ({ ...p, expected_keyword: t }))}
+                                            placeholder="z.B. Impressum"
+                                            placeholderTextColor={colors.muted}
+                                            style={{ fontSize: 15, color: colors.foreground }}
+                                        />
+                                    </View>
+                                </View>
+
+                                {/* Domain Expiry */}
+                                <View>
+                                    <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 6, fontWeight: "500", marginLeft: 2 }}>
+                                        Domain Ablaufdatum (DD.MM.YYYY)
+                                    </Text>
+                                    <View style={{
+                                        backgroundColor: colors.background,
+                                        borderRadius: 10,
+                                        borderWidth: 1,
+                                        borderColor: form.domain_expiry ? colors.primary + "60" : colors.border,
+                                        padding: Platform.OS === "web" ? 12 : 14,
+                                    }}>
+                                        <TextInput
+                                            value={form.domain_expiry}
+                                            onChangeText={t => setForm(p => ({ ...p, domain_expiry: t }))}
+                                            placeholder="z.B. 01.05.2027"
+                                            placeholderTextColor={colors.muted}
+                                            style={{ fontSize: 15, color: colors.foreground }}
+                                        />
+                                    </View>
+                                </View>
+
+                                {/* Customer Selection */}
+                                <View>
+                                    <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 6, fontWeight: "500", marginLeft: 2 }}>
+                                        Kunde (Optional)
+                                    </Text>
+                                    <TouchableOpacity
+                                        style={{
+                                            backgroundColor: colors.background,
+                                            borderRadius: 10,
+                                            borderWidth: 1,
+                                            borderColor: form.customer_id ? colors.primary + "60" : colors.border,
+                                            padding: Platform.OS === "web" ? 12 : 14,
+                                        }}
+                                        onPress={() => setShowCustomerPicker(true)}
+                                    >
+                                        <Text style={{ fontSize: 15, color: form.customer_id ? colors.foreground : colors.muted }}>
+                                            {(() => {
+                                                if (!form.customer_id) return "Kunde auswählen...";
+                                                const c = customers.find((c: any) => c.id === form.customer_id);
+                                                return c ? (c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unbenannt") : "Kunde auswählen...";
+                                            })()}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    {form.customer_id ? (
+                                        <TouchableOpacity onPress={() => setForm(p => ({ ...p, customer_id: "" }))} style={{ alignSelf: "flex-start", marginTop: 4 }}>
+                                            <Text style={{ fontSize: 12, color: colors.error }}>Auswahl aufheben</Text>
+                                        </TouchableOpacity>
+                                    ) : null}
+                                </View>
+
                                 {/* Notiz */}
                                 <View>
                                     <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 6, fontWeight: "500", marginLeft: 2 }}>
@@ -484,7 +604,8 @@ export default function UeberwachungScreen() {
                     )}
 
                     {/* ── URL-Liste ──────────────────────────────────────── */}
-                    <View style={{ gap: 12 }}>
+                    {!isEditing && (
+                        <View style={{ gap: 12 }}>
                         {(urls as MonitoringUrl[]).map((entry) => {
                             const isChecking = !!checkingIds[entry.id];
                             return (
@@ -545,6 +666,11 @@ export default function UeberwachungScreen() {
                                             {entry.notes && (
                                                 <Text style={{ fontSize: 12, color: colors.muted, marginTop: 4 }} numberOfLines={2}>
                                                     {entry.notes}
+                                                </Text>
+                                            )}
+                                            {entry.last_status === "down" && entry.last_error && (
+                                                <Text style={{ fontSize: 12, color: colors.error, marginTop: 4, fontWeight: "500" }} numberOfLines={2}>
+                                                    {entry.last_error}
                                                 </Text>
                                             )}
                                         </View>
@@ -657,6 +783,7 @@ export default function UeberwachungScreen() {
                             );
                         })}
                     </View>
+                    )}
 
                 </View>
             </ScrollView>
@@ -668,7 +795,90 @@ export default function UeberwachungScreen() {
                     setTimeout(() => setSelectedEntry(null), 300); // delay for animation
                 }} 
                 urlEntry={selectedEntry} 
+                onEdit={(entry) => {
+                    setShowDetail(false);
+                    openEditForm(entry);
+                }}
             />
+
+            {/* Kunden-Picker Modal */}
+            <Modal
+                visible={showCustomerPicker}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setShowCustomerPicker(false)}
+            >
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+                    <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "70%" }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                            <Text style={{ fontSize: 20, fontWeight: "700", color: colors.foreground }}>Kunde auswählen</Text>
+                            <TouchableOpacity onPress={() => setShowCustomerPicker(false)}>
+                                <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
+                            <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 12, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.border }}>
+                                <IconSymbol name="magnifyingglass" size={18} color={colors.muted} />
+                                <TextInput
+                                    style={{ flex: 1, marginLeft: 8, fontSize: 16, color: colors.foreground }}
+                                    placeholder="Kunde suchen..."
+                                    placeholderTextColor={colors.muted}
+                                    value={customerSearch}
+                                    onChangeText={setCustomerSearch}
+                                    autoFocus
+                                />
+                            </View>
+                        </View>
+                        <ScrollView style={{ padding: 16 }} keyboardShouldPersistTaps="handled">
+                            {(() => {
+                                const query = customerSearch.toLowerCase();
+                                const filtered = customers.filter((c: any) => {
+                                    if (!query) return true;
+                                    return (
+                                        c.company_name?.toLowerCase().includes(query) ||
+                                        c.first_name?.toLowerCase().includes(query) ||
+                                        c.last_name?.toLowerCase().includes(query) ||
+                                        c.email?.toLowerCase().includes(query)
+                                    );
+                                });
+                                return filtered.length > 0 ? (
+                                    filtered.map((c: any) => (
+                                        <TouchableOpacity
+                                            key={c.id}
+                                            style={{
+                                                padding: 12,
+                                                borderRadius: 8,
+                                                marginBottom: 8,
+                                                borderWidth: 1,
+                                                borderColor: form.customer_id === c.id ? colors.primary : colors.border,
+                                                backgroundColor: form.customer_id === c.id ? colors.primary + "15" : colors.surface,
+                                            }}
+                                            onPress={() => {
+                                                setForm(p => ({ ...p, customer_id: c.id }));
+                                                setShowCustomerPicker(false);
+                                                setCustomerSearch("");
+                                            }}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }}>
+                                                {c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unbenannt"}
+                                            </Text>
+                                            {c.email ? (
+                                                <Text style={{ fontSize: 12, color: colors.muted }}>{c.email}</Text>
+                                            ) : null}
+                                        </TouchableOpacity>
+                                    ))
+                                ) : (
+                                    <Text style={{ fontSize: 14, color: colors.muted, textAlign: "center", paddingVertical: 16 }}>
+                                        Keine Kunden gefunden
+                                    </Text>
+                                );
+                            })()}
+                            <View style={{ height: 40 }} />
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </ScreenContainer>
     );
 }

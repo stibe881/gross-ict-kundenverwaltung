@@ -11,8 +11,9 @@ import {
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
+import { showAlert } from "@/lib/alert";
 
 interface MonitoringDetailModalProps {
   visible: boolean;
@@ -72,6 +73,36 @@ export function MonitoringDetailModal({ visible, onClose, urlEntry }: Monitoring
     queryFn: () => Data.getMonitoringLogs(urlEntry.id),
     enabled: visible && !!urlEntry?.id,
   });
+
+  const queryClient = useQueryClient();
+  const [isMuting, setIsMuting] = useState(false);
+
+  const handleMute = async (hours: number | null) => {
+      setIsMuting(true);
+      try {
+          let muted_until: string | null = null;
+          if (hours) {
+              const date = new Date();
+              date.setHours(date.getHours() + hours);
+              muted_until = date.toISOString();
+          }
+          await Data.updateMonitoringUrl(urlEntry.id, { muted_until });
+          queryClient.invalidateQueries({ queryKey: ["monitoringUrls"] });
+          showAlert("Erfolg", hours ? `Alarme für ${hours} Stunden pausiert.` : "Wartungsmodus beendet.");
+          onClose();
+      } catch (e: any) {
+          showAlert("Fehler", e.message);
+      } finally {
+          setIsMuting(false);
+      }
+  };
+
+  const uptimePercentage = logs.length > 0 
+    ? ((logs.filter((l: any) => l.status === 'up').length / logs.length) * 100).toFixed(1)
+    : null;
+
+  const validLogs = [...logs].filter((l: any) => l.response_time != null).reverse();
+  const maxResponseTime = validLogs.length > 0 ? Math.max(100, ...validLogs.map((l: any) => l.response_time)) : 100;
 
   if (!urlEntry) return null;
 
@@ -138,6 +169,35 @@ export function MonitoringDetailModal({ visible, onClose, urlEntry }: Monitoring
                         </Text>
                     </View>
                 )}
+                {urlEntry.last_status === 'down' && urlEntry.last_error && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+                        <Text style={{ fontSize: 13, color: colors.error, width: "30%" }}>Fehlermeldung</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: colors.error, flex: 1, textAlign: "right" }}>
+                            {urlEntry.last_error}
+                        </Text>
+                    </View>
+                )}
+                {uptimePercentage != null && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>Uptime (Letzte {logs.length} Checks)</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "500", color: parseFloat(uptimePercentage) > 99 ? "#16A34A" : (parseFloat(uptimePercentage) > 95 ? "#F59E0B" : colors.error), flex: 1, textAlign: "right" }}>
+                            {uptimePercentage}%
+                        </Text>
+                    </View>
+                )}
+                {urlEntry.domain_expiry && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>Domain Ablaufdatum</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "500", color: (() => {
+                            const daysLeft = (new Date(urlEntry.domain_expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+                            if (daysLeft < 14) return colors.error;
+                            if (daysLeft < 30) return "#F59E0B";
+                            return colors.foreground;
+                        })(), flex: 1, textAlign: "right" }}>
+                            {new Date(urlEntry.domain_expiry).toLocaleDateString('de-CH')}
+                        </Text>
+                    </View>
+                )}
                 {(() => {
                     let sslColor = urlEntry.ssl_valid == null ? colors.muted : (urlEntry.ssl_valid ? "#16A34A" : colors.error);
                     let sslText = urlEntry.ssl_valid == null ? "Wird durch automatischen Hintergrund-Check ermittelt" : (urlEntry.ssl_valid ? "Gültig" : "Fehlerhaft");
@@ -186,6 +246,67 @@ export function MonitoringDetailModal({ visible, onClose, urlEntry }: Monitoring
                         </Text>
                     </View>
                 )}
+            </View>
+
+            {/* Wartungsmodus */}
+            <Text style={{ fontSize: 16, fontWeight: "600", color: colors.foreground, marginBottom: 12 }}>
+              Wartungsmodus (Benachrichtigungen pausieren)
+            </Text>
+            <View style={{ marginBottom: 24, gap: 10 }}>
+                {urlEntry.muted_until && new Date(urlEntry.muted_until).getTime() > Date.now() ? (
+                    <View style={{ backgroundColor: "#F59E0B15", padding: 16, borderRadius: 12, borderWidth: 1, borderColor: "#F59E0B40" }}>
+                        <Text style={{ color: "#F59E0B", fontWeight: "600", marginBottom: 8 }}>
+                            Wartungsmodus aktiv bis {new Date(urlEntry.muted_until).toLocaleString('de-CH')}
+                        </Text>
+                        <TouchableOpacity onPress={() => handleMute(null)} disabled={isMuting} style={{ backgroundColor: colors.background, padding: 10, borderRadius: 8, alignItems: "center" }}>
+                            <Text style={{ color: colors.foreground, fontWeight: "500" }}>Wartung beenden</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <View style={{ flexDirection: "row", gap: 10 }}>
+                        <TouchableOpacity onPress={() => handleMute(2)} disabled={isMuting} style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 12, borderRadius: 10, alignItems: "center" }}>
+                            <Text style={{ color: colors.foreground, fontWeight: "500" }}>2 Stunden</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleMute(24)} disabled={isMuting} style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 12, borderRadius: 10, alignItems: "center" }}>
+                            <Text style={{ color: colors.foreground, fontWeight: "500" }}>24 Stunden</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
+
+            {/* Chart */}
+            <View style={{ marginBottom: 24, backgroundColor: colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                    <Text style={{ fontSize: 16, fontWeight: "600", color: colors.foreground }}>Antwortzeiten (letzte Checks)</Text>
+                    {validLogs.length > 0 && (
+                        <Text style={{ fontSize: 12, color: colors.muted }}>Max: {Math.round(maxResponseTime)} ms</Text>
+                    )}
+                </View>
+                <View style={{ height: 120, flexDirection: "row", alignItems: "flex-end", gap: 6 }}>
+                    {validLogs.length > 0 ? validLogs.map((l: any, i: number) => {
+                        const heightPercent = Math.max(4, (l.response_time / maxResponseTime) * 100);
+                        const isError = l.status === 'down';
+                        const isSlow = l.response_time > 1000 && !isError;
+                        const barColor = isError ? colors.error : isSlow ? "#F59E0B" : colors.primary;
+                        const isLatest = i === validLogs.length - 1;
+                        return (
+                            <View key={i} style={{ flex: 1, alignItems: "center", justifyContent: "flex-end", height: "100%" }}>
+                                <View style={{ 
+                                    width: "100%", 
+                                    height: `${heightPercent}%`, 
+                                    backgroundColor: barColor, 
+                                    opacity: isLatest ? 1 : 0.6, 
+                                    borderTopLeftRadius: 4, 
+                                    borderTopRightRadius: 4,
+                                    borderBottomLeftRadius: 2,
+                                    borderBottomRightRadius: 2
+                                }} />
+                            </View>
+                        );
+                    }) : (
+                        <Text style={{ color: colors.muted, width: "100%", textAlign: "center", alignSelf: "center" }}>Keine Daten für Chart</Text>
+                    )}
+                </View>
             </View>
 
             <Text style={{ fontSize: 16, fontWeight: "600", color: colors.foreground, marginBottom: 16 }}>

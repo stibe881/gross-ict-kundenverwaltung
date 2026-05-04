@@ -80,6 +80,9 @@ serve(async (req) => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
         
+        let resText = "";
+        let errorMessage: string | undefined = undefined;
+
         try {
           const res = await fetch(entry.url, {
             method: "GET",
@@ -90,15 +93,25 @@ serve(async (req) => {
           statusCode = res.status;
           status = (statusCode >= 200 && statusCode < 400) ? 'up' : 'down';
           sslValid = true; // If fetch succeeds, SSL is natively verified and valid
+          
+          if (status === 'up' && entry.expected_keyword) {
+              resText = await res.text();
+              if (!resText.toLowerCase().includes(entry.expected_keyword.toLowerCase())) {
+                  status = 'down';
+                  errorMessage = `Suchwort "${entry.expected_keyword}" nicht gefunden.`;
+              }
+          }
+          if (status === 'down' && !errorMessage) {
+              errorMessage = `HTTP Fehler: ${statusCode}`;
+          }
         } catch (e: any) {
           clearTimeout(timeoutId);
           status = 'down';
-          // If the fetch fails due to an SSL issue, Deno throws a specific TypeError or network error.
-          // If it's a timeout, it might not be an SSL error, but we mark SSL as false if it's explicitly a cert issue.
+          errorMessage = e.message || "Unbekannter Netzwerkfehler";
           if (e.message && e.message.toLowerCase().includes("certificate")) {
               sslValid = false;
+              errorMessage = "SSL-Zertifikat ungültig oder abgelaufen";
           } else {
-              // If the site is just down, we can't be sure about SSL, but we keep the last known state or set to false.
               sslValid = entry.ssl_valid === true; 
           }
         }
@@ -112,7 +125,22 @@ serve(async (req) => {
           status,
           status_code: statusCode,
           response_time: responseTime,
+          error_message: status === 'down' ? errorMessage : null,
         });
+
+        let domainAlertFired = false;
+        let isMuted = false;
+        
+        if (entry.muted_until && new Date(entry.muted_until).getTime() > Date.now()) {
+            isMuted = true;
+        }
+
+        if (entry.domain_expiry && !entry.domain_alert_sent) {
+            const daysLeft = (new Date(entry.domain_expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+            if (daysLeft <= 30 && daysLeft > -100) {
+                domainAlertFired = true;
+            }
+        }
 
         // 4. Update URL
         await supabaseAdmin.from('monitoring_urls').update({
@@ -120,18 +148,29 @@ serve(async (req) => {
           last_status_code: statusCode,
           last_response_time: responseTime,
           last_checked_at: new Date().toISOString(),
+          last_error: status === 'down' ? errorMessage : null,
           ssl_valid: sslInfo.valid,
+          ...(domainAlertFired ? { domain_alert_sent: true } : {})
         }).eq('id', entry.id);
 
         // 5. Check if it went down or SSL is invalid
         const wentDown = entry.last_status === 'up' && status === 'down';
+        const contentMatchFailed = status === 'down' && statusCode && statusCode >= 200 && statusCode < 400 && entry.expected_keyword && !resText.toLowerCase().includes(entry.expected_keyword.toLowerCase());
         
-        if (wentDown || (!sslInfo.valid && entry.url.startsWith('https://') && entry.ssl_valid === true)) {
-          if (!isManualCheck) {
+        if (!isManualCheck && !isMuted) {
+          if (wentDown || (!sslInfo.valid && entry.url.startsWith('https://') && entry.ssl_valid === true) || domainAlertFired) {
             // Send Alerts
             for (const user of alertUsers) {
-              const alertReason = wentDown ? `Die Webseite ist nicht mehr erreichbar (HTTP ${statusCode || 'Timeout'}).` : `Das SSL-Zertifikat ist ungültig oder abgelaufen.`;
-              const alertTitle = `Überwachung: ${entry.name} hat ein Problem`;
+              let alertReason = wentDown ? `Die Webseite ist nicht mehr erreichbar (HTTP ${statusCode || 'Timeout'}).` : `Das SSL-Zertifikat ist ungültig oder abgelaufen.`;
+              let alertTitle = `Überwachung: ${entry.name} hat ein Problem`;
+              
+              if (contentMatchFailed) {
+                  alertReason = `Die Webseite lädt zwar (HTTP ${statusCode}), aber das Wort "${entry.expected_keyword}" wurde nicht gefunden!`;
+              } else if (domainAlertFired && !wentDown && sslInfo.valid) {
+                  alertTitle = `Domain-Ablauf: ${entry.name}`;
+                  const daysLeft = Math.floor((new Date(entry.domain_expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  alertReason = `Die Domain läuft in ${daysLeft} Tagen ab (${new Date(entry.domain_expiry).toLocaleDateString('de-CH')}).`;
+              }
             
             // Push Notification
             const pushPayload = {

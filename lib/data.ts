@@ -4242,6 +4242,10 @@ export async function createMonitoringUrl(payload: {
     url: string;
     check_interval?: number;
     notes?: string;
+    expected_keyword?: string;
+    customer_id?: string;
+    muted_until?: string;
+    domain_expiry?: string;
 }) {
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData.session?.user?.id;
@@ -4312,6 +4316,10 @@ export async function updateMonitoringUrl(id: string, updates: Partial<{
     check_interval: number;
     notes: string;
     is_active: boolean;
+    expected_keyword: string;
+    customer_id: string;
+    muted_until: string | null;
+    domain_expiry: string | null;
 }>) {
     const { data, error } = await supabase
         .from('monitoring_urls')
