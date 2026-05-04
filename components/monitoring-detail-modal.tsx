@@ -138,14 +138,12 @@ export function MonitoringDetailModal({ visible, onClose, urlEntry }: Monitoring
                         </Text>
                     </View>
                 )}
-                {urlEntry.ssl_valid != null && (
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>SSL-Zertifikat</Text>
-                        <Text style={{ fontSize: 13, fontWeight: "500", color: urlEntry.ssl_valid ? "#16A34A" : colors.error, flex: 1, textAlign: "right" }}>
-                            {urlEntry.ssl_valid ? "Gültig" : "Fehlerhaft"}
-                        </Text>
-                    </View>
-                )}
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>SSL-Zertifikat</Text>
+                    <Text style={{ fontSize: 13, fontWeight: "500", color: urlEntry.ssl_valid == null ? colors.muted : (urlEntry.ssl_valid ? "#16A34A" : colors.error), flex: 1, textAlign: "right" }}>
+                        {urlEntry.ssl_valid == null ? "Wird bei nächster Prüfung ermittelt" : (urlEntry.ssl_valid ? "Gültig" : "Fehlerhaft")}
+                    </Text>
+                </View>
                 {urlEntry.ssl_expiry && (
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>SSL läuft ab am</Text>
