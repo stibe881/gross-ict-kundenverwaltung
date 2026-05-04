@@ -8,7 +8,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-async function checkSsl(url: string): Promise<{ valid: boolean; expiry?: string; issuer?: string }> {
+async function checkSsl(url: string): Promise<{ valid: boolean; expiry?: string; issuer?: string; errorMsg?: string }> {
   return new Promise((resolve) => {
     let resolved = false;
     const safeResolve = (val: any) => {
@@ -19,14 +19,14 @@ async function checkSsl(url: string): Promise<{ valid: boolean; expiry?: string;
     };
 
     const fallbackTimeout = setTimeout(() => {
-        safeResolve({ valid: false });
+        safeResolve({ valid: false, errorMsg: "Fallback timeout after 6s" });
     }, 6000);
 
     try {
       const urlObj = new URL(url);
       if (urlObj.protocol !== 'https:') {
         clearTimeout(fallbackTimeout);
-        return safeResolve({ valid: false });
+        return safeResolve({ valid: false, errorMsg: "Not HTTPS" });
       }
 
       const req = https.request({
@@ -38,6 +38,12 @@ async function checkSsl(url: string): Promise<{ valid: boolean; expiry?: string;
       }, (res) => {
         clearTimeout(fallbackTimeout);
         try {
+            if (typeof (res.socket as any)?.getPeerCertificate !== 'function') {
+                res.destroy();
+                req.destroy();
+                return safeResolve({ valid: false, errorMsg: "getPeerCertificate is not a function" });
+            }
+            
             const cert = (res.socket as tls.TLSSocket).getPeerCertificate(true);
             res.destroy();
             req.destroy();
@@ -48,32 +54,33 @@ async function checkSsl(url: string): Promise<{ valid: boolean; expiry?: string;
                 valid: isNotExpired,
                 expiry: new Date(cert.valid_to).toISOString(),
                 issuer: cert.issuer?.O || cert.issuer?.CN,
+                errorMsg: isNotExpired ? undefined : "Expired",
               });
             } else {
-              safeResolve({ valid: false });
+              safeResolve({ valid: false, errorMsg: "Certificate empty or valid_to missing. cert=" + JSON.stringify(cert || {}) });
             }
-        } catch (e) {
+        } catch (e: any) {
             res.destroy();
             req.destroy();
-            safeResolve({ valid: false });
+            safeResolve({ valid: false, errorMsg: "Error parsing cert: " + e.message });
         }
       });
 
       req.on('timeout', () => {
         req.destroy();
         clearTimeout(fallbackTimeout);
-        safeResolve({ valid: false });
+        safeResolve({ valid: false, errorMsg: "https.request timeout" });
       });
 
-      req.on('error', () => {
+      req.on('error', (e) => {
         clearTimeout(fallbackTimeout);
-        safeResolve({ valid: false });
+        safeResolve({ valid: false, errorMsg: "https.request error: " + e.message });
       });
 
       req.end();
-    } catch (e) {
+    } catch (e: any) {
       clearTimeout(fallbackTimeout);
-      safeResolve({ valid: false });
+      safeResolve({ valid: false, errorMsg: "Outer catch: " + e.message });
     }
   });
 }
@@ -162,9 +169,12 @@ serve(async (req) => {
         }
 
         // 2. Check SSL
-        let sslInfo = { valid: false, expiry: undefined, issuer: undefined };
+        let sslInfo = { valid: false, expiry: undefined, issuer: undefined, errorMsg: undefined };
         if (entry.url.startsWith('https://')) {
           sslInfo = await checkSsl(entry.url) as any;
+          if (sslInfo.errorMsg) {
+              errors.push(`URL ${entry.url} SSL Error: ${sslInfo.errorMsg}`);
+          }
         }
 
         // 3. Save Log

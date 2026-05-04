@@ -239,7 +239,10 @@ export default function UeberwachungScreen() {
     const handleCheck = useCallback(async (entry: MonitoringUrl) => {
         setCheckingIds(prev => ({ ...prev, [entry.id]: true }));
         try {
-            await Data.checkMonitoringUrlViaEdgeFunction(entry.id);
+            const result = await Data.checkMonitoringUrlViaEdgeFunction(entry.id);
+            if (result?.errors && result.errors.length > 0) {
+                Alert.alert("SSL Debug Info", result.errors.join("\n"));
+            }
             queryClient.invalidateQueries({ queryKey: ["monitoringUrls"] });
         } catch (e) {
             console.error("Check failed:", e);
