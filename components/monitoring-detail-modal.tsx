@@ -177,6 +177,15 @@ export function MonitoringDetailModal({ visible, onClose, urlEntry }: Monitoring
                         </Text>
                     </View>
                 )}
+                {urlEntry.last_status === 'down' && urlEntry.down_since && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4 }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>Offline seit</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "500", color: colors.error, flex: 1, textAlign: "right" }}>
+                            {new Date(urlEntry.down_since).toLocaleString('de-CH')}
+                            {urlEntry.escalation_level > 0 && ` (Eskalation Stufe ${urlEntry.escalation_level})`}
+                        </Text>
+                    </View>
+                )}
                 {uptimePercentage != null && (
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>Uptime (Letzte {logs.length} Checks)</Text>
@@ -236,6 +245,54 @@ export function MonitoringDetailModal({ visible, onClose, urlEntry }: Monitoring
                         <Text style={{ fontSize: 13, fontWeight: "500", color: colors.foreground, flex: 1, textAlign: "right" }}>
                             {urlEntry.ssl_issuer}
                         </Text>
+                    </View>
+                )}
+                {urlEntry.server_info && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "30%" }}>Server Info</Text>
+                        <Text style={{ fontSize: 13, color: colors.foreground, flex: 1, textAlign: "right" }}>
+                            {urlEntry.server_info}
+                        </Text>
+                    </View>
+                )}
+                {urlEntry.security_warnings && urlEntry.security_warnings.length > 0 && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4 }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "30%" }}>Sicherheits-Warnungen</Text>
+                        <View style={{ flex: 1, alignItems: "flex-end" }}>
+                            {urlEntry.security_warnings.map((w: string, i: number) => (
+                                <Text key={i} style={{ fontSize: 13, color: colors.error, fontWeight: "500", textAlign: "right", marginBottom: 2 }}>
+                                    ⚠️ {w}
+                                </Text>
+                            ))}
+                        </View>
+                    </View>
+                )}
+                {urlEntry.dns_a_records && urlEntry.dns_a_records.length > 0 && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4 }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "30%" }}>IP-Adressen (A)</Text>
+                        <Text style={{ fontSize: 13, color: colors.foreground, flex: 1, textAlign: "right" }}>
+                            {urlEntry.dns_a_records.join(", ")}
+                        </Text>
+                    </View>
+                )}
+                {urlEntry.dns_mx_records && urlEntry.dns_mx_records.length > 0 && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4 }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "30%" }}>Mailserver (MX)</Text>
+                        <Text style={{ fontSize: 13, color: colors.foreground, flex: 1, textAlign: "right" }}>
+                            {urlEntry.dns_mx_records.join(", ")}
+                        </Text>
+                    </View>
+                )}
+                {urlEntry.dns_warnings && urlEntry.dns_warnings.length > 0 && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4 }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "30%" }}>DNS Warnungen</Text>
+                        <View style={{ flex: 1, alignItems: "flex-end" }}>
+                            {urlEntry.dns_warnings.map((w: string, i: number) => (
+                                <Text key={i} style={{ fontSize: 13, color: "#F59E0B", fontWeight: "500", textAlign: "right", marginBottom: 2 }}>
+                                    ⚠️ {w}
+                                </Text>
+                            ))}
+                        </View>
                     </View>
                 )}
                 {urlEntry.notes && (
