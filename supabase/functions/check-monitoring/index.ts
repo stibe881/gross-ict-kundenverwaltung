@@ -43,9 +43,9 @@ async function checkSsl(url: string): Promise<{ valid: boolean; expiry?: string;
             req.destroy();
 
             if (cert && cert.valid_to) {
-              const isAuthorized = (res.socket as tls.TLSSocket).authorized;
+              const isNotExpired = new Date(cert.valid_to).getTime() > Date.now();
               safeResolve({
-                valid: isAuthorized,
+                valid: isNotExpired,
                 expiry: new Date(cert.valid_to).toISOString(),
                 issuer: cert.issuer?.O || cert.issuer?.CN,
               });
