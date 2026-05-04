@@ -103,8 +103,75 @@ export function MonitoringDetailModal({ visible, onClose, urlEntry }: Monitoring
             </TouchableOpacity>
           </View>
 
-          {/* Verlauf */}
+          {/* Details & Verlauf */}
           <ScrollView style={{ padding: 20 }}>
+            {/* Details Section */}
+            <Text style={{ fontSize: 16, fontWeight: "600", color: colors.foreground, marginBottom: 12 }}>
+              Details
+            </Text>
+            <View style={{
+                backgroundColor: colors.surface,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: colors.border,
+                padding: 16,
+                marginBottom: 24,
+                gap: 12
+            }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>Status Überwachung</Text>
+                    <Text style={{ fontSize: 13, fontWeight: "500", color: urlEntry.is_active ? "#16A34A" : colors.muted, flex: 1, textAlign: "right" }}>
+                        {urlEntry.is_active ? "Aktiv" : "Pausiert"}
+                    </Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>Letzte Prüfung</Text>
+                    <Text style={{ fontSize: 13, fontWeight: "500", color: colors.foreground, flex: 1, textAlign: "right" }}>
+                        {urlEntry.last_checked_at ? new Date(urlEntry.last_checked_at).toLocaleString('de-CH') : "Noch nicht geprüft"}
+                    </Text>
+                </View>
+                {urlEntry.last_response_time != null && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>Antwortzeit</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "500", color: colors.foreground, flex: 1, textAlign: "right" }}>
+                            {urlEntry.last_response_time} ms
+                        </Text>
+                    </View>
+                )}
+                {urlEntry.ssl_valid != null && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>SSL-Zertifikat</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "500", color: urlEntry.ssl_valid ? "#16A34A" : colors.error, flex: 1, textAlign: "right" }}>
+                            {urlEntry.ssl_valid ? "Gültig" : "Fehlerhaft"}
+                        </Text>
+                    </View>
+                )}
+                {urlEntry.ssl_expiry && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>SSL läuft ab am</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "500", color: colors.foreground, flex: 1, textAlign: "right" }}>
+                            {new Date(urlEntry.ssl_expiry).toLocaleDateString('de-CH')}
+                        </Text>
+                    </View>
+                )}
+                {urlEntry.ssl_issuer && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>SSL Aussteller</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "500", color: colors.foreground, flex: 1, textAlign: "right" }}>
+                            {urlEntry.ssl_issuer}
+                        </Text>
+                    </View>
+                )}
+                {urlEntry.notes && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "30%" }}>Notizen</Text>
+                        <Text style={{ fontSize: 13, color: colors.foreground, flex: 1, textAlign: "right" }}>
+                            {urlEntry.notes}
+                        </Text>
+                    </View>
+                )}
+            </View>
+
             <Text style={{ fontSize: 16, fontWeight: "600", color: colors.foreground, marginBottom: 16 }}>
               Verlauf der Überprüfungen
             </Text>
