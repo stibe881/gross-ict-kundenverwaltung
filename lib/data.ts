@@ -1932,7 +1932,7 @@ export const ROLE_TILE_ACCESS: Record<string, string[]> = {
     administration: ["customers", "leads", "quotes", "contracts"],
     akquise: ["leads", "quotes"],
     finanzen: ["accounting"],
-    technik: ["tickets", "knowledge-base", "projects", "contracts", "links", "tasks"],
+    technik: ["tickets", "knowledge-base", "projects", "contracts", "links", "tasks", "uberwachung"],
     projekte: ["projects"],
     marketing: ["marketing", "newsletter"],
 };
@@ -4224,4 +4224,83 @@ export async function deleteBudget(year: number, category: string) {
         .eq('category', category);
     if (error) throw new Error(error.message);
     return { success: true };
+}
+
+// ==================== ÜBERWACHUNG (URL MONITORING) ====================
+
+export async function getMonitoringUrls() {
+    const { data, error } = await supabase
+        .from('monitoring_urls')
+        .select('*')
+        .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createMonitoringUrl(payload: {
+    name: string;
+    url: string;
+    check_interval?: number;
+    notes?: string;
+}) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id;
+
+    const { data, error } = await supabase
+        .from('monitoring_urls')
+        .insert({
+            ...payload,
+            user_id: userId,
+            check_interval: payload.check_interval ?? 5,
+            last_status: 'unknown',
+        })
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateMonitoringUrl(id: string, updates: Partial<{
+    name: string;
+    url: string;
+    check_interval: number;
+    notes: string;
+    is_active: boolean;
+}>) {
+    const { data, error } = await supabase
+        .from('monitoring_urls')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteMonitoringUrl(id: string) {
+    const { error } = await supabase
+        .from('monitoring_urls')
+        .delete()
+        .eq('id', id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
+export async function saveMonitoringCheckResult(id: string, result: {
+    last_status: 'up' | 'down' | 'unknown';
+    last_status_code?: number;
+    last_response_time?: number;
+}) {
+    const { data, error } = await supabase
+        .from('monitoring_urls')
+        .update({
+            ...result,
+            last_checked_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
 }

@@ -270,6 +270,14 @@ export default function DashboardScreen() {
           color: "#8B5CF6",
           route: "/links",
         },
+        {
+          id: "uberwachung",
+          title: "Überwachung",
+          subtitle: "URL-Monitoring",
+          icon: "wifi",
+          color: "#06B6D4",
+          route: "/uberwachung",
+        },
       ],
     },
     {

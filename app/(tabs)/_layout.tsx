@@ -194,6 +194,7 @@ export default function TabLayout() {
       <Tabs.Screen name="dunning-settings" options={{ href: null, title: "Mahnwesen Settings" }} />
       <Tabs.Screen name="business-card" options={{ href: null, title: "Visitenkarte" }} />
       <Tabs.Screen name="users" options={{ href: null, title: "Mitarbeitende" }} />
+      <Tabs.Screen name="uberwachung" options={{ href: null, title: "Überwachung" }} />
     </Tabs>
   );
 }
