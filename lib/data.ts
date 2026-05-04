@@ -4298,6 +4298,14 @@ async function pingAndSaveBackground(id: string, url: string) {
     }
 }
 
+export async function checkMonitoringUrlViaEdgeFunction(url_id: string) {
+    const { data, error } = await supabase.functions.invoke('check-monitoring', {
+        body: { url_id }
+    });
+    if (error) throw error;
+    return data;
+}
+
 export async function updateMonitoringUrl(id: string, updates: Partial<{
     name: string;
     url: string;

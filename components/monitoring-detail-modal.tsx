@@ -138,12 +138,30 @@ export function MonitoringDetailModal({ visible, onClose, urlEntry }: Monitoring
                         </Text>
                     </View>
                 )}
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>SSL-Zertifikat</Text>
-                    <Text style={{ fontSize: 13, fontWeight: "500", color: urlEntry.ssl_valid == null ? colors.muted : (urlEntry.ssl_valid ? "#16A34A" : colors.error), flex: 1, textAlign: "right" }}>
-                        {urlEntry.ssl_valid == null ? "Wird durch automatischen Hintergrund-Check ermittelt" : (urlEntry.ssl_valid ? "Gültig" : "Fehlerhaft")}
-                    </Text>
-                </View>
+                {(() => {
+                    let sslColor = urlEntry.ssl_valid == null ? colors.muted : (urlEntry.ssl_valid ? "#16A34A" : colors.error);
+                    let sslText = urlEntry.ssl_valid == null ? "Wird durch automatischen Hintergrund-Check ermittelt" : (urlEntry.ssl_valid ? "Gültig" : "Fehlerhaft");
+                    
+                    if (urlEntry.ssl_valid && urlEntry.ssl_expiry) {
+                        const daysLeft = (new Date(urlEntry.ssl_expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+                        if (daysLeft < 14 && daysLeft > 0) {
+                            sslColor = "#F59E0B"; // Orange
+                            sslText = "Läuft bald ab";
+                        } else if (daysLeft <= 0) {
+                            sslColor = colors.error;
+                            sslText = "Abgelaufen";
+                        }
+                    }
+
+                    return (
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>SSL-Zertifikat</Text>
+                            <Text style={{ fontSize: 13, fontWeight: "500", color: sslColor, flex: 1, textAlign: "right" }}>
+                                {sslText}
+                            </Text>
+                        </View>
+                    );
+                })()}
                 {urlEntry.ssl_expiry && (
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>SSL läuft ab am</Text>

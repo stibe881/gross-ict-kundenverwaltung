@@ -239,15 +239,10 @@ export default function UeberwachungScreen() {
     const handleCheck = useCallback(async (entry: MonitoringUrl) => {
         setCheckingIds(prev => ({ ...prev, [entry.id]: true }));
         try {
-            const result = await pingUrl(entry.url);
-            await Data.saveMonitoringCheckResult(entry.id, {
-                last_status: result.status,
-                last_status_code: result.statusCode,
-                last_response_time: result.responseTime,
-            });
+            await Data.checkMonitoringUrlViaEdgeFunction(entry.id);
             queryClient.invalidateQueries({ queryKey: ["monitoringUrls"] });
         } catch (e) {
-            // Stille Fehler – Result wurde schon gespeichert
+            console.error("Check failed:", e);
         } finally {
             setCheckingIds(prev => ({ ...prev, [entry.id]: false }));
         }

@@ -64,11 +64,24 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Fetch active monitoring URLs
-    const { data: urls, error: fetchError } = await supabaseAdmin
-      .from("monitoring_urls")
-      .select("*")
-      .eq("is_active", true);
+    let reqBody: any = {};
+    if (req.body) {
+      try {
+        reqBody = await req.json();
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    let urlsQuery = supabaseAdmin.from("monitoring_urls").select("*");
+    
+    if (reqBody.url_id) {
+        urlsQuery = urlsQuery.eq("id", reqBody.url_id);
+    } else {
+        urlsQuery = urlsQuery.eq("is_active", true);
+    }
+
+    const { data: urls, error: fetchError } = await urlsQuery;
 
     if (fetchError) {
       throw new Error(fetchError.message);
@@ -79,6 +92,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const isManualCheck = !!reqBody.url_id;
 
     // Fetch users who want monitoring alerts
     const { data: usersToAlert } = await supabaseAdmin
@@ -157,10 +172,11 @@ serve(async (req) => {
         }
 
         if (wentDown || (!sslInfo.valid && entry.url.startsWith('https://') && entry.ssl_valid === true)) {
-          // Send Alerts
-          for (const user of alertUsers) {
-            const alertReason = wentDown ? `Die Webseite ist nicht mehr erreichbar (HTTP ${statusCode || 'Timeout'}).` : `Das SSL-Zertifikat ist ungültig oder abgelaufen.`;
-            const alertTitle = `Überwachung: ${entry.name} hat ein Problem`;
+          if (!isManualCheck) {
+            // Send Alerts
+            for (const user of alertUsers) {
+              const alertReason = wentDown ? `Die Webseite ist nicht mehr erreichbar (HTTP ${statusCode || 'Timeout'}).` : `Das SSL-Zertifikat ist ungültig oder abgelaufen.`;
+              const alertTitle = `Überwachung: ${entry.name} hat ein Problem`;
             
             // Push Notification
             const pushPayload = {
@@ -211,8 +227,9 @@ serve(async (req) => {
             }
           }
         }
+      }
 
-        processed++;
+      processed++;
       } catch (e: any) {
         errors.push(`URL ${entry.id}: ${e.message}`);
       }
