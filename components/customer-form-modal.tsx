@@ -74,7 +74,9 @@ export function CustomerFormModal({
     city: editCustomer?.city || "",
     postalCode: editCustomer?.postal_code || "",
     country: editCustomer?.country || "Schweiz",
+    website: editCustomer?.website || "",
   });
+  const [monitorWebsite, setMonitorWebsite] = useState(false);
   const [logoUri, setLogoUri] = useState<string | null>(editCustomer?.logo_url || null);
   const [logoChanged, setLogoChanged] = useState(false);
   const [contacts, setContacts] = useState<ContactEntry[]>([]);
@@ -95,7 +97,9 @@ export function CustomerFormModal({
         city: editCustomer.city || "",
         postalCode: editCustomer.postal_code || "",
         country: editCustomer.country || "Schweiz",
+        website: editCustomer.website || "",
       });
+      setMonitorWebsite(false); // Reset monitoring toggle when opening edit
       setLogoUri(editCustomer.logo_url || null);
       setLogoChanged(false);
     }
@@ -115,6 +119,7 @@ export function CustomerFormModal({
         city: data.city,
         postal_code: data.postalCode,
         country: data.country,
+        website: data.website,
       };
 
       let result;
@@ -158,6 +163,23 @@ export function CustomerFormModal({
         }
       }
 
+      // Create monitoring URL if requested
+      if (monitorWebsite && data.website) {
+        try {
+          let finalUrl = data.website.trim();
+          if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
+            finalUrl = "https://" + finalUrl;
+          }
+          await Data.createMonitoringUrl({
+            name: (data.companyName || `${data.firstName} ${data.lastName}`).trim(),
+            url: finalUrl,
+            notes: "Automatisch vom Kundenprofil erstellt",
+          });
+        } catch (e: any) {
+          console.warn("Monitoring URL creation failed:", e.message);
+        }
+      }
+
       return result;
     },
     onSuccess: () => {
@@ -184,7 +206,9 @@ export function CustomerFormModal({
       city: "",
       postalCode: "",
       country: "Schweiz",
+      website: "",
     });
+    setMonitorWebsite(false);
     setLogoUri(null);
     setLogoChanged(false);
     setContacts([]);
@@ -447,6 +471,34 @@ export function CustomerFormModal({
                 (text) => setFormData({ ...formData, country: text }),
                 { placeholder: "Schweiz" }
               )}
+
+              {/* Webseite */}
+              <View className="mb-2">
+                {renderInput("Webseite", formData.website,
+                  (text) => setFormData({ ...formData, website: text }),
+                  { placeholder: "https://www.musterfirma.ch", keyboard: "url", autoCapitalize: "none" }
+                )}
+                {formData.website.length > 0 && (
+                  <TouchableOpacity
+                    className="flex-row items-center gap-2 mt-3"
+                    onPress={() => setMonitorWebsite(!monitorWebsite)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      className="w-5 h-5 rounded border items-center justify-center"
+                      style={{
+                        backgroundColor: monitorWebsite ? colors.primary : "transparent",
+                        borderColor: monitorWebsite ? colors.primary : colors.border,
+                      }}
+                    >
+                      {monitorWebsite && (
+                        <IconSymbol name="checkmark" size={12} color="#111" />
+                      )}
+                    </View>
+                    <Text className="text-sm text-foreground">Webseite in das Überwachungs-Modul aufnehmen</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
 
               {/* Ansprechpartner (nur Firmenkunde) */}
               {customerType === "business" && (

@@ -296,6 +296,7 @@ export type Database = {
           postal_code: string | null
           status: string | null
           updated_at: string | null
+          website: string | null
         }
         Insert: {
           address?: string | null
@@ -313,6 +314,7 @@ export type Database = {
           postal_code?: string | null
           status?: string | null
           updated_at?: string | null
+          website?: string | null
         }
         Update: {
           address?: string | null
@@ -330,6 +332,7 @@ export type Database = {
           postal_code?: string | null
           status?: string | null
           updated_at?: string | null
+          website?: string | null
         }
         Relationships: []
       }
