@@ -29,24 +29,21 @@ async function checkSsl(url: string): Promise<{ valid: boolean; expiry?: string;
         return safeResolve({ valid: false, errorMsg: "Not HTTPS" });
       }
 
-      const req = https.request({
+      const socket = tls.connect({
         host: urlObj.hostname,
         port: urlObj.port || 443,
-        method: 'GET',
+        servername: urlObj.hostname,
         rejectUnauthorized: false,
-        timeout: 5000,
-      }, (res) => {
+      }, () => {
         clearTimeout(fallbackTimeout);
         try {
-            if (typeof (res.socket as any)?.getPeerCertificate !== 'function') {
-                res.destroy();
-                req.destroy();
+            if (typeof (socket as any)?.getPeerCertificate !== 'function') {
+                socket.destroy();
                 return safeResolve({ valid: false, errorMsg: "getPeerCertificate is not a function" });
             }
             
-            const cert = (res.socket as tls.TLSSocket).getPeerCertificate(true);
-            res.destroy();
-            req.destroy();
+            const cert = socket.getPeerCertificate(true);
+            socket.destroy();
 
             if (cert && cert.valid_to) {
               const isNotExpired = new Date(cert.valid_to).getTime() > Date.now();
@@ -60,24 +57,23 @@ async function checkSsl(url: string): Promise<{ valid: boolean; expiry?: string;
               safeResolve({ valid: false, errorMsg: "Certificate empty or valid_to missing. cert=" + JSON.stringify(cert || {}) });
             }
         } catch (e: any) {
-            res.destroy();
-            req.destroy();
+            socket.destroy();
             safeResolve({ valid: false, errorMsg: "Error parsing cert: " + e.message });
         }
       });
 
-      req.on('timeout', () => {
-        req.destroy();
+      socket.setTimeout(5000);
+      socket.on('timeout', () => {
+        socket.destroy();
         clearTimeout(fallbackTimeout);
-        safeResolve({ valid: false, errorMsg: "https.request timeout" });
+        safeResolve({ valid: false, errorMsg: "tls.connect timeout" });
       });
 
-      req.on('error', (e) => {
+      socket.on('error', (e) => {
         clearTimeout(fallbackTimeout);
-        safeResolve({ valid: false, errorMsg: "https.request error: " + e.message });
+        safeResolve({ valid: false, errorMsg: "tls.connect error: " + e.message });
       });
 
-      req.end();
     } catch (e: any) {
       clearTimeout(fallbackTimeout);
       safeResolve({ valid: false, errorMsg: "Outer catch: " + e.message });
