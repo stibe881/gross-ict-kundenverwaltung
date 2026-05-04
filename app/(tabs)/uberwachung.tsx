@@ -585,7 +585,7 @@ export default function UeberwachungScreen() {
                                         justifyContent: "space-between",
                                         backgroundColor: colors.background + "60",
                                     }}>
-                                        <View style={{ flexDirection: "row", gap: 20 }}>
+                                        <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap", flex: 1, paddingRight: 10 }}>
                                             {/* Letzte Prüfung */}
                                             <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
                                                 <IconSymbol name="clock" size={13} color={colors.muted} />
@@ -630,6 +630,7 @@ export default function UeberwachungScreen() {
                                             }}
                                             disabled={isChecking}
                                             style={{
+                                                flexShrink: 0,
                                                 flexDirection: "row",
                                                 alignItems: "center",
                                                 gap: 6,
