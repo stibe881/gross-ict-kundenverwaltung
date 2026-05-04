@@ -4257,7 +4257,45 @@ export async function createMonitoringUrl(payload: {
         .select()
         .single();
     if (error) throw new Error(error.message);
+
+    // Auto-Ping nach Erstellung (Hintergrund)
+    pingAndSaveBackground(data.id, payload.url).catch(() => {});
+
     return data;
+}
+
+async function pingAndSaveBackground(id: string, url: string) {
+    try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const start = Date.now();
+        let status: 'up' | 'down' = 'down';
+        let statusCode: number | undefined;
+        let responseTime: number | undefined;
+        
+        try {
+            const res = await fetch(url, {
+                method: "GET",
+                signal: controller.signal,
+                ...(Platform.OS === "web" ? { mode: "no-cors" } : {}),
+            });
+            clearTimeout(timeout);
+            responseTime = Date.now() - start;
+            statusCode = res.status;
+            status = 'up';
+        } catch {
+            clearTimeout(timeout);
+            status = 'down';
+        }
+        
+        await saveMonitoringCheckResult(id, {
+            last_status: status,
+            last_status_code: statusCode,
+            last_response_time: responseTime,
+        });
+    } catch (e) {
+        console.error("Auto-Ping failed", e);
+    }
 }
 
 export async function updateMonitoringUrl(id: string, updates: Partial<{
