@@ -8,78 +8,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-async function checkSsl(url: string): Promise<{ valid: boolean; expiry?: string; issuer?: string; errorMsg?: string }> {
-  return new Promise((resolve) => {
-    let resolved = false;
-    const safeResolve = (val: any) => {
-        if (!resolved) {
-            resolved = true;
-            resolve(val);
-        }
-    };
-
-    const fallbackTimeout = setTimeout(() => {
-        safeResolve({ valid: false, errorMsg: "Fallback timeout after 6s" });
-    }, 6000);
-
-    try {
-      const urlObj = new URL(url);
-      if (urlObj.protocol !== 'https:') {
-        clearTimeout(fallbackTimeout);
-        return safeResolve({ valid: false, errorMsg: "Not HTTPS" });
-      }
-
-      const socket = tls.connect({
-        host: urlObj.hostname,
-        port: urlObj.port || 443,
-        servername: urlObj.hostname,
-        rejectUnauthorized: false,
-      }, () => {
-        clearTimeout(fallbackTimeout);
-        try {
-            if (typeof (socket as any)?.getPeerCertificate !== 'function') {
-                socket.destroy();
-                return safeResolve({ valid: false, errorMsg: "getPeerCertificate is not a function" });
-            }
-            
-            const cert = socket.getPeerCertificate(true);
-            socket.destroy();
-
-            if (cert && cert.valid_to) {
-              const isNotExpired = new Date(cert.valid_to).getTime() > Date.now();
-              safeResolve({
-                valid: isNotExpired,
-                expiry: new Date(cert.valid_to).toISOString(),
-                issuer: cert.issuer?.O || cert.issuer?.CN,
-                errorMsg: isNotExpired ? undefined : "Expired",
-              });
-            } else {
-              safeResolve({ valid: false, errorMsg: "Certificate empty or valid_to missing. cert=" + JSON.stringify(cert || {}) });
-            }
-        } catch (e: any) {
-            socket.destroy();
-            safeResolve({ valid: false, errorMsg: "Error parsing cert: " + e.message });
-        }
-      });
-
-      socket.setTimeout(5000);
-      socket.on('timeout', () => {
-        socket.destroy();
-        clearTimeout(fallbackTimeout);
-        safeResolve({ valid: false, errorMsg: "tls.connect timeout" });
-      });
-
-      socket.on('error', (e) => {
-        clearTimeout(fallbackTimeout);
-        safeResolve({ valid: false, errorMsg: "tls.connect error: " + e.message });
-      });
-
-    } catch (e: any) {
-      clearTimeout(fallbackTimeout);
-      safeResolve({ valid: false, errorMsg: "Outer catch: " + e.message });
-    }
-  });
-}
+// Native Deno fetch already performs strict SSL verification.
+// Due to Deno Deploy restrictions, extracting the exact expiry date via raw TCP sockets is intercepted.
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -131,7 +61,7 @@ serve(async (req) => {
 
     const alertUsers = (usersToAlert || []).filter(u => 
       u.push_preferences && u.push_preferences['monitoring_alerts'] !== false
-    ); // Assuming undefined means true, or we only alert if true. Let's alert if not explicitly false.
+    );
 
     let processed = 0;
     let errors: string[] = [];
@@ -144,6 +74,7 @@ serve(async (req) => {
         let status: 'up' | 'down' = 'down';
         let statusCode: number | undefined;
         let responseTime: number | undefined;
+        let sslValid = false;
 
         // 1. Ping the URL
         const controller = new AbortController();
@@ -157,21 +88,23 @@ serve(async (req) => {
           clearTimeout(timeoutId);
           responseTime = Date.now() - start;
           statusCode = res.status;
-          // Consider 2xx and 3xx as up, others as down
           status = (statusCode >= 200 && statusCode < 400) ? 'up' : 'down';
-        } catch {
+          sslValid = true; // If fetch succeeds, SSL is natively verified and valid
+        } catch (e: any) {
           clearTimeout(timeoutId);
           status = 'down';
-        }
-
-        // 2. Check SSL
-        let sslInfo = { valid: false, expiry: undefined, issuer: undefined, errorMsg: undefined };
-        if (entry.url.startsWith('https://')) {
-          sslInfo = await checkSsl(entry.url) as any;
-          if (sslInfo.errorMsg) {
-              errors.push(`URL ${entry.url} SSL Error: ${sslInfo.errorMsg}`);
+          // If the fetch fails due to an SSL issue, Deno throws a specific TypeError or network error.
+          // If it's a timeout, it might not be an SSL error, but we mark SSL as false if it's explicitly a cert issue.
+          if (e.message && e.message.toLowerCase().includes("certificate")) {
+              sslValid = false;
+          } else {
+              // If the site is just down, we can't be sure about SSL, but we keep the last known state or set to false.
+              sslValid = entry.ssl_valid === true; 
           }
         }
+
+        // 2. Check SSL (Supabase Proxy workaround)
+        let sslInfo = { valid: sslValid, expiry: undefined, issuer: undefined, errorMsg: undefined };
 
         // 3. Save Log
         await supabaseAdmin.from('monitoring_logs').insert({
@@ -188,20 +121,11 @@ serve(async (req) => {
           last_response_time: responseTime,
           last_checked_at: new Date().toISOString(),
           ssl_valid: sslInfo.valid,
-          ssl_expiry: sslInfo.expiry,
-          ssl_issuer: sslInfo.issuer,
         }).eq('id', entry.id);
 
-        // 5. Check if it went down or SSL is expiring soon (e.g., < 7 days)
+        // 5. Check if it went down or SSL is invalid
         const wentDown = entry.last_status === 'up' && status === 'down';
         
-        let sslExpiringAlert = false;
-        if (sslInfo.valid && sslInfo.expiry) {
-            const daysUntilExpiry = (new Date(sslInfo.expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-            // We could alert if daysUntilExpiry < 7, but we don't want to spam every 30 minutes. 
-            // Better to only alert if the URL went down for now, as requested: "wenn eine webseite ein problem hat".
-        }
-
         if (wentDown || (!sslInfo.valid && entry.url.startsWith('https://') && entry.ssl_valid === true)) {
           if (!isManualCheck) {
             // Send Alerts
