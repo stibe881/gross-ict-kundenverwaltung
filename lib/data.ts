@@ -1921,7 +1921,7 @@ export const ROLE_DEFINITIONS = [
     { key: "administration", label: "Administration", color: "#8B5CF6", description: "Kunden, Akquise, Angebote, Verträge" },
     { key: "akquise", label: "Akquise", color: "#0EA5E9", description: "Akquise und Angebote" },
     { key: "finanzen", label: "Finanzen", color: "#22C55E", description: "Buchhaltung" },
-    { key: "technik", label: "Technik", color: "#F59E0B", description: "Tickets, Wissensdatenbank, Projekte, Verträge, Links" },
+    { key: "technik", label: "Technik", color: "#F59E0B", description: "Tickets, Wissensdatenbank, Projekte, Verträge, Links, Überwachung" },
     { key: "projekte", label: "Projekte", color: "#14B8A6", description: "Projekte" },
     { key: "marketing", label: "Marketing", color: "#EC4899", description: "Marketingkampagnen, Newsletter & Analytics" },
 ];
