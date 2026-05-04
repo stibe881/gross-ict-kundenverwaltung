@@ -86,6 +86,10 @@ serve(async (req) => {
         try {
           const res = await fetch(entry.url, {
             method: "GET",
+            headers: {
+              "User-Agent": "Mozilla/5.0 (compatible; GrossICT-Monitoring/1.0; +https://gross-ict.ch)",
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            },
             signal: controller.signal,
           });
           clearTimeout(timeoutId);
@@ -96,9 +100,33 @@ serve(async (req) => {
           
           if (status === 'up' && entry.expected_keyword) {
               resText = await res.text();
-              if (!resText.toLowerCase().includes(entry.expected_keyword.toLowerCase())) {
-                  status = 'down';
-                  errorMessage = `Suchwort "${entry.expected_keyword}" nicht gefunden.`;
+              const lowerText = resText.toLowerCase();
+              const keyword = entry.expected_keyword.toLowerCase();
+              
+              if (!lowerText.includes(keyword)) {
+                  // Fallback: Check if it's an SPA and keyword is in the main JS bundle
+                  let foundInJs = false;
+                  const jsMatches = [...resText.matchAll(/<script[^>]+src=["']([^"']+\.js)["']/g)];
+                  
+                  // Only check up to 3 JS files to avoid timeouts
+                  for (const match of jsMatches.slice(0, 3)) {
+                      try {
+                          const jsUrl = new URL(match[1], entry.url).href;
+                          const jsRes = await fetch(jsUrl, { signal: controller.signal });
+                          const jsText = await jsRes.text();
+                          if (jsText.toLowerCase().includes(keyword)) {
+                              foundInJs = true;
+                              break;
+                          }
+                      } catch (err) {
+                          // Ignore JS fetch errors
+                      }
+                  }
+                  
+                  if (!foundInJs) {
+                      status = 'down';
+                      errorMessage = `Suchwort "${entry.expected_keyword}" nicht gefunden.`;
+                  }
               }
           }
           if (status === 'down' && !errorMessage) {
@@ -120,13 +148,17 @@ serve(async (req) => {
         let sslInfo = { valid: sslValid, expiry: undefined, issuer: undefined, errorMsg: undefined };
 
         // 3. Save Log
-        await supabaseAdmin.from('monitoring_logs').insert({
+        const logRes = await supabaseAdmin.from('monitoring_logs').insert({
           url_id: entry.id,
           status,
           status_code: statusCode,
           response_time: responseTime,
           error_message: status === 'down' ? errorMessage : null,
         });
+        if (logRes.error) {
+            console.error("Log Insert Error:", logRes.error.message);
+            throw new Error(`DB Error (Logs): ${logRes.error.message}`);
+        }
 
         let domainAlertFired = false;
         let isMuted = false;
@@ -143,7 +175,7 @@ serve(async (req) => {
         }
 
         // 4. Update URL
-        await supabaseAdmin.from('monitoring_urls').update({
+        const updateRes = await supabaseAdmin.from('monitoring_urls').update({
           last_status: status,
           last_status_code: statusCode,
           last_response_time: responseTime,
@@ -152,6 +184,11 @@ serve(async (req) => {
           ssl_valid: sslInfo.valid,
           ...(domainAlertFired ? { domain_alert_sent: true } : {})
         }).eq('id', entry.id);
+
+        if (updateRes.error) {
+            console.error("URL Update Error:", updateRes.error.message);
+            throw new Error(`DB Error (URL Update): ${updateRes.error.message}`);
+        }
 
         // 5. Check if it went down or SSL is invalid
         const wentDown = entry.last_status === 'up' && status === 'down';
