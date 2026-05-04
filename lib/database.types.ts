@@ -664,6 +664,41 @@ export type Database = {
           },
         ]
       }
+      monitoring_logs: {
+        Row: {
+          checked_at: string | null
+          id: string
+          response_time: number | null
+          status: string
+          status_code: number | null
+          url_id: string
+        }
+        Insert: {
+          checked_at?: string | null
+          id?: string
+          response_time?: number | null
+          status: string
+          status_code?: number | null
+          url_id: string
+        }
+        Update: {
+          checked_at?: string | null
+          id?: string
+          response_time?: number | null
+          status?: string
+          status_code?: number | null
+          url_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monitoring_logs_url_id_fkey"
+            columns: ["url_id"]
+            isOneToOne: false
+            referencedRelation: "monitoring_urls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletter_campaigns: {
         Row: {
           clicked_count: number | null

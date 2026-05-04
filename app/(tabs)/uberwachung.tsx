@@ -9,6 +9,7 @@ import {
     Platform,
     Alert,
     RefreshControl,
+    Linking,
 } from "react-native";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { Stack, useRouter } from "expo-router";
@@ -18,6 +19,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
+import { MonitoringDetailModal } from "@/components/monitoring-detail-modal";
 
 // ── Typen ──────────────────────────────────────────────────────────────────
 
@@ -120,6 +122,10 @@ export default function UeberwachungScreen() {
     const [form, setForm] = useState({ name: "", url: "", notes: "" });
     const [isSaving, setIsSaving] = useState(false);
 
+    // Detail-Modal
+    const [selectedEntry, setSelectedEntry] = useState<MonitoringUrl | null>(null);
+    const [showDetail, setShowDetail] = useState(false);
+
     // Checking-State (Map id → boolean)
     const [checkingIds, setCheckingIds] = useState<Record<string, boolean>>({});
 
@@ -192,6 +198,13 @@ export default function UeberwachungScreen() {
                 { text: "Löschen", style: "destructive", onPress: confirm },
             ]);
         }
+    };
+
+    const openLink = (url: string) => {
+        Linking.openURL(url).catch(err => {
+            console.error("Could not open URL:", err);
+            Alert.alert("Fehler", "Der Link konnte nicht geöffnet werden.");
+        });
     };
 
     const executeDelete = async (id: string) => {
@@ -441,8 +454,13 @@ export default function UeberwachungScreen() {
                         {(urls as MonitoringUrl[]).map((entry) => {
                             const isChecking = !!checkingIds[entry.id];
                             return (
-                                <View
+                                <TouchableOpacity
                                     key={entry.id}
+                                    activeOpacity={0.7}
+                                    onPress={() => {
+                                        setSelectedEntry(entry);
+                                        setShowDetail(true);
+                                    }}
                                     style={{
                                         backgroundColor: colors.surface,
                                         borderRadius: 16,
@@ -479,9 +497,17 @@ export default function UeberwachungScreen() {
                                                 </Text>
                                                 <StatusBadge status={entry.last_status || "unknown"} />
                                             </View>
-                                            <Text style={{ fontSize: 13, color: colors.primary, marginTop: 3 }} numberOfLines={1}>
-                                                {entry.url}
-                                            </Text>
+                                            <TouchableOpacity 
+                                                onPress={(e) => {
+                                                    e.stopPropagation();
+                                                    openLink(entry.url);
+                                                }}
+                                                activeOpacity={0.7}
+                                            >
+                                                <Text style={{ fontSize: 13, color: colors.primary, marginTop: 3, textDecorationLine: "underline" }} numberOfLines={1}>
+                                                    {entry.url}
+                                                </Text>
+                                            </TouchableOpacity>
                                             {entry.notes && (
                                                 <Text style={{ fontSize: 12, color: colors.muted, marginTop: 4 }} numberOfLines={2}>
                                                     {entry.notes}
@@ -492,14 +518,20 @@ export default function UeberwachungScreen() {
                                         {/* Aktionen */}
                                         <View style={{ flexDirection: "row", gap: 4 }}>
                                             <TouchableOpacity
-                                                onPress={() => openEditForm(entry)}
+                                                onPress={(e) => {
+                                                    e.stopPropagation();
+                                                    openEditForm(entry);
+                                                }}
                                                 style={{ padding: 8 }}
                                                 activeOpacity={0.7}
                                             >
                                                 <IconSymbol name="pencil" size={17} color={colors.muted} />
                                             </TouchableOpacity>
                                             <TouchableOpacity
-                                                onPress={() => handleDelete(entry)}
+                                                onPress={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDelete(entry);
+                                                }}
                                                 style={{ padding: 8 }}
                                                 activeOpacity={0.7}
                                             >
@@ -549,7 +581,10 @@ export default function UeberwachungScreen() {
 
                                         {/* Jetzt prüfen */}
                                         <TouchableOpacity
-                                            onPress={() => handleCheck(entry)}
+                                            onPress={(e) => {
+                                                e.stopPropagation();
+                                                handleCheck(entry);
+                                            }}
                                             disabled={isChecking}
                                             style={{
                                                 flexDirection: "row",
@@ -574,13 +609,22 @@ export default function UeberwachungScreen() {
                                             </Text>
                                         </TouchableOpacity>
                                     </View>
-                                </View>
+                                </TouchableOpacity>
                             );
                         })}
                     </View>
 
                 </View>
             </ScrollView>
+
+            <MonitoringDetailModal 
+                visible={showDetail} 
+                onClose={() => {
+                    setShowDetail(false);
+                    setTimeout(() => setSelectedEntry(null), 300); // delay for animation
+                }} 
+                urlEntry={selectedEntry} 
+            />
         </ScreenContainer>
     );
 }

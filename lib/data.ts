@@ -4302,5 +4302,28 @@ export async function saveMonitoringCheckResult(id: string, result: {
         .select()
         .single();
     if (error) throw new Error(error.message);
+
+    // Historie eintragen
+    const { error: logError } = await supabase
+        .from('monitoring_logs')
+        .insert({
+            url_id: id,
+            status: result.last_status,
+            status_code: result.last_status_code,
+            response_time: result.last_response_time,
+        });
+    if (logError) console.error("Error saving monitoring log:", logError);
+
     return data;
+}
+
+export async function getMonitoringLogs(urlId: string) {
+    const { data, error } = await supabase
+        .from('monitoring_logs')
+        .select('*')
+        .eq('url_id', urlId)
+        .order('checked_at', { ascending: false })
+        .limit(50);
+    if (error) throw new Error(error.message);
+    return data || [];
 }
