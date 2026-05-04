@@ -241,11 +241,14 @@ export default function UeberwachungScreen() {
         try {
             const result = await Data.checkMonitoringUrlViaEdgeFunction(entry.id);
             if (result?.errors && result.errors.length > 0) {
-                Alert.alert("SSL Debug Info", result.errors.join("\n"));
+                if (Platform.OS === "web") window.alert(result.errors.join("\n"));
+                else Alert.alert("SSL Debug Info", result.errors.join("\n"));
             }
             queryClient.invalidateQueries({ queryKey: ["monitoringUrls"] });
-        } catch (e) {
+        } catch (e: any) {
             console.error("Check failed:", e);
+            if (Platform.OS === "web") window.alert("Fehler: " + e.message);
+            else Alert.alert("Fehler", e.message);
         } finally {
             setCheckingIds(prev => ({ ...prev, [entry.id]: false }));
         }
