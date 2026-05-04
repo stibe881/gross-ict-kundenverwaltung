@@ -24,6 +24,11 @@ async function checkSsl(url: string): Promise<{ valid: boolean; expiry?: string;
         timeout: 5000,
       }, (res) => {
         const cert = (res.socket as tls.TLSSocket).getPeerCertificate(true);
+        
+        // Clean up socket to prevent Deno from hanging
+        res.destroy();
+        req.destroy();
+
         if (cert && cert.valid_to) {
           // check if certificate is valid for the hostname and not expired
           const isAuthorized = (res.socket as tls.TLSSocket).authorized;
