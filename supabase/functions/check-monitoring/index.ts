@@ -10,50 +10,70 @@ const corsHeaders = {
 
 async function checkSsl(url: string): Promise<{ valid: boolean; expiry?: string; issuer?: string }> {
   return new Promise((resolve) => {
+    let resolved = false;
+    const safeResolve = (val: any) => {
+        if (!resolved) {
+            resolved = true;
+            resolve(val);
+        }
+    };
+
+    const fallbackTimeout = setTimeout(() => {
+        safeResolve({ valid: false });
+    }, 6000);
+
     try {
       const urlObj = new URL(url);
       if (urlObj.protocol !== 'https:') {
-        return resolve({ valid: false });
+        clearTimeout(fallbackTimeout);
+        return safeResolve({ valid: false });
       }
 
       const req = https.request({
         host: urlObj.hostname,
         port: urlObj.port || 443,
         method: 'GET',
-        rejectUnauthorized: false, // We check it manually
+        rejectUnauthorized: false,
         timeout: 5000,
       }, (res) => {
-        const cert = (res.socket as tls.TLSSocket).getPeerCertificate(true);
-        
-        // Clean up socket to prevent Deno from hanging
-        res.destroy();
-        req.destroy();
+        clearTimeout(fallbackTimeout);
+        try {
+            const cert = (res.socket as tls.TLSSocket).getPeerCertificate(true);
+            res.destroy();
+            req.destroy();
 
-        if (cert && cert.valid_to) {
-          // check if certificate is valid for the hostname and not expired
-          const isAuthorized = (res.socket as tls.TLSSocket).authorized;
-          resolve({
-            valid: isAuthorized,
-            expiry: new Date(cert.valid_to).toISOString(),
-            issuer: cert.issuer?.O || cert.issuer?.CN,
-          });
-        } else {
-          resolve({ valid: false });
+            if (cert && cert.valid_to) {
+              const isAuthorized = (res.socket as tls.TLSSocket).authorized;
+              safeResolve({
+                valid: isAuthorized,
+                expiry: new Date(cert.valid_to).toISOString(),
+                issuer: cert.issuer?.O || cert.issuer?.CN,
+              });
+            } else {
+              safeResolve({ valid: false });
+            }
+        } catch (e) {
+            res.destroy();
+            req.destroy();
+            safeResolve({ valid: false });
         }
       });
 
       req.on('timeout', () => {
         req.destroy();
-        resolve({ valid: false });
+        clearTimeout(fallbackTimeout);
+        safeResolve({ valid: false });
       });
 
       req.on('error', () => {
-        resolve({ valid: false });
+        clearTimeout(fallbackTimeout);
+        safeResolve({ valid: false });
       });
 
       req.end();
     } catch (e) {
-      resolve({ valid: false });
+      clearTimeout(fallbackTimeout);
+      safeResolve({ valid: false });
     }
   });
 }
