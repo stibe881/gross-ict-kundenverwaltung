@@ -350,6 +350,7 @@ export default function UsersScreen() {
           { key: "sticky_notes", label: "Sticky Notes", desc: "Neue Notizen auf dem Whiteboard", icon: "note.text", color: "#EAB308" },
           { key: "portal", label: "Kundenportal", desc: "Kunden-Antworten auf Tickets", icon: "person.2.fill", color: "#14B8A6" },
           { key: "lead_reminders", label: "Lead Terminierungen", desc: "Erinnerungen für Kontakt-Wiedervorlage", icon: "calendar", color: "#F97316" },
+          { key: "monitoring_alerts", label: "Überwachung", desc: "Ausfälle von Webseiten & Servern", icon: "wifi", color: "#06B6D4" },
         ].map((cat) => {
           const isEnabled = editPushPrefs[cat.key] !== false;
           return (

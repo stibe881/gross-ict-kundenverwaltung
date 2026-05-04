@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
     View,
     Text,
@@ -10,9 +10,10 @@ import {
     Alert,
     RefreshControl,
     Linking,
+    Switch,
 } from "react-native";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -33,6 +34,9 @@ interface MonitoringUrl {
     last_status: "up" | "down" | "unknown";
     last_response_time: number | null;
     last_status_code: number | null;
+    ssl_valid?: boolean;
+    ssl_expiry?: string;
+    ssl_issuer?: string;
     notes: string | null;
     created_at: string;
 }
@@ -112,6 +116,7 @@ function StatusBadge({ status }: { status: "up" | "down" | "unknown" }) {
 export default function UeberwachungScreen() {
     const colors = useColors();
     const router = useRouter();
+    const params = useLocalSearchParams();
     const queryClient = useQueryClient();
     const { refreshing, onRefresh } = useGlobalRefresh();
     const { isWide, contentPadding } = useResponsiveLayout();
@@ -119,7 +124,7 @@ export default function UeberwachungScreen() {
     // Form-State
     const [isEditing, setIsEditing] = useState(false);
     const [editingEntry, setEditingEntry] = useState<MonitoringUrl | null>(null);
-    const [form, setForm] = useState({ name: "", url: "", notes: "" });
+    const [form, setForm] = useState({ name: "", url: "", notes: "", is_active: true });
     const [isSaving, setIsSaving] = useState(false);
 
     // Detail-Modal
@@ -136,16 +141,27 @@ export default function UeberwachungScreen() {
         queryFn: Data.getMonitoringUrls,
     });
 
+    // Auto-open from push notification
+    useEffect(() => {
+        if (params.openId && urls.length > 0) {
+            const entry = (urls as MonitoringUrl[]).find(u => u.id === params.openId);
+            if (entry) {
+                setSelectedEntry(entry);
+                setShowDetail(true);
+            }
+        }
+    }, [params.openId, urls]);
+
     // ── Formular-Handlers ────────────────────────────────────────────────
 
     const openAddForm = () => {
-        setForm({ name: "", url: "", notes: "" });
+        setForm({ name: "", url: "", notes: "", is_active: true });
         setEditingEntry(null);
         setIsEditing(true);
     };
 
     const openEditForm = (entry: MonitoringUrl) => {
-        setForm({ name: entry.name, url: entry.url, notes: entry.notes || "" });
+        setForm({ name: entry.name, url: entry.url, notes: entry.notes || "", is_active: entry.is_active });
         setEditingEntry(entry);
         setIsEditing(true);
     };
@@ -171,12 +187,14 @@ export default function UeberwachungScreen() {
                     name: form.name.trim(),
                     url: finalUrl,
                     notes: form.notes.trim() || undefined,
+                    is_active: form.is_active,
                 });
             } else {
                 await Data.createMonitoringUrl({
                     name: form.name.trim(),
                     url: finalUrl,
                     notes: form.notes.trim() || undefined,
+                    is_active: form.is_active,
                 });
             }
             queryClient.invalidateQueries({ queryKey: ["monitoringUrls"] });
@@ -374,6 +392,21 @@ export default function UeberwachungScreen() {
                                             style={{ fontSize: 15, color: colors.foreground }}
                                         />
                                     </View>
+                                </View>
+
+                                {/* Aktiv Toggle */}
+                                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
+                                    <View>
+                                        <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }}>Überwachung aktiv</Text>
+                                        <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
+                                            URL regelmäßig überprüfen und Benachrichtigungen senden.
+                                        </Text>
+                                    </View>
+                                    <Switch
+                                        value={form.is_active}
+                                        onValueChange={v => setForm(p => ({ ...p, is_active: v }))}
+                                        trackColor={{ false: colors.border, true: colors.primary }}
+                                    />
                                 </View>
 
                                 {/* Aktionen */}
@@ -574,6 +607,15 @@ export default function UeberwachungScreen() {
                                                     <IconSymbol name="bolt.fill" size={13} color={colors.muted} />
                                                     <Text style={{ fontSize: 12, color: colors.muted }}>
                                                         {entry.last_response_time} ms
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            {/* SSL */}
+                                            {entry.ssl_valid !== undefined && (
+                                                <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                                                    <IconSymbol name={entry.ssl_valid ? "lock.fill" : "lock"} size={13} color={entry.ssl_valid ? "#16A34A" : colors.error} />
+                                                    <Text style={{ fontSize: 12, color: entry.ssl_valid ? colors.muted : colors.error }}>
+                                                        {entry.ssl_valid ? "SSL OK" : "SSL Fehler"}
                                                     </Text>
                                                 </View>
                                             )}

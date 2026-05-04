@@ -131,6 +131,9 @@ const MAPPING = {
   "chevron.up": "expand-less",
   "person.badge.plus.fill": "person-add",
   "magnifyingglass.circle.fill": "manage-search",
+  "wifi": "wifi",
+  "wifi.slash": "wifi-off",
+  "number": "numbers",
 } as any as IconMapping;
 
 /**
