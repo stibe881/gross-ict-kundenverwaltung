@@ -1,4 +1,4 @@
-import { jsPDF } from "./jspdf-import";
+
 import { LOGO_BASE64 } from "./logo-base64";
 
 export interface QuittungData {
@@ -26,6 +26,7 @@ function fmtDate(dateString: string | Date): string {
 }
 
 export function generateQuittungJSPDF(data: QuittungData): any {
+  const { jsPDF } = require("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   
   const cGold = [212, 164, 50] as [number, number, number];

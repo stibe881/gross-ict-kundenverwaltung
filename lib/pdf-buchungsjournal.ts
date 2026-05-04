@@ -1,4 +1,4 @@
-import { jsPDF } from "./jspdf-import";
+
 import { LOGO_BASE64 } from "./logo-base64";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
@@ -38,6 +38,7 @@ function fmtDate(dateString: string | Date): string {
 }
 
 export function generateBuchungsjournalJSPDF(data: BuchungsjournalData): any {
+  const { jsPDF } = require("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   
   const cGold = [212, 164, 50] as [number, number, number];
