@@ -2,6 +2,7 @@ import { LOGO_BASE64 } from "./logo-base64";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Platform } from "react-native";
+import { jsPDF } from "./jspdf-import";
 
 function fmtCHF(amount: number | null | undefined): string {
   if (amount == null) return "0.00";
@@ -33,7 +34,6 @@ export interface AnnualReportData {
 }
 
 export function generateAnnualReportJSPDF(data: AnnualReportData): any {
-  const { jsPDF } = require("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   
   const cGold = [212, 164, 50] as [number, number, number];
