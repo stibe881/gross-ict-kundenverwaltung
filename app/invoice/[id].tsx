@@ -510,7 +510,7 @@ export default function InvoiceDetailScreen() {
                                                     <Text className="text-sm text-foreground">{activity.description}</Text>
                                                     <View className="flex-row items-center gap-2 mt-1">
                                                         <Text className="text-xs text-muted">
-                                                            {formatDate(activity.created_at)}
+                                                            {formatDate(activity.created_at)}, {new Date(activity.created_at).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}
                                                         </Text>
                                                         {activity.user_name && (
                                                             <Text className="text-xs text-muted">• {activity.user_name}</Text>

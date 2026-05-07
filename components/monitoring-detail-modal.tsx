@@ -52,17 +52,20 @@ function StatusBadge({ status }: { status: "up" | "down" | "unknown" }) {
 
 function formatRelativeTime(isoString: string): string {
   const date = new Date(isoString);
+  const absoluteTime = date.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+  const absoluteDate = date.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   
-  if (diffMins < 1) return "Gerade eben";
-  if (diffMins < 60) return `Vor ${diffMins} Minuten`;
+  if (diffMins < 1) return `Gerade eben (${absoluteTime})`;
+  if (diffMins < 60) return `Vor ${diffMins} Minuten (${absoluteTime})`;
   
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `Vor ${diffHours} Stunden`;
+  if (diffHours < 24) return `Vor ${diffHours} Stunden (${absoluteTime})`;
   
-  return date.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return `${absoluteDate}, ${absoluteTime}`;
 }
 
 export function MonitoringDetailModal({ visible, onClose, urlEntry }: MonitoringDetailModalProps) {

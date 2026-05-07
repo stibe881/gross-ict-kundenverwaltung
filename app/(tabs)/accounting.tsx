@@ -65,6 +65,7 @@ export default function AccountingScreen() {
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState<string>("all");
   const [expenseEmployeeFilter, setExpenseEmployeeFilter] = useState<string>("all");
+  const [expenseSearchQuery, setExpenseSearchQuery] = useState("");
   const [customExpenseCategories, setCustomExpenseCategories] = useState<{value: string; label: string}[]>([]);
   const allExpenseCategories = [...Data.EXPENSE_CATEGORIES, ...customExpenseCategories].sort((a, b) => a.label.localeCompare(b.label));
   const [initialIsIncome, setInitialIsIncome] = useState(false);
@@ -261,8 +262,17 @@ export default function AccountingScreen() {
     if (expenseEmployeeFilter !== "all") {
       result = result.filter(e => e.user_id === expenseEmployeeFilter);
     }
+    if (expenseSearchQuery.trim()) {
+      const q = expenseSearchQuery.toLowerCase();
+      result = result.filter(e => 
+        (e.description && e.description.toLowerCase().includes(q)) ||
+        (e.supplier && e.supplier.toLowerCase().includes(q)) ||
+        (e.notes && e.notes.toLowerCase().includes(q)) ||
+        (e.category && e.category.toLowerCase().includes(q))
+      );
+    }
     return result;
-  }, [yearExpenses, expenseCategoryFilter, expenseEmployeeFilter]);
+  }, [yearExpenses, expenseCategoryFilter, expenseEmployeeFilter, expenseSearchQuery]);
 
   // Stats
   const invoicesRevenue = yearInvoices.reduce((s: number, i: any) => {
@@ -884,9 +894,25 @@ export default function AccountingScreen() {
               {renderYearSelector()}
 
               {/* Modern Filters */}
-              <View className="bg-surface rounded-xl p-4 border border-border">
-                <Text className="text-xs font-semibold text-muted mb-3 uppercase tracking-wider">Filter</Text>
+              <View className="bg-surface rounded-xl p-4 border border-border mb-3">
+                <Text className="text-xs font-semibold text-muted mb-3 uppercase tracking-wider">Filter & Suche</Text>
                 
+                <View className="mb-4 bg-background border border-border rounded-lg px-3 py-2 flex-row items-center">
+                  <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
+                  <TextInput
+                    value={expenseSearchQuery}
+                    onChangeText={setExpenseSearchQuery}
+                    placeholder="Suchen (Beschreibung, Lieferant...)"
+                    placeholderTextColor={colors.muted}
+                    style={{ flex: 1, color: colors.foreground, marginLeft: 8, fontSize: 14 }}
+                  />
+                  {expenseSearchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setExpenseSearchQuery("")}>
+                      <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
                   <View className="flex-row items-center mr-1">
                     <IconSymbol name="tag.fill" size={14} color={colors.muted} />
