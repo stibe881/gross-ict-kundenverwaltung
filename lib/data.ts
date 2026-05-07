@@ -4372,12 +4372,14 @@ export async function saveMonitoringCheckResult(id: string, result: {
 }
 
 export async function getMonitoringLogs(urlId: string) {
+    const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
     const { data, error } = await supabase
         .from('monitoring_logs')
         .select('*')
         .eq('url_id', urlId)
+        .gte('checked_at', oneYearAgo)
         .order('checked_at', { ascending: false })
-        .limit(50);
+        .limit(10000);
     if (error) throw new Error(error.message);
     return data || [];
 }

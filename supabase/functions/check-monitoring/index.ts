@@ -195,6 +195,35 @@ serve(async (req) => {
             // Ignore DNS errors
         }
 
+        let blacklistStatus: any[] = [];
+        let agentData: any = null;
+
+        // 2.5 Phase 2: Spamhaus Blacklist Check (Spamhaus ZEN)
+        if (dnsARecords.length > 0) {
+            try {
+                const ip = dnsARecords[0]; 
+                if (ip.match(/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/)) {
+                    const reversedIp = ip.split('.').reverse().join('.');
+                    const spamhausQuery = `${reversedIp}.zen.spamhaus.org`;
+                    const blRes = await fetch(`https://dns.google/resolve?name=${spamhausQuery}&type=A`);
+                    if (blRes.ok) {
+                        const blData = await blRes.json();
+                        if (blData.Answer && blData.Answer.length > 0) {
+                            blacklistStatus.push({
+                                type: "spamhaus",
+                                ip: ip,
+                                listed: true,
+                                result: blData.Answer[0].data
+                            });
+                            securityWarnings.push(`ACHTUNG: Die Server-IP (${ip}) ist auf einer Blacklist (Spamhaus)!`);
+                        }
+                    }
+                }
+            } catch (e) {
+                // Ignore blacklist fetch errors
+            }
+        }
+
         // 3. Escalation Logic
         let currentDownSince = entry.down_since;
         let currentEscalation = entry.escalation_level || 0;
@@ -268,6 +297,7 @@ serve(async (req) => {
           dns_a_records: dnsARecords.length > 0 ? dnsARecords : entry.dns_a_records,
           dns_mx_records: dnsMxRecords.length > 0 ? dnsMxRecords : entry.dns_mx_records,
           dns_warnings: dnsWarnings,
+          blacklist_status: blacklistStatus,
           ...(domainAlertFired ? { domain_alert_sent: true } : {})
         }).eq('id', entry.id);
 

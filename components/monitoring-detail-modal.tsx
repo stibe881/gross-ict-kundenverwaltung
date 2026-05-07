@@ -188,7 +188,7 @@ export function MonitoringDetailModal({ visible, onClose, urlEntry }: Monitoring
                 )}
                 {uptimePercentage != null && (
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>Uptime (Letzte {logs.length} Checks)</Text>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "40%" }}>Uptime (Letzte 365 Tage)</Text>
                         <Text style={{ fontSize: 13, fontWeight: "500", color: parseFloat(uptimePercentage) > 99 ? "#16A34A" : (parseFloat(uptimePercentage) > 95 ? "#F59E0B" : colors.error), flex: 1, textAlign: "right" }}>
                             {uptimePercentage}%
                         </Text>
@@ -290,6 +290,18 @@ export function MonitoringDetailModal({ visible, onClose, urlEntry }: Monitoring
                             {urlEntry.dns_warnings.map((w: string, i: number) => (
                                 <Text key={i} style={{ fontSize: 13, color: "#F59E0B", fontWeight: "500", textAlign: "right", marginBottom: 2 }}>
                                     ⚠️ {w}
+                                </Text>
+                            ))}
+                        </View>
+                    </View>
+                )}
+                {urlEntry.blacklist_status && urlEntry.blacklist_status.length > 0 && (
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 4 }}>
+                        <Text style={{ fontSize: 13, color: colors.muted, width: "30%" }}>Blacklists</Text>
+                        <View style={{ flex: 1, alignItems: "flex-end" }}>
+                            {urlEntry.blacklist_status.map((b: any, i: number) => (
+                                <Text key={i} style={{ fontSize: 13, color: colors.error, fontWeight: "500", textAlign: "right", marginBottom: 2 }}>
+                                    ⚠️ {b.ip} auf {b.type} ({b.result})
                                 </Text>
                             ))}
                         </View>
