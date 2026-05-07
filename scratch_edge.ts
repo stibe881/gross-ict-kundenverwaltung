@@ -1,87 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import * as tls from "node:tls"
-import * as https from "node:https"
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-// Native Deno fetch already performs strict SSL verification.
-// Due to Deno Deploy restrictions, extracting the exact expiry date via raw TCP sockets is intercepted.
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-
-  try {
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
-    let reqBody: any = {};
-    if (req.body) {
-      try {
-        reqBody = await req.json();
-      } catch (e) {
-        // ignore
-      }
-    }
-
-    let urlsQuery = supabaseAdmin.from("monitoring_urls").select("*");
-    
-    if (reqBody.url_id) {
-        urlsQuery = urlsQuery.eq("id", reqBody.url_id);
-    } else {
-        urlsQuery = urlsQuery.eq("is_active", true);
-    }
-
-    const { data: urls, error: fetchError } = await urlsQuery;
-
-    if (fetchError) {
-      throw new Error(fetchError.message);
-    }
-    
-    if (!urls || urls.length === 0) {
-      return new Response(JSON.stringify({ message: "No active URLs to monitor" }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const isManualCheck = !!reqBody.url_id;
-
-    // Fetch users who want monitoring alerts
-    const { data: usersToAlert } = await supabaseAdmin
-      .from("users")
-      .select("id, email, push_preferences")
-      .is("is_active", true);
-
-    const alertUsers = (usersToAlert || []).filter(u => 
-      u.push_preferences && u.push_preferences['monitoring_alerts'] !== false
-    );
-
-    let processed = 0;
-    let errors: string[] = [];
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const frontendUrl = Deno.env.get("EXPO_PUBLIC_API_BASE_URL")?.replace('/api', '') || "https://app.gross-ict.ch";
-
-    for (const entry of urls) {
-      try {
-        const start = Date.now();
-        let status: 'up' | 'down' = 'down';
-        let statusCode: number | undefined;
-        let responseTime: number | undefined;
-        let sslValid = false;
-        let resText = "";
-        let errorMessage: string | undefined = undefined;
-
-        // 1. Ping the URL
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        
         let serverInfo = "";
         let securityWarnings: string[] = [];
         let dnsARecords: any[] = [];
@@ -89,44 +5,22 @@ serve(async (req) => {
         let dnsWarnings: string[] = [];
 
         try {
-          let res: Response | null = null;
-          let lastFetchError: any = null;
-
-          for (let attempt = 0; attempt < 2; attempt++) {
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 10000);
-              try {
-                  res = await fetch(entry.url, {
-                      method: "GET",
-                      headers: {
-                          "User-Agent": "Mozilla/5.0 (compatible; GrossICT-Monitoring/1.0; +https://gross-ict.ch)",
-                          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-                      },
-                      signal: controller.signal,
-                  });
-                  clearTimeout(timeoutId);
-                  lastFetchError = null;
-                  break;
-              } catch (e: any) {
-                  clearTimeout(timeoutId);
-                  lastFetchError = e;
-                  if (attempt === 0) {
-                      await new Promise(r => setTimeout(r, 1500));
-                  }
-              }
-          }
-
-          if (lastFetchError) {
-              throw lastFetchError;
-          }
-
+          const res = await fetch(entry.url, {
+            method: "GET",
+            headers: {
+              "User-Agent": "Mozilla/5.0 (compatible; GrossICT-Monitoring/1.0; +https://gross-ict.ch)",
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            },
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
           responseTime = Date.now() - start;
-          statusCode = res!.status;
+          statusCode = res.status;
           status = (statusCode >= 200 && statusCode < 400) ? 'up' : 'down';
           sslValid = true; // If fetch succeeds, SSL is natively verified and valid
           
-          const poweredBy = res!.headers.get("x-powered-by");
-          const serverHeader = res!.headers.get("server");
+          const poweredBy = res.headers.get("x-powered-by");
+          const serverHeader = res.headers.get("server");
           if (poweredBy) serverInfo += `Powered by: ${poweredBy}. `;
           if (serverHeader) serverInfo += `Server: ${serverHeader}.`;
           
@@ -135,7 +29,7 @@ serve(async (req) => {
           }
 
           if (status === 'up' && entry.expected_keyword) {
-              resText = await res!.text();
+              resText = await res.text();
               const lowerText = resText.toLowerCase();
               const keyword = entry.expected_keyword.toLowerCase();
               
@@ -148,7 +42,7 @@ serve(async (req) => {
                   for (const match of jsMatches.slice(0, 3)) {
                       try {
                           const jsUrl = new URL(match[1], entry.url).href;
-                          const jsRes = await fetch(jsUrl);
+                          const jsRes = await fetch(jsUrl, { signal: controller.signal });
                           const jsText = await jsRes.text();
                           if (jsText.toLowerCase().includes(keyword)) {
                               foundInJs = true;
@@ -215,35 +109,6 @@ serve(async (req) => {
             }
         } catch (e) {
             // Ignore DNS errors
-        }
-
-        let blacklistStatus: any[] = [];
-        let agentData: any = null;
-
-        // 2.5 Phase 2: Spamhaus Blacklist Check (Spamhaus ZEN)
-        if (dnsARecords.length > 0) {
-            try {
-                const ip = dnsARecords[0]; 
-                if (ip.match(/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/)) {
-                    const reversedIp = ip.split('.').reverse().join('.');
-                    const spamhausQuery = `${reversedIp}.zen.spamhaus.org`;
-                    const blRes = await fetch(`https://dns.google/resolve?name=${spamhausQuery}&type=A`);
-                    if (blRes.ok) {
-                        const blData = await blRes.json();
-                        if (blData.Answer && blData.Answer.length > 0) {
-                            blacklistStatus.push({
-                                type: "spamhaus",
-                                ip: ip,
-                                listed: true,
-                                result: blData.Answer[0].data
-                            });
-                            securityWarnings.push(`ACHTUNG: Die Server-IP (${ip}) ist auf einer Blacklist (Spamhaus)!`);
-                        }
-                    }
-                }
-            } catch (e) {
-                // Ignore blacklist fetch errors
-            }
         }
 
         // 3. Escalation Logic
@@ -319,7 +184,6 @@ serve(async (req) => {
           dns_a_records: dnsARecords.length > 0 ? dnsARecords : entry.dns_a_records,
           dns_mx_records: dnsMxRecords.length > 0 ? dnsMxRecords : entry.dns_mx_records,
           dns_warnings: dnsWarnings,
-          blacklist_status: blacklistStatus,
           ...(domainAlertFired ? { domain_alert_sent: true } : {})
         }).eq('id', entry.id);
 
@@ -429,22 +293,3 @@ serve(async (req) => {
             }
           }
         }
-        
-        processed++;
-      } catch (e: any) {
-        errors.push(`URL ${entry.id}: ${e.message}`);
-      }
-    }
-
-    return new Response(JSON.stringify({ processed, errors }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  } catch (error: any) {
-    console.error("[check-monitoring] Error:", error);
-    return new Response(JSON.stringify({ error: error.message || "Internal error" }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-})

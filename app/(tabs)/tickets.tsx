@@ -728,6 +728,14 @@ function TicketDetailsModal({
   const [showAssignPicker, setShowAssignPicker] = useState(false);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showPriorityPicker, setShowPriorityPicker] = useState(false);
+  const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
+
+  // Kunden laden
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers"],
+    queryFn: Data.getCustomersWithCounts,
+  });
 
   // Kommentare laden
   const { data: comments, refetch: refetchComments } = useQuery({
@@ -785,6 +793,17 @@ function TicketDetailsModal({
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
     } catch (err: any) {
       setCurrentStatus(ticket.status);
+      showAlert("Fehler", err.message);
+    }
+  };
+
+  const handleCustomerChange = async (customerId: string | null) => {
+    try {
+      await Data.updateTicket(ticket.id, { customer_id: customerId });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      setShowCustomerPicker(false);
+      showToast("Kunde erfolgreich geändert");
+    } catch (err: any) {
       showAlert("Fehler", err.message);
     }
   };
@@ -952,11 +971,50 @@ function TicketDetailsModal({
       {/* ── Info Cards ── */}
       <View style={{ gap: 10 }}>
         <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
-            <IconSymbol name="person.2.fill" size={13} color={colors.muted} />
-            <Text style={{ fontSize: 10, fontWeight: "600", color: colors.muted, textTransform: "uppercase" }}>Kunde</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <IconSymbol name="person.2.fill" size={13} color={colors.muted} />
+              <Text style={{ fontSize: 10, fontWeight: "600", color: colors.muted, textTransform: "uppercase" }}>Kunde</Text>
+            </View>
+            <TouchableOpacity onPress={() => setShowCustomerPicker(!showCustomerPicker)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
+              <IconSymbol name={showCustomerPicker ? "chevron.up" : "pencil"} size={14} color={colors.primary} />
+            </TouchableOpacity>
           </View>
-          <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }} numberOfLines={2}>{customerName}</Text>
+          {!showCustomerPicker ? (
+            <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }} numberOfLines={2}>{customerName}</Text>
+          ) : (
+            <View style={{ marginTop: 4 }}>
+              <TextInput
+                value={customerSearch}
+                onChangeText={setCustomerSearch}
+                placeholder="Kunde suchen..."
+                placeholderTextColor={colors.muted}
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: colors.foreground, fontSize: 13, marginBottom: 8 }}
+              />
+              <ScrollView style={{ maxHeight: 150 }} keyboardShouldPersistTaps="handled">
+                <TouchableOpacity onPress={() => handleCustomerChange(null)} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border + "40" }}>
+                  <Text style={{ color: colors.muted, fontStyle: "italic", fontSize: 13 }}>Kein Kunde</Text>
+                </TouchableOpacity>
+                {customers.filter((c: any) => {
+                  if (!customerSearch.trim()) return true;
+                  const term = customerSearch.toLowerCase();
+                  return (c.company_name || "").toLowerCase().includes(term) || 
+                         (c.first_name || "").toLowerCase().includes(term) || 
+                         (c.last_name || "").toLowerCase().includes(term) || 
+                         (c.email || "").toLowerCase().includes(term);
+                }).slice(0, 20).map((c: any) => {
+                  const cName = c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || c.email || "Unbekannt";
+                  const isSelected = ticket.customer_id === c.id;
+                  return (
+                    <TouchableOpacity key={c.id} onPress={() => handleCustomerChange(c.id)} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border + "40", flexDirection: "row", justifyContent: "space-between" }}>
+                      <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: isSelected ? "700" : "400" }}>{cName}</Text>
+                      {isSelected && <IconSymbol name="checkmark" size={14} color={colors.primary} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
         </View>
 
         {(!ticket.customer_id && (ticket.contact_name || ticket.contact_email)) && (
