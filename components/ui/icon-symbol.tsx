@@ -134,6 +134,9 @@ const MAPPING = {
   "wifi": "wifi",
   "wifi.slash": "wifi-off",
   "number": "numbers",
+  "building.columns.fill": "account-balance",
+  "tshirt.fill": "checkroom",
+  "cross.case.fill": "medical-services",
 } as any as IconMapping;
 
 /**

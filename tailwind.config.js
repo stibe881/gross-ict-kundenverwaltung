@@ -14,6 +14,7 @@ const tailwindColors = Object.fromEntries(
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: "class",
   // Scan all component and app files for Tailwind classes
   content: ["./app/**/*.{js,ts,tsx}", "./components/**/*.{js,ts,tsx}", "./lib/**/*.{js,ts,tsx}", "./hooks/**/*.{js,ts,tsx}"],
 

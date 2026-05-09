@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     const { data: invoices, error: invoicesErr } = await supabase
       .from("invoices")
       .select("*, customer:customers(email, company_name, first_name, last_name)")
-      .in("status", ["open", "overdue"])
+      .in("status", ["open", "sent", "overdue"])
       .eq("dunning_stopped", false)
       .lt("dunning_level", 3);
 

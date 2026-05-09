@@ -486,7 +486,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                     </TouchableOpacity>
                 </View>
 
-                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 16 }}>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
                     {/* Art: Ausgabe oder Einnahme */}
                     <View style={{ flexDirection: "row", backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
                         <TouchableOpacity

@@ -1622,9 +1622,9 @@ export async function getAccountingYear(year: number) {
         .from("accounting_years")
         .select("*")
         .eq("year", year)
-        .single();
+        .maybeSingle();
 
-    if (error && error.code !== "PGRST116") {
+    if (error) {
         console.error("[getAccountingYear] Error:", error.message);
         return null;
     }
@@ -2346,20 +2346,10 @@ export async function getAllEmployees() {
 }
 
 export async function getAllExpenses() {
-    let { data, error } = await supabase
+    const { data, error } = await supabase
         .from("expenses")
-        .select("*, user:users(name)")
+        .select("*")
         .order("expense_date", { ascending: false });
-
-    if (error && error.message.includes("relationship")) {
-        console.warn("Fallback: Beziehung noch nicht im Schema-Cache, lade ohne Benutzer...");
-        const fallback = await supabase
-            .from("expenses")
-            .select("*")
-            .order("expense_date", { ascending: false });
-        data = fallback.data;
-        error = fallback.error;
-    }
 
     if (error) throw new Error(error.message);
     return data || [];

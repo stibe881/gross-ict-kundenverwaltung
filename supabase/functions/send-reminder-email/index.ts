@@ -172,6 +172,7 @@ Deno.serve(async (req) => {
     await supabase.from("invoices").update({
       dunning_level: dunningLevel,
       last_dunning_at: new Date().toISOString(),
+      status: "overdue",
     }).eq("id", id);
 
     // Aktivität loggen

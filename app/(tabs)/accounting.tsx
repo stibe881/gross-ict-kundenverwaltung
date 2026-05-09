@@ -207,6 +207,16 @@ export default function AccountingScreen() {
     [invoices, selectedYear],
   );
 
+  const isInvoiceOverdue = useCallback((i: any) => {
+    if (i.dunning_stopped) return false;
+    if (i.status === "overdue") return true;
+    if (!["open", "sent"].includes(i.status)) return false;
+    if (!i.due_date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return new Date(i.due_date) < today;
+  }, []);
+
   const processedInvoices = useMemo(() => {
     let result = [...yearInvoices];
 
@@ -214,6 +224,14 @@ export default function AccountingScreen() {
     if (invoiceStatusFilter !== "all") {
       if (invoiceStatusFilter === "unpaid") {
         result = result.filter(i => i.status !== "paid" && i.status !== "cancelled");
+      } else if (invoiceStatusFilter === "overdue") {
+        result = result.filter(isInvoiceOverdue);
+      } else if (invoiceStatusFilter === "open") {
+        result = result.filter(i => (i.status === "open" || i.status === "sent") && !isInvoiceOverdue(i));
+      } else if (invoiceStatusFilter === "sent") {
+        result = result.filter(i => i.status === "sent" && !isInvoiceOverdue(i));
+      } else if (invoiceStatusFilter === "unsent") {
+        result = result.filter(i => i.status === "draft");
       } else {
         result = result.filter(i => i.status === invoiceStatusFilter);
       }
@@ -288,13 +306,13 @@ export default function AccountingScreen() {
   const totalRevenue = invoicesRevenue + extraIncomes;
 
   const totalOpen = yearInvoices
-    .filter((i: any) => i.status === "open" || i.status === "sent")
+    .filter((i: any) => (i.status === "open" || i.status === "sent") && !isInvoiceOverdue(i))
     .reduce((s: number, i: any) => {
       return s + Math.max(0, getInvoiceTotal(i) - (i.paid_amount || 0));
     }, 0);
 
   const totalOverdue = yearInvoices
-    .filter((i: any) => i.status === "overdue")
+    .filter(isInvoiceOverdue)
     .reduce((s: number, i: any) => {
       return s + Math.max(0, getInvoiceTotal(i) - (i.paid_amount || 0));
     }, 0);
@@ -519,6 +537,12 @@ export default function AccountingScreen() {
       equipment: "wrench.and.screwdriver.fill",
       salary: "dollarsign.circle.fill",
       other: "ellipsis.circle.fill",
+      // Custom categories (these match the internal 'value' generated for them)
+      app_verkauf: "cart.fill",
+      handelsregister: "building.columns.fill",
+      merchandies: "tshirt.fill",
+      sonstiges: "ellipsis.circle.fill",
+      sozialverscicherungen: "cross.case.fill",
     };
     return icons[cat] || "ellipsis.circle.fill";
   };
@@ -636,33 +660,58 @@ export default function AccountingScreen() {
 
       {/* Quick Stats */}
       <View className="flex-row gap-3">
-        <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+        <TouchableOpacity 
+          className="flex-1 bg-surface rounded-xl p-4 border border-border"
+          activeOpacity={0.7}
+          onPress={() => {
+            setInvoiceStatusFilter("open");
+            setActiveTab("invoices");
+          }}
+        >
           <Text className="text-xs text-muted mb-1">Offene Posten</Text>
           <Text className="text-xl font-bold text-warning">
             {formatCurrency(totalOpen)}
           </Text>
-        </View>
-        <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+        </TouchableOpacity>
+        <TouchableOpacity 
+          className="flex-1 bg-surface rounded-xl p-4 border border-border"
+          activeOpacity={0.7}
+          onPress={() => {
+            setInvoiceStatusFilter("overdue");
+            setActiveTab("invoices");
+          }}
+        >
           <Text className="text-xs text-muted mb-1">Überfällig</Text>
           <Text className="text-xl font-bold text-error">
             {formatCurrency(totalOverdue)}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View className="flex-row gap-3">
-        <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+        <TouchableOpacity 
+          className="flex-1 bg-surface rounded-xl p-4 border border-border"
+          activeOpacity={0.7}
+          onPress={() => {
+            setInvoiceStatusFilter("unsent");
+            setActiveTab("invoices");
+          }}
+        >
           <Text className="text-xs text-muted mb-1">Ungesendet</Text>
           <Text className="text-xl font-bold text-foreground">
             {formatCurrency(totalUnsent)}
           </Text>
-        </View>
-        <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+        </TouchableOpacity>
+        <TouchableOpacity 
+          className="flex-1 bg-surface rounded-xl p-4 border border-border"
+          activeOpacity={0.7}
+          onPress={() => setActiveTab("expenses")}
+        >
           <Text className="text-xs text-muted mb-1">Abzugsfähig</Text>
           <Text className="text-xl font-bold text-primary">
             {formatCurrency(deductibleExpenses)}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* Ausgaben nach Kategorie */}
@@ -728,6 +777,7 @@ export default function AccountingScreen() {
               {[
                 { label: "Noch nicht bezahlt", value: "unpaid" },
                 { label: "Alle", value: "all" },
+                { label: "Ungesendet", value: "unsent" },
                 { label: "Entwurf", value: "draft" },
                 { label: "Offen", value: "open" },
                 { label: "Geöffnet", value: "sent" },

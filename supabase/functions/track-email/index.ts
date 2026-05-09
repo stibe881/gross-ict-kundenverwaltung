@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
         .from("invoice_activities")
         .select("created_at")
         .eq("invoice_id", id)
-        .eq("type", "sent")
+        .in("type", ["sent", "reminder_sent"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
