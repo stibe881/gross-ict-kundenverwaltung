@@ -106,6 +106,7 @@ serve(async (req: Request) => {
       city: "",
       hasImpressum: false,
       hasPrivacy: false,
+      privacyRequired: true,
       salesPitch: ""
     };
     let aiSuccess = false;
@@ -129,6 +130,7 @@ Extrahiere folgende Daten und antworte AUSSCHLIESSLICH im gültigen JSON-Format:
   "city": "Ort (oder leerer String)",
   "hasImpressum": true/false (Gibt es einen ECHTEN Link oder Menüpunkt zu einem Impressum?),
   "hasPrivacy": true/false (Gibt es einen ECHTEN Link oder Menüpunkt zu einer Datenschutzerklärung?),
+  "privacyRequired": true/false (Ist für diese Webseite rechtlich zwingend eine Datenschutzerklärung nötig? z.B. weil Kontaktformulare, Logins, Shops oder Newsletter-Anmeldungen im Text vorkommen?),
   "salesPitch": "Schreibe einen maßgeschneiderten, kurzen Sales-Tipp (1-2 Sätze) für unser Sales-Team. Berücksichtige die Branche des Kunden und technische Mängel (SSL, Responsive, Impressum, Datenschutz), um einen guten Aufhänger für das Verkaufsgespräch zu liefern. (Beginne mit: 💡 Tipp für die Kontaktaufnahme: ...)"
 }
 
@@ -180,22 +182,25 @@ ${plainText}`;
     const fehlendeDinge = [];
     if (!sslValid) fehlendeDinge.push("kein gültiges SSL-Zertifikat");
     if (!hasImpressum) fehlendeDinge.push("kein Impressum gefunden");
-    if (!hasPrivacy) fehlendeDinge.push("keine Datenschutzerklärung gefunden");
+    
+    // Only warn about missing privacy policy if it is legally required according to AI
+    const requiresPrivacy = aiSuccess ? aiData.privacyRequired : true;
+    if (!hasPrivacy && requiresPrivacy) {
+      fehlendeDinge.push("keine Datenschutzerklärung gefunden");
+    }
+
+    if (!isResponsive) {
+      fehlendeDinge.push("fehlendes Responsive Design (nicht mobil-optimiert)");
+    }
     
     if (fehlendeDinge.length > 0) {
-      priority = "high";
-      notes = `Website weist rechtliche/sicherheitstechnische Mängel auf: ${fehlendeDinge.join(", ")}.`;
+      priority = fehlendeDinge.length > 1 || !sslValid || !hasImpressum ? "high" : "medium";
+      notes = `Website weist folgende Mängel auf: ${fehlendeDinge.join(", ")}.`;
       if (!aiSuccess || !aiData.salesPitch) {
-        notes += ` Gutes Verkaufsargument: Abmahnrisiko minimieren, rechtliche Sicherheit herstellen und Vertrauen bei Kunden durch einen professionellen, geschützten Auftritt gewinnen.\n\n💡 Tipp für die Kontaktaufnahme: Zeigen Sie sich als Problemlöser. Erwähnen Sie die Mängel nicht als Vorwurf, sondern als gut gemeinten Hinweis, um sie vor teuren Abmahnungen zu schützen. Bieten Sie an, dies unkompliziert für sie zu beheben.`;
-      }
-    } else if (!isResponsive) {
-      priority = "medium";
-      notes = "Die Website ist veraltet und nicht für Smartphones optimiert (Responsive Design fehlt).";
-      if (!aiSuccess || !aiData.salesPitch) {
-        notes += ` Gutes Verkaufsargument: Über 60% der Nutzer surfen mobil. Eine moderne, mobil-optimierte Seite bringt bessere Google-Rankings und deutlich mehr Kundenanfragen.\n\n💡 Tipp für die Kontaktaufnahme: Sprechen Sie den potenziellen Kundenverlust an. Fragen Sie, ob sie wissen, wie die Seite auf dem Smartphone aussieht. Bieten Sie eventuell einen schnellen Mockup an, der zeigt, wie modern sie wirken könnten.`;
+        notes += ` Gutes Verkaufsargument: Abmahnrisiko minimieren, Sichtbarkeit bei Google verbessern (Mobil-Optimierung) und Vertrauen durch einen professionellen Auftritt gewinnen.\n\n💡 Tipp für die Kontaktaufnahme: Zeigen Sie sich als Problemlöser. Erwähnen Sie die Mängel nicht als Vorwurf, sondern als gut gemeinten Hinweis.`;
       }
     } else {
-      notes = "Website sieht technisch solide aus. Argument: Optimierung der Conversion-Rate oder Redesign für frischen Look.";
+      notes = "Website sieht technisch und rechtlich solide aus. Argument: Optimierung der Conversion-Rate oder Redesign für frischen Look.";
       if (!aiSuccess || !aiData.salesPitch) {
         notes += `\n\n💡 Tipp für die Kontaktaufnahme: Da die Basis bereits gut ist, loben Sie ihren Auftritt. Fokussieren Sie sich im Gespräch auf fortgeschrittene Themen wie Performance-Optimierung, messbare Lead-Generierung oder gezieltes Online-Marketing.`;
       }
