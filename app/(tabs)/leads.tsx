@@ -160,76 +160,7 @@ export default function LeadsScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Suchfeld */}
-          <View className="mb-4 bg-surface rounded-xl flex-row items-center px-4 py-2 border border-border">
-            <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
-            <TextInput
-              className="flex-1 ml-3 text-foreground text-base h-10"
-              placeholder="Suchen nach Name, Firma oder E-Mail..."
-              placeholderTextColor={colors.muted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
-              </TouchableOpacity>
-            )}
-          </View>
 
-          {/* Prioritätsfilter */}
-          <View className="flex-row gap-2 mb-4">
-            {[
-              { key: "all", label: "Alle", color: colors.foreground },
-              { key: "high", label: "↑ Hoch", color: "#EF4444" },
-              { key: "medium", label: "● Mittel", color: "#F59E0B" },
-              { key: "low", label: "↓ Tief", color: "#6B7280" },
-            ].map((f) => (
-              <TouchableOpacity
-                key={f.key}
-                className="px-3 py-1.5 rounded-lg border"
-                style={{
-                  backgroundColor: priorityFilter === f.key ? f.color + '20' : undefined,
-                  borderColor: priorityFilter === f.key ? f.color : '#374151',
-                }}
-                onPress={() => setPriorityFilter(f.key)}
-              >
-                <Text
-                  className="text-xs font-semibold"
-                  style={{ color: priorityFilter === f.key ? f.color : '#9CA3AF' }}
-                >
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Sortierung */}
-          <View className="flex-row gap-2 mb-4">
-            {[
-              { key: "date", label: "Neueste" },
-              { key: "name", label: "A-Z" },
-              { key: "value", label: "Wert ↓" },
-              { key: "priority", label: "Priorität" },
-            ].map((s) => (
-              <TouchableOpacity
-                key={s.key}
-                className="px-3 py-1.5 rounded-lg border"
-                style={{
-                  backgroundColor: sortBy === s.key ? colors.primary + '20' : undefined,
-                  borderColor: sortBy === s.key ? colors.primary : '#374151',
-                }}
-                onPress={() => setSortBy(s.key)}
-              >
-                <Text
-                  className="text-xs font-semibold"
-                  style={{ color: sortBy === s.key ? colors.primary : '#9CA3AF' }}
-                >
-                  {s.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
 
           {/* Analytics Charts */}
           {!isLoading && filteredLeads.length > 0 && (() => {
@@ -347,6 +278,77 @@ export default function LeadsScreen() {
               </View>
             );
           })()}
+
+          {/* Prioritätsfilter */}
+          <View className="flex-row gap-2 mb-4">
+            {[
+              { key: "all", label: "Alle", color: colors.foreground },
+              { key: "high", label: "↑ Hoch", color: "#EF4444" },
+              { key: "medium", label: "● Mittel", color: "#F59E0B" },
+              { key: "low", label: "↓ Tief", color: "#6B7280" },
+            ].map((f) => (
+              <TouchableOpacity
+                key={f.key}
+                className="px-3 py-1.5 rounded-lg border"
+                style={{
+                  backgroundColor: priorityFilter === f.key ? f.color + '20' : undefined,
+                  borderColor: priorityFilter === f.key ? f.color : '#374151',
+                }}
+                onPress={() => setPriorityFilter(f.key)}
+              >
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: priorityFilter === f.key ? f.color : '#9CA3AF' }}
+                >
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Sortierung */}
+          <View className="flex-row gap-2 mb-4">
+            {[
+              { key: "date", label: "Neueste" },
+              { key: "name", label: "A-Z" },
+              { key: "value", label: "Wert ↓" },
+              { key: "priority", label: "Priorität" },
+            ].map((s) => (
+              <TouchableOpacity
+                key={s.key}
+                className="px-3 py-1.5 rounded-lg border"
+                style={{
+                  backgroundColor: sortBy === s.key ? colors.primary + '20' : undefined,
+                  borderColor: sortBy === s.key ? colors.primary : '#374151',
+                }}
+                onPress={() => setSortBy(s.key)}
+              >
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: sortBy === s.key ? colors.primary : '#9CA3AF' }}
+                >
+                  {s.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Suchfeld */}
+          <View className="mb-4 bg-surface rounded-xl flex-row items-center px-4 py-2 border border-border">
+            <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
+            <TextInput
+              className="flex-1 ml-3 text-foreground text-base h-10"
+              placeholder="Suchen nach Name, Firma oder E-Mail..."
+              placeholderTextColor={colors.muted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            )}
+          </View>
           {/* Website-Anfragen Kachel */}
           {!isLoading && (() => {
             const websiteLeads = sortLeads(filteredLeads.filter((l: any) => l.source === 'website' && l.status === 'new' && !l.lead_reminders?.some((r: any) => !r.is_processed)));
@@ -1199,6 +1201,21 @@ function LeadDetailsModal({
                   <Text className="text-sm text-muted mb-1">Telefon</Text>
                   <TouchableOpacity onPress={() => Linking.openURL(`tel:${lead.phone}`)} activeOpacity={0.7}>
                     <Text className="text-base text-primary">{lead.phone}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {lead.website && (
+                <View>
+                  <Text className="text-sm text-muted mb-1">Website</Text>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      const url = lead.website.startsWith('http') ? lead.website : `https://${lead.website}`;
+                      Linking.openURL(url);
+                    }} 
+                    activeOpacity={0.7}
+                  >
+                    <Text className="text-base text-primary">{lead.website}</Text>
                   </TouchableOpacity>
                 </View>
               )}

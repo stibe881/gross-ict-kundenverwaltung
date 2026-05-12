@@ -46,6 +46,10 @@ export default function RootLayout() {
   useEffect(() => {
     initManusRuntime();
 
+    if (Platform.OS === 'web') {
+      document.title = "CRM - Gross ICT";
+    }
+
     // Initialize Push Notifications
     initializePushNotifications().catch((error) => {
       console.error("[Push] Initialization failed:", error);

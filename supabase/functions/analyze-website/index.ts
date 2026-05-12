@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -210,6 +211,61 @@ ${plainText}`;
       notes += `\n\n${aiData.salesPitch}`;
     }
 
+    // Check for duplicates in the database
+    let duplicateWarning = "";
+    try {
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+        const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+          global: { headers: { Authorization: authHeader } }
+        });
+
+        // Extract core domain for search (e.g., auto-amrein.ch)
+        let domainForSearch = "";
+        try {
+          domainForSearch = new URL(finalUrl).hostname.replace(/^www\./i, "");
+        } catch(e) {
+          domainForSearch = finalUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split('/')[0];
+        }
+
+        if (domainForSearch) {
+          const { data: existingCustomers } = await supabase
+            .from('customers')
+            .select('company_name')
+            .ilike('website', `%${domainForSearch}%`)
+            .limit(1);
+
+          if (existingCustomers && existingCustomers.length > 0) {
+            duplicateWarning = `Diese Firma existiert bereits als aktiver Kunde (${existingCustomers[0].company_name})!`;
+          } else {
+            const { data: existingLeads } = await supabase
+              .from('leads')
+              .select('company, status')
+              .ilike('website', `%${domainForSearch}%`)
+              .limit(1);
+            
+            if (existingLeads && existingLeads.length > 0) {
+              const statusMap: Record<string, string> = {
+                new: "Neu",
+                contacted: "Kontaktiert",
+                qualified: "Qualifiziert",
+                proposal: "Angebot gesendet",
+                won: "Gewonnen",
+                lost: "Verloren",
+                "follow-up": "Follow-Up"
+              };
+              const leadStatus = statusMap[existingLeads[0].status] || existingLeads[0].status;
+              duplicateWarning = `Diese Firma existiert bereits als Lead (Status: ${leadStatus}).`;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Duplicate check error:", e);
+    }
+
     return new Response(
       JSON.stringify({
         url: finalUrl,
@@ -221,6 +277,7 @@ ${plainText}`;
         city,
         priority,
         notes,
+        duplicateWarning,
         sslValid,
         hasImpressum,
         hasPrivacy,

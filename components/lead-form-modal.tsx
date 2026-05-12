@@ -146,31 +146,62 @@ export function LeadFormModal({
   const analyzeWebsite = async () => {
     if (!analysisUrl.trim()) return;
     setAnalyzing(true);
+    
+    const fallbackProceed = () => {
+      setFormData(prev => ({ ...prev, website: analysisUrl.trim() }));
+      setAnalyzing(false);
+      setStep(2);
+    };
+
     try {
       const { data, error } = await supabase.functions.invoke('analyze-website', {
         body: { url: analysisUrl.trim() },
       });
+      
       if (!error && data) {
-        setFormData(prev => ({
-          ...prev,
-          website: data.url || analysisUrl.trim(),
-          company: data.title || prev.company,
-          email: data.email || prev.email,
-          phone: data.phone || prev.phone,
-          address: data.address || prev.address,
-          zip: data.zip || prev.zip,
-          city: data.city || prev.city,
-          priority: data.priority || prev.priority,
-          notes: data.notes || prev.notes,
-        }));
+        const proceedWithLead = () => {
+          setFormData(prev => ({
+            ...prev,
+            website: data.url || analysisUrl.trim(),
+            company: data.title || prev.company,
+            email: data.email || prev.email,
+            phone: data.phone || prev.phone,
+            address: data.address || prev.address,
+            zip: data.zip || prev.zip,
+            city: data.city || prev.city,
+            priority: data.priority || prev.priority,
+            notes: data.notes || prev.notes,
+          }));
+          setAnalyzing(false);
+          setStep(2);
+        };
+
+        if (data.duplicateWarning) {
+          if (Platform.OS === 'web') {
+            const proceed = window.confirm(`${data.duplicateWarning}\n\nMöchten Sie diesen Lead trotzdem erfassen?`);
+            if (proceed) {
+              proceedWithLead();
+            } else {
+              setAnalyzing(false);
+            }
+          } else {
+            Alert.alert(
+              "Duplikat gefunden",
+              `${data.duplicateWarning}\n\nMöchten Sie diesen Lead trotzdem erfassen?`,
+              [
+                { text: "Abbrechen", style: "cancel", onPress: () => setAnalyzing(false) },
+                { text: "Trotzdem erfassen", style: "destructive", onPress: proceedWithLead }
+              ]
+            );
+          }
+        } else {
+          proceedWithLead();
+        }
       } else {
-        setFormData(prev => ({ ...prev, website: analysisUrl.trim() }));
+        fallbackProceed();
       }
     } catch (e) {
-      setFormData(prev => ({ ...prev, website: analysisUrl.trim() }));
-    } finally {
-      setAnalyzing(false);
-      setStep(2);
+      fallbackProceed();
     }
   };
 
@@ -379,107 +410,23 @@ export function LeadFormModal({
             keyboardShouldPersistTaps="handled"
           >
             <View className="gap-4 pb-4">
-              {/* Name + Firma */}
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    Kontaktperson
-                  </Text>
-                  <TextInput
-                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                    placeholder="Max Muster"
-                    placeholderTextColor={colors.muted}
-                    value={formData.name}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, name: text })
-                    }
-                  />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    Position
-                  </Text>
-                  <TextInput
-                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                    placeholder="z.B. Geschäftsführer"
-                    placeholderTextColor={colors.muted}
-                    value={formData.position}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, position: text })
-                    }
-                  />
-                </View>
-              </View>
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    Firma
-                  </Text>
-                  <TextInput
-                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                    placeholder="Muster AG"
-                    placeholderTextColor={colors.muted}
-                    value={formData.company}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, company: text })
-                    }
-                  />
-                </View>
-              </View>
-
-              {/* E-Mail + Telefon */}
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    E-Mail
-                  </Text>
-                  <TextInput
-                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                    placeholder="max@muster.ch"
-                    placeholderTextColor={colors.muted}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    value={formData.email}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, email: text })
-                    }
-                  />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    Telefon
-                  </Text>
-                  <TextInput
-                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                    placeholder="+41 79 123 45 67"
-                    placeholderTextColor={colors.muted}
-                    keyboardType="phone-pad"
-                    value={formData.phone}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, phone: text })
-                    }
-                  />
-                </View>
-              </View>
-
-              {/* Website */}
+              {/* 1. Firma */}
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
-                  Website
+                  Firma
                 </Text>
                 <TextInput
                   className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="www.muster.ch"
+                  placeholder="Muster AG"
                   placeholderTextColor={colors.muted}
-                  autoCapitalize="none"
-                  value={formData.website}
+                  value={formData.company}
                   onChangeText={(text) =>
-                    setFormData({ ...formData, website: text })
+                    setFormData({ ...formData, company: text })
                   }
                 />
               </View>
 
-              {/* Adresse */}
+              {/* 2. Adresse */}
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
                   Adresse
@@ -494,6 +441,8 @@ export function LeadFormModal({
                   }
                 />
               </View>
+
+              {/* 3. PLZ ORT */}
               <View className="flex-row gap-3">
                 <View style={{ width: 100 }}>
                   <Text className="text-sm font-semibold text-foreground mb-2">
@@ -536,7 +485,215 @@ export function LeadFormModal({
                 </View>
               </View>
 
-              {/* ── POTENZIAL SECTION ── */}
+              {/* 4. Kontaktperson & Position */}
+              <View className="flex-row gap-3">
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    Kontaktperson
+                  </Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="Max Muster"
+                    placeholderTextColor={colors.muted}
+                    value={formData.name}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, name: text })
+                    }
+                  />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    Position
+                  </Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="z.B. Geschäftsführer"
+                    placeholderTextColor={colors.muted}
+                    value={formData.position}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, position: text })
+                    }
+                  />
+                </View>
+              </View>
+
+              {/* 5. E-Mail & Telefon */}
+              <View className="flex-row gap-3">
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    E-Mail
+                  </Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="max@muster.ch"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={formData.email}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, email: text })
+                    }
+                  />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground mb-2">
+                    Telefon
+                  </Text>
+                  <TextInput
+                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="+41 79 123 45 67"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="phone-pad"
+                    value={formData.phone}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, phone: text })
+                    }
+                  />
+                </View>
+              </View>
+
+              {/* 6. Website */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Website
+                </Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="www.muster.ch"
+                  placeholderTextColor={colors.muted}
+                  autoCapitalize="none"
+                  value={formData.website}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, website: text })
+                  }
+                />
+              </View>
+
+              {/* 7. Quelle */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Quelle
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {[
+                    { key: "", label: "Keine" },
+                    { key: "website", label: "Website" },
+                    { key: "empfehlung", label: "Empfehlung" },
+                    { key: "messe", label: "Messe" },
+                    { key: "kaltakquise", label: "Kaltakquise" },
+                    { key: "social_media", label: "Social Media" },
+                  ].map((sourceOption) => (
+                    <TouchableOpacity
+                      key={sourceOption.key}
+                      className={`px-3 py-1.5 rounded-lg border ${formData.source === sourceOption.key
+                        ? "bg-primary border-primary"
+                        : "bg-surface border-border"
+                        }`}
+                      onPress={() =>
+                        setFormData({ ...formData, source: sourceOption.key })
+                      }
+                    >
+                      <Text
+                        className={`text-xs font-semibold ${formData.source === sourceOption.key
+                          ? "text-background"
+                          : "text-foreground"
+                          }`}
+                      >
+                        {sourceOption.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* 8. Priorität */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Priorität
+                </Text>
+                <View className="flex-row gap-2">
+                  {[
+                    { key: "low", label: "Tief", color: "#6B7280" },
+                    { key: "medium", label: "Mittel", color: "#F59E0B" },
+                    { key: "high", label: "Hoch", color: "#EF4444" },
+                  ].map((p) => (
+                    <TouchableOpacity
+                      key={p.key}
+                      className="flex-1 py-2 rounded-lg border"
+                      style={{
+                        backgroundColor: formData.priority === p.key ? p.color + "20" : undefined,
+                        borderColor: formData.priority === p.key ? p.color : "#374151",
+                      }}
+                      onPress={() => setFormData({ ...formData, priority: p.key })}
+                    >
+                      <Text
+                        className="text-xs font-semibold text-center"
+                        style={{ color: formData.priority === p.key ? p.color : "#9CA3AF" }}
+                      >
+                        {p.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* 9. Status */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Status
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {[
+                    { key: "new", label: "Neu" },
+                    { key: "contacted", label: "Kontaktiert" },
+                    { key: "qualified", label: "Qualifiziert" },
+                    { key: "proposal", label: "Angebot" },
+                    { key: "won", label: "Gewonnen" },
+                    { key: "lost", label: "Verloren" },
+                  ].map((statusOption) => (
+                    <TouchableOpacity
+                      key={statusOption.key}
+                      className={`px-3 py-1.5 rounded-lg border ${formData.status === statusOption.key
+                        ? "bg-primary border-primary"
+                        : "bg-surface border-border"
+                        }`}
+                      onPress={() =>
+                        setFormData({ ...formData, status: statusOption.key })
+                      }
+                    >
+                      <Text
+                        className={`text-xs font-semibold ${formData.status === statusOption.key
+                          ? "text-background"
+                          : "text-foreground"
+                          }`}
+                      >
+                        {statusOption.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* 10. Notizen */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Notizen
+                </Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="Zusätzliche Informationen..."
+                  placeholderTextColor={colors.muted}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  value={formData.notes}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, notes: text })
+                  }
+                />
+              </View>
+
+              {/* 11. Potenzial */}
               <View className="bg-surface rounded-xl p-4 border border-border">
                 <Text className="text-base font-bold text-foreground mb-3">
                   <IconSymbol name="banknote" size={16} color={colors.foreground} /> Potenzial
@@ -662,112 +819,7 @@ export function LeadFormModal({
                 </View>
               </View>
 
-              {/* Quelle */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Quelle
-                </Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {[
-                    { key: "", label: "Keine" },
-                    { key: "website", label: "Website" },
-                    { key: "empfehlung", label: "Empfehlung" },
-                    { key: "messe", label: "Messe" },
-                    { key: "kaltakquise", label: "Kaltakquise" },
-                    { key: "social_media", label: "Social Media" },
-                  ].map((sourceOption) => (
-                    <TouchableOpacity
-                      key={sourceOption.key}
-                      className={`px-3 py-1.5 rounded-lg border ${formData.source === sourceOption.key
-                        ? "bg-primary border-primary"
-                        : "bg-surface border-border"
-                        }`}
-                      onPress={() =>
-                        setFormData({ ...formData, source: sourceOption.key })
-                      }
-                    >
-                      <Text
-                        className={`text-xs font-semibold ${formData.source === sourceOption.key
-                          ? "text-background"
-                          : "text-foreground"
-                          }`}
-                      >
-                        {sourceOption.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Priorität */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Priorität
-                </Text>
-                <View className="flex-row gap-2">
-                  {[
-                    { key: "low", label: "Tief", color: "#6B7280" },
-                    { key: "medium", label: "Mittel", color: "#F59E0B" },
-                    { key: "high", label: "Hoch", color: "#EF4444" },
-                  ].map((p) => (
-                    <TouchableOpacity
-                      key={p.key}
-                      className="flex-1 py-2 rounded-lg border"
-                      style={{
-                        backgroundColor: formData.priority === p.key ? p.color + "20" : undefined,
-                        borderColor: formData.priority === p.key ? p.color : "#374151",
-                      }}
-                      onPress={() => setFormData({ ...formData, priority: p.key })}
-                    >
-                      <Text
-                        className="text-xs font-semibold text-center"
-                        style={{ color: formData.priority === p.key ? p.color : "#9CA3AF" }}
-                      >
-                        {p.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Status */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Status
-                </Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {[
-                    { key: "new", label: "Neu" },
-                    { key: "contacted", label: "Kontaktiert" },
-                    { key: "qualified", label: "Qualifiziert" },
-                    { key: "proposal", label: "Angebot" },
-                    { key: "won", label: "Gewonnen" },
-                    { key: "lost", label: "Verloren" },
-                  ].map((statusOption) => (
-                    <TouchableOpacity
-                      key={statusOption.key}
-                      className={`px-3 py-1.5 rounded-lg border ${formData.status === statusOption.key
-                        ? "bg-primary border-primary"
-                        : "bg-surface border-border"
-                        }`}
-                      onPress={() =>
-                        setFormData({ ...formData, status: statusOption.key })
-                      }
-                    >
-                      <Text
-                        className={`text-xs font-semibold ${formData.status === statusOption.key
-                          ? "text-background"
-                          : "text-foreground"
-                          }`}
-                      >
-                        {statusOption.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Terminierung / Wiedervorlage */}
+              {/* 12. Terminierung */}
               <View className="bg-surface rounded-xl p-4 border border-border mt-2">
                 <Text className="text-base font-bold text-foreground mb-3">
                   <IconSymbol name="calendar" size={16} color={colors.foreground} /> Terminierung (optional)
@@ -805,25 +857,6 @@ export function LeadFormModal({
                 <Text className="text-xs text-muted mt-2">
                   Füllen Sie beide Felder aus, um eine automatische Wiedervorlage für diesen Lead zu erstellen.
                 </Text>
-              </View>
-
-              {/* Notizen */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Notizen
-                </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="Zusätzliche Informationen..."
-                  placeholderTextColor={colors.muted}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                  value={formData.notes}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, notes: text })
-                  }
-                />
               </View>
             </View>
           </ScrollView>
