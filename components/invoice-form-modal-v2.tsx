@@ -425,9 +425,9 @@ export function InvoiceFormModal({
               {/* Zahlungsbedingungen */}
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
-                  Zahlungsbedingungen
+                  Zahlungsbedingungen (Tage)
                 </Text>
-                <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
                   {Data.PAYMENT_TERMS_OPTIONS.map((opt) => (
                     <TouchableOpacity
                       key={opt.key}
@@ -450,6 +450,18 @@ export function InvoiceFormModal({
                     </TouchableOpacity>
                   ))}
                 </View>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="Eigene Tage eingeben (z.B. 45)"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="number-pad"
+                  value={String(paymentTermsDays)}
+                  onChangeText={(text) => {
+                    const parsed = parseInt(text, 10);
+                    if (!isNaN(parsed)) setPaymentTermsDays(parsed);
+                    else if (text === "") setPaymentTermsDays(0);
+                  }}
+                />
               </View>
 
               {/* Positionen */}

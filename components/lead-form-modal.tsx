@@ -15,6 +15,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import * as Data from "@/lib/data";
 import { showAlert } from "@/lib/alert";
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 interface LeadFormModalProps {
   visible: boolean;
@@ -40,6 +41,9 @@ export function LeadFormModal({
   const [saving, setSaving] = useState(false);
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [productSearch, setProductSearch] = useState("");
+  const [step, setStep] = useState<1 | 2>(1);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisUrl, setAnalysisUrl] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -134,8 +138,41 @@ export function LeadFormModal({
         reminderNote: "",
       });
       setSelectedProducts([]);
+      setStep(1);
+      setAnalysisUrl("");
     }
   }, [lead, visible]);
+
+  const analyzeWebsite = async () => {
+    if (!analysisUrl.trim()) return;
+    setAnalyzing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-website', {
+        body: { url: analysisUrl.trim() },
+      });
+      if (!error && data) {
+        setFormData(prev => ({
+          ...prev,
+          website: data.url || analysisUrl.trim(),
+          company: data.title || prev.company,
+          email: data.email || prev.email,
+          phone: data.phone || prev.phone,
+          address: data.address || prev.address,
+          zip: data.zip || prev.zip,
+          city: data.city || prev.city,
+          priority: data.priority || prev.priority,
+          notes: data.notes || prev.notes,
+        }));
+      } else {
+        setFormData(prev => ({ ...prev, website: analysisUrl.trim() }));
+      }
+    } catch (e) {
+      setFormData(prev => ({ ...prev, website: analysisUrl.trim() }));
+    } finally {
+      setAnalyzing(false);
+      setStep(2);
+    }
+  };
 
   const addProduct = (product: any) => {
     const existing = selectedProducts.find((p) => p.product_id === product.id);
@@ -286,7 +323,57 @@ export function LeadFormModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView
+          {step === 1 && !lead ? (
+            <View className="p-6 gap-6" style={{ minHeight: 350 }}>
+              <View>
+                <Text className="text-lg font-semibold text-foreground mb-2">
+                  Website analysieren (Optional)
+                </Text>
+                <Text className="text-sm text-muted">
+                  Geben Sie die Website des potenziellen Kunden ein. Unser System analysiert diese auf Sicherheit, Rechtskonformität und Modernität und füllt den Lead automatisch aus.
+                </Text>
+              </View>
+              
+              <TextInput
+                className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                placeholder="www.beispiel.ch"
+                placeholderTextColor={colors.muted}
+                value={analysisUrl}
+                onChangeText={setAnalysisUrl}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+
+              <View className="flex-row gap-3 mt-auto">
+                <TouchableOpacity
+                  className="flex-1 bg-surface border border-border py-3 rounded-lg"
+                  onPress={() => setStep(2)}
+                  disabled={analyzing}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-foreground font-semibold text-center">
+                    Überspringen
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-1 bg-primary py-3 rounded-lg"
+                  onPress={analyzeWebsite}
+                  disabled={analyzing || !analysisUrl.trim()}
+                  activeOpacity={0.8}
+                >
+                  {analyzing ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text className="text-background font-semibold text-center">
+                      Analysieren & Weiter
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <>
+              <ScrollView
             className="p-4"
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -296,7 +383,7 @@ export function LeadFormModal({
               <View className="flex-row gap-3">
                 <View className="flex-1">
                   <Text className="text-sm font-semibold text-foreground mb-2">
-                    Kontaktperson *
+                    Kontaktperson
                   </Text>
                   <TextInput
                     className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
@@ -741,33 +828,34 @@ export function LeadFormModal({
             </View>
           </ScrollView>
 
-          {/* Footer Buttons */}
-          <View className="p-4 border-t border-border flex-row gap-3">
-            <TouchableOpacity
-              className="flex-1 bg-surface border border-border py-3 rounded-lg"
-              onPress={onClose}
-              disabled={saving}
-              activeOpacity={0.7}
-            >
-              <Text className="text-foreground font-semibold text-center">
-                Abbrechen
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="flex-1 bg-primary py-3 rounded-lg"
-              onPress={handleSubmit}
-              disabled={saving}
-              activeOpacity={0.8}
-            >
-              {saving ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text className="text-background font-semibold text-center">
-                  {lead ? "Aktualisieren" : "Speichern"}
+            {/* Footer Buttons */}
+            <View className="p-4 border-t border-border flex-row gap-3">
+              <TouchableOpacity
+                className="flex-1 bg-surface border border-border py-3 rounded-lg"
+                onPress={onClose}
+                disabled={saving}
+                activeOpacity={0.7}
+              >
+                <Text className="text-foreground font-semibold text-center">
+                  Abbrechen
                 </Text>
-              )}
-            </TouchableOpacity>
-          </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 bg-primary py-3 rounded-lg"
+                onPress={handleSubmit}
+                disabled={saving}
+                activeOpacity={0.8}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text className="text-background font-semibold text-center">
+                    {lead ? "Aktualisieren" : "Speichern"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </>)}
         </View>
       </KeyboardAvoidingView>
 

@@ -70,7 +70,8 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    if (type === "invoice") {
+    if (type === "invoice" || type === "dunning") {
+      const isDunning = type === "dunning";
       // Anti-False-Positive: E-Mail-Server fetchen Tracking-Pixel sofort nach
       // Zustellung für Spam-Checks – 30s Verzögerung filtert diese heraus.
       const { data: lastSent } = await supabase
@@ -94,7 +95,7 @@ Deno.serve(async (req) => {
       const { error: activityError } = await supabase.from("invoice_activities").insert({
         invoice_id: id,
         type: "viewed",
-        description: "Rechnung wurde vom Empfänger geöffnet",
+        description: isDunning ? "Mahnung wurde vom Empfänger geöffnet" : "Rechnung wurde vom Empfänger geöffnet",
         user_name: "System",
       });
       console.log(`[track-email] Invoice ${id}: Activity logged`, activityError ? `Error: ${activityError.message}` : "OK");
@@ -119,8 +120,8 @@ Deno.serve(async (req) => {
         console.log(`[track-email] Sending push for invoice ${invoice.invoice_number} (${customerName})`);
         await sendPushToAdmins(
           supabase,
-          "📧 Rechnung geöffnet",
-          `${customerName} hat die Rechnung ${invoice.invoice_number} geöffnet.`,
+          isDunning ? "📧 Mahnung geöffnet" : "📧 Rechnung geöffnet",
+          isDunning ? `${customerName} hat die Mahnung für Rechnung ${invoice.invoice_number} geöffnet.` : `${customerName} hat die Rechnung ${invoice.invoice_number} geöffnet.`,
           `/invoice/${id}`,
           "invoices"
         );

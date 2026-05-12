@@ -129,6 +129,7 @@ async function startServer() {
     res.send(pixel);
   });
 
+
   // ── Public Vertrags-Ansicht & Signatur ──
 
   app.get("/api/public/contracts/:token", async (req, res) => {

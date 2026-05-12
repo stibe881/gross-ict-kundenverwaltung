@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
     const levelColor = LEVEL_COLORS[dunningLevel];
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const trackingUrl = `${supabaseUrl}/functions/v1/track-email?type=invoice&id=${id}`;
+    const trackingUrl = `${supabaseUrl}/functions/v1/track-email?type=dunning&id=${id}`;
     const trackingPixel = `<img src="${trackingUrl}" width="1" height="1" style="display:none" alt="" />`;
 
     const html = `

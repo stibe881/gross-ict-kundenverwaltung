@@ -37,7 +37,8 @@ export default function LeadsScreen() {
   const [convertingLead, setConvertingLead] = useState<any | null>(null);
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("date");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<string>("az");
   const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
   const { refreshing, onRefresh } = useGlobalRefresh();
 
@@ -81,9 +82,17 @@ export default function LeadsScreen() {
     return colorMap[status];
   };
 
-  const filteredLeads = priorityFilter === "all"
-    ? leads
-    : leads.filter((l: any) => (l.priority || "medium") === priorityFilter);
+  const filteredLeads = leads.filter((l: any) => {
+    if (priorityFilter !== "all" && (l.priority || "medium") !== priorityFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchName = l.name && l.name.toLowerCase().includes(q);
+      const matchCompany = l.company && l.company.toLowerCase().includes(q);
+      const matchEmail = l.email && l.email.toLowerCase().includes(q);
+      if (!matchName && !matchCompany && !matchEmail) return false;
+    }
+    return true;
+  });
 
   const sortLeads = (list: any[]) => {
     return [...list].sort((a, b) => {
@@ -103,21 +112,23 @@ export default function LeadsScreen() {
     });
   };
 
+  const hasReminder = (l: any) => l.lead_reminders?.some((r: any) => !r.is_processed);
+
   const groupedLeads = {
-    new: sortLeads(filteredLeads.filter((l: any) => l.status === "new")),
-    contacted: sortLeads(filteredLeads.filter((l: any) => l.status === "contacted" && !l.lead_reminders?.some((r: any) => !r.is_processed))),
-    qualified: sortLeads(filteredLeads.filter((l: any) => l.status === "qualified")),
-    proposal: sortLeads(filteredLeads.filter((l: any) => l.status === "proposal")),
+    new: sortLeads(filteredLeads.filter((l: any) => l.status === "new" && !hasReminder(l))),
+    contacted: sortLeads(filteredLeads.filter((l: any) => l.status === "contacted" && !hasReminder(l))),
+    qualified: sortLeads(filteredLeads.filter((l: any) => l.status === "qualified" && !hasReminder(l))),
+    proposal: sortLeads(filteredLeads.filter((l: any) => l.status === "proposal" && !hasReminder(l))),
   };
 
   const totalCounts = {
-    new: leads.filter((l: any) => l.status === "new").length,
-    contacted: leads.filter((l: any) => l.status === "contacted" && !l.lead_reminders?.some((r: any) => !r.is_processed)).length,
-    qualified: leads.filter((l: any) => l.status === "qualified").length,
-    proposal: leads.filter((l: any) => l.status === "proposal").length,
+    new: filteredLeads.filter((l: any) => l.status === "new" && !hasReminder(l)).length,
+    contacted: filteredLeads.filter((l: any) => l.status === "contacted" && !hasReminder(l)).length,
+    qualified: filteredLeads.filter((l: any) => l.status === "qualified" && !hasReminder(l)).length,
+    proposal: filteredLeads.filter((l: any) => l.status === "proposal" && !hasReminder(l)).length,
   };
 
-  const totalValue = leads.reduce((sum: number, lead: any) => sum + (lead.value || 0), 0);
+  const totalValue = filteredLeads.reduce((sum: number, lead: any) => sum + (lead.value || 0), 0);
 
   const getPriorityLabel = (p: string) => ({ low: "Tief", medium: "Mittel", high: "Hoch" }[p] || "Mittel");
   const getPriorityColor = (p: string) => ({ low: "#6B7280", medium: "#F59E0B", high: "#EF4444" }[p] || "#F59E0B");
@@ -147,6 +158,23 @@ export default function LeadsScreen() {
             >
               <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
             </TouchableOpacity>
+          </View>
+
+          {/* Suchfeld */}
+          <View className="mb-4 bg-surface rounded-xl flex-row items-center px-4 py-2 border border-border">
+            <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
+            <TextInput
+              className="flex-1 ml-3 text-foreground text-base h-10"
+              placeholder="Suchen nach Name, Firma oder E-Mail..."
+              placeholderTextColor={colors.muted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Prioritätsfilter */}
@@ -204,7 +232,7 @@ export default function LeadsScreen() {
           </View>
 
           {/* Analytics Charts */}
-          {!isLoading && leads.length > 0 && (() => {
+          {!isLoading && filteredLeads.length > 0 && (() => {
             const pipelineData = [
               { label: "Neu", count: totalCounts.new, color: colors.muted },
               { label: "Kontaktiert", count: totalCounts.contacted, color: colors.primary },
@@ -213,12 +241,12 @@ export default function LeadsScreen() {
             ];
             const pipelineTotal = pipelineData.reduce((s, d) => s + d.count, 0);
 
-            const wonCount = leads.filter((l: any) => l.status === "won").length;
-            const lostCount = leads.filter((l: any) => l.status === "lost").length;
+            const wonCount = filteredLeads.filter((l: any) => l.status === "won").length;
+            const lostCount = filteredLeads.filter((l: any) => l.status === "lost").length;
             const closedTotal = wonCount + lostCount;
             const winRate = closedTotal > 0 ? Math.round((wonCount / closedTotal) * 100) : 0;
-            const wonValue = leads.filter((l: any) => l.status === "won").reduce((s: number, l: any) => s + (l.value || 0), 0);
-            const lostValue = leads.filter((l: any) => l.status === "lost").reduce((s: number, l: any) => s + (l.value || 0), 0);
+            const wonValue = filteredLeads.filter((l: any) => l.status === "won").reduce((s: number, l: any) => s + (l.value || 0), 0);
+            const lostValue = filteredLeads.filter((l: any) => l.status === "lost").reduce((s: number, l: any) => s + (l.value || 0), 0);
 
             const resultData = [
               { label: "Gewonnen", count: wonCount, color: colors.success, value: wonValue },
@@ -321,7 +349,7 @@ export default function LeadsScreen() {
           })()}
           {/* Website-Anfragen Kachel */}
           {!isLoading && (() => {
-            const websiteLeads = sortLeads(leads.filter((l: any) => l.source === 'website' && l.status === 'new'));
+            const websiteLeads = sortLeads(filteredLeads.filter((l: any) => l.source === 'website' && l.status === 'new' && !l.lead_reminders?.some((r: any) => !r.is_processed)));
             if (websiteLeads.length === 0) return null;
             return (
               <View className="bg-surface rounded-xl p-4 border border-border mb-4" style={{ minHeight: 140, maxHeight: 220 }}>
@@ -389,7 +417,7 @@ export default function LeadsScreen() {
 
           {/* Follow up (Terminierungen) Kachel */}
           {!isLoading && (() => {
-            const followUpLeads = leads.filter((l: any) => 
+            const followUpLeads = filteredLeads.filter((l: any) => 
                l.lead_reminders?.some((r: any) => !r.is_processed)
             );
             // Sort by earliest reminder
@@ -618,7 +646,7 @@ export default function LeadsScreen() {
                     <View className="flex-row items-center gap-2">
                       <View className="px-2 py-1 rounded-full bg-success">
                         <Text className="text-xs font-semibold text-white">
-                          {leads.filter((l: any) => l.status === "won").length}
+                          {filteredLeads.filter((l: any) => l.status === "won").length}
                         </Text>
                       </View>
                       {!isWide && (
@@ -631,10 +659,10 @@ export default function LeadsScreen() {
                     </View>
                   </TouchableOpacity>
                   
-                  {(isWide || expandedStages["won"]) && leads.filter((l: any) => l.status === "won").length > 0 && (
+                  {(isWide || expandedStages["won"]) && filteredLeads.filter((l: any) => l.status === "won").length > 0 && (
                     <ScrollView nestedScrollEnabled style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
                       <View className="gap-2">
-                        {sortLeads(leads.filter((l: any) => l.status === "won")).map((lead: any) => (
+                        {sortLeads(filteredLeads.filter((l: any) => l.status === "won")).map((lead: any) => (
                            <TouchableOpacity
                              key={lead.id}
                              className="bg-background rounded-lg p-3 border border-border"
@@ -672,7 +700,7 @@ export default function LeadsScreen() {
                     <View className="flex-row items-center gap-2">
                       <View className="px-2 py-1 rounded-full bg-error">
                         <Text className="text-xs font-semibold text-white">
-                          {leads.filter((l: any) => l.status === "lost").length}
+                          {filteredLeads.filter((l: any) => l.status === "lost").length}
                         </Text>
                       </View>
                       {!isWide && (
@@ -685,10 +713,10 @@ export default function LeadsScreen() {
                     </View>
                   </TouchableOpacity>
 
-                  {(isWide || expandedStages["lost"]) && leads.filter((l: any) => l.status === "lost").length > 0 && (
+                  {(isWide || expandedStages["lost"]) && filteredLeads.filter((l: any) => l.status === "lost").length > 0 && (
                     <ScrollView nestedScrollEnabled style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
                       <View className="gap-2">
-                        {sortLeads(leads.filter((l: any) => l.status === "lost")).map((lead: any) => (
+                        {sortLeads(filteredLeads.filter((l: any) => l.status === "lost")).map((lead: any) => (
                            <TouchableOpacity
                              key={lead.id}
                              className="bg-background rounded-lg p-3 border border-border opacity-70"

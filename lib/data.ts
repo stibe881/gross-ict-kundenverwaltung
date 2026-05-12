@@ -522,6 +522,11 @@ export async function addPayment(invoiceId: string, amount: number) {
         .select()
         .single();
     if (error) throw new Error(error.message);
+
+    try {
+        await addInvoiceActivity(invoiceId, "payment_added", `Zahlung von CHF ${amount.toFixed(2)} erfasst. ${newStatus === "paid" ? "Rechnung vollständig bezahlt." : ""}`);
+    } catch (_) { /* ignore */ }
+
     return data;
 }
 
