@@ -777,6 +777,10 @@ export default function LeadsScreen() {
             setShowAddModal(true);
             setSelectedLead(null);
           }}
+          onConvert={() => {
+            setConvertingLead(selectedLead);
+            setSelectedLead(null);
+          }}
         />
       )}
     </ScreenContainer>
@@ -795,6 +799,14 @@ function ConvertLeadModal({
   const queryClient = useQueryClient();
   const [isConverting, setIsConverting] = useState(false);
 
+  const [shouldCreateQuote, setShouldCreateQuote] = useState(false);
+  const { data: leadItems = [] } = useQuery({
+    queryKey: ["lead_items", lead.id],
+    queryFn: () => Data.getLeadItems(lead.id),
+  });
+
+  const hasPotential = leadItems.length > 0 || lead.extra_amount > 0;
+
   const createCustomer = useMutation({
     mutationFn: (data: any) => Data.createCustomer({
       first_name: data.firstName,
@@ -805,16 +817,81 @@ function ConvertLeadModal({
       status: data.status,
       notes: data.notes,
     }),
-    onSuccess: async () => {
-      // Lead-Status auf "won" setzen
-      await Data.updateLead(lead.id, { status: "won" });
+    onSuccess: async (newCustomer) => {
+      const targetStatus = shouldCreateQuote ? "proposal" : "won";
+      const targetStatusLabel = shouldCreateQuote ? "'Angebot'" : "'Gewonnen'";
+
+      // Lead-Status aktualisieren
+      await Data.updateLead(lead.id, { status: targetStatus });
       await Data.addLeadActivity({
         lead_id: lead.id,
         type: "system",
-        content: "Lead als Kunde erfasst und Status auf 'Gewonnen' gesetzt",
+        content: `Lead als Kunde erfasst und Status auf ${targetStatusLabel} gesetzt`,
         user_name: "System",
       });
+
+      if (shouldCreateQuote && hasPotential && newCustomer?.id) {
+        try {
+          const quoteNumber = await Data.getNextQuoteNumber();
+          let subtotal = 0;
+          let tax = 0;
+          const quoteItems = leadItems.map((item: any) => {
+            const lineSub = (item.quantity || 1) * (item.unit_price || 0);
+            const vat = item.vat_rate ?? 8.1;
+            subtotal += lineSub;
+            tax += lineSub * (vat / 100);
+            return {
+              description: item.description,
+              quantity: item.quantity || 1,
+              unit_price: item.unit_price || 0,
+              vat_rate: vat,
+              total: lineSub,
+              product_id: item.product_id,
+            };
+          });
+          if (lead.extra_amount) {
+            const eSub = lead.extra_amount;
+            subtotal += eSub;
+            tax += eSub * 0.081;
+            quoteItems.push({
+              description: lead.extra_description || "Sonstiges",
+              quantity: 1,
+              unit_price: eSub,
+              vat_rate: 8.1,
+              total: eSub,
+            });
+          }
+          const total = subtotal + tax;
+
+          const validUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+          await Data.createQuote({
+            customer_id: newCustomer.id,
+            quote_number: quoteNumber,
+            status: "draft",
+            valid_until: validUntil,
+            subtotal,
+            tax,
+            total,
+          }, quoteItems);
+          
+          await Data.addLeadActivity({
+            lead_id: lead.id,
+            type: "system",
+            content: `Angebot ${quoteNumber} aus Potenzial erstellt`,
+            user_name: "System",
+          });
+        } catch (e: any) {
+          console.error("Fehler beim Erstellen des Angebots:", e);
+          showAlert("Fehler", "Kunde wurde erstellt, aber das Angebot konnte nicht generiert werden.");
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      if (shouldCreateQuote) {
+        queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      }
       showAlert("Erfolg", "Lead wurde erfolgreich als Kunde erfasst!");
       onClose();
     },
@@ -865,6 +942,22 @@ function ConvertLeadModal({
             Möchten Sie diesen Lead als Kunde erfassen? Die Daten werden automatisch übernommen.
           </Text>
 
+          {hasPotential && (
+            <TouchableOpacity
+              className="flex-row items-center bg-surface border border-border p-3 rounded-lg mb-6"
+              onPress={() => setShouldCreateQuote(!shouldCreateQuote)}
+              activeOpacity={0.7}
+            >
+              <View className={`w-5 h-5 rounded border items-center justify-center mr-3 ${shouldCreateQuote ? "bg-primary border-primary" : "border-muted"}`}>
+                {shouldCreateQuote && <IconSymbol name="checkmark" size={14} color="#FFF" />}
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground">Angebot erstellen</Text>
+                <Text className="text-xs text-muted">Aus den Potenzial-Produkten automatisch ein Angebot generieren</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           <View className="flex-row gap-3">
             <TouchableOpacity
               className="flex-1 bg-surface border border-border py-3 rounded-lg"
@@ -896,15 +989,16 @@ function ConvertLeadModal({
 }
 
 
-// Lead-Details Modal mit Historie
 function LeadDetailsModal({
   lead,
   onClose,
   onEdit,
+  onConvert,
 }: {
   lead: any;
   onClose: () => void;
   onEdit?: () => void;
+  onConvert?: () => void;
 }) {
   const colors = useColors();
   const router = useRouter();
@@ -988,20 +1082,7 @@ function LeadDetailsModal({
     queryFn: () => Data.getLeadReminders(lead.id),
   });
 
-  const convertToCustomer = useMutation({
-    mutationFn: () => Data.convertLeadToCustomer(lead.id),
-    onSuccess: (newCustomer) => {
-      showAlert("Erfolg", "Lead wurde erfolgreich zu einem Kunden umgewandelt!");
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      // Eventuell direkt zum neuen Kunden navigieren
-      // router.push(`/customer/${newCustomer.id}`);
-      onClose(); // Schließe das Lead-Fenster
-    },
-    onError: (e: any) => {
-      showAlert("Fehler", "Fehler bei der Umwandlung: " + e.message);
-    }
-  });
+
 
   const addReminder = useMutation({
     mutationFn: (data: { remind_at: string; note: string }) => Data.createLeadReminder({
@@ -1145,29 +1226,16 @@ function LeadDetailsModal({
                   <Text className="text-sm font-semibold text-foreground">Bearbeiten</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity 
-                className="bg-primary/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1.5"
-                onPress={() => {
-                  Alert.alert(
-                    "Zu Kunde umwandeln",
-                    "Möchten Sie diesen Lead wirklich in einen Kunden umwandeln? Der Status wird auf 'Gewonnen' gesetzt und ein neuer Kundeneintrag erstellt.",
-                    [
-                      { text: "Abbrechen", style: "cancel" },
-                      { text: "Umwandeln", style: "default", onPress: () => convertToCustomer.mutate() }
-                    ]
-                  );
-                }}
-                disabled={convertToCustomer.isPending || lead.status === "won"}
-              >
-                {convertToCustomer.isPending ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <>
-                    <IconSymbol name="person.crop.circle.badge.plus" size={16} color={colors.primary} />
-                    <Text className="text-sm font-semibold text-primary">Kunde erstellen</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {onConvert && lead.status !== "won" && (
+                <TouchableOpacity 
+                  className="bg-primary/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1.5"
+                  onPress={onConvert}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol name="person.crop.circle.badge.plus" size={16} color={colors.primary} />
+                  <Text className="text-sm font-semibold text-primary">Kunde erstellen</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
                 <IconSymbol name="xmark.circle.fill" size={28} color={colors.muted} />
               </TouchableOpacity>

@@ -129,7 +129,7 @@ const MAPPING = {
   "chart.bar.xaxis": "bar-chart",
   "checkmark.circle": "check-circle-outline",
   "chevron.up": "expand-less",
-  "person.badge.plus.fill": "person-add",
+  "person.crop.circle.badge.plus": "person-add",
   "magnifyingglass.circle.fill": "manage-search",
   "wifi": "wifi",
   "wifi.slash": "wifi-off",
