@@ -485,15 +485,25 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
                                                 />
                                             </View>
 
-                                            {/* Menge & Preis */}
+                                            {/* Menge, Einheit & Preis */}
                                             <View className="flex-row gap-2 mb-2">
-                                                <View className="flex-1">
+                                                <View className="flex-[0.8]">
                                                     <Text className="text-xs text-muted mb-1">Menge</Text>
                                                     <TextInput
                                                         value={item.quantity}
                                                         onChangeText={(v) => updateItem(item.id, "quantity", v)}
                                                         keyboardType="decimal-pad"
                                                         placeholder="1"
+                                                        placeholderTextColor={colors.muted}
+                                                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                                                    />
+                                                </View>
+                                                <View className="flex-[0.8]">
+                                                    <Text className="text-xs text-muted mb-1">Einheit</Text>
+                                                    <TextInput
+                                                        value={item.unit}
+                                                        onChangeText={(v) => updateItem(item.id, "unit", v)}
+                                                        placeholder="Stk."
                                                         placeholderTextColor={colors.muted}
                                                         className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
                                                     />
