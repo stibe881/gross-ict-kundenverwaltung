@@ -89,6 +89,19 @@ export default function QuotesScreen() {
             `${item.customer?.first_name || ""} ${item.customer?.last_name || ""}`.trim() ||
             "Unbekannt";
 
+        const items = item.items || [];
+        const nonOptionalItems = items.filter((i: any) => !i.optional);
+        const optionalItems = items.filter((i: any) => !!i.optional);
+        const nonOptionalTotal = nonOptionalItems.reduce((s: number, i: any) => s + (i.total || 0), 0);
+        const optionalTotal = optionalItems.reduce((s: number, i: any) => s + (i.total || 0), 0);
+        let optionalTax = 0;
+        optionalItems.forEach((i: any) => {
+            optionalTax += (i.total || 0) * ((i.vat_rate || 8.1) / 100);
+        });
+        const hasOptional = optionalTotal > 0;
+        const totalExcl = item.total || (nonOptionalTotal + (item.tax || 0));
+        const totalIncl = totalExcl + optionalTotal + optionalTax;
+
         return (
             <TouchableOpacity
                 className="bg-surface rounded-xl p-4 mb-3 border border-border"
@@ -108,9 +121,16 @@ export default function QuotesScreen() {
                     <Text className="text-sm text-muted">
                         {formatDate(item.quote_date)} {item.valid_until ? `· Gültig bis ${formatDate(item.valid_until)}` : ""}
                     </Text>
-                    <Text className="text-base font-bold text-foreground">
-                        {formatCurrency(item.total)}
-                    </Text>
+                    <View className="items-end">
+                        <Text className="text-base font-bold text-foreground">
+                            {formatCurrency(totalExcl)}
+                        </Text>
+                        {hasOptional && (
+                            <Text className="text-xs font-bold mt-1" style={{ color: colors.primary }}>
+                                Inkl. Opt: {formatCurrency(totalIncl)}
+                            </Text>
+                        )}
+                    </View>
                 </View>
             </TouchableOpacity>
         );

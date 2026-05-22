@@ -87,3 +87,19 @@ body {
 *::-webkit-scrollbar-thumb:hover {
   background: rgba(193, 154, 107, 0.7);
 }
+
+/* Hide number input spinners and clear buttons on Web */
+input[type="number"]::-webkit-inner-spin-button, 
+input[type="number"]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+input::-ms-clear,
+input::-ms-reveal {
+  display: none;
+  width: 0;
+  height: 0;
+}

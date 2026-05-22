@@ -25,6 +25,42 @@ interface QuoteFormModalProps {
     initialCustomerId?: string;
 }
 
+const PositionInput = ({ index, maxIndex, onMove }: { index: number, maxIndex: number, onMove: (from: number, to: number) => void }) => {
+    const [val, setVal] = useState(String(index + 1));
+    const [isFocused, setIsFocused] = useState(false);
+
+    useEffect(() => {
+        if (!isFocused) {
+            setVal(String(index + 1));
+        }
+    }, [index, isFocused]);
+
+    return (
+        <TextInput
+            value={val}
+            onChangeText={setVal}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => {
+                setIsFocused(false);
+                let newPos = parseInt(val, 10);
+                if (!isNaN(newPos) && newPos > 0) {
+                    if (newPos > maxIndex + 1) newPos = maxIndex + 1;
+                    if (newPos - 1 !== index) {
+                        onMove(index, newPos - 1);
+                    } else {
+                        setVal(String(index + 1));
+                    }
+                } else {
+                    setVal(String(index + 1));
+                }
+            }}
+            keyboardType="numeric"
+            className="bg-background border border-border rounded px-2 text-sm font-semibold text-foreground text-center"
+            style={{ width: 40, height: 28, padding: 0 }}
+        />
+    );
+};
+
 interface LineItem {
     id: string;
     name: string;
@@ -48,6 +84,8 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
         { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", vatRate: "8.1", optional: false },
     ]);
     const [loading, setLoading] = useState(false);
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+    const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
     const [showProductPicker, setShowProductPicker] = useState<string | null>(null);
     const [productSearch, setProductSearch] = useState("");
     const [showCustomerPicker, setShowCustomerPicker] = useState(false);
@@ -135,6 +173,15 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
     const removeItem = (id: string) => {
         if (items.length <= 1) return;
         setItems((prev) => prev.filter((i) => i.id !== id));
+    };
+
+    const moveItem = (index: number, direction: -1 | 1) => {
+        if (index + direction < 0 || index + direction >= items.length) return;
+        const newItems = [...items];
+        const temp = newItems[index];
+        newItems[index] = newItems[index + direction];
+        newItems[index + direction] = temp;
+        setItems(newItems);
     };
 
     const updateItem = (id: string, field: keyof LineItem, value: string | boolean) => {
@@ -366,27 +413,55 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
                                 {items.map((item, index) => {
                                     const suggestions = getAutocompleteSuggestions(item.name);
                                     const showSuggestions = suggestions.length > 0 && showProductPicker !== item.id && !dismissedAutocomplete.has(item.id);
+                                    const isDragged = draggedIndex === index;
+                                    const isHovered = dragOverIndex === index;
 
-                                    return (
+                                    const itemContent = (
                                         <View
-                                            key={item.id}
                                             className={`bg-surface rounded-lg p-3 mb-3 border ${item.optional ? "border-dashed" : ""}`}
                                             style={{
-                                                borderColor: item.optional ? colors.warning : colors.border,
+                                                borderColor: isHovered && draggedIndex !== null && draggedIndex !== index 
+                                                    ? colors.primary 
+                                                    : (item.optional ? colors.warning : colors.border),
+                                                borderTopWidth: isHovered && draggedIndex !== null && draggedIndex > index ? 3 : 1,
+                                                borderBottomWidth: isHovered && draggedIndex !== null && draggedIndex < index ? 3 : 1,
                                                 backgroundColor: item.optional ? `${colors.warning}08` : colors.surface,
+                                                opacity: isDragged ? 0.4 : 1,
                                             }}
                                         >
                                             {/* Position Header */}
                                             <View className="flex-row items-center justify-between mb-2">
                                                 <View className="flex-row items-center gap-2">
-                                                    <Text className="text-sm font-semibold text-foreground">
-                                                        Position {index + 1}
-                                                    </Text>
+                                                    <View className="flex-row items-center gap-1">
+                                                        <Text className="text-sm font-semibold text-foreground">
+                                                            Position
+                                                        </Text>
+                                                        <PositionInput
+                                                            index={index}
+                                                            maxIndex={items.length - 1}
+                                                            onMove={(from, to) => {
+                                                                const newItems = [...items];
+                                                                const temp = newItems[from];
+                                                                newItems.splice(from, 1);
+                                                                newItems.splice(to, 0, temp);
+                                                                setItems(newItems);
+                                                            }}
+                                                        />
+                                                    </View>
                                                     {item.optional ? (
                                                         <View className="bg-warning/20 px-2 py-0.5 rounded">
                                                             <Text className="text-xs font-medium text-warning">Optional</Text>
                                                         </View>
                                                     ) : null}
+                                                    <View className="flex-row gap-1 ml-2">
+
+                                                        <TouchableOpacity onPress={() => moveItem(index, -1)} disabled={index === 0} style={{ opacity: index === 0 ? 0.3 : 1 }} activeOpacity={0.7} className="p-1">
+                                                            <IconSymbol name="chevron.up" size={18} color={colors.foreground} />
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity onPress={() => moveItem(index, 1)} disabled={index === items.length - 1} style={{ opacity: index === items.length - 1 ? 0.3 : 1 }} activeOpacity={0.7} className="p-1">
+                                                            <IconSymbol name="chevron.down" size={18} color={colors.foreground} />
+                                                        </TouchableOpacity>
+                                                    </View>
                                                 </View>
                                                 <View className="flex-row gap-2">
                                                     <TouchableOpacity
@@ -586,6 +661,44 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
                                             ) : null}
                                         </View>
                                     );
+
+                                    if (Platform.OS === 'web') {
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                draggable
+                                                onDragStart={(e) => {
+                                                    e.dataTransfer.effectAllowed = "move";
+                                                    e.dataTransfer.setData("text/plain", index.toString());
+                                                    setDraggedIndex(index);
+                                                }}
+                                                onDragOver={(e) => { 
+                                                    e.preventDefault(); 
+                                                    e.dataTransfer.dropEffect = "move";
+                                                    setDragOverIndex(index); 
+                                                }}
+                                                onDragLeave={() => { if (dragOverIndex === index) setDragOverIndex(null); }}
+                                                onDrop={(e) => {
+                                                    e.preventDefault();
+                                                    if (draggedIndex !== null && draggedIndex !== index) {
+                                                        const newItems = [...items];
+                                                        const temp = newItems[draggedIndex];
+                                                        newItems.splice(draggedIndex, 1);
+                                                        newItems.splice(index, 0, temp);
+                                                        setItems(newItems);
+                                                    }
+                                                    setDraggedIndex(null);
+                                                    setDragOverIndex(null);
+                                                }}
+                                                onDragEnd={() => { setDraggedIndex(null); setDragOverIndex(null); }}
+                                                style={{ cursor: 'grab' }}
+                                            >
+                                                {itemContent}
+                                            </div>
+                                        );
+                                    }
+
+                                    return <React.Fragment key={item.id}>{itemContent}</React.Fragment>;
                                 })}
                                 <TouchableOpacity
                                     className="bg-primary px-4 py-2 rounded-lg self-start"

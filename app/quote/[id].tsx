@@ -243,6 +243,19 @@ export default function QuoteDetailScreen() {
         `${quote.customer?.first_name || ""} ${quote.customer?.last_name || ""}`.trim() ||
         "Unbekannt";
 
+    const items = quote.items || [];
+    const nonOptionalItems = items.filter((i: any) => !i.optional);
+    const optionalItems = items.filter((i: any) => !!i.optional);
+    const nonOptionalTotal = nonOptionalItems.reduce((s: number, i: any) => s + (i.total || 0), 0);
+    const optionalTotal = optionalItems.reduce((s: number, i: any) => s + (i.total || 0), 0);
+    let optionalTax = 0;
+    optionalItems.forEach((i: any) => {
+        optionalTax += (i.total || 0) * ((i.vat_rate || 8.1) / 100);
+    });
+    const hasOptional = optionalTotal > 0;
+    const totalExcl = quote.total || (nonOptionalTotal + (quote.tax || 0));
+    const totalIncl = totalExcl + optionalTotal + optionalTax;
+
     return (
         <ScreenContainer>
             <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
@@ -313,19 +326,33 @@ export default function QuoteDetailScreen() {
                 <View className="bg-surface rounded-xl p-4 border border-border mt-4">
                     <View className="flex-row justify-between mb-2">
                         <Text className="text-sm text-muted">Zwischensumme</Text>
-                        <Text className="text-sm text-foreground">{formatCurrency(quote.subtotal)}</Text>
+                        <Text className="text-sm text-foreground">{formatCurrency(quote.subtotal || nonOptionalTotal)}</Text>
                     </View>
                     <View className="flex-row justify-between mb-3">
                         <Text className="text-sm text-muted">MwSt</Text>
-                        <Text className="text-sm text-foreground">{formatCurrency(quote.tax)}</Text>
+                        <Text className="text-sm text-foreground">{formatCurrency(quote.tax || 0)}</Text>
                     </View>
+                    {hasOptional && (
+                        <View className="flex-row justify-between mb-3">
+                            <Text className="text-sm text-muted">Optional-Positionen</Text>
+                            <Text className="text-sm text-foreground">{formatCurrency(optionalTotal)}</Text>
+                        </View>
+                    )}
                     <View
-                        className="flex-row justify-between pt-3 border-t"
+                        className="flex-row justify-between pt-3 border-t mb-2"
                         style={{ borderTopColor: colors.border }}
                     >
-                        <Text className="text-lg font-bold text-foreground">Total</Text>
-                        <Text className="text-lg font-bold text-foreground">{formatCurrency(quote.total)}</Text>
+                        <Text className="text-base font-bold text-foreground">
+                            {hasOptional ? "Total ohne Optionen" : "Total"}
+                        </Text>
+                        <Text className="text-base font-bold text-foreground">{formatCurrency(totalExcl)}</Text>
                     </View>
+                    {hasOptional && (
+                        <View className="flex-row justify-between pt-2 border-t" style={{ borderTopColor: colors.border }}>
+                            <Text className="text-lg font-bold" style={{ color: colors.primary }}>Total inkl. Optionen</Text>
+                            <Text className="text-lg font-bold" style={{ color: colors.primary }}>{formatCurrency(totalIncl)}</Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Notizen */}

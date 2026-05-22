@@ -36,8 +36,14 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
   const nonOptionalItems = items.filter((i: any) => !i.optional);
   const nonOptionalTotal = nonOptionalItems.reduce((s: number, i: any) => s + (i.total || 0), 0);
   const optionalTotal = optionalItems.reduce((s: number, i: any) => s + (i.total || 0), 0);
+  let optionalTax = 0;
+  optionalItems.forEach((i: any) => {
+    optionalTax += (i.total || 0) * ((i.vat_rate || 8.1) / 100);
+  });
   const hasOptional = optionalTotal > 0;
-  const grandTotal = quote.total || nonOptionalTotal + optionalTotal;
+  
+  const totalExcl = quote.total || (nonOptionalTotal + (quote.tax || 0));
+  const totalIncl = totalExcl + optionalTotal + optionalTax;
 
   const itemsHTML = items.map((item: any, idx: number) => {
     const isOpt = !!item.optional;
@@ -423,10 +429,21 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
           <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:8px;">Gültig bis</div>
           <div style="font-size:20px;font-weight:700;color:var(--primary);">${fmtDate(quote.valid_until)}</div>
         </div>` : ""}
+        ${hasOptional ? `
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:8px;">Ohne Optionen</div>
+          <div style="font-size:20px;font-weight:700;color:var(--text-heading);">CHF ${fmtCHF(totalExcl)}</div>
+        </div>
+        <div style="background:var(--bg-card);border:1px solid var(--primary);border-radius:var(--radius);padding:24px;box-shadow:0 0 20px var(--primary-glow);">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--primary);margin-bottom:8px;">Inkl. Optionen</div>
+          <div style="font-size:20px;font-weight:700;color:var(--primary);">CHF ${fmtCHF(totalIncl)}</div>
+        </div>
+        ` : `
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
           <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:8px;">Gesamtbetrag</div>
-          <div style="font-size:20px;font-weight:700;color:var(--primary);">CHF ${fmtCHF(grandTotal)}</div>
+          <div style="font-size:20px;font-weight:700;color:var(--primary);">CHF ${fmtCHF(totalExcl)}</div>
         </div>
+        `}
         ${quote.preview_url ? `
         <div style="background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:var(--radius);padding:24px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-decoration:none;">
           <a href="${escHtml(quote.preview_url)}" target="_blank" rel="noopener" style="text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:8px;color:#0f0f1a;">
@@ -543,20 +560,28 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
             <span>Zwischensumme</span>
             <span>CHF ${fmtCHF(nonOptionalTotal || quote.subtotal)}</span>
           </div>
-          ${hasOptional ? `
-          <div class="pricing-total-row">
-            <span>Optional-Positionen</span>
-            <span>CHF ${fmtCHF(optionalTotal)}</span>
-          </div>` : ""}
           ${quote.tax > 0 ? `
           <div class="pricing-total-row">
             <span>MwSt.</span>
             <span>CHF ${fmtCHF(quote.tax)}</span>
           </div>` : ""}
+          ${hasOptional ? `
+          <div class="pricing-total-row">
+            <span>Optional-Positionen</span>
+            <span>CHF ${fmtCHF(optionalTotal)}</span>
+          </div>
+          <div class="pricing-total-row grand" style="border-top-color:var(--border); padding-top:12px; margin-top:8px;">
+            <span style="font-size:16px;">Total ohne Optionen</span>
+            <span class="amount" style="font-size:20px; color:var(--text-heading);">CHF ${fmtCHF(totalExcl)}</span>
+          </div>
+          <div class="pricing-total-row grand">
+            <span>Total inkl. Optionen</span>
+            <span class="amount">CHF ${fmtCHF(totalIncl)}</span>
+          </div>` : `
           <div class="pricing-total-row grand">
             <span>Gesamtbetrag</span>
-            <span class="amount">CHF ${fmtCHF(grandTotal)}</span>
-          </div>
+            <span class="amount">CHF ${fmtCHF(totalExcl)}</span>
+          </div>`}
         </div>
       </div>
     </div>
@@ -651,8 +676,8 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
       <h3>Angebot annehmen</h3>
       <p>Mit Ihrer Bestätigung wird das Angebot verbindlich angenommen.</p>
       <div class="modal-amount">
-        <div class="label">Gesamtbetrag</div>
-        <div class="value">CHF ${fmtCHF(grandTotal)}</div>
+        <div class="label">${hasOptional ? 'Gesamtbetrag inkl. Optionen' : 'Gesamtbetrag'}</div>
+        <div class="value">CHF ${fmtCHF(hasOptional ? totalIncl : totalExcl)}</div>
       </div>
       <div class="modal-check" id="modal-check-area">
         <input type="checkbox" id="agree">
