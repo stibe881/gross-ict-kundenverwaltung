@@ -68,10 +68,14 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
     const [showDescriptionDropdown, setShowDescriptionDropdown] = useState(false);
     const [isDragActive, setIsDragActive] = useState(false);
     const [employees, setEmployees] = useState<any[]>([]);
+    const [customers, setCustomers] = useState<any[]>([]);
+    const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+    const [customerSearch, setCustomerSearch] = useState("");
 
     useEffect(() => {
         if (visible) {
             Data.getAllEmployees().then(setEmployees).catch(() => {});
+            Data.getCustomersWithCounts().then(setCustomers).catch(() => {});
             Data.getMarketingSettings().then(s => {
                 try { setCustomCategories(JSON.parse(s.custom_expense_categories || "[]")); } catch { setCustomCategories([]); }
             }).catch(() => {});
@@ -117,6 +121,12 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 cleanNotes = cleanNotes.replace(/Kunde:\s*[^\n]*\n?/, '');
                 cleanNotes = cleanNotes.replace(/Projekt:\s*[^\n]*\n?/, '');
                 cleanNotes = cleanNotes.replace(/Automatische Verbuchung aus Szenario-Modell\.?\n?/, '');
+            }
+
+            if (expense.category === "customer_order" && cleanNotes) {
+                const kundeMatch = cleanNotes.match(/Kunde:\s*([^\n]*)/);
+                if (kundeMatch) customerName = kundeMatch[1].trim();
+                cleanNotes = cleanNotes.replace(/Kunde:\s*[^\n]*\n?/, '');
             }
 
             setForm({
@@ -285,7 +295,14 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
         }
     };
 
-    const allCategories = [...Data.EXPENSE_CATEGORIES, ...customCategories].sort((a, b) => a.label.localeCompare(b.label));
+    const builtinCatValues = new Set(Data.EXPENSE_CATEGORIES.map((c) => c.value));
+    const builtinCatLabels = new Set(Data.EXPENSE_CATEGORIES.map((c) => c.label.toLowerCase()));
+    const allCategories = [
+        ...Data.EXPENSE_CATEGORIES,
+        ...customCategories.filter(
+            (c) => !builtinCatValues.has(c.value) && !builtinCatLabels.has(c.label.toLowerCase())
+        ),
+    ].sort((a, b) => a.label.localeCompare(b.label));
 
     const getCategoryLabel = (value: string) =>
         allCategories.find((c) => c.value === value)?.label || value;
@@ -414,6 +431,10 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 if (parts.length > 0) {
                     finalNotes = finalNotes ? `${finalNotes}\n\n${parts.join("\n")}` : parts.join("\n");
                 }
+            }
+            if (form.category === "customer_order" && form.customerName) {
+                const kundeNote = `Kunde: ${form.customerName}`;
+                finalNotes = finalNotes ? `${finalNotes}\n\n${kundeNote}` : kundeNote;
             }
 
             const rawAmount = parseFloat(form.amount);
@@ -734,6 +755,64 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                                     placeholderTextColor={colors.muted}
                                 />
                             </View>
+                        </View>
+                    )}
+
+                    {form.category === "customer_order" && (
+                        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.primary + "60", gap: 10 }}>
+                            <Text style={{ fontSize: 13, color: colors.foreground, fontWeight: "600", marginBottom: 2 }}>Kunde für diese Bestellung</Text>
+                            <TouchableOpacity
+                                style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: colors.background, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: colors.border }}
+                                onPress={() => { setShowCustomerPicker(!showCustomerPicker); setCustomerSearch(""); }}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={{ fontSize: 15, color: form.customerName ? colors.foreground : colors.muted }}>
+                                    {form.customerName || "Kunde auswählen..."}
+                                </Text>
+                                <IconSymbol name="chevron.down" size={16} color={colors.muted} />
+                            </TouchableOpacity>
+                            {showCustomerPicker && (
+                                <View style={{ backgroundColor: colors.background, borderRadius: 10, borderWidth: 1, borderColor: colors.border, overflow: "hidden", maxHeight: 260 }}>
+                                    <TextInput
+                                        style={{ padding: 10, fontSize: 14, color: colors.foreground, borderBottomWidth: 1, borderBottomColor: colors.border }}
+                                        placeholder="Kunde suchen..."
+                                        placeholderTextColor={colors.muted}
+                                        value={customerSearch}
+                                        onChangeText={setCustomerSearch}
+                                        autoFocus
+                                    />
+                                    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                                        {customers
+                                            .filter(c => {
+                                                const name = c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim();
+                                                return !customerSearch || name.toLowerCase().includes(customerSearch.toLowerCase());
+                                            })
+                                            .map(c => {
+                                                const name = c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unbenannt";
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={c.id}
+                                                        style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: form.customerName === name ? colors.primary + "20" : "transparent" }}
+                                                        onPress={() => {
+                                                            setForm({ ...form, customerName: name });
+                                                            setShowCustomerPicker(false);
+                                                            setCustomerSearch("");
+                                                        }}
+                                                        activeOpacity={0.7}
+                                                    >
+                                                        <Text style={{ fontSize: 15, color: form.customerName === name ? colors.primary : colors.foreground }}>{name}</Text>
+                                                    </TouchableOpacity>
+                                                );
+                                            })
+                                        }
+                                    </ScrollView>
+                                </View>
+                            )}
+                            {form.customerName ? (
+                                <TouchableOpacity onPress={() => setForm({ ...form, customerName: "" })} activeOpacity={0.7}>
+                                    <Text style={{ fontSize: 12, color: colors.error }}>Auswahl zurücksetzen</Text>
+                                </TouchableOpacity>
+                            ) : null}
                         </View>
                     )}
 

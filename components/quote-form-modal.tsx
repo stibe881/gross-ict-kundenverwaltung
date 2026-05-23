@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import {
     View,
     Text,
@@ -124,8 +124,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
             }
             setNotes(editQuote.notes || "");
             setPreviewUrl(editQuote.preview_url || "");
-            setItems(
-                (editQuote.items || []).map((item: any, idx: number) => ({
+            const loadedItems = (editQuote.items || []).map((item: any, idx: number) => ({
                     id: String(idx + 1),
                     name: item.description?.split("\n")[0] || "",
                     description: item.description?.split("\n").slice(1).join("\n") || "",
@@ -134,8 +133,11 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
                     unitPrice: String(item.unit_price || ""),
                     vatRate: String(item.vat_rate ?? 8.1),
                     optional: item.optional || false,
-                }))
-            );
+                }));
+            setItems(loadedItems);
+            // Autocomplete für alle geladenen Positionen unterdrücken,
+            // da die Namen bereits gesetzt sind und keine Vorschläge angezeigt werden sollen
+            setDismissedAutocomplete(new Set(loadedItems.map((i) => i.id)));
         } else {
             resetForm();
             if (initialCustomerId) setCustomerId(initialCustomerId);
@@ -698,7 +700,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
                                         );
                                     }
 
-                                    return <React.Fragment key={item.id}>{itemContent}</React.Fragment>;
+                                    return <Fragment key={item.id}>{itemContent}</Fragment>;
                                 })}
                                 <TouchableOpacity
                                     className="bg-primary px-4 py-2 rounded-lg self-start"

@@ -67,7 +67,14 @@ export default function AccountingScreen() {
   const [expenseEmployeeFilter, setExpenseEmployeeFilter] = useState<string>("all");
   const [expenseSearchQuery, setExpenseSearchQuery] = useState("");
   const [customExpenseCategories, setCustomExpenseCategories] = useState<{value: string; label: string}[]>([]);
-  const allExpenseCategories = [...Data.EXPENSE_CATEGORIES, ...customExpenseCategories].sort((a, b) => a.label.localeCompare(b.label));
+  const builtinValues = new Set(Data.EXPENSE_CATEGORIES.map((c) => c.value));
+  const builtinLabels = new Set(Data.EXPENSE_CATEGORIES.map((c) => c.label.toLowerCase()));
+  const allExpenseCategories = [
+    ...Data.EXPENSE_CATEGORIES,
+    ...customExpenseCategories.filter(
+      (c) => !builtinValues.has(c.value) && !builtinLabels.has(c.label.toLowerCase())
+    ),
+  ].sort((a, b) => a.label.localeCompare(b.label));
   const [initialIsIncome, setInitialIsIncome] = useState(false);
 
   // Invoice Filters & Sorting
@@ -134,6 +141,13 @@ export default function AccountingScreen() {
   } = useQuery({
     queryKey: ["employees"],
     queryFn: Data.getAllEmployees,
+  });
+
+  const {
+    data: quotes,
+  } = useQuery({
+    queryKey: ["quotes"],
+    queryFn: Data.getAllQuotes,
   });
 
   const knownSuppliers = useMemo(() => {
@@ -327,6 +341,20 @@ export default function AccountingScreen() {
   const deductibleExpenses = yearExpenses
     .filter((e: any) => e.is_deductible && (e.amount || 0) > 0)
     .reduce((s: number, e: any) => s + (e.amount || 0), 0);
+
+  const { sentQuotesBase, sentQuotesOptional } = useMemo(() => {
+    const sentQuotes = (quotes || []).filter((q: any) => q.status === "sent");
+    const base = sentQuotes.reduce((s: number, q: any) => s + (q.total || 0), 0);
+    const optional = sentQuotes.reduce((s: number, q: any) =>
+      s + (q.items || [])
+        .filter((i: any) => i.optional)
+        .reduce((os: number, i: any) => os + (i.total || 0), 0)
+    , 0);
+    return { sentQuotesBase: base, sentQuotesOptional: optional };
+  }, [quotes]);
+
+  const totalSentQuotes = sentQuotesBase + sentQuotesOptional;
+
   const profit = totalRevenue - totalExpenses;
   const grossNetIncome = totalRevenue - deductibleExpenses;
   const ownerAhvIvEo = grossNetIncome > 0 ? grossNetIncome * 0.106 : 0;
@@ -705,12 +733,17 @@ export default function AccountingScreen() {
         <TouchableOpacity 
           className="flex-1 bg-surface rounded-xl p-4 border border-border"
           activeOpacity={0.7}
-          onPress={() => setActiveTab("expenses")}
+          onPress={() => expoRouter.push("/quotes" as any)}
         >
-          <Text className="text-xs text-muted mb-1">Abzugsfähig</Text>
+          <Text className="text-xs text-muted mb-1">Offene Angebote</Text>
           <Text className="text-xl font-bold text-primary">
-            {formatCurrency(deductibleExpenses)}
+            {formatCurrency(sentQuotesBase)}
           </Text>
+          {sentQuotesOptional > 0 && (
+            <Text className="text-xs text-muted mt-0.5">
+              Inkl. Opt: {formatCurrency(sentQuotesBase + sentQuotesOptional)}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -721,9 +754,14 @@ export default function AccountingScreen() {
             Ausgaben nach Kategorie
           </Text>
           {expensesByCategory.map((cat) => (
-            <View
+            <TouchableOpacity
               key={cat.category}
               className="flex-row items-center justify-between py-2 border-b border-border"
+              activeOpacity={0.6}
+              onPress={() => {
+                setExpenseCategoryFilter(cat.category);
+                setActiveTab("expenses");
+              }}
             >
               <View className="flex-row items-center gap-2 flex-1">
                 <IconSymbol
@@ -735,10 +773,13 @@ export default function AccountingScreen() {
                   {cat.label}
                 </Text>
               </View>
-              <Text className="text-sm font-semibold text-foreground">
-                {formatCurrency(cat.amount)}
-              </Text>
-            </View>
+              <View className="flex-row items-center gap-2">
+                <Text className="text-sm font-semibold text-foreground">
+                  {formatCurrency(cat.amount)}
+                </Text>
+                <IconSymbol name="chevron.right" size={14} color={colors.muted} />
+              </View>
+            </TouchableOpacity>
           ))}
         </View>
       )}
@@ -963,55 +1004,99 @@ export default function AccountingScreen() {
                   )}
                 </View>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
-                  <View className="flex-row items-center mr-1">
-                    <IconSymbol name="tag.fill" size={14} color={colors.muted} />
-                    <Text className="text-sm text-foreground font-semibold ml-1.5">Kategorie:</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setExpenseCategoryFilter("all")}
-                    activeOpacity={0.7}
-                    className={`px-3 py-1.5 rounded-full border ${expenseCategoryFilter === "all" ? 'bg-primary border-primary' : 'bg-background border-border'}`}
-                  >
-                    <Text className={`text-sm font-semibold ${expenseCategoryFilter === "all" ? 'text-background' : 'text-foreground'}`}>Alle</Text>
-                  </TouchableOpacity>
-                  {allExpenseCategories.map((cat) => (
-                    <TouchableOpacity
-                      key={cat.value}
-                      onPress={() => setExpenseCategoryFilter(cat.value)}
-                      activeOpacity={0.7}
-                      className={`px-3 py-1.5 rounded-full border ${expenseCategoryFilter === cat.value ? 'bg-primary border-primary' : 'bg-background border-border'}`}
-                    >
-                      <Text className={`text-sm font-semibold ${expenseCategoryFilter === cat.value ? 'text-background' : 'text-foreground'}`}>{cat.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                  <View className="flex-row items-center mr-1">
-                    <IconSymbol name="person.2.fill" size={14} color={colors.muted} />
-                    <Text className="text-sm text-foreground font-semibold ml-1.5">Mitarbeiter:</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setExpenseEmployeeFilter("all")}
-                    activeOpacity={0.7}
-                    className={`px-3 py-1.5 rounded-full border ${expenseEmployeeFilter === "all" ? 'bg-primary border-primary' : 'bg-background border-border'}`}
-                  >
-                    <Text className={`text-sm font-semibold ${expenseEmployeeFilter === "all" ? 'text-background' : 'text-foreground'}`}>Alle</Text>
-                  </TouchableOpacity>
-                  {
-                    employees?.map((emp: any) => (
+                {/* Filter Panel */}
+                <View className="bg-surface rounded-xl border border-border overflow-hidden mb-1">
+                  {/* Kategorie */}
+                  <View className="px-3 pt-3 pb-2">
+                    <View className="flex-row items-center justify-between mb-2">
+                      <View className="flex-row items-center gap-1.5">
+                        <IconSymbol name="tag.fill" size={13} color={colors.primary} />
+                        <Text className="text-xs font-bold text-muted uppercase" style={{ letterSpacing: 0.8 }}>Kategorie</Text>
+                      </View>
+                      {expenseCategoryFilter !== "all" && (
+                        <TouchableOpacity onPress={() => setExpenseCategoryFilter("all")} activeOpacity={0.7}>
+                          <Text className="text-xs text-primary font-semibold">Zurücksetzen</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
                       <TouchableOpacity
-                        key={emp.id}
-                        onPress={() => setExpenseEmployeeFilter(emp.id)}
+                        onPress={() => setExpenseCategoryFilter("all")}
                         activeOpacity={0.7}
-                        className={`px-3 py-1.5 rounded-full border ${expenseEmployeeFilter === emp.id ? 'bg-primary border-primary' : 'bg-background border-border'}`}
+                        style={{
+                          paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+                          backgroundColor: expenseCategoryFilter === "all" ? colors.primary : colors.background,
+                          borderWidth: 1,
+                          borderColor: expenseCategoryFilter === "all" ? colors.primary : colors.border,
+                        }}
                       >
-                        <Text className={`text-sm font-semibold ${expenseEmployeeFilter === emp.id ? 'text-background' : 'text-foreground'}`}>{emp.name || emp.email}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: expenseCategoryFilter === "all" ? "#fff" : colors.foreground }}>Alle</Text>
                       </TouchableOpacity>
-                    ))
-                  }
-                </ScrollView>
+                      {allExpenseCategories.map((cat) => (
+                        <TouchableOpacity
+                          key={cat.value}
+                          onPress={() => setExpenseCategoryFilter(cat.value)}
+                          activeOpacity={0.7}
+                          style={{
+                            paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+                            backgroundColor: expenseCategoryFilter === cat.value ? colors.primary : colors.background,
+                            borderWidth: 1,
+                            borderColor: expenseCategoryFilter === cat.value ? colors.primary : colors.border,
+                          }}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: "600", color: expenseCategoryFilter === cat.value ? "#fff" : colors.foreground }}>{cat.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+
+                  {/* Divider */}
+                  <View className="h-px bg-border mx-3" />
+
+                  {/* Mitarbeiter */}
+                  <View className="px-3 pt-2.5 pb-3">
+                    <View className="flex-row items-center justify-between mb-2">
+                      <View className="flex-row items-center gap-1.5">
+                        <IconSymbol name="person.2.fill" size={13} color={colors.primary} />
+                        <Text className="text-xs font-bold text-muted uppercase" style={{ letterSpacing: 0.8 }}>Mitarbeiter</Text>
+                      </View>
+                      {expenseEmployeeFilter !== "all" && (
+                        <TouchableOpacity onPress={() => setExpenseEmployeeFilter("all")} activeOpacity={0.7}>
+                          <Text className="text-xs text-primary font-semibold">Zurücksetzen</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                      <TouchableOpacity
+                        onPress={() => setExpenseEmployeeFilter("all")}
+                        activeOpacity={0.7}
+                        style={{
+                          paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+                          backgroundColor: expenseEmployeeFilter === "all" ? colors.primary : colors.background,
+                          borderWidth: 1,
+                          borderColor: expenseEmployeeFilter === "all" ? colors.primary : colors.border,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: expenseEmployeeFilter === "all" ? "#fff" : colors.foreground }}>Alle</Text>
+                      </TouchableOpacity>
+                      {employees?.map((emp: any) => (
+                        <TouchableOpacity
+                          key={emp.id}
+                          onPress={() => setExpenseEmployeeFilter(emp.id)}
+                          activeOpacity={0.7}
+                          style={{
+                            paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+                            backgroundColor: expenseEmployeeFilter === emp.id ? colors.primary : colors.background,
+                            borderWidth: 1,
+                            borderColor: expenseEmployeeFilter === emp.id ? colors.primary : colors.border,
+                          }}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: "600", color: expenseEmployeeFilter === emp.id ? "#fff" : colors.foreground }}>{emp.name || emp.email}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
               </View>
 
               {processedExpenses.map((expense: any) => (
