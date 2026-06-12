@@ -81,12 +81,18 @@ Deno.serve(async (req) => {
       doc.text(`Total: CHF ${fmtCHF(quote.total)}`, marginLeft, y);
 
       const pdfArrayBuffer = doc.output("arraybuffer");
-      finalPdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfArrayBuffer)));
+      let binary = "";
+      const bytes = new Uint8Array(pdfArrayBuffer);
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      finalPdfBase64 = btoa(binary);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const trackingUrl = `${supabaseUrl}/functions/v1/track-email?type=quote&id=${quoteId}`;
     const trackingPixel = `<img src="${trackingUrl}" width="1" height="1" style="display:none" alt="" />`;
+    const quoteUrl = `https://angebote.gross-ict.ch/?id=${quoteId}`;
 
     const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -102,7 +108,20 @@ Deno.serve(async (req) => {
           ${quote.valid_until ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Gültig bis:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right;">${fmtDate(quote.valid_until)}</td></tr>` : ""}
           <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Gesamtbetrag:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; color: #1a1a2e;">CHF ${fmtCHF(quote.total)}</td></tr>
         </table>
-        <p>Das Angebot ist${quote.valid_until ? ` gültig bis zum <strong>${fmtDate(quote.valid_until)}</strong>.` : " unbefristet gültig."} Bei Fragen oder wenn Sie das Angebot annehmen möchten, kontaktieren Sie uns bitte.</p>
+        
+        <div style="margin: 32px 0; text-align: center; background: #fcfbf7; border: 1px dashed #D4A432; padding: 20px; border-radius: 8px;">
+          <p style="margin: 0 0 16px 0; font-size: 15px; color: #1a1a2e; line-height: 1.5;">
+            Sie können dieses Angebot direkt online prüfen und mit einem Klick akzeptieren:
+          </p>
+          <a href="${quoteUrl}" target="_blank" style="display: inline-block; background-color: #D4A432; color: #1a1a2e; font-weight: bold; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-size: 15px; box-shadow: 0 4px 12px rgba(212,164,50,0.25);">
+            Angebot online ansehen & akzeptieren
+          </a>
+          <p style="margin: 12px 0 0 0; font-size: 11px; color: #666; line-height: 1.4;">
+            Oder Link kopieren: <a href="${quoteUrl}" style="color: #D4A432; text-decoration: underline;">${quoteUrl}</a>
+          </p>
+        </div>
+
+        <p>Das Angebot ist${quote.valid_until ? ` gültig bis zum <strong>${fmtDate(quote.valid_until)}</strong>.` : " unbefristet gültig."} Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
         <p>Wir freuen uns auf Ihre Rückmeldung.</p>
         <p>Freundliche Grüsse<br/><strong>Gross ICT</strong></p>
       </div>
@@ -129,7 +148,14 @@ Deno.serve(async (req) => {
     if (!emailRes.ok) {
       const errBody = await emailRes.text();
       console.error("[send-quote-email] Resend error:", errBody);
-      return new Response(JSON.stringify({ error: "E-Mail konnte nicht gesendet werden" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      let errorDetails = "Unbekannter Fehler";
+      try {
+        const parsed = JSON.parse(errBody);
+        errorDetails = parsed.message || parsed.error?.message || errBody;
+      } catch (e) {
+        errorDetails = errBody;
+      }
+      return new Response(JSON.stringify({ error: `E-Mail konnte nicht gesendet werden: ${errorDetails}` }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Status auf "sent" setzen

@@ -818,6 +818,9 @@ Deno.serve(async (req) => {
           })),
           total: calculatedTotal,
           paidAmount: Number(invoice.paid_amount || 0),
+          specialDiscount: invoice.special_discount_type === 'percentage' 
+            ? ((invoice.items || []).reduce((sum: number, i: any) => sum + (Number(i.quantity) * Number(i.unit_price)), 0)) * (Number(invoice.special_discount) / 100)
+            : Number(invoice.special_discount || 0),
           notes: invoice.notes,
           settings: settings ? {
             accountHolder: settings.account_holder,
@@ -886,6 +889,9 @@ Deno.serve(async (req) => {
           subtotal: Number(quote.subtotal || 0),
           tax: Number(quote.tax || 0),
           total: Number(quote.total || 0),
+          specialDiscount: quote.special_discount_type === 'percentage' 
+            ? ((quote.items || []).filter((i: any) => !i.optional).reduce((sum: number, i: any) => sum + (Number(i.quantity) * Number(i.unit_price)), 0)) * (Number(quote.special_discount) / 100)
+            : Number(quote.special_discount || 0),
           notes: quote.notes,
         });
 

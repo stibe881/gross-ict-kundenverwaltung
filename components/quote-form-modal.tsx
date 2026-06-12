@@ -80,6 +80,8 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
     const [validUntil, setValidUntil] = useState("");
     const [previewUrl, setPreviewUrl] = useState("");
     const [notes, setNotes] = useState("");
+    const [specialDiscount, setSpecialDiscount] = useState("");
+    const [specialDiscountType, setSpecialDiscountType] = useState<"amount" | "percentage">("amount");
     const [items, setItems] = useState<LineItem[]>([
         { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", vatRate: "8.1", optional: false },
     ]);
@@ -124,6 +126,8 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
             }
             setNotes(editQuote.notes || "");
             setPreviewUrl(editQuote.preview_url || "");
+            setSpecialDiscount(editQuote.special_discount ? String(editQuote.special_discount) : "");
+            setSpecialDiscountType(editQuote.special_discount_type || "amount");
             const loadedItems = (editQuote.items || []).map((item: any, idx: number) => ({
                     id: String(idx + 1),
                     name: item.description?.split("\n")[0] || "",
@@ -149,6 +153,8 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
         setValidUntil("");
         setPreviewUrl("");
         setNotes("");
+        setSpecialDiscount("");
+        setSpecialDiscountType("amount");
         setItems([
             { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", vatRate: "8.1", optional: false },
         ]);
@@ -233,7 +239,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
         ).slice(0, 5);
     };
 
-    const calculateSubtotal = () =>
+    const calculateRawSubtotal = () =>
         items.reduce((sum, item) => {
             if (item.optional) return sum;
             const qty = parseFloat(item.quantity) || 0;
@@ -241,14 +247,33 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
             return sum + qty * price;
         }, 0);
 
-    const calculateTax = () =>
-        items.reduce((sum, item) => {
+    const calculateDiscountAmount = (rawSubtotal: number) => {
+        const discValue = parseFloat(specialDiscount) || 0;
+        if (discValue <= 0) return 0;
+        if (specialDiscountType === "percentage") {
+            return rawSubtotal * (discValue / 100);
+        }
+        return discValue;
+    };
+
+    const calculateSubtotal = () => {
+        const rawSubtotal = calculateRawSubtotal();
+        return rawSubtotal - calculateDiscountAmount(rawSubtotal);
+    };
+
+    const calculateTax = () => {
+        const rawSubtotal = calculateRawSubtotal();
+        const discountAmount = calculateDiscountAmount(rawSubtotal);
+        const discountRatio = rawSubtotal > 0 ? (rawSubtotal - discountAmount) / rawSubtotal : 1;
+
+        return items.reduce((sum, item) => {
             if (item.optional) return sum;
             const qty = parseFloat(item.quantity) || 0;
             const price = parseFloat(item.unitPrice) || 0;
             const vat = parseFloat(item.vatRate) || 0;
-            return sum + qty * price * (vat / 100);
+            return sum + (qty * price * discountRatio) * (vat / 100);
         }, 0);
+    };
 
     const handleSubmit = async () => {
         if (!customerId) {
@@ -284,6 +309,8 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
                 total,
                 notes: notes || null,
                 preview_url: previewUrl || null,
+                special_discount: parseFloat(specialDiscount) || 0,
+                special_discount_type: specialDiscountType,
             };
 
             const quoteItems = items
@@ -712,6 +739,39 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
                             </View>
 
                             {/* Notizen */}
+                            {/* Spezialrabatt */}
+                            <View>
+                                <Text className="text-sm font-semibold text-foreground mb-2">Spezialrabatt</Text>
+                                <View className="flex-row items-center gap-2">
+                                    <View className="flex-1">
+                                        <TextInput
+                                            value={specialDiscount}
+                                            onChangeText={setSpecialDiscount}
+                                            placeholder="z.B. 50"
+                                            keyboardType="numeric"
+                                            placeholderTextColor={colors.muted}
+                                            className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                        />
+                                    </View>
+                                    <View className="flex-row items-center bg-surface border border-border rounded-lg overflow-hidden">
+                                        <TouchableOpacity
+                                            className={`px-3 py-3 ${specialDiscountType === "amount" ? "bg-primary" : ""}`}
+                                            onPress={() => setSpecialDiscountType("amount")}
+                                        >
+                                            <Text className={`font-semibold ${specialDiscountType === "amount" ? "text-background" : "text-foreground"}`}>CHF</Text>
+                                        </TouchableOpacity>
+                                        <View className="w-[1px] h-full bg-border" />
+                                        <TouchableOpacity
+                                            className={`px-3 py-3 ${specialDiscountType === "percentage" ? "bg-primary" : ""}`}
+                                            onPress={() => setSpecialDiscountType("percentage")}
+                                        >
+                                            <Text className={`font-semibold ${specialDiscountType === "percentage" ? "text-background" : "text-foreground"}`}>%</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Notizen */}
                             <View>
                                 <Text className="text-sm font-semibold text-foreground mb-2">Notizen</Text>
                                 <TextInput
@@ -727,10 +787,27 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
 
                             {/* Zusammenfassung */}
                             <View className="bg-surface rounded-lg p-4 border border-border">
-                                <View className="flex-row justify-between mb-2">
-                                    <Text className="text-sm text-muted">Zwischensumme</Text>
-                                    <Text className="text-sm text-foreground">CHF {subtotal.toFixed(2)}</Text>
-                                </View>
+                                {parseFloat(specialDiscount) > 0 ? (
+                                    <>
+                                        <View className="flex-row justify-between mb-2">
+                                            <Text className="text-sm text-muted">Summe Positionen</Text>
+                                            <Text className="text-sm text-foreground">CHF {calculateRawSubtotal().toFixed(2)}</Text>
+                                        </View>
+                                        <View className="flex-row justify-between mb-2">
+                                            <Text className="text-sm text-error">Spezialrabatt ({specialDiscountType === 'percentage' ? `${specialDiscount}%` : `CHF ${parseFloat(specialDiscount).toFixed(2)}`})</Text>
+                                            <Text className="text-sm text-error">- CHF {calculateDiscountAmount(calculateRawSubtotal()).toFixed(2)}</Text>
+                                        </View>
+                                        <View className="flex-row justify-between mb-2 pt-2 border-t border-border/50">
+                                            <Text className="text-sm text-muted">Zwischensumme Netto</Text>
+                                            <Text className="text-sm text-foreground">CHF {subtotal.toFixed(2)}</Text>
+                                        </View>
+                                    </>
+                                ) : (
+                                    <View className="flex-row justify-between mb-2">
+                                        <Text className="text-sm text-muted">Zwischensumme</Text>
+                                        <Text className="text-sm text-foreground">CHF {subtotal.toFixed(2)}</Text>
+                                    </View>
+                                )}
                                 <View className="flex-row justify-between mb-2">
                                     <Text className="text-sm text-muted">MwSt</Text>
                                     <Text className="text-sm text-foreground">CHF {tax.toFixed(2)}</Text>

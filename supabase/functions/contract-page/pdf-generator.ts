@@ -443,6 +443,7 @@ export interface InvoiceData {
   }>;
   total: number;
   paidAmount?: number;
+  specialDiscount?: number;
   notes?: string;
   settings?: {
     accountHolder?: string;
@@ -685,13 +686,32 @@ export function generateInvoicePDF(data: InvoiceData): string {
   // Total box
   const remaining = data.total - (data.paidAmount || 0);
   doc.setFillColor(...cGold);
-  doc.roundedRect(totalsX - 5, y - 5, PAGE_WIDTH - MARGIN_X - totalsX + 5, 16, 2, 2, "F");
+  doc.roundedRect(totalsX - 5, y - 5, PAGE_WIDTH - MARGIN_X - totalsX + 5, 16 + (data.specialDiscount && data.specialDiscount > 0 ? 10 : 0), 2, 2, "F");
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("Zu bezahlen", totalsX, y + 5);
-  doc.text(`${fmtCHF(remaining > 0 ? remaining : 0)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 5, { align: "right" });
-  y += 24;
+  
+  if (data.specialDiscount && data.specialDiscount > 0) {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("Zwischensumme", totalsX, y + 2);
+      
+      const subtotalBeforeDiscount = remaining + data.specialDiscount;
+      doc.text(`${fmtCHF(subtotalBeforeDiscount)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 2, { align: "right" });
+      
+      doc.text("Spezialrabatt", totalsX, y + 7);
+      doc.text(`-${fmtCHF(data.specialDiscount)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 7, { align: "right" });
+      
+      doc.setFontSize(13);
+      doc.setFont("helvetica", "bold");
+      doc.text("Zu bezahlen", totalsX, y + 15);
+      doc.text(`${fmtCHF(remaining > 0 ? remaining : 0)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 15, { align: "right" });
+      y += 34;
+  } else {
+      doc.text("Zu bezahlen", totalsX, y + 5);
+      doc.text(`${fmtCHF(remaining > 0 ? remaining : 0)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 5, { align: "right" });
+      y += 24;
+  }
 
   // Notes
   if (data.notes) {
@@ -747,6 +767,7 @@ export interface QuoteData {
   subtotal: number;
   tax: number;
   total: number;
+  specialDiscount?: number;
   notes?: string;
 }
 
@@ -972,13 +993,30 @@ export function generateQuotePDF(data: QuoteData): string {
 
   // Total box
   doc.setFillColor(...cGold);
-  doc.roundedRect(totalsX - 5, y - 5, PAGE_WIDTH - MARGIN_X - totalsX + 5, 16, 2, 2, "F");
+  doc.roundedRect(totalsX - 5, y - 5, PAGE_WIDTH - MARGIN_X - totalsX + 5, 16 + (data.specialDiscount && data.specialDiscount > 0 ? 10 : 0), 2, 2, "F");
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("Total", totalsX, y + 5);
-  doc.text(`${fmtCHF(nonOptionalSubtotal)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 5, { align: "right" });
-  y += 24;
+  
+  if (data.specialDiscount && data.specialDiscount > 0) {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("Zwischensumme", totalsX, y + 2);
+      doc.text(`${fmtCHF(nonOptionalSubtotal + data.specialDiscount)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 2, { align: "right" });
+      
+      doc.text("Spezialrabatt", totalsX, y + 7);
+      doc.text(`-${fmtCHF(data.specialDiscount)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 7, { align: "right" });
+      
+      doc.setFontSize(13);
+      doc.setFont("helvetica", "bold");
+      doc.text("Total", totalsX, y + 15);
+      doc.text(`${fmtCHF(nonOptionalSubtotal)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 15, { align: "right" });
+      y += 34;
+  } else {
+      doc.text("Total", totalsX, y + 5);
+      doc.text(`${fmtCHF(nonOptionalSubtotal)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 5, { align: "right" });
+      y += 24;
+  }
 
   // Optional totals
   if (optionalSubtotal > 0) {

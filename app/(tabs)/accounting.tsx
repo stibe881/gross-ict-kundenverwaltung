@@ -357,11 +357,33 @@ export default function AccountingScreen() {
 
   const profit = totalRevenue - totalExpenses;
   const grossNetIncome = totalRevenue - deductibleExpenses;
-  const ownerAhvIvEo = grossNetIncome > 0 ? grossNetIncome * 0.106 : 0;
+  
+  // Bereits bezahlte Akonto-Rechnungen (Kategorie Sozialversicherungen) extrahieren
+  const paidSocialSecurity = yearExpenses
+    .filter((e: any) => e.category === "social_security" && e.is_deductible && (e.amount || 0) > 0)
+    .reduce((s: number, e: any) => s + (e.amount || 0), 0);
+    
+  // Für die Berechnung der pauschalen Abzüge schlagen wir die bereits bezahlten Beträge wieder auf, 
+  // da die Abzüge sich auf den Gewinn VOR Sozialversicherungsaufwand beziehen.
+  const grossNetIncomeBeforeSS = grossNetIncome + paidSocialSecurity;
+  
+  // AHV-Gesamtschuld berechnen auf Gewinn VOR AHV-Akonto
+  const ownerAhvIvEoTotal = grossNetIncomeBeforeSS > 0 ? grossNetIncomeBeforeSS * 0.106 : 0;
+  // Netto-AHV-Effekt: positiv = noch geschuldet, negativ = Überzahlung (Rückerstattung)
+  const ahvNetEffect = ownerAhvIvEoTotal - paidSocialSecurity;
+  const ownerAhvIvEoRemaining = Math.max(0, ahvNetEffect);
+  const ahvOverpayment = Math.max(0, -ahvNetEffect); // Zu viel bezahlt → kommt zurück
+  
+  // FAK und Steuern werden auf dem bereinigten Gewinn berechnet
+  // (AHV-Akonto sind bereits in grossNetIncome als Ausgabe berücksichtigt)
   const ownerFak = grossNetIncome > 0 ? grossNetIncome * 0.014 : 0;
   const ownerEinkommenssteuer = grossNetIncome > 0 ? grossNetIncome * 0.15 : 0;
-  const ownerTotalAbzuege = ownerAhvIvEo + ownerFak + ownerEinkommenssteuer;
-  const netIncome = grossNetIncome - ownerTotalAbzuege;
+  
+  // Gesamtabzüge = noch ausstehende AHV + FAK + Steuern
+  const ownerTotalAbzuege = ownerAhvIvEoRemaining + ownerFak + ownerEinkommenssteuer;
+  
+  // netIncome = Gewinn nach Ausgaben minus noch ausstehende Abzüge + eventuelle AHV-Überzahlung
+  const netIncome = grossNetIncome - ownerTotalAbzuege + ahvOverpayment;
 
   // Umsatz-Schwelle MwSt (CHF 100'000)
   const MWST_THRESHOLD = 100000;
@@ -666,11 +688,24 @@ export default function AccountingScreen() {
               <Text className="text-xs text-muted">Gewinn vor Abzügen</Text>
               <Text className="text-xs text-foreground font-semibold">{formatCurrency(grossNetIncome)}</Text>
             </View>
-            <View className="flex-row justify-between">
-              <Text className="text-xs text-muted">↳ AHV/IV/EO (10.6%)</Text>
-              <Text className="text-xs text-error">-{formatCurrency(ownerAhvIvEo)}</Text>
+            <View className="flex-row justify-between mt-1">
+              <Text className="text-xs text-muted">↳ AHV/IV/EO (noch ausstehend)</Text>
+              <Text className="text-xs text-error">-{formatCurrency(ownerAhvIvEoRemaining)}</Text>
             </View>
-            <View className="flex-row justify-between">
+            {paidSocialSecurity > 0 && (
+              <View className="flex-row justify-between">
+                <Text className="text-xs ml-3" style={{ color: "#6b7280", fontStyle: "italic" }}>
+                  ℹ︎ Gesamtschuld {formatCurrency(ownerAhvIvEoTotal)}, {formatCurrency(paidSocialSecurity)} per Akonto bezahlt
+                </Text>
+              </View>
+            )}
+            {ahvOverpayment > 0 && (
+              <View className="flex-row justify-between mt-1">
+                <Text className="text-xs text-muted">↳ AHV-Überzahlung (Rückerstattung)</Text>
+                <Text className="text-xs text-success">+{formatCurrency(ahvOverpayment)}</Text>
+              </View>
+            )}
+            <View className="flex-row justify-between mt-1">
               <Text className="text-xs text-muted">↳ FAK Luzern (1.4%)</Text>
               <Text className="text-xs text-error">-{formatCurrency(ownerFak)}</Text>
             </View>
@@ -679,7 +714,7 @@ export default function AccountingScreen() {
               <Text className="text-xs text-error">-{formatCurrency(ownerEinkommenssteuer)}</Text>
             </View>
             <View className="flex-row justify-between border-t border-border pt-1 mt-1">
-              <Text className="text-xs text-muted font-semibold">Total Abzüge (ca. 27%)</Text>
+              <Text className="text-xs text-muted font-semibold">Total Abzüge</Text>
               <Text className="text-xs text-error font-semibold">-{formatCurrency(ownerTotalAbzuege)}</Text>
             </View>
           </View>

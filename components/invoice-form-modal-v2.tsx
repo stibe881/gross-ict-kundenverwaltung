@@ -47,6 +47,8 @@ export function InvoiceFormModal({
   const colors = useColors();
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(initialCustomerId || null);
+  const [specialDiscount, setSpecialDiscount] = useState("");
+  const [specialDiscountType, setSpecialDiscountType] = useState<"amount" | "percentage">("amount");
 
   // Nächste Rechnungsnummer laden
   const { data: nextNumber } = useQuery({
@@ -63,6 +65,8 @@ export function InvoiceFormModal({
       // Edit-Modus: Daten aus bestehender Rechnung laden
       setInvoiceNumber(editInvoice.invoice_number || "");
       setSelectedCustomerId(editInvoice.customer_id || null);
+      setSpecialDiscount(editInvoice.special_discount ? String(editInvoice.special_discount) : "");
+      setSpecialDiscountType(editInvoice.special_discount_type || "amount");
       if (editInvoice.items && editInvoice.items.length > 0) {
         setItems(
           editInvoice.items.map((item: any, index: number) => ({
@@ -199,10 +203,27 @@ export function InvoiceFormModal({
       totalGross += gross;
     });
 
-    return { totalNet, totalVAT, totalGross };
+    // Spezialrabatt abziehen
+    let discountAmount = 0;
+    const discountVal = parseFloat(specialDiscount) || 0;
+    
+    if (discountVal > 0) {
+        if (specialDiscountType === "percentage") {
+            discountAmount = totalNet * (discountVal / 100);
+        } else {
+            discountAmount = discountVal;
+        }
+    }
+
+    const finalSubtotal = Math.max(0, totalNet - discountAmount);
+    // Wenn Rabatt angewendet wurde, MwSt proportional reduzieren
+    const finalVAT = totalNet > 0 ? totalVAT * (finalSubtotal / totalNet) : 0;
+    const finalGross = finalSubtotal + finalVAT;
+
+    return { totalNet, totalVAT: finalVAT, totalGross: finalGross, discountAmount, finalSubtotal };
   };
 
-  const { totalNet, totalVAT, totalGross } = calculateTotals();
+  const { totalNet, totalVAT, totalGross, discountAmount, finalSubtotal } = calculateTotals();
 
   // Rechnung speichern
   const queryClient = useQueryClient();
@@ -214,9 +235,11 @@ export function InvoiceFormModal({
         invoice_number: invoiceData.invoiceNumber,
         invoice_date: invoiceData.invoiceDate,
         due_date: invoiceData.dueDate,
-        subtotal: 0,
-        vat_amount: 0,
-        total: payloadItems.reduce((s: number, i: any) => s + i.total, 0),
+        subtotal: invoiceData.subtotal,
+        vat_amount: invoiceData.vatAmount,
+        total: invoiceData.total,
+        special_discount: parseFloat(specialDiscount) || 0,
+        special_discount_type: specialDiscountType,
         status: "draft",
       }, payloadItems.map((i: any) => ({
         description: i.description,
@@ -249,9 +272,11 @@ export function InvoiceFormModal({
         invoice_number: invoiceData.invoiceNumber,
         invoice_date: invoiceData.invoiceDate,
         due_date: invoiceData.dueDate,
-        subtotal: 0,
-        vat_amount: 0,
-        total: payloadItems.reduce((s: number, i: any) => s + i.total, 0),
+        subtotal: invoiceData.subtotal,
+        vat_amount: invoiceData.vatAmount,
+        total: invoiceData.total,
+        special_discount: parseFloat(specialDiscount) || 0,
+        special_discount_type: specialDiscountType,
       }, payloadItems.map((i: any) => ({
         description: i.description,
         quantity: i.quantity,
@@ -343,6 +368,9 @@ export function InvoiceFormModal({
       invoiceNumber,
       invoiceDate: today,
       dueDate,
+      subtotal: finalSubtotal,
+      vatAmount: totalVAT,
+      total: totalGross,
       items: items.map((item) => ({
         productId: item.productId ? String(item.productId) : undefined,
         description: item.name + (item.description ? `\n${item.description}` : ""),
@@ -720,6 +748,36 @@ export function InvoiceFormModal({
                 </TouchableOpacity>
               </View>
 
+              {/* Spezialrabatt */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">Spezialrabatt</Text>
+                <View className="flex-row gap-2">
+                  <TextInput
+                    className="flex-1 bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="Rabattwert"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="decimal-pad"
+                    value={specialDiscount}
+                    onChangeText={setSpecialDiscount}
+                  />
+                  <View className="flex-row rounded-lg overflow-hidden border border-border">
+                    <TouchableOpacity
+                      onPress={() => setSpecialDiscountType("percentage")}
+                      className={`px-4 py-3 justify-center ${specialDiscountType === "percentage" ? "bg-primary" : "bg-surface"}`}
+                    >
+                      <Text className={specialDiscountType === "percentage" ? "text-background font-bold" : "text-foreground"}>%</Text>
+                    </TouchableOpacity>
+                    <View className="w-[1px] bg-border" />
+                    <TouchableOpacity
+                      onPress={() => setSpecialDiscountType("amount")}
+                      className={`px-4 py-3 justify-center ${specialDiscountType === "amount" ? "bg-primary" : "bg-surface"}`}
+                    >
+                      <Text className={specialDiscountType === "amount" ? "text-background font-bold" : "text-foreground"}>CHF</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
               {/* Gesamtsumme */}
               <View className="bg-surface rounded-lg p-4 border border-border">
                 <Text className="text-lg font-bold text-foreground mb-3">
@@ -727,12 +785,30 @@ export function InvoiceFormModal({
                 </Text>
                 <View className="gap-2">
                   <View className="flex-row justify-between">
-                    <Text className="text-sm text-muted">Netto</Text>
+                    <Text className="text-sm text-muted">Zwischensumme Netto</Text>
                     <Text className="text-sm font-semibold text-foreground">
                       {formatCurrency(totalNet)}
                     </Text>
                   </View>
-                  <View className="flex-row justify-between">
+
+                  {parseFloat(specialDiscount) > 0 && (
+                      <View className="flex-row justify-between">
+                          <Text className="text-sm text-error">Rabatt</Text>
+                          <Text className="text-sm font-semibold text-error">
+                              -{formatCurrency(discountAmount)}
+                          </Text>
+                      </View>
+                  )}
+                  {parseFloat(specialDiscount) > 0 && (
+                      <View className="flex-row justify-between pt-1">
+                          <Text className="text-sm text-muted">Subtotal (netto)</Text>
+                          <Text className="text-sm font-semibold text-foreground">
+                              {formatCurrency(finalSubtotal)}
+                          </Text>
+                      </View>
+                  )}
+
+                  <View className="flex-row justify-between pt-1">
                     <Text className="text-sm text-muted">MwSt</Text>
                     <Text className="text-sm font-semibold text-foreground">
                       {formatCurrency(totalVAT)}

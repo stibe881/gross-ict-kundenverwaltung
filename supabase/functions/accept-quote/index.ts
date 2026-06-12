@@ -56,14 +56,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Status auf "accepted" setzen
-    const { error: updateErr } = await supabase
+    // Status auf "accepted" setzen - ATOMAR (nur wenn noch nicht accepted)
+    const { data: updatedQuotes, error: updateErr } = await supabase
       .from("quotes")
       .update({
         status: "accepted",
         accepted_at: new Date().toISOString(),
       })
-      .eq("id", id);
+      .eq("id", id)
+      .neq("status", "accepted")
+      .select();
 
     if (updateErr) {
       console.error("[accept-quote] Update error:", updateErr);
@@ -73,8 +75,31 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (!updatedQuotes || updatedQuotes.length === 0) {
+      // Wurde bereits parallel von einem anderen Request accepted!
+      return new Response(
+        JSON.stringify({ success: true, message: "Angebot wurde bereits angenommen" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Auto-create project from accepted quote
     try {
+      // Prüfen, ob bereits ein Projekt für dieses Angebot existiert (Doppelungen verhindern)
+      const { data: existingProject } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("quote_id", id)
+        .maybeSingle();
+
+      if (existingProject) {
+        console.log("[accept-quote] Projekt existiert bereits für dieses Angebot, überspringe Erstellung.");
+        return new Response(
+          JSON.stringify({ success: true, message: "Angebot bereits verarbeitet" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       // Get full quote with items for project creation
       const { data: fullQuote } = await supabase
         .from("quotes")

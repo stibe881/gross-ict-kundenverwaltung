@@ -947,12 +947,32 @@ export async function autoExpireQuotes() {
 }
 
 export async function sendQuoteEmail(quoteId: string, pdfBase64: string) {
-    const { data, error } = await supabase.functions.invoke('send-quote-email', {
-        body: { quoteId, pdfBase64 },
+    const { data: { session } } = await supabase.auth.getSession();
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-quote-email`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token || anonKey}`,
+            "apikey": anonKey || "",
+        },
+        body: JSON.stringify({ quoteId, pdfBase64 }),
     });
-    if (error) throw new Error(error.message || "E-Mail konnte nicht gesendet werden");
-    if (data?.error) throw new Error(data.error);
-    return data;
+
+    if (!response.ok) {
+        let errorMsg = "E-Mail konnte nicht gesendet werden";
+        try {
+            const errData = await response.json();
+            if (errData.error) errorMsg = errData.error;
+        } catch(e) {
+            errorMsg = `Serverfehler (${response.status}): ${await response.text()}`;
+        }
+        throw new Error(errorMsg);
+    }
+    
+    return await response.json();
 }
 
 // ==================== VERTRÄGE ====================
