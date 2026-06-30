@@ -38,6 +38,7 @@ export default function ContractsScreen() {
   const queryClient = useQueryClient();
   const { refreshing, onRefresh } = useGlobalRefresh();
   const [filter, setFilter] = useState<"all" | ContractStatus | "signed" | "pending">("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Verträge aus DB laden
   const { data: contracts = [], isLoading: contractsLoading } = useQuery({
@@ -134,10 +135,17 @@ export default function ContractsScreen() {
   };
 
   const filteredContracts: any[] =
-    filter === "all" ? contracts : contracts.filter((c) => {
+    (filter === "all" ? contracts : contracts.filter((c) => {
       if (filter === "signed") return !!c.signature_date;
       if (filter === "pending") return !c.signature_date && (c.status === "pending_signature" || c.status === "active");
       return c.status === filter;
+    })).filter((c) => {
+      if (!searchQuery.trim()) return true;
+      const search = searchQuery.toLowerCase();
+      return (
+        (c.title || "").toLowerCase().includes(search) ||
+        (c.customer_name || "").toLowerCase().includes(search)
+      );
     });
 
   const renderContractItem = ({ item }: { item: any }) => (
@@ -312,9 +320,28 @@ export default function ContractsScreen() {
                 </View>
                 <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
                   <Text className="text-2xl font-bold text-success">
-                    {formatCurrency(contracts.filter(c => c.status === "active").reduce((sum, c) => sum + (c.amount || 0), 0))}
+                    {formatCurrency(contracts.filter(c => c.status === "active").reduce((sum, c) => sum + ((c.amount || 0) - (c.internal_costs || 0)), 0))}
                   </Text>
                   <Text className="text-sm text-muted">Aktiv (pro Jahr)</Text>
+                </View>
+              </View>
+
+              {/* Suche */}
+              <View className="mb-4">
+                <View className="flex-row items-center bg-surface border border-border rounded-xl px-4 py-2">
+                  <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
+                  <TextInput
+                    className="flex-1 ml-2 text-foreground h-10"
+                    placeholder="Suchen..."
+                    placeholderTextColor={colors.muted}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery("")}>
+                      <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
 
@@ -730,6 +757,37 @@ function ContractDetailsModal({
                   )}
                 </View>
               </View>
+
+              {/* Regelmässige Rechnungen Info */}
+              {contract.recurring_enabled && (
+                <View className="bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-lg font-bold text-foreground mb-3">Regelmässige Rechnungen</Text>
+                  <View className="gap-3">
+                    <View className="flex-row justify-between">
+                      <Text className="text-sm text-muted">Abrechnungszyklus</Text>
+                      <Text className="text-sm font-semibold text-foreground">
+                        {{ "monthly": "Monatlich", "quarterly": "Quartalsweise", "semi_annual": "Halbjährlich", "yearly": "Jährlich" }[contract.billing_cycle as string] || "Jährlich"}
+                      </Text>
+                    </View>
+                    {contract.next_invoice_date && (
+                      <View className="flex-row justify-between">
+                        <Text className="text-sm text-muted">Nächste Rechnung am</Text>
+                        <Text className="text-sm font-semibold text-foreground">
+                          {formatDate(contract.next_invoice_date)}
+                        </Text>
+                      </View>
+                    )}
+                    {contract.payment_terms && (
+                      <View className="flex-row justify-between">
+                        <Text className="text-sm text-muted">Zahlungsfrist</Text>
+                        <Text className="text-sm font-semibold text-foreground">
+                          {contract.payment_terms}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
 
               {/* Beschreibung, Leistungsumfang, Zusatzvereinbarungen */}
               {(contract.description || contract.scope_of_services || contract.special_agreements) && (

@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     if (type === "invoice" || type === "dunning") {
       const isDunning = type === "dunning";
       // Anti-False-Positive: E-Mail-Server fetchen Tracking-Pixel sofort nach
-      // Zustellung für Spam-Checks – 30s Verzögerung filtert diese heraus.
+      // Zustellung für Spam-Checks – 60s Verzögerung filtert diese heraus.
       const { data: lastSent } = await supabase
         .from("invoice_activities")
         .select("created_at")
@@ -83,9 +83,9 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
-      if (lastSent && new Date(lastSent.created_at) > thirtySecondsAgo) {
-        console.log(`[track-email] Invoice ${id}: Pixel within 30s of send, ignoring (server prefetch)`);
+      const sixtySecondsAgo = new Date(Date.now() - 60 * 1000);
+      if (lastSent && new Date(lastSent.created_at) > sixtySecondsAgo) {
+        console.log(`[track-email] Invoice ${id}: Pixel within 60s of send, ignoring (server prefetch)`);
         return new Response(new Uint8Array(PIXEL), {
           headers: { "Content-Type": "image/gif", "Cache-Control": "no-cache, no-store", ...corsHeaders },
         });

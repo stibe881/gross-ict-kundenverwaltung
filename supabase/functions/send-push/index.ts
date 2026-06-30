@@ -85,9 +85,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Get push tokens
+    // Get users (all targeted, regardless of push token, to ensure dashboard notification history)
     const table = recipientType === "customer" ? "customer_portal_users" : "users";
-    let query = supabaseAdmin.from(table).select("id, push_token, push_preferences").not("push_token", "is", null);
+    let query = supabaseAdmin.from(table).select("id, push_token, push_preferences");
 
     if (recipients !== "all_admins" && Array.isArray(recipients)) {
       query = query.in("id", recipients);

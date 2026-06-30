@@ -59,6 +59,8 @@ export function ContractFormModal({
     autoRenewal: contract?.auto_renewal !== false,
     vatRate: (contract?.vat_rate ?? 0).toString(),
     isInternal: contract?.is_internal || false,
+    nextInvoiceDate: toDisplay(contract?.next_invoice_date || contract?.nextInvoiceDate || ""),
+    internalCosts: (contract?.internal_costs || contract?.internalCosts)?.toString() || "",
   });
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -170,6 +172,8 @@ export function ContractFormModal({
         auto_renewal: formData.isInternal ? false : formData.autoRenewal,
         vat_rate: formData.isInternal ? 0 : (parseFloat(formData.vatRate) || 0),
         is_internal: formData.isInternal,
+        next_invoice_date: (formData.recurringEnabled && !formData.isInternal && formData.nextInvoiceDate) ? toDb(formData.nextInvoiceDate) : undefined,
+        internal_costs: formData.isInternal ? 0 : (parseFloat(formData.internalCosts) || 0),
       };
 
       if (contract?.id) {
@@ -408,6 +412,25 @@ export function ContractFormModal({
               </View>
               )}
 
+              {/* Eigenkosten */}
+              {!formData.isInternal && (
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Eigenkosten pro Jahr (CHF)
+                </Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="0.00"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="numeric"
+                  value={formData.internalCosts}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, internalCosts: text })
+                  }
+                />
+              </View>
+              )}
+
               {/* Startdatum */}
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">
@@ -594,6 +617,32 @@ export function ContractFormModal({
                           )}
                         </TouchableOpacity>
                       ))}
+                    </View>
+
+                    <View className="mt-4 gap-4">
+                      <View>
+                        <Text className="text-sm font-semibold text-foreground mb-2">Nächste Rechnung am</Text>
+                        <TextInput
+                          className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                          placeholder="DD.MM.YYYY"
+                          placeholderTextColor={colors.muted}
+                          value={formData.nextInvoiceDate}
+                          onChangeText={(text) => setFormData({ ...formData, nextInvoiceDate: text })}
+                        />
+                        <Text className="text-xs text-muted mt-1">Datum, an dem die nächste automatische Rechnung gesendet wird.</Text>
+                      </View>
+
+                      <View>
+                        <Text className="text-sm font-semibold text-foreground mb-2">Zahlungsfrist (Zahlungsziel)</Text>
+                        <TextInput
+                          className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                          placeholder="z.B. 30 Tage netto"
+                          placeholderTextColor={colors.muted}
+                          value={formData.paymentTerms}
+                          onChangeText={(text) => setFormData({ ...formData, paymentTerms: text })}
+                        />
+                        <Text className="text-xs text-muted mt-1">Wann ist die Rechnung fällig (z.B. "30 Tage", "10 Tage netto")</Text>
+                      </View>
                     </View>
 
                     {/* Preisvorschau */}

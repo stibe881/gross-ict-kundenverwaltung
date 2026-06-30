@@ -595,6 +595,11 @@ async function startServer() {
       const errors: string[] = [];
       let processed = 0;
 
+      // Fetch users for notification
+      const { data: allUsers } = await supabase.from("users").select("id, roles");
+      const adminIds = allUsers?.filter((u: any) => u.roles?.includes("admin") || u.roles?.includes("finanzen")).map((u: any) => u.id) || [];
+
+
       for (const contract of dueContracts) {
         try {
           // Calculate amounts
@@ -688,6 +693,24 @@ async function startServer() {
 
           processed++;
           console.log(`[Recurring] Created invoice ${invoiceNumber} for contract "${contract.title}"`);
+
+          // Send push notification to admins/finanzen
+          if (adminIds.length > 0) {
+            try {
+              const { error: pushError } = await supabase.functions.invoke("send-push", {
+                body: {
+                  recipients: adminIds,
+                  recipientType: "admin",
+                  title: "🧾 Automatische Rechnung",
+                  body: `Die Rechnung ${invoiceNumber} wurde automatisch aus dem Vertrag "${contract.title}" erstellt.`,
+                  data: { url: `/invoice/${invoiceData.id}`, category: "invoices" }
+                }
+              });
+              if (pushError) console.warn(`[Recurring] Push error for ${invoiceNumber}:`, pushError.message);
+            } catch (pushErr: any) {
+              console.warn(`[Recurring] Failed to send push for ${invoiceNumber}:`, pushErr.message);
+            }
+          }
         } catch (e: any) {
           console.error(`[Recurring] Error processing contract ${contract.id}:`, e.message);
           errors.push(`${contract.title}: ${e.message}`);
