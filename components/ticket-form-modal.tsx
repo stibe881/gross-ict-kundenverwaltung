@@ -18,6 +18,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { sendTicketNotification } from "@/lib/push-notifications";
+import { ContractFormModal } from "@/components/contract-form-modal";
 
 interface TicketFormModalProps {
   visible: boolean;
@@ -46,6 +47,13 @@ export function TicketFormModal({
   const [pendingFiles, setPendingFiles] = useState<any[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<any>(null);
+
+  const { data: customerContracts = [], isLoading: isLoadingContracts } = useQuery({
+    queryKey: ["customerContracts", formData.customerId],
+    queryFn: () => Data.getCustomerContracts(formData.customerId as string),
+    enabled: !!formData.customerId,
+  });
 
   // Tickets Anhänge laden
   const { data: existingAttachments = [], refetch: refetchAttachments } = useQuery({
@@ -417,6 +425,55 @@ export function TicketFormModal({
                     <Text className="text-sm font-semibold" style={{ color: colors.primary }}>{getCustomerName(selectedCustomer)}</Text>
                   </View>
                 )}
+
+                {/* Verträge anzeigen */}
+                {formData.customerId && (
+                  <View style={{ marginTop: 12 }}>
+                    <Text className="text-xs font-semibold text-muted mb-2 uppercase tracking-wider">
+                      Vorhandene Verträge
+                    </Text>
+                    {isLoadingContracts ? (
+                      <ActivityIndicator size="small" color={colors.primary} style={{ alignSelf: 'flex-start', marginVertical: 8 }} />
+                    ) : customerContracts.length > 0 ? (
+                      <View style={{ gap: 8 }}>
+                        {customerContracts.map((contract: any) => (
+                          <TouchableOpacity
+                            key={contract.id}
+                            style={{
+                              backgroundColor: colors.surface,
+                              borderWidth: 1,
+                              borderColor: colors.border,
+                              borderRadius: 8,
+                              padding: 12,
+                              flexDirection: "row",
+                              alignItems: "center",
+                              justifyContent: "space-between"
+                            }}
+                            onPress={() => setSelectedContract(contract)}
+                            activeOpacity={0.7}
+                          >
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                              <IconSymbol name="doc.text.fill" size={16} color={colors.primary} />
+                              <View>
+                                <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground }}>
+                                  {contract.title}
+                                </Text>
+                                <Text style={{ fontSize: 11, color: colors.muted }}>
+                                  {contract.status === "active" ? "Aktiv" : contract.status === "expired" ? "Abgelaufen" : "Gekündigt"}
+                                </Text>
+                              </View>
+                            </View>
+                            <IconSymbol name="chevron.right" size={14} color={colors.muted} />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={{ fontSize: 13, color: colors.muted, fontStyle: 'italic' }}>
+                        Keine Verträge für diesen Kunden gefunden.
+                      </Text>
+                    )}
+                  </View>
+                )}
               </View>
 
               {/* Dateianhänge */}
@@ -517,7 +574,14 @@ export function TicketFormModal({
         </View>
       </KeyboardAvoidingView>
 
-
+      {/* Contract Modal */}
+      {selectedContract && (
+        <ContractFormModal
+          visible={!!selectedContract}
+          contract={selectedContract}
+          onClose={() => setSelectedContract(null)}
+        />
+      )}
     </Modal>
   );
 }

@@ -255,172 +255,172 @@ export default function ContractsScreen() {
     </View>
   );
 
+  const renderHeader = () => (
+    <View>
+      {/* Header */}
+      <View className="flex-row items-center justify-between mb-4">
+        <View className="flex-row items-center gap-3">
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+            <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+          </TouchableOpacity>
+          <Text className="text-3xl font-bold text-foreground">Verträge</Text>
+        </View>
+        <TouchableOpacity
+          className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+          activeOpacity={0.8}
+          onPress={() => setShowPlusMenu(true)}
+        >
+          <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Tab Switcher */}
+      <View className="flex-row gap-2 mb-4">
+        <TouchableOpacity
+          className={`flex-1 py-3 rounded-lg ${activeTab === "contracts" ? "bg-primary" : "bg-surface border border-border"}`}
+          onPress={() => setActiveTab("contracts")}
+        >
+          <Text className={`font-semibold text-center ${activeTab === "contracts" ? "text-background" : "text-foreground"}`}>
+            Verträge
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className={`flex-1 py-3 rounded-lg ${activeTab === "templates" ? "bg-primary" : "bg-surface border border-border"}`}
+          onPress={() => setActiveTab("templates")}
+        >
+          <Text className={`font-semibold text-center ${activeTab === "templates" ? "text-background" : "text-foreground"}`}>
+            Vorlagen {templates?.length ? `(${templates.length})` : ""}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeTab === "contracts" && (
+        <>
+          {/* Statistik */}
+          <View className="flex-row flex-wrap gap-3 mb-4">
+            <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-success">
+                {contracts.filter((c) => c.status === "active").length}
+              </Text>
+              <Text className="text-sm text-muted">Aktiv</Text>
+            </View>
+            <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-warning">
+                {contracts.filter((c) => c.status === "cancelled").length}
+              </Text>
+              <Text className="text-sm text-muted">Gekündigt</Text>
+            </View>
+            <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-error">
+                {contracts.filter((c) => c.status === "expired").length}
+              </Text>
+              <Text className="text-sm text-muted">Abgelaufen</Text>
+            </View>
+            <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
+              <Text className="text-2xl font-bold text-success">
+                {formatCurrency(contracts.filter(c => c.status === "active").reduce((sum, c) => sum + ((c.amount || 0) - (c.internal_costs || 0)), 0))}
+              </Text>
+              <Text className="text-sm text-muted">Aktiv (pro Jahr)</Text>
+            </View>
+          </View>
+
+          {/* Suche */}
+          <View className="mb-4">
+            <View className="flex-row items-center bg-surface border border-border rounded-xl px-4 py-2">
+              <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
+              <TextInput
+                className="flex-1 ml-2 text-foreground h-10"
+                placeholder="Suchen..."
+                placeholderTextColor={colors.muted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Filter */}
+          <View className="mb-4">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 4 }}>
+              <View className="flex-row gap-2">
+                {["all", "active", "signed", "pending", "cancelled", "expired"].map((status) => (
+                  <TouchableOpacity
+                    key={status}
+                    className={`px-4 py-2 rounded-lg ${filter === status ? "bg-primary" : "bg-surface border border-border"}`}
+                    onPress={() => setFilter(status as any)}
+                  >
+                    <Text
+                      className={`font-semibold ${filter === status ? "text-background" : "text-foreground"}`}
+                    >
+                      {status === "all" ? "Alle" : getFilterLabel(status)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </>
+      )}
+    </View>
+  );
+
+  const renderEmptyComponent = () => {
+    if (activeTab === "contracts") {
+      return (
+        <View className="flex-1 items-center justify-center py-20">
+          <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
+          <Text className="text-lg text-muted mt-4">Keine Verträge</Text>
+        </View>
+      );
+    } else {
+      if (templatesLoading) {
+        return (
+          <View className="flex-1 items-center justify-center py-20">
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        );
+      }
+      return (
+        <View className="flex-1 items-center justify-center py-20">
+          <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
+          <Text className="text-lg text-muted mt-4">Keine Vorlagen</Text>
+          <Text className="text-sm text-muted text-center mt-2">
+            Erstellen Sie Vorlagen wie Wartungsvertrag, Hostingvertrag oder Domainvertrag
+          </Text>
+          <TouchableOpacity
+            className="bg-primary px-6 py-3 rounded-lg mt-4"
+            onPress={() => {
+              setEditingTemplate(null);
+              setShowTemplateModal(true);
+            }}
+            activeOpacity={0.8}
+          >
+            <Text className="text-background font-semibold">Vorlage erstellen</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+  };
+
   return (
     <ScreenContainer>
       <View className="flex-1" style={{ padding: contentPadding }}>
-        <View style={containerStyle}>
-          {/* Header */}
-          <View className="flex-row items-center justify-between mb-4">
-            <View className="flex-row items-center gap-3">
-              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-              </TouchableOpacity>
-              <Text className="text-3xl font-bold text-foreground">Verträge</Text>
-            </View>
-            <TouchableOpacity
-              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
-              activeOpacity={0.8}
-              onPress={() => setShowPlusMenu(true)}
-            >
-              <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Tab Switcher */}
-          <View className="flex-row gap-2 mb-4">
-            <TouchableOpacity
-              className={`flex-1 py-3 rounded-lg ${activeTab === "contracts" ? "bg-primary" : "bg-surface border border-border"}`}
-              onPress={() => setActiveTab("contracts")}
-            >
-              <Text className={`font-semibold text-center ${activeTab === "contracts" ? "text-background" : "text-foreground"}`}>
-                Verträge
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className={`flex-1 py-3 rounded-lg ${activeTab === "templates" ? "bg-primary" : "bg-surface border border-border"}`}
-              onPress={() => setActiveTab("templates")}
-            >
-              <Text className={`font-semibold text-center ${activeTab === "templates" ? "text-background" : "text-foreground"}`}>
-                Vorlagen {templates?.length ? `(${templates.length})` : ""}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {activeTab === "contracts" ? (
-            <>
-              {/* Statistik */}
-              <View className="flex-row flex-wrap gap-3 mb-4">
-                <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-2xl font-bold text-success">
-                    {contracts.filter((c) => c.status === "active").length}
-                  </Text>
-                  <Text className="text-sm text-muted">Aktiv</Text>
-                </View>
-                <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-2xl font-bold text-warning">
-                    {contracts.filter((c) => c.status === "cancelled").length}
-                  </Text>
-                  <Text className="text-sm text-muted">Gekündigt</Text>
-                </View>
-                <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-2xl font-bold text-error">
-                    {contracts.filter((c) => c.status === "expired").length}
-                  </Text>
-                  <Text className="text-sm text-muted">Abgelaufen</Text>
-                </View>
-                <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-2xl font-bold text-success">
-                    {formatCurrency(contracts.filter(c => c.status === "active").reduce((sum, c) => sum + ((c.amount || 0) - (c.internal_costs || 0)), 0))}
-                  </Text>
-                  <Text className="text-sm text-muted">Aktiv (pro Jahr)</Text>
-                </View>
-              </View>
-
-              {/* Suche */}
-              <View className="mb-4">
-                <View className="flex-row items-center bg-surface border border-border rounded-xl px-4 py-2">
-                  <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
-                  <TextInput
-                    className="flex-1 ml-2 text-foreground h-10"
-                    placeholder="Suchen..."
-                    placeholderTextColor={colors.muted}
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                  />
-                  {searchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchQuery("")}>
-                      <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-
-              {/* Filter */}
-              <View className="mb-4">
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 4 }}>
-                    <View className="flex-row gap-2">
-                      {["all", "active", "signed", "pending", "cancelled", "expired"].map((status) => (
-                        <TouchableOpacity
-                          key={status}
-                          className={`px-4 py-2 rounded-lg ${filter === status ? "bg-primary" : "bg-surface border border-border"
-                            }`}
-                          onPress={() => setFilter(status as any)}
-                        >
-                          <Text
-                            className={`font-semibold ${filter === status ? "text-background" : "text-foreground"
-                              }`}
-                          >
-                            {status === "all" ? "Alle" : getFilterLabel(status)}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </ScrollView>
-              </View>
-
-              {/* Vertragsliste */}
-              {filteredContracts.length > 0 ? (
-                <FlatList
-                  data={filteredContracts}
-                  renderItem={renderContractItem}
-                  keyExtractor={(item) => item.id.toString()}
-                  showsVerticalScrollIndicator={false}
-                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                  className="flex-1"
-                />
-              ) : (
-                <View className="flex-1 items-center justify-center">
-                  <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
-                  <Text className="text-lg text-muted mt-4">Keine Verträge</Text>
-                </View>
-              )}
-            </>
-          ) : (
-            <>
-              {/* Vorlagenliste */}
-              {templatesLoading ? (
-                <View className="flex-1 items-center justify-center">
-                  <ActivityIndicator size="large" color={colors.primary} />
-                </View>
-              ) : templates && templates.length > 0 ? (
-                <FlatList
-                  data={templates}
-                  renderItem={renderTemplateItem}
-                  keyExtractor={(item) => item.id}
-                  showsVerticalScrollIndicator={false}
-                  refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                />
-              ) : (
-                <View className="flex-1 items-center justify-center">
-                  <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
-                  <Text className="text-lg text-muted mt-4">Keine Vorlagen</Text>
-                  <Text className="text-sm text-muted text-center mt-2">
-                    Erstellen Sie Vorlagen wie Wartungsvertrag, Hostingvertrag oder Domainvertrag
-                  </Text>
-                  <TouchableOpacity
-                    className="bg-primary px-6 py-3 rounded-lg mt-4"
-                    onPress={() => {
-                      setEditingTemplate(null);
-                      setShowTemplateModal(true);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Text className="text-background font-semibold">Vorlage erstellen</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </>
-          )}
+        <View style={[containerStyle, { flex: 1 }]}>
+          <FlatList
+            data={activeTab === "contracts" ? filteredContracts : templates}
+            renderItem={activeTab === "contracts" ? renderContractItem : renderTemplateItem}
+            keyExtractor={(item) => item.id.toString()}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            ListHeaderComponent={renderHeader}
+            ListEmptyComponent={renderEmptyComponent}
+            contentContainerStyle={{ flexGrow: 1 }}
+            className="flex-1"
+          />
         </View>
       </View>
 

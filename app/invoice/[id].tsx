@@ -199,9 +199,9 @@ export default function InvoiceDetailScreen() {
 
     const getStatusLabel = (status: string) => {
         switch (status) {
-            case "draft": return "Entwurf";
-            case "open": return "Offen";
-            case "sent": return "Geöffnet";
+            case "draft": return "Ungesendet";
+            case "open": return "Gesendet";    // versendet, noch nicht geöffnet
+            case "sent": return "Geöffnet";   // vom Kunden geöffnet
             case "paid": return "Bezahlt";
             case "overdue": return "Überfällig";
             case "cancelled": return "Storniert";

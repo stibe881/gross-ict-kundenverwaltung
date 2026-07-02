@@ -78,7 +78,7 @@ export default function AccountingScreen() {
   const [initialIsIncome, setInitialIsIncome] = useState(false);
 
   // Invoice Filters & Sorting
-  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<"all" | "unpaid" | "open" | "paid" | "overdue" | "cancelled">("unpaid");
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<"all" | "unpaid" | "gesendet" | "geoeffnet" | "paid" | "overdue" | "cancelled" | "unsent" | "draft">("unpaid");
   const [invoiceSort, setInvoiceSort] = useState<"date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "number_desc" | "due_date_asc" | "due_date_desc">("due_date_asc");
 
   // Scanned Receipt Data
@@ -240,9 +240,11 @@ export default function AccountingScreen() {
         result = result.filter(i => i.status !== "paid" && i.status !== "cancelled");
       } else if (invoiceStatusFilter === "overdue") {
         result = result.filter(isInvoiceOverdue);
-      } else if (invoiceStatusFilter === "open") {
-        result = result.filter(i => (i.status === "open" || i.status === "sent") && !isInvoiceOverdue(i));
-      } else if (invoiceStatusFilter === "sent") {
+      } else if (invoiceStatusFilter === "gesendet") {
+        // DB status 'open' = versendet, aber noch nicht geöffnet
+        result = result.filter(i => i.status === "open" && !isInvoiceOverdue(i));
+      } else if (invoiceStatusFilter === "geoeffnet") {
+        // DB status 'sent' = vom Kunden geöffnet
         result = result.filter(i => i.status === "sent" && !isInvoiceOverdue(i));
       } else if (invoiceStatusFilter === "unsent") {
         result = result.filter(i => i.status === "draft");
@@ -447,11 +449,11 @@ export default function AccountingScreen() {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "draft":
-        return "Entwurf";
+        return "Ungesendet";
       case "open":
-        return "Offen";
+        return "Gesendet";  // versendet, aber noch nicht vom Kunden geöffnet
       case "sent":
-        return "Geöffnet";
+        return "Geöffnet";  // vom Kunden geöffnet
       case "paid":
         return "Bezahlt";
       case "overdue":
@@ -465,8 +467,8 @@ export default function AccountingScreen() {
 
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case "open":     return "#f59e0b"; // amber/warning
-      case "sent":     return "#3b82f6"; // blue
+      case "open":     return "#f59e0b"; // amber — gesendet, ausstehend
+      case "sent":     return "#3b82f6"; // blue — geöffnet
       case "paid":     return "#22c55e"; // green/success
       case "overdue":  return "#ef4444"; // red/error
       case "draft":    return "#6b7280"; // gray
@@ -854,9 +856,8 @@ export default function AccountingScreen() {
                 { label: "Noch nicht bezahlt", value: "unpaid" },
                 { label: "Alle", value: "all" },
                 { label: "Ungesendet", value: "unsent" },
-                { label: "Entwurf", value: "draft" },
-                { label: "Offen", value: "open" },
-                { label: "Geöffnet", value: "sent" },
+                { label: "Gesendet", value: "gesendet" },
+                { label: "Geöffnet", value: "geoeffnet" },
                 { label: "Bezahlt", value: "paid" },
                 { label: "Überfällig", value: "overdue" },
                 { label: "Storniert", value: "cancelled" },
@@ -943,7 +944,7 @@ export default function AccountingScreen() {
                 </Text>
                 <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-border">
                   <Text className="text-xs text-muted">
-                    {invoice.status === 'draft' ? "Entwurf" : formatDate(invoice.invoice_date)} · Fällig:{" "}
+                    {invoice.status === 'draft' ? "Ungesendet" : formatDate(invoice.invoice_date)} · Fällig:{" "}
                     {invoice.status === 'draft' ? "-" : formatDate(invoice.due_date)}
                   </Text>
                   <View className="items-end">

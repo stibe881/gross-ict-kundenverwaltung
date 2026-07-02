@@ -21,10 +21,11 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { TicketFormModal } from "@/components/ticket-form-modal";
+import { ContractFormModal } from "@/components/contract-form-modal";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
-import { showAlert, showConfirm } from "@/lib/alert";
+import { showAlert, showConfirm, showConfirm2 } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
 
 type TicketStatus = "open" | "in_progress" | "waiting" | "closed";
@@ -572,13 +573,16 @@ export default function TicketsScreen() {
       />
 
       {/* Ticket-Details Modal */}
-      {selectedTicket && (
-        <TicketDetailsModal
-          ticket={selectedTicket}
-          onClose={() => setSelectedTicket(null)}
-          currentUserName={currentUserName}
-        />
-      )}
+      {selectedTicket && (() => {
+        const liveTicket = tickets.find((t: any) => t.id === selectedTicket.id) ?? selectedTicket;
+        return (
+          <TicketDetailsModal
+            ticket={liveTicket}
+            onClose={() => setSelectedTicket(null)}
+            currentUserName={currentUserName}
+          />
+        );
+      })()}
       {/* Assignee Filter Modal */}
       {showAssigneeFilterPicker && (
         <Modal visible={true} transparent animationType="fade" onRequestClose={() => setShowAssigneeFilterPicker(false)}>
@@ -730,6 +734,14 @@ function TicketDetailsModal({
   const [showPriorityPicker, setShowPriorityPicker] = useState(false);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedContract, setSelectedContract] = useState<any>(null);
+
+  // Verträge des Kunden laden
+  const { data: customerContracts = [], isLoading: isLoadingContracts } = useQuery({
+    queryKey: ["customerContracts", ticket.customer_id],
+    queryFn: () => Data.getCustomerContracts(ticket.customer_id as string),
+    enabled: !!ticket.customer_id,
+  });
 
   // Kunden laden
   const { data: customers = [] } = useQuery({
@@ -763,6 +775,7 @@ function TicketDetailsModal({
 
   const [activeTab, setActiveTab] = useState<"comments" | "items">("comments");
   const [showItemTypePicker, setShowItemTypePicker] = useState<"time" | "product" | null>(null);
+  const [coveredByContract, setCoveredByContract] = useState<boolean>(!!ticket.covered_by_contract);
 
   // Form State für neuen Zeitaufwand
   const [newItemDesc, setNewItemDesc] = useState("");
@@ -786,7 +799,89 @@ function TicketDetailsModal({
     { key: "high", label: "Hoch", color: colors.error },
   ];
 
+  const handleCoveredByContractChange = async (value: boolean) => {
+    setCoveredByContract(value);
+    try {
+      await Data.updateTicket(ticket.id, { covered_by_contract: value } as any);
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    } catch (err: any) {
+      setCoveredByContract(!value);
+      showAlert("Fehler", err.message);
+    }
+  };
+
   const handleStatusChange = async (newStatus: TicketStatus) => {
+    // Speziallogik beim Schliessen eines Tickets
+    if (newStatus === "closed") {
+      if (coveredByContract) {
+        // Im Vertrag abgedeckt → direkt schliessen ohne Rechnungsdialog
+        setCurrentStatus("closed");
+        try {
+          await Data.updateTicket(ticket.id, { status: "closed" });
+          queryClient.invalidateQueries({ queryKey: ["tickets"] });
+        } catch (err: any) {
+          setCurrentStatus(ticket.status);
+          showAlert("Fehler", err.message);
+        }
+        return;
+      }
+      if (ticketItems.length > 0) {
+        // Positionen vorhanden → Rechnung erstellen?
+        showConfirm2(
+          "Ticket schliessen",
+          `Dieses Ticket hat ${ticketItems.length} Aufwand/Position(en). Möchten Sie direkt eine Rechnung erstellen?`,
+          "Rechnung erstellen",
+          async () => {
+            setCurrentStatus("closed");
+            try {
+              await Data.updateTicket(ticket.id, { status: "closed" });
+              queryClient.invalidateQueries({ queryKey: ["tickets"] });
+            } catch (err: any) {
+              setCurrentStatus(ticket.status);
+              showAlert("Fehler", err.message);
+              return;
+            }
+            await handleCreateInvoice();
+          },
+          "Nur schliessen",
+          async () => {
+            setCurrentStatus("closed");
+            try {
+              await Data.updateTicket(ticket.id, { status: "closed" });
+              queryClient.invalidateQueries({ queryKey: ["tickets"] });
+            } catch (err: any) {
+              setCurrentStatus(ticket.status);
+              showAlert("Fehler", err.message);
+            }
+          }
+        );
+        return;
+      } else {
+        // Keine Positionen → Aufwände erfassen?
+        showConfirm2(
+          "Ticket schliessen",
+          "Diesem Ticket sind noch keine Aufwände oder Positionen erfasst. Möchten Sie diese noch erfassen, bevor Sie das Ticket schliessen?",
+          "Aufwände erfassen",
+          () => {
+            setActiveTab("items");
+            setShowStatusPicker(false);
+          },
+          "Trotzdem schliessen",
+          async () => {
+            setCurrentStatus("closed");
+            try {
+              await Data.updateTicket(ticket.id, { status: "closed" });
+              queryClient.invalidateQueries({ queryKey: ["tickets"] });
+            } catch (err: any) {
+              setCurrentStatus(ticket.status);
+              showAlert("Fehler", err.message);
+            }
+          }
+        );
+        return;
+      }
+    }
+
     setCurrentStatus(newStatus);
     try {
       await Data.updateTicket(ticket.id, { status: newStatus });
@@ -1017,6 +1112,37 @@ function TicketDetailsModal({
           )}
         </View>
 
+        {/* Verträge anzeigen */}
+        {ticket.customer_id && (
+          <View style={{ marginTop: 2 }}>
+            <Text style={{ fontSize: 10, fontWeight: "600", color: colors.muted, textTransform: "uppercase", marginBottom: 6 }}>Vorhandene Verträge</Text>
+            {isLoadingContracts ? (
+              <ActivityIndicator size="small" color={colors.primary} style={{ alignSelf: 'flex-start' }} />
+            ) : customerContracts.length > 0 ? (
+              <View style={{ gap: 6 }}>
+                {customerContracts.map((contract: any) => (
+                  <TouchableOpacity
+                    key={contract.id}
+                    style={{ backgroundColor: colors.surface, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: colors.border, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+                    onPress={() => setSelectedContract(contract)}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <IconSymbol name="doc.text.fill" size={14} color={colors.primary} />
+                      <View>
+                        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.foreground }}>{contract.title}</Text>
+                        <Text style={{ fontSize: 10, color: colors.muted }}>{contract.status === "active" ? "Aktiv" : contract.status === "expired" ? "Abgelaufen" : "Gekündigt"}</Text>
+                      </View>
+                    </View>
+                    <IconSymbol name="chevron.right" size={12} color={colors.muted} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <Text style={{ fontSize: 12, color: colors.muted, fontStyle: 'italic' }}>Keine Verträge für diesen Kunden gefunden.</Text>
+            )}
+          </View>
+        )}
+
         {(!ticket.customer_id && (ticket.contact_name || ticket.contact_email)) && (
           <View style={{ backgroundColor: colors.primary + "10", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.primary + "30" }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
@@ -1148,7 +1274,7 @@ function TicketDetailsModal({
 
   const renderFooterActions = () => (
     <View style={{ flexDirection: isWide ? "column" : "row", gap: 10 }}>
-      {currentStatus === "closed" && (
+      {currentStatus === "closed" && !coveredByContract && (
         <TouchableOpacity
           style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primary + "10", borderWidth: 1, borderColor: colors.primary + "25", paddingVertical: 12, borderRadius: 12 }}
           onPress={handleCreateInvoice}
@@ -1304,13 +1430,51 @@ function TicketDetailsModal({
           </View>
         </View>
       ) : (
-        <TicketItemsList
-          ticketId={ticket.id}
-          ticketItems={ticketItems}
-          products={products}
-          colors={colors}
-          onRefresh={refetchTicketItems}
-        />
+        <View style={{ gap: 12 }}>
+          {/* Im Vertrag abgedeckt Toggle */}
+          <View style={{
+            backgroundColor: coveredByContract ? colors.success + "12" : colors.surface,
+            borderRadius: 14,
+            padding: 14,
+            borderWidth: 1,
+            borderColor: coveredByContract ? colors.success + "40" : colors.border,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                <IconSymbol
+                  name={coveredByContract ? "checkmark.shield.fill" : "shield"}
+                  size={15}
+                  color={coveredByContract ? colors.success : colors.muted}
+                />
+                <Text style={{ fontSize: 14, fontWeight: "700", color: coveredByContract ? colors.success : colors.foreground }}>
+                  Im Vertrag abgedeckt
+                </Text>
+              </View>
+              <Text style={{ fontSize: 12, color: colors.muted, lineHeight: 17 }}>
+                {coveredByContract
+                  ? "Leistungen sind vertraglich gedeckt — beim Schliessen wird keine Rechnung erstellt."
+                  : "Beim Schliessen wird gefragt, ob eine Rechnung erstellt werden soll."}
+              </Text>
+            </View>
+            <Switch
+              value={coveredByContract}
+              onValueChange={handleCoveredByContractChange}
+              trackColor={{ false: colors.border, true: colors.success + "80" }}
+              thumbColor={coveredByContract ? colors.success : colors.muted}
+            />
+          </View>
+
+          <TicketItemsList
+            ticketId={ticket.id}
+            ticketItems={ticketItems}
+            products={products}
+            colors={colors}
+            onRefresh={refetchTicketItems}
+          />
+        </View>
       )}
     </View>
   );
@@ -1389,6 +1553,14 @@ function TicketDetailsModal({
             </View>
         </View>
       </KeyboardAvoidingView>
+
+      {selectedContract && (
+        <ContractFormModal
+          visible={!!selectedContract}
+          contract={selectedContract}
+          onClose={() => setSelectedContract(null)}
+        />
+      )}
     </Modal>
   );
 
