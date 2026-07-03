@@ -42,7 +42,16 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
   });
   const hasOptional = optionalTotal > 0;
   
-  const totalExcl = quote.total || (nonOptionalTotal + (quote.tax || 0));
+  let specialDiscountAmount = 0;
+  if (quote.special_discount && Number(quote.special_discount) > 0) {
+    if (quote.special_discount_type === 'percentage') {
+      specialDiscountAmount = nonOptionalTotal * (Number(quote.special_discount) / 100);
+    } else {
+      specialDiscountAmount = Number(quote.special_discount);
+    }
+  }
+
+  const totalExcl = quote.total || (nonOptionalTotal - specialDiscountAmount + (quote.tax || 0));
   const totalIncl = totalExcl + optionalTotal + optionalTax;
 
   const itemsHTML = items.map((item: any, idx: number) => {
@@ -560,6 +569,11 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
             <span>Zwischensumme</span>
             <span>CHF ${fmtCHF(nonOptionalTotal || quote.subtotal)}</span>
           </div>
+          ${specialDiscountAmount > 0 ? `
+          <div class="pricing-total-row">
+            <span>Spezialrabatt</span>
+            <span>- CHF ${fmtCHF(specialDiscountAmount)}</span>
+          </div>` : ""}
           ${quote.tax > 0 ? `
           <div class="pricing-total-row">
             <span>MwSt.</span>
@@ -995,6 +1009,24 @@ Deno.serve(async (req) => {
         }
         project = projectData;
       }
+    }
+
+    // Status-Update und Aktivitäts-Log
+    if (quote.status === "sent") {
+      await supabase.from("quotes").update({ status: "opened" }).eq("id", id);
+      await supabase.from("quote_activities").insert({
+        quote_id: id,
+        type: "Status geändert",
+        description: "Das Angebot wurde geöffnet und der Status auf 'Geöffnet' geändert.",
+        user_name: "Kunde"
+      });
+    } else if (quote.status !== "draft") {
+      await supabase.from("quote_activities").insert({
+        quote_id: id,
+        type: "Angebot aufgerufen",
+        description: "Das Angebot wurde erneut aufgerufen.",
+        user_name: "Kunde"
+      });
     }
 
     const html = renderPage(quote, supabaseUrl, project, Deno.env.get("SUPABASE_ANON_KEY"));

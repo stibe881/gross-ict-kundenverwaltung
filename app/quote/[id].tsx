@@ -24,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
     draft: { label: "Entwurf", color: "#6B7280" },
     sent: { label: "Gesendet", color: "#3B82F6" },
+    opened: { label: "Geöffnet", color: "#8B5CF6" },
     accepted: { label: "Angenommen", color: "#10B981" },
     rejected: { label: "Abgelehnt", color: "#EF4444" },
     expired: { label: "Abgelaufen", color: "#F59E0B" },
@@ -41,6 +42,12 @@ export default function QuoteDetailScreen() {
     const { data: quote, isLoading } = useQuery({
         queryKey: ["quote", id],
         queryFn: () => Data.getQuoteById(id as string),
+        enabled: !!id,
+    });
+
+    const { data: activities = [] } = useQuery({
+        queryKey: ["quote_activities", id],
+        queryFn: () => Data.getQuoteActivities(id as string),
         enabled: !!id,
     });
 
@@ -189,6 +196,7 @@ export default function QuoteDetailScreen() {
                     await Data.sendQuoteEmail(quote.id, pdfBase64);
                     queryClient.invalidateQueries({ queryKey: ["quote", id] });
                     queryClient.invalidateQueries({ queryKey: ["quotes"] });
+                    queryClient.invalidateQueries({ queryKey: ["quote_activities", id] });
                     showAlert("Erfolg", `Angebot wurde an ${quote.customer.email} gesendet.`);
                 } catch (error: any) {
                     showAlert("Fehler", error.message || "E-Mail konnte nicht gesendet werden");
@@ -253,7 +261,17 @@ export default function QuoteDetailScreen() {
         optionalTax += (i.total || 0) * ((i.vat_rate || 8.1) / 100);
     });
     const hasOptional = optionalTotal > 0;
-    const totalExcl = quote.total || (nonOptionalTotal + (quote.tax || 0));
+
+    let specialDiscountAmount = 0;
+    if (quote.special_discount && Number(quote.special_discount) > 0) {
+        if (quote.special_discount_type === 'percentage') {
+            specialDiscountAmount = nonOptionalTotal * (Number(quote.special_discount) / 100);
+        } else {
+            specialDiscountAmount = Number(quote.special_discount);
+        }
+    }
+
+    const totalExcl = quote.total || (nonOptionalTotal - specialDiscountAmount + (quote.tax || 0));
     const totalIncl = totalExcl + optionalTotal + optionalTax;
 
     return (
@@ -326,8 +344,14 @@ export default function QuoteDetailScreen() {
                 <View className="bg-surface rounded-xl p-4 border border-border mt-4">
                     <View className="flex-row justify-between mb-2">
                         <Text className="text-sm text-muted">Zwischensumme</Text>
-                        <Text className="text-sm text-foreground">{formatCurrency(quote.subtotal || nonOptionalTotal)}</Text>
+                        <Text className="text-sm text-foreground">{formatCurrency(nonOptionalTotal)}</Text>
                     </View>
+                    {specialDiscountAmount > 0 && (
+                        <View className="flex-row justify-between mb-2">
+                            <Text className="text-sm text-muted">Spezialrabatt</Text>
+                            <Text className="text-sm text-foreground">- {formatCurrency(specialDiscountAmount)}</Text>
+                        </View>
+                    )}
                     <View className="flex-row justify-between mb-3">
                         <Text className="text-sm text-muted">MwSt</Text>
                         <Text className="text-sm text-foreground">{formatCurrency(quote.tax || 0)}</Text>
@@ -345,7 +369,7 @@ export default function QuoteDetailScreen() {
                         <Text className="text-base font-bold text-foreground">
                             {hasOptional ? "Total ohne Optionen" : "Total"}
                         </Text>
-                        <Text className="text-base font-bold text-foreground">{formatCurrency(totalExcl)}</Text>
+                        <Text className="text-base font-bold text-foreground">{formatCurrency(nonOptionalTotal - specialDiscountAmount + (quote.tax || 0))}</Text>
                     </View>
                     {hasOptional && (
                         <View className="flex-row justify-between pt-2 border-t" style={{ borderTopColor: colors.border }}>
@@ -363,6 +387,42 @@ export default function QuoteDetailScreen() {
                     </View>
                 )}
 
+                {/* Verlauf (Timeline) */}
+                <View className="mt-6">
+                    <Text className="text-lg font-bold text-foreground mb-3">Verlauf</Text>
+                    <View className="bg-surface rounded-xl p-4 border border-border">
+                        {!activities || activities.length === 0 ? (
+                            <Text className="text-sm text-muted">Noch keine Aktivitäten.</Text>
+                        ) : (
+                            activities.map((activity: any, index: number) => (
+                                <View key={activity.id} className="flex-row">
+                                    <View className="items-center mr-3">
+                                        <View className="w-2 h-2 rounded-full bg-primary mt-1.5" />
+                                        {index < activities.length - 1 && (
+                                            <View className="w-px flex-1 bg-border my-1" />
+                                        )}
+                                    </View>
+                                    <View className="flex-1 pb-4">
+                                        <Text className="text-sm font-semibold text-foreground">
+                                            {activity.type === "created" ? "Erstellt" :
+                                             activity.type === "edited" ? "Bearbeitet" :
+                                             activity.type === "sent" ? "Gesendet" :
+                                             activity.type === "viewed" ? "Geöffnet" : activity.type}
+                                        </Text>
+                                        <Text className="text-sm text-muted mt-0.5">
+                                            {activity.description}
+                                        </Text>
+                                        <Text className="text-xs text-muted mt-1">
+                                            {new Date(activity.created_at).toLocaleString("de-CH")}
+                                            {activity.user_name ? ` • ${activity.user_name}` : ""}
+                                        </Text>
+                                    </View>
+                                </View>
+                            ))
+                        )}
+                    </View>
+                </View>
+
                 {/* Status ändern */}
                 <View className="mt-6">
                     <TouchableOpacity
@@ -377,14 +437,14 @@ export default function QuoteDetailScreen() {
                 </View>
 
                 {/* Actions */}
-                <View className="mt-6 gap-3">
+                <View className="mt-6 flex-row flex-wrap gap-3">
                     {/* Per E-Mail senden */}
                     {quote.customer?.email && (
                         <TouchableOpacity
                             onPress={handleSendEmail}
                             disabled={isSendingEmail}
                             style={{ backgroundColor: "#8B5CF6" }}
-                            className="p-4 rounded-lg flex-row items-center justify-center"
+                            className="p-4 rounded-lg flex-row items-center justify-center flex-1 min-w-[200px]"
                             activeOpacity={0.8}
                         >
                             {isSendingEmail ? (
@@ -402,7 +462,7 @@ export default function QuoteDetailScreen() {
                     <TouchableOpacity
                         onPress={handleShareLink}
                         style={{ backgroundColor: "#0EA5E9" }}
-                        className="p-4 rounded-lg flex-row items-center justify-center"
+                        className="p-4 rounded-lg flex-row items-center justify-center flex-1 min-w-[200px]"
                         activeOpacity={0.8}
                     >
                         <IconSymbol name="link" size={20} color="#fff" />
@@ -413,7 +473,7 @@ export default function QuoteDetailScreen() {
                     <TouchableOpacity
                         onPress={handleDownloadPDF}
                         style={{ backgroundColor: colors.primary }}
-                        className="p-4 rounded-lg flex-row items-center justify-center"
+                        className="p-4 rounded-lg flex-row items-center justify-center flex-1 min-w-[200px]"
                         activeOpacity={0.8}
                     >
                         <IconSymbol name="arrow.down.doc.fill" size={20} color="#fff" />
@@ -426,7 +486,7 @@ export default function QuoteDetailScreen() {
                             onPress={handleConvert}
                             disabled={convertMutation.isPending}
                             style={{ backgroundColor: colors.success }}
-                            className="p-4 rounded-lg flex-row items-center justify-center"
+                            className="p-4 rounded-lg flex-row items-center justify-center flex-1 min-w-[200px]"
                             activeOpacity={0.8}
                         >
                             {convertMutation.isPending ? (
@@ -453,7 +513,7 @@ export default function QuoteDetailScreen() {
                             }
                             disabled={projectMutation.isPending}
                             style={{ backgroundColor: "#14B8A6" }}
-                            className="p-4 rounded-lg flex-row items-center justify-center"
+                            className="p-4 rounded-lg flex-row items-center justify-center flex-1 min-w-[200px]"
                             activeOpacity={0.8}
                         >
                             {projectMutation.isPending ? (
@@ -471,7 +531,7 @@ export default function QuoteDetailScreen() {
                     <TouchableOpacity
                         onPress={() => setShowEditModal(true)}
                         style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                        className="p-4 rounded-lg flex-row items-center justify-center border"
+                        className="p-4 rounded-lg flex-row items-center justify-center border flex-1 min-w-[200px]"
                         activeOpacity={0.7}
                     >
                         <IconSymbol name="pencil" size={18} color={colors.primary} />
@@ -482,7 +542,7 @@ export default function QuoteDetailScreen() {
                     <TouchableOpacity
                         onPress={handleDelete}
                         disabled={deleteQuote.isPending}
-                        className="p-4 rounded-lg flex-row items-center justify-center"
+                        className="p-4 rounded-lg flex-row items-center justify-center flex-1 min-w-[200px]"
                         activeOpacity={0.7}
                     >
                         {deleteQuote.isPending ? (
@@ -504,6 +564,7 @@ export default function QuoteDetailScreen() {
                 onSuccess={() => {
                     queryClient.invalidateQueries({ queryKey: ["quote", id] });
                     queryClient.invalidateQueries({ queryKey: ["quotes"] });
+                    queryClient.invalidateQueries({ queryKey: ["quote_activities", id] });
                 }}
                 editQuote={quote}
             />
@@ -530,6 +591,7 @@ export default function QuoteDetailScreen() {
                             {[
                                 { status: "draft", label: "Entwurf", color: "#6B7280", icon: "doc.text.fill" },
                                 { status: "sent", label: "Gesendet", color: "#3B82F6", icon: "paperplane.fill" },
+                                { status: "opened", label: "Geöffnet", color: "#8B5CF6", icon: "eye.fill" },
                                 { status: "accepted", label: "Angenommen", color: "#10B981", icon: "checkmark.circle.fill" },
                                 { status: "rejected", label: "Abgelehnt", color: "#EF4444", icon: "xmark.circle.fill" },
                                 { status: "expired", label: "Abgelaufen", color: "#F59E0B", icon: "clock.fill" },

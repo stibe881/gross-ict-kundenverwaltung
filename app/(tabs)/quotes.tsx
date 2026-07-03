@@ -22,6 +22,7 @@ import { QuoteFormModal } from "@/components/quote-form-modal";
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
     draft: { label: "Entwurf", color: "#6B7280" },
     sent: { label: "Gesendet", color: "#3B82F6" },
+    opened: { label: "Geöffnet", color: "#8B5CF6" },
     accepted: { label: "Angenommen", color: "#10B981" },
     rejected: { label: "Abgelehnt", color: "#EF4444" },
     expired: { label: "Abgelaufen", color: "#F59E0B" },

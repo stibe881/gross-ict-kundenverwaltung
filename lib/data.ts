@@ -828,6 +828,10 @@ export async function createQuote(quote: any, items: any[]) {
         if (itemsError) throw new Error(itemsError.message);
     }
 
+    try {
+        await logQuoteActivity(quoteData.id, "created", "Angebot erstellt.");
+    } catch (_) { /* ignore error so we don't block */ }
+
     return quoteData;
 }
 
@@ -851,6 +855,10 @@ export async function updateQuote(id: string, quote: any, items: any[]) {
         }));
         await supabase.from("quote_items").insert(itemsWithId);
     }
+
+    try {
+        await logQuoteActivity(id, "edited", "Angebot bearbeitet.");
+    } catch (_) { /* ignore error so we don't block */ }
 
     return quoteData;
 }
@@ -883,7 +891,7 @@ export async function convertQuoteToInvoice(quoteId: string) {
             subtotal: quote.subtotal,
             vat_amount: quote.tax,
             total: quote.total,
-            status: "open",
+            status: "draft",
         },
         (quote.items || []).map((item: any) => ({
             description: item.description,
@@ -1204,6 +1212,44 @@ export async function logContractActivity(
             user_name: resolvedName,
         });
     if (error) console.error("Failed to log contract activity:", error.message);
+}
+
+export async function getQuoteActivities(quoteId: string) {
+    const { data, error } = await supabase
+        .from("quote_activities")
+        .select("*")
+        .eq("quote_id", quoteId)
+        .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function logQuoteActivity(
+    quoteId: string,
+    type: string,
+    description: string,
+    userName?: string
+) {
+    let resolvedName = userName || "System";
+    if (!userName) {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            resolvedName = session?.user?.user_metadata?.full_name ||
+                session?.user?.user_metadata?.name ||
+                `${session?.user?.user_metadata?.first_name || ""} ${session?.user?.user_metadata?.last_name || ""}`.trim() ||
+                session?.user?.email || "System";
+        } catch { /* keep default */ }
+    }
+    const { error } = await supabase
+        .from("quote_activities")
+        .insert({
+            quote_id: quoteId,
+            type,
+            description,
+            user_name: resolvedName,
+        });
+    if (error) console.error("Failed to log quote activity:", error.message);
 }
 
 export async function uploadDocument(customerId: string, uri: string, filename: string): Promise<string> {

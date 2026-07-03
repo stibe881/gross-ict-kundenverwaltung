@@ -1002,7 +1002,7 @@ export function generateQuotePDF(data: QuoteData): string {
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.text("Zwischensumme", totalsX, y + 2);
-      doc.text(`${fmtCHF(nonOptionalSubtotal + data.specialDiscount)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 2, { align: "right" });
+      doc.text(`${fmtCHF(nonOptionalSubtotal)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 2, { align: "right" });
       
       doc.text("Spezialrabatt", totalsX, y + 7);
       doc.text(`-${fmtCHF(data.specialDiscount)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 7, { align: "right" });
@@ -1010,7 +1010,7 @@ export function generateQuotePDF(data: QuoteData): string {
       doc.setFontSize(13);
       doc.setFont("helvetica", "bold");
       doc.text("Total", totalsX, y + 15);
-      doc.text(`${fmtCHF(nonOptionalSubtotal)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 15, { align: "right" });
+      doc.text(`${fmtCHF(nonOptionalSubtotal - data.specialDiscount)} CHF`, PAGE_WIDTH - MARGIN_X - 2, y + 15, { align: "right" });
       y += 34;
   } else {
       doc.text("Total", totalsX, y + 5);

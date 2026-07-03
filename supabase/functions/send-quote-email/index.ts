@@ -161,6 +161,14 @@ Deno.serve(async (req) => {
     // Status auf "sent" setzen
     await supabase.from("quotes").update({ status: "sent" }).eq("id", quoteId);
 
+    // Aktivität loggen
+    await supabase.from("quote_activities").insert({
+        quote_id: quoteId,
+        type: "sent",
+        description: `Angebot per E-Mail an ${quote.customer.email} gesendet.`,
+        user_name: "System",
+    });
+
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err: any) {
     console.error("[send-quote-email] Error:", err);
