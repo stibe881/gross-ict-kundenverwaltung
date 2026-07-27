@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 
@@ -28,6 +28,7 @@ export function ContractFormModal({
   onClose,
   onSuccess,
 }: ContractFormModalProps) {
+  const queryClient = useQueryClient();
   const colors = useColors();
   // DB speichert YYYY-MM-DD, Anzeige als DD.MM.YYYY
   const toDisplay = (d: string) => {
@@ -349,6 +350,7 @@ export function ContractFormModal({
           await Data.logContractActivity(newContract.id, "created", `Vertrag "${formData.title}" wurde erstellt`);
         }
       }
+      queryClient.invalidateQueries({ queryKey: ["contracts"] });
       onSuccess?.();
       onClose();
     } catch (error: any) {

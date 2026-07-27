@@ -9,7 +9,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn("[Supabase] EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY not set.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+import { Database } from "./database.types";
+
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     // On web: use localStorage (default), detect tokens from URL hash
     // On native: use AsyncStorage adapter
