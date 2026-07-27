@@ -21,14 +21,15 @@ import * as Data from "@/lib/data";
 import { formatCurrency, VAT_RATES } from "@/lib/format";
 
 const PRODUCT_CATEGORIES = [
-  "Hardware",
-  "Software",
-  "Netzwerk",
   "Domain & Hosting",
   "E-Mail",
+  "Hardware",
+  "Lizenz",
+  "Netzwerk",
+  "Software",
+  "Webseite privat",
   "Webseite Unternehmen",
   "Webseite Verein",
-  "Webseite privat",
 ] as const;
 
 export default function ProductsScreen() {

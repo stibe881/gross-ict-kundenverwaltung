@@ -31,6 +31,7 @@ export function ContractTemplateFormModal({
         name: "",
         description: "",
         default_amount: "",
+        default_internal_costs: "",
         default_duration_months: "12",
         default_notice_period_months: "3",
         default_payment_terms: "",
@@ -44,6 +45,7 @@ export function ContractTemplateFormModal({
                 name: template.name || "",
                 description: template.description || "",
                 default_amount: template.default_amount?.toString() || "",
+                default_internal_costs: template.default_internal_costs?.toString() || "",
                 default_duration_months: template.default_duration_months?.toString() || "12",
                 default_notice_period_months: template.default_notice_period_months?.toString() || "3",
                 default_payment_terms: template.default_payment_terms || "",
@@ -55,6 +57,7 @@ export function ContractTemplateFormModal({
                 name: "",
                 description: "",
                 default_amount: "",
+                default_internal_costs: "",
                 default_duration_months: "12",
                 default_notice_period_months: "3",
                 default_payment_terms: "",
@@ -74,6 +77,7 @@ export function ContractTemplateFormModal({
             name: formData.name.trim(),
             description: formData.description.trim() || null,
             default_amount: formData.default_amount ? parseFloat(formData.default_amount) : null,
+            default_internal_costs: formData.default_internal_costs ? parseFloat(formData.default_internal_costs) : null,
             default_duration_months: parseInt(formData.default_duration_months) || 12,
             default_notice_period_months: parseInt(formData.default_notice_period_months) || 3,
             default_payment_terms: formData.default_payment_terms.trim() || null,
@@ -135,19 +139,34 @@ export function ContractTemplateFormModal({
                                 />
                             </View>
 
-                            {/* Standard-Betrag */}
-                            <View>
-                                <Text className="text-sm font-semibold text-foreground mb-2">
-                                    Standard-Jahresbetrag (CHF)
-                                </Text>
-                                <TextInput
-                                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                                    placeholder="0.00"
-                                    placeholderTextColor={colors.muted}
-                                    keyboardType="decimal-pad"
-                                    value={formData.default_amount}
-                                    onChangeText={(text) => setFormData({ ...formData, default_amount: text })}
-                                />
+                            {/* Standard-Betrag + Eigenkosten nebeneinander */}
+                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                                <View style={{ flex: 1 }}>
+                                    <Text className="text-sm font-semibold text-foreground mb-2">
+                                        Standard-Jahresbetrag (CHF)
+                                    </Text>
+                                    <TextInput
+                                        className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                        placeholder="0.00"
+                                        placeholderTextColor={colors.muted}
+                                        keyboardType="decimal-pad"
+                                        value={formData.default_amount}
+                                        onChangeText={(text) => setFormData({ ...formData, default_amount: text })}
+                                    />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text className="text-sm font-semibold text-foreground mb-2">
+                                        Standard-Eigenkosten (CHF)
+                                    </Text>
+                                    <TextInput
+                                        className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                                        placeholder="0.00"
+                                        placeholderTextColor={colors.muted}
+                                        keyboardType="decimal-pad"
+                                        value={formData.default_internal_costs}
+                                        onChangeText={(text) => setFormData({ ...formData, default_internal_costs: text })}
+                                    />
+                                </View>
                             </View>
 
                             {/* Standard-Laufzeit */}

@@ -62,6 +62,48 @@ export function ContractFormModal({
     nextInvoiceDate: toDisplay(contract?.next_invoice_date || contract?.nextInvoiceDate || ""),
     internalCosts: (contract?.internal_costs || contract?.internalCosts)?.toString() || "",
   });
+
+  // Domain-Verwaltung (für Domainvertrag-Vorlage)
+  type DomainEntry = { name: string; annual_amount: string; internal_costs: string };
+  const [domains, setDomains] = useState<DomainEntry[]>(
+    Array.isArray(contract?.domains)
+      ? (contract.domains as any[]).map((d) => ({
+          name: d.name || '',
+          annual_amount: (d.annual_amount ?? '').toString(),
+          internal_costs: (d.internal_costs ?? '').toString(),
+        }))
+      : []
+  );
+
+  const isDomainContract = domains.length > 0;
+  const domainTotal = domains.reduce((s, d) => s + (parseFloat(d.annual_amount) || 0), 0);
+  const domainInternalTotal = domains.reduce((s, d) => s + (parseFloat(d.internal_costs) || 0), 0);
+
+  const handleDomainCountChange = (text: string) => {
+    const count = Math.max(0, Math.min(50, parseInt(text) || 0));
+    setDomains((prev) => {
+      const next = [...prev];
+      while (next.length < count) next.push({ name: '', annual_amount: '', internal_costs: '' });
+      next.length = count;
+      return next;
+    });
+  };
+
+  const updateDomain = (idx: number, field: keyof DomainEntry, value: string) =>
+    setDomains((prev) => prev.map((d, i) => (i === idx ? { ...d, [field]: value } : d)));
+
+  // M365 Lizenzen Verwaltung
+  type M365LicenseEntry = { baseName: string; quantity: number; withTeams: boolean };
+  const [m365Licenses, setM365Licenses] = useState<M365LicenseEntry[]>(
+    Array.isArray(contract?.m365_licenses)
+      ? (contract.m365_licenses as any[]).map((l) => ({
+          baseName: l.baseName || '',
+          quantity: l.quantity || 0,
+          withTeams: l.withTeams || false,
+        }))
+      : []
+  );
+
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -79,6 +121,52 @@ export function ContractFormModal({
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [customerSearch, setCustomerSearch] = useState("");
 
+  useEffect(() => {
+    if (visible) {
+      setFormData({
+        title: contract?.title || "",
+        description: contract?.description || "",
+        customerId: contract?.customer_id || contract?.customerId || null,
+        employeeId: contract?.employee_id || contract?.employeeId || null,
+        amount: (contract?.annual_amount || contract?.amount)?.toString() || "",
+        startDate: toDisplay(contract?.start_date || contract?.startDate || ""),
+        durationMonths: (contract?.duration_months || contract?.durationMonths)?.toString() || "12",
+        noticePeriodMonths: (contract?.notice_period_months || contract?.noticePeriodMonths)?.toString() || "3",
+        contactPerson: contract?.contact_person || contract?.contactPerson || "",
+        paymentTerms: contract?.payment_terms || contract?.paymentTerms || "",
+        scopeOfServices: contract?.scope_of_services || contract?.scopeOfServices || "",
+        specialAgreements: contract?.special_agreements || contract?.specialAgreements || "",
+        recurringEnabled: contract?.recurring_enabled || false,
+        billingCycle: contract?.billing_cycle || "yearly",
+        autoRenewal: contract?.auto_renewal !== false,
+        vatRate: (contract?.vat_rate ?? 0).toString(),
+        isInternal: contract?.is_internal || false,
+        nextInvoiceDate: toDisplay(contract?.next_invoice_date || contract?.nextInvoiceDate || ""),
+        internalCosts: (contract?.internal_costs || contract?.internalCosts)?.toString() || "",
+      });
+      setDomains(
+        Array.isArray(contract?.domains)
+          ? (contract.domains as any[]).map((d) => ({
+              name: d.name || '',
+              annual_amount: (d.annual_amount ?? '').toString(),
+              internal_costs: (d.internal_costs ?? '').toString(),
+            }))
+          : []
+      );
+      setM365Licenses(
+        Array.isArray(contract?.m365_licenses)
+          ? (contract.m365_licenses as any[]).map((l) => ({
+              baseName: l.baseName || '',
+              quantity: l.quantity || 0,
+              withTeams: l.withTeams || false,
+            }))
+          : []
+      );
+      setSelectedTemplate(null);
+      setCustomerSearch("");
+    }
+  }, [visible, contract]);
+
   // Kunden laden
   const { data: customers } = useQuery({
     queryKey: ["customers"],
@@ -91,11 +179,42 @@ export function ContractFormModal({
     queryFn: Data.getAllUsers,
   });
 
+  // Produkte laden (für M365 Lizenzen)
+  const { data: products } = useQuery({
+    queryKey: ["products"],
+    queryFn: Data.getProducts,
+  });
+
   // Vorlagen laden
   const { data: templates } = useQuery({
     queryKey: ["contract_templates"],
     queryFn: Data.getContractTemplates,
   });
+
+  // M365 Logik
+  const m365Products = products?.filter((p: any) => p.category === 'Lizenz') || [];
+  const isM365Contract = formData.title === 'MS365 Tenant' || selectedTemplate?.name === 'MS365 Tenant';
+  
+  // Lizenzen mit Produkten verknüpfen und Summen berechnen
+  const calculateM365Totals = () => {
+    let total = 0;
+    let internalTotal = 0;
+    m365Licenses.forEach(license => {
+      if (license.quantity > 0) {
+        const suffix = license.withTeams ? ' (mit Teams)' : ' (ohne Teams)';
+        let product = m365Products.find((p: any) => p.name === license.baseName + suffix);
+        if (!product) {
+          product = m365Products.find((p: any) => p.name === license.baseName);
+        }
+        if (product) {
+          total += (product.price || 0) * license.quantity;
+          internalTotal += (product.internal_cost || 0) * license.quantity;
+        }
+      }
+    });
+    return { total, internalTotal };
+  };
+  const { total: m365Total, internalTotal: m365InternalTotal } = calculateM365Totals();
 
   const selectedCustomer = customers?.find((c: any) => c.id === formData.customerId);
 
@@ -118,6 +237,7 @@ export function ContractFormModal({
       ...formData,
       title: template.name || formData.title,
       amount: template.default_amount?.toString() || formData.amount,
+      internalCosts: template.default_internal_costs?.toString() || formData.internalCosts,
       durationMonths: template.default_duration_months?.toString() || formData.durationMonths,
       noticePeriodMonths: template.default_notice_period_months?.toString() || formData.noticePeriodMonths,
       description: template.description || formData.description,
@@ -125,6 +245,19 @@ export function ContractFormModal({
       scopeOfServices: template.default_scope_of_services || formData.scopeOfServices,
       specialAgreements: template.default_special_agreements || formData.specialAgreements,
     });
+    // Domainvertrag: automatisch 1 Domain-Zeile vorbereiten
+    if (template.name === 'Domainvertrag' && domains.length === 0) {
+      setDomains([{ name: '', annual_amount: template.default_amount?.toString() || '', internal_costs: template.default_internal_costs?.toString() || '' }]);
+    }
+    // M365 Tenant: automatisch M365 Zeilen vorbereiten
+    if (template.name === 'MS365 Tenant' && m365Licenses.length === 0) {
+      setM365Licenses([
+        { baseName: 'Microsoft 365 Business Premium', quantity: 0, withTeams: true },
+        { baseName: 'Microsoft 365 Business Standard', quantity: 0, withTeams: true },
+        { baseName: 'Microsoft 365 Business Basic', quantity: 0, withTeams: true },
+        { baseName: 'Microsoft 365 Apps for Business', quantity: 0, withTeams: false }
+      ]);
+    }
     setShowTemplatePicker(false);
   };
 
@@ -145,19 +278,46 @@ export function ContractFormModal({
   };
 
   const handleSubmit = async () => {
-    if (!formData.title || (!formData.isInternal && !formData.customerId) || (formData.isInternal && !formData.employeeId) || (!formData.isInternal && !formData.amount) || !formData.startDate) {
+    // Pflichtfeld-Prüfung: Bei Domain-Vertrag muss mind. 1 Domain einen Namen haben
+    const needsAmount = !formData.isInternal && !isDomainContract;
+    if (!formData.title || (!formData.isInternal && !formData.customerId) || (formData.isInternal && !formData.employeeId) || (needsAmount && !formData.amount) || !formData.startDate) {
       alert("Bitte füllen Sie alle Pflichtfelder aus");
+      return;
+    }
+    if (isDomainContract && domains.some((d) => !d.name.trim())) {
+      alert("Bitte geben Sie für jede Domain einen Namen ein.");
       return;
     }
 
     try {
       const endDate = calculateEndDate();
+      
+      // M365 aktiv filtern
+      const finalM365Licenses = isM365Contract ? m365Licenses.filter(l => l.quantity > 0) : [];
+
+      // Bei Domain- oder M365-Vertrag: Summen automatisch berechnen
+      let finalAmount = parseFloat(formData.amount) || 0;
+      let finalInternalCosts = parseFloat(formData.internalCosts) || 0;
+      
+      if (!formData.isInternal) {
+        if (isDomainContract) {
+          finalAmount = domainTotal;
+          finalInternalCosts = domainInternalTotal;
+        } else if (isM365Contract) {
+          finalAmount = m365Total;
+          finalInternalCosts = m365InternalTotal;
+        }
+      } else {
+        finalAmount = 0;
+        finalInternalCosts = 0;
+      }
+
       const contractData = {
         customer_id: formData.isInternal ? null : formData.customerId,
         employee_id: formData.isInternal ? formData.employeeId : null,
         title: formData.title,
         description: formData.description || undefined,
-        amount: formData.isInternal ? 0 : parseFloat(formData.amount),
+        amount: finalAmount,
         start_date: toDb(formData.startDate),
         end_date: formData.isInternal ? undefined : (endDate || undefined),
         duration_months: formData.isInternal ? undefined : (parseInt(formData.durationMonths) || 12),
@@ -173,7 +333,11 @@ export function ContractFormModal({
         vat_rate: formData.isInternal ? 0 : (parseFloat(formData.vatRate) || 0),
         is_internal: formData.isInternal,
         next_invoice_date: (formData.recurringEnabled && !formData.isInternal && formData.nextInvoiceDate) ? toDb(formData.nextInvoiceDate) : undefined,
-        internal_costs: formData.isInternal ? 0 : (parseFloat(formData.internalCosts) || 0),
+        internal_costs: finalInternalCosts,
+        domains: isDomainContract
+          ? domains.map((d) => ({ name: d.name.trim(), annual_amount: parseFloat(d.annual_amount) || 0, internal_costs: parseFloat(d.internal_costs) || 0 }))
+          : [],
+        m365_licenses: finalM365Licenses,
       };
 
       if (contract?.id) {
@@ -393,42 +557,179 @@ export function ContractFormModal({
                 />
               </View>
 
-              {/* Betrag */}
+              {/* Betrag / Domain-Verwaltung / M365 */}
               {!formData.isInternal && (
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Jahresbetrag (CHF) *
-                </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="0.00"
-                  placeholderTextColor={colors.muted}
-                  keyboardType="decimal-pad"
-                  value={formData.amount}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, amount: text })
-                  }
-                />
-              </View>
-              )}
+                <View style={{ gap: 12 }}>
+                  {isM365Contract ? (
+                    <View style={{ gap: 8 }}>
+                      <Text className="text-sm font-semibold text-foreground">M365 Lizenzen</Text>
+                      {m365Licenses.map((license, idx) => (
+                        <View key={idx} style={{ backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, padding: 12, gap: 12 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>{license.baseName}</Text>
+                          
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>Anzahl Lizenzen</Text>
+                              <TextInput
+                                className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                                placeholder="0"
+                                placeholderTextColor={colors.muted}
+                                keyboardType="number-pad"
+                                value={license.quantity > 0 ? license.quantity.toString() : ''}
+                                onChangeText={(text) => {
+                                  const qty = Math.max(0, parseInt(text) || 0);
+                                  setM365Licenses(prev => prev.map((l, i) => i === idx ? { ...l, quantity: qty } : l));
+                                }}
+                              />
+                            </View>
+                            
+                            {license.baseName !== 'Microsoft 365 Apps for Business' && (
+                              <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                                <Text style={{ fontSize: 11, color: colors.muted, marginBottom: 8 }}>Inkl. MS Teams</Text>
+                                <TouchableOpacity
+                                  activeOpacity={0.8}
+                                  onPress={() => setM365Licenses(prev => prev.map((l, i) => i === idx ? { ...l, withTeams: !l.withTeams } : l))}
+                                  style={{
+                                    width: 44, height: 24, borderRadius: 12,
+                                    backgroundColor: license.withTeams ? colors.primary : colors.muted + '40',
+                                    justifyContent: 'center',
+                                    paddingHorizontal: 2
+                                  }}
+                                >
+                                  <View style={{
+                                    width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff',
+                                    transform: [{ translateX: license.withTeams ? 20 : 0 }]
+                                  }} />
+                                </TouchableOpacity>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      ))}
 
-              {/* Eigenkosten */}
-              {!formData.isInternal && (
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Eigenkosten pro Jahr (CHF)
-                </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="0.00"
-                  placeholderTextColor={colors.muted}
-                  keyboardType="numeric"
-                  value={formData.internalCosts}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, internalCosts: text })
-                  }
-                />
-              </View>
+                      {/* Summen-Vorschau M365 */}
+                      <View style={{ backgroundColor: colors.primary + '10', borderRadius: 10, padding: 12, gap: 4, marginTop: 4 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                          <Text style={{ fontSize: 12, color: colors.muted }}>Jahresbetrag total</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary }}>CHF {m365Total.toFixed(2)}</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                          <Text style={{ fontSize: 12, color: colors.muted }}>Eigenkosten total</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>CHF {m365InternalTotal.toFixed(2)}</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, paddingTop: 4, borderTopWidth: 1, borderTopColor: colors.border }}>
+                          <Text style={{ fontSize: 12, color: colors.muted }}>Marge</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.success }}>CHF {(m365Total - m365InternalTotal).toFixed(2)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ) : isDomainContract ? (
+                    <>
+                      {/* Anzahl Domains */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <View style={{ flex: 1 }}>
+                          <Text className="text-sm font-semibold text-foreground mb-2">
+                            Anzahl Domains
+                          </Text>
+                          <TextInput
+                            className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                            placeholder="0"
+                            placeholderTextColor={colors.muted}
+                            keyboardType="number-pad"
+                            value={domains.length > 0 ? domains.length.toString() : ''}
+                            onChangeText={handleDomainCountChange}
+                          />
+                          <Text className="text-xs text-muted mt-1">0 = pauschaler Betrag, &gt;0 = je Domain separat</Text>
+                        </View>
+                      </View>
+
+                      {/* Domain-Zeilen */}
+                      <View style={{ gap: 8 }}>
+                        <Text className="text-sm font-semibold text-foreground">Domains</Text>
+                        {domains.map((domain, idx) => (
+                          <View key={idx} style={{ backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, padding: 10, gap: 8 }}>
+                            <Text style={{ fontSize: 11, color: colors.muted, fontWeight: '600' }}>Domain {idx + 1}</Text>
+                            <TextInput
+                              className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                              placeholder="z.B. example.ch"
+                              placeholderTextColor={colors.muted}
+                              value={domain.name}
+                              onChangeText={(v) => updateDomain(idx, 'name', v)}
+                              autoCapitalize="none"
+                              autoCorrect={false}
+                            />
+                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>Jahresbetrag (CHF)</Text>
+                                <TextInput
+                                  className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                                  placeholder="0.00"
+                                  placeholderTextColor={colors.muted}
+                                  keyboardType="decimal-pad"
+                                  value={domain.annual_amount}
+                                  onChangeText={(v) => updateDomain(idx, 'annual_amount', v)}
+                                />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>Eigenkosten (CHF)</Text>
+                                <TextInput
+                                  className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                                  placeholder="0.00"
+                                  placeholderTextColor={colors.muted}
+                                  keyboardType="decimal-pad"
+                                  value={domain.internal_costs}
+                                  onChangeText={(v) => updateDomain(idx, 'internal_costs', v)}
+                                />
+                              </View>
+                            </View>
+                          </View>
+                        ))}
+
+                        {/* Summen-Vorschau Domains */}
+                        <View style={{ backgroundColor: colors.primary + '10', borderRadius: 10, padding: 12, gap: 4 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 12, color: colors.muted }}>Jahresbetrag total</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.primary }}>CHF {domainTotal.toFixed(2)}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 12, color: colors.muted }}>Eigenkosten total</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.foreground }}>CHF {domainInternalTotal.toFixed(2)}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, paddingTop: 4, borderTopWidth: 1, borderTopColor: colors.border }}>
+                            <Text style={{ fontSize: 12, color: colors.muted }}>Marge</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.success }}>CHF {(domainTotal - domainInternalTotal).toFixed(2)}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </>
+                  ) : (
+                    // Normaler Betrag + Eigenkosten
+                    <>
+                      <View>
+                        <Text className="text-sm font-semibold text-foreground mb-2">Jahresbetrag (CHF) *</Text>
+                        <TextInput
+                          className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                          placeholder="0.00"
+                          placeholderTextColor={colors.muted}
+                          keyboardType="decimal-pad"
+                          value={formData.amount}
+                          onChangeText={(text) => setFormData({ ...formData, amount: text })}
+                        />
+                      </View>
+                      <View>
+                        <Text className="text-sm font-semibold text-foreground mb-2">Eigenkosten pro Jahr (CHF)</Text>
+                        <TextInput
+                          className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                          placeholder="0.00"
+                          placeholderTextColor={colors.muted}
+                          keyboardType="decimal-pad"
+                          value={formData.internalCosts}
+                          onChangeText={(text) => setFormData({ ...formData, internalCosts: text })}
+                        />
+                      </View>
+                    </>
+                  )}
+                </View>
               )}
 
               {/* Startdatum */}

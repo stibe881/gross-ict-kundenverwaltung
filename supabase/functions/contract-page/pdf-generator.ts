@@ -3,6 +3,7 @@ import { LOGO_BASE64 } from "./logo.ts";
 
 export interface ContractData {
   title: string;
+  contractNumber?: string;
   customerName: string;
   customerAddress: string;
   startDate: string;
@@ -18,6 +19,8 @@ export interface ContractData {
   signatureLocation?: string;
   signatureIp?: string;
   cancellationDate?: string;
+  domains?: { name: string; annual_amount: number; internal_costs: number }[];
+  m365_licenses?: { baseName: string; quantity: number; withTeams: boolean }[];
 }
 
 function fmtCHF(amount: number): string {
@@ -170,7 +173,11 @@ export function generateContractPDF(data: ContractData): string {
   }
 
   // Meta box — height depends on content
-  const metaRows: [string, string][] = [["Vertrag:", data.title]];
+  const metaRows: [string, string][] = [];
+  if (data.contractNumber) {
+    metaRows.push(["Vertragsnr.:", data.contractNumber]);
+  }
+  metaRows.push(["Vertrag:", data.title]);
   if (!data.isInternal) {
     metaRows.push(["Laufzeit:", `${fmtDate(data.startDate)} – ${data.endDate ? fmtDate(data.endDate) : 'Unbefristet'}`]);
     metaRows.push(["Jahresbetrag:", `CHF ${fmtCHF(data.amount || 0)}`]);
@@ -205,6 +212,126 @@ export function generateContractPDF(data: ContractData): string {
   }
 
   y = Math.max(addrY, y + metaBoxH + 4) + 8;
+
+  // 5a. Domain-Tabelle (falls vorhanden)
+  if (data.domains && data.domains.length > 0) {
+    y = checkPageBreak(doc, y, 20, data.startDate, data.signatureDate);
+
+    // Section title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...cGold);
+    doc.text("DOMAINS", MARGIN_X, y);
+    doc.setDrawColor(...cGold);
+    doc.setLineWidth(0.5);
+    doc.line(MARGIN_X, y + 1, PAGE_WIDTH - MARGIN_X, y + 1);
+    y += 7;
+
+    const colW = (PAGE_WIDTH - MARGIN_X * 2);
+    const col1 = MARGIN_X;
+    const col2 = MARGIN_X + colW * 0.52;
+    const col3 = MARGIN_X + colW * 0.76;
+
+    // Table header
+    doc.setFillColor(...cBoxBg);
+    doc.rect(MARGIN_X, y - 4, colW, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...cTextMuted);
+    doc.text("Domain", col1 + 2, y);
+    doc.text("Jahresbetrag", col2, y);
+    doc.text("Eigenkosten", col3, y);
+    y += 5;
+
+    let domainTotal = 0;
+    let domainInternalTotal = 0;
+
+    for (const d of data.domains) {
+      y = checkPageBreak(doc, y, 8, data.startDate, data.signatureDate);
+      doc.setDrawColor(...cBorder);
+      doc.setLineWidth(0.2);
+      doc.line(MARGIN_X, y - 3, PAGE_WIDTH - MARGIN_X, y - 3);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(...cTextDark);
+      const domainName = doc.splitTextToSize(d.name || '-', colW * 0.5);
+      doc.text(domainName[0], col1 + 2, y);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...cTextDark);
+      doc.text(`CHF ${fmtCHF(d.annual_amount || 0)}`, col2, y);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...cTextMuted);
+      doc.text(`CHF ${fmtCHF(d.internal_costs || 0)}`, col3, y);
+      domainTotal += d.annual_amount || 0;
+      domainInternalTotal += d.internal_costs || 0;
+      y += 6;
+    }
+
+    // Total row
+    doc.setFillColor(...cBoxBg);
+    doc.rect(MARGIN_X, y - 4, colW, 8, "F");
+    doc.setDrawColor(...cGold);
+    doc.setLineWidth(0.8);
+    doc.line(MARGIN_X, y - 4, PAGE_WIDTH - MARGIN_X, y - 4);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...cTextDark);
+    doc.text("Total", col1 + 2, y);
+    doc.setTextColor(...cGold);
+    doc.text(`CHF ${fmtCHF(domainTotal)}`, col2, y);
+    doc.setTextColor(...cTextMuted);
+    doc.text(`CHF ${fmtCHF(domainInternalTotal)}`, col3, y);
+    y += 12;
+  }
+
+  // 5b. M365 Lizenzen-Tabelle (falls vorhanden)
+  if (data.m365_licenses && data.m365_licenses.length > 0) {
+    y = checkPageBreak(doc, y, 20, data.startDate, data.signatureDate);
+
+    // Section title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...cGold);
+    doc.text("M365 LIZENZEN", MARGIN_X, y);
+    doc.setDrawColor(...cGold);
+    doc.setLineWidth(0.5);
+    doc.line(MARGIN_X, y + 1, PAGE_WIDTH - MARGIN_X, y + 1);
+    y += 7;
+
+    const colW = (PAGE_WIDTH - MARGIN_X * 2);
+    const col1 = MARGIN_X;
+    const col2 = MARGIN_X + colW * 0.76;
+
+    // Table header
+    doc.setFillColor(...cBoxBg);
+    doc.rect(MARGIN_X, y - 4, colW, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...cTextMuted);
+    doc.text("Lizenz (Variante)", col1 + 2, y);
+    doc.text("Anzahl", col2, y, { align: "right" });
+    y += 5;
+
+    for (const l of data.m365_licenses) {
+      y = checkPageBreak(doc, y, 8, data.startDate, data.signatureDate);
+      doc.setDrawColor(...cBorder);
+      doc.setLineWidth(0.2);
+      doc.line(MARGIN_X, y - 3, PAGE_WIDTH - MARGIN_X, y - 3);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(...cTextDark);
+      
+      const variantText = l.baseName !== 'Microsoft 365 Apps for Business' ? (l.withTeams ? ' (mit Teams)' : ' (ohne Teams)') : '';
+      const licenseName = doc.splitTextToSize(l.baseName + variantText, colW * 0.7);
+      doc.text(licenseName[0], col1 + 2, y);
+      
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...cGold);
+      doc.text(l.quantity.toString(), col2, y, { align: "right" });
+      y += 6;
+    }
+    y += 6;
+  }
 
   // 5. Contract text sections (description, scope, agreements)
   const fields = [

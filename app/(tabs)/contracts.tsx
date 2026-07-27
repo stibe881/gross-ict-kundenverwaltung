@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   ScrollView,
   Text,
@@ -134,7 +134,7 @@ export default function ContractsScreen() {
     return colors.muted;
   };
 
-  const filteredContracts: any[] =
+  const filteredContracts: any[] = useMemo(() =>
     (filter === "all" ? contracts : contracts.filter((c) => {
       if (filter === "signed") return !!c.signature_date;
       if (filter === "pending") return !c.signature_date && (c.status === "pending_signature" || c.status === "active");
@@ -146,9 +146,10 @@ export default function ContractsScreen() {
         (c.title || "").toLowerCase().includes(search) ||
         (c.customer_name || "").toLowerCase().includes(search)
       );
-    });
+    })
+  , [contracts, filter, searchQuery]);
 
-  const renderContractItem = ({ item }: { item: any }) => (
+  const renderContractItem = useCallback(({ item }: { item: any }) => (
     <TouchableOpacity
       className="bg-surface rounded-xl p-4 mb-3 border border-border"
       activeOpacity={0.7}
@@ -157,14 +158,19 @@ export default function ContractsScreen() {
       <View className="flex-row items-start justify-between mb-2">
         <View className="flex-1">
           <View className="flex-row items-center gap-2 mb-1">
-            <Text className="text-lg font-semibold text-foreground">{item.title}</Text>
+            <Text className="text-lg font-semibold text-foreground">{item.customer_name || item.employee_name || '–'}</Text>
             {item.is_internal && (
               <View className="px-2 py-0.5 rounded" style={{ backgroundColor: colors.primary + "20" }}>
                 <Text className="text-[10px] font-bold" style={{ color: colors.primary }}>INTERN</Text>
               </View>
             )}
           </View>
-          <Text className="text-sm text-muted">{item.customer_name}</Text>
+          {item.contract_number && (
+            <Text className="text-xs font-mono" style={{ color: colors.primary, marginBottom: 2 }}>
+              {item.contract_number}
+            </Text>
+          )}
+          <Text className="text-sm text-muted">{item.title}</Text>
         </View>
         <View
           className="px-3 py-1 rounded-full ml-2"
@@ -204,9 +210,9 @@ export default function ContractsScreen() {
       </View>
       )}
     </TouchableOpacity>
-  );
+  ), [colors, getStatusColor, getStatusLabel]);
 
-  const renderTemplateItem = ({ item }: { item: any }) => (
+  const renderTemplateItem = useCallback(({ item }: { item: any }) => (
     <View className="bg-surface rounded-xl p-4 mb-3 border border-border">
       <View className="flex-row items-start justify-between mb-2">
         <View className="flex-1">
@@ -253,9 +259,9 @@ export default function ContractsScreen() {
         </View>
       </View>
     </View>
-  );
+  ), [colors, setEditingTemplate, setShowTemplateModal, handleDeleteTemplate, formatCurrency]);
 
-  const renderHeader = () => (
+  const renderHeader = useCallback(() => (
     <View>
       {/* Header */}
       <View className="flex-row items-center justify-between mb-4">
@@ -324,25 +330,6 @@ export default function ContractsScreen() {
             </View>
           </View>
 
-          {/* Suche */}
-          <View className="mb-4">
-            <View className="flex-row items-center bg-surface border border-border rounded-xl px-4 py-2">
-              <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
-              <TextInput
-                className="flex-1 ml-2 text-foreground h-10"
-                placeholder="Suchen..."
-                placeholderTextColor={colors.muted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery("")}>
-                  <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
           {/* Filter */}
           <View className="mb-4">
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 4 }}>
@@ -366,9 +353,9 @@ export default function ContractsScreen() {
         </>
       )}
     </View>
-  );
+  ), [colors, router, activeTab, contracts, templates, filter, setActiveTab, setFilter, setShowPlusMenu, formatCurrency]);
 
-  const renderEmptyComponent = () => {
+  const renderEmptyComponent = useCallback(() => {
     if (activeTab === "contracts") {
       return (
         <View className="flex-1 items-center justify-center py-20">
@@ -404,19 +391,43 @@ export default function ContractsScreen() {
         </View>
       );
     }
-  };
+  }, [activeTab, templatesLoading, colors, setEditingTemplate, setShowTemplateModal]);
 
   return (
     <ScreenContainer>
       <View className="flex-1" style={{ padding: contentPadding }}>
         <View style={[containerStyle, { flex: 1 }]}>
+          {renderHeader()}
+          {/* Suchfeld – außerhalb von renderHeader, damit es stabil im Komponentenbaum bleibt
+              und die Tastatur nicht nach jedem Zeichen schließt (React Native Re-mount-Problem) */}
+          {activeTab === "contracts" && (
+            <View className="mb-4">
+              <View className="flex-row items-center bg-surface border border-border rounded-xl px-4 py-2">
+                <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
+                <TextInput
+                  className="flex-1 ml-2 text-foreground h-10"
+                  placeholder="Suchen..."
+                  placeholderTextColor={colors.muted}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery("")}>
+                    <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          )}
           <FlatList
             data={activeTab === "contracts" ? filteredContracts : templates}
             renderItem={activeTab === "contracts" ? renderContractItem : renderTemplateItem}
             keyExtractor={(item) => item.id.toString()}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="always"
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            ListHeaderComponent={renderHeader}
             ListEmptyComponent={renderEmptyComponent}
             contentContainerStyle={{ flexGrow: 1 }}
             className="flex-1"
@@ -701,6 +712,20 @@ function ContractDetailsModal({
                     <Text className="text-xl font-bold text-foreground mb-1">
                       {contract.title}
                     </Text>
+                    {contract.contract_number && (
+                      <View
+                        className="flex-row items-center gap-1 mb-1 self-start px-2 py-0.5 rounded"
+                        style={{ backgroundColor: colors.primary + "15" }}
+                      >
+                        <IconSymbol name="doc.text" size={12} color={colors.primary} />
+                        <Text
+                          className="text-xs font-bold font-mono"
+                          style={{ color: colors.primary }}
+                        >
+                          {contract.contract_number}
+                        </Text>
+                      </View>
+                    )}
                     <Text className="text-base text-muted">{contract.customer_name}</Text>
                   </View>
                   <View
@@ -757,6 +782,63 @@ function ContractDetailsModal({
                   )}
                 </View>
               </View>
+
+            {/* Domain-Übersicht */}
+            {contract.domains && contract.domains.length > 0 && (
+              <View className="bg-surface rounded-xl p-4 border border-border">
+                <Text className="text-lg font-bold text-foreground mb-3">Domains</Text>
+                <View style={{ gap: 0 }}>
+                  <View style={{ flexDirection: 'row', paddingBottom: 6, marginBottom: 6, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                    <Text style={{ flex: 2, fontSize: 11, fontWeight: '600', color: colors.muted }}>Domain</Text>
+                    <Text style={{ flex: 1, fontSize: 11, fontWeight: '600', color: colors.muted, textAlign: 'right' }}>Betrag/J.</Text>
+                    <Text style={{ flex: 1, fontSize: 11, fontWeight: '600', color: colors.muted, textAlign: 'right' }}>Eigenkost.</Text>
+                  </View>
+                  {contract.domains.map((d: any, idx: number) => (
+                    <View key={idx} style={{ flexDirection: 'row', paddingVertical: 5, borderBottomWidth: idx < contract.domains.length - 1 ? 1 : 0, borderBottomColor: colors.border + '60' }}>
+                      <Text style={{ flex: 2, fontSize: 13, color: colors.foreground, fontFamily: 'monospace' }} numberOfLines={1}>{d.name || '-'}</Text>
+                      <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: colors.primary, textAlign: 'right' }}>
+                        {formatCurrency(d.annual_amount || 0)}
+                      </Text>
+                      <Text style={{ flex: 1, fontSize: 13, color: colors.muted, textAlign: 'right' }}>
+                        {formatCurrency(d.internal_costs || 0)}
+                      </Text>
+                    </View>
+                  ))}
+                  <View style={{ flexDirection: 'row', paddingTop: 8, marginTop: 4, borderTopWidth: 2, borderTopColor: colors.border }}>
+                    <Text style={{ flex: 2, fontSize: 12, fontWeight: '700', color: colors.foreground }}>Total</Text>
+                    <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: colors.primary, textAlign: 'right' }}>
+                      {formatCurrency(contract.domains.reduce((s: number, d: any) => s + (d.annual_amount || 0), 0))}
+                    </Text>
+                    <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: colors.muted, textAlign: 'right' }}>
+                      {formatCurrency(contract.domains.reduce((s: number, d: any) => s + (d.internal_costs || 0), 0))}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* M365 Lizenzen-Übersicht */}
+            {contract.m365_licenses && contract.m365_licenses.length > 0 && (
+              <View className="bg-surface rounded-xl p-4 border border-border">
+                <Text className="text-lg font-bold text-foreground mb-3">M365 Lizenzen</Text>
+                <View style={{ gap: 0 }}>
+                  <View style={{ flexDirection: 'row', paddingBottom: 6, marginBottom: 6, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                    <Text style={{ flex: 2, fontSize: 11, fontWeight: '600', color: colors.muted }}>Lizenz (Variante)</Text>
+                    <Text style={{ flex: 1, fontSize: 11, fontWeight: '600', color: colors.muted, textAlign: 'center' }}>Anzahl</Text>
+                  </View>
+                  {contract.m365_licenses.map((l: any, idx: number) => (
+                    <View key={idx} style={{ flexDirection: 'row', paddingVertical: 5, borderBottomWidth: idx < contract.m365_licenses.length - 1 ? 1 : 0, borderBottomColor: colors.border + '60' }}>
+                      <Text style={{ flex: 2, fontSize: 13, color: colors.foreground, paddingRight: 4 }}>
+                        {l.baseName} {l.baseName !== 'Microsoft 365 Apps for Business' && <Text style={{ color: colors.muted, fontSize: 11 }}>({l.withTeams ? 'mit Teams' : 'ohne Teams'})</Text>}
+                      </Text>
+                      <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: colors.primary, textAlign: 'center' }}>
+                        {l.quantity}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
 
               {/* Regelmässige Rechnungen Info */}
               {contract.recurring_enabled && (

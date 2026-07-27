@@ -1118,6 +1118,27 @@ export async function createRecurringInvoiceFromContract(contract: any): Promise
     return invoice;
 }
 
+export async function getNextContractNumber(): Promise<string> {
+    const currentYear = new Date().getFullYear();
+    const prefix = `VT-${currentYear}-`;
+
+    // Höchste bestehende Nummer für dieses Jahr suchen
+    const { data: contractData } = await supabase
+        .from("contracts")
+        .select("contract_number")
+        .like("contract_number", `${prefix}%`)
+        .order("contract_number", { ascending: false })
+        .limit(1);
+
+    let maxSeq = 0;
+    if (contractData && contractData.length > 0) {
+        const seq = parseInt(contractData[0].contract_number.replace(prefix, ""), 10);
+        if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+    }
+
+    return `${prefix}${String(maxSeq + 1).padStart(3, "0")}`;
+}
+
 export async function createContract(contract: {
     customer_id?: string | null;
     employee_id?: string | null;
@@ -1142,8 +1163,11 @@ export async function createContract(contract: {
     vat_rate?: number;
     is_internal?: boolean;
 }) {
+    // Vertragsnummer automatisch generieren
+    const contractNumber = await getNextContractNumber();
+
     // Calculate next_invoice_date if recurring is enabled
-    const insertData: any = { ...contract, status: "active" };
+    const insertData: any = { ...contract, status: "active", contract_number: contractNumber };
     if (contract.recurring_enabled && !contract.next_invoice_date) {
         insertData.next_invoice_date = contract.start_date;
     }
@@ -3040,8 +3064,7 @@ export async function uploadLinkLogo(linkId: string, uri: string): Promise<strin
     const path = `${linkId}/logo_${Date.now()}.${ext}`;
 
     if (uri.startsWith("data:")) {
-        // Web/Expo: data URI from image picker
-        // Use XMLHttpRequest which reliably converts data URIs to blobs
+        // Web: data URI from image picker — convert via XHR
         const blob = await new Promise<Blob>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.onload = () => resolve(xhr.response);
@@ -3051,16 +3074,22 @@ export async function uploadLinkLogo(linkId: string, uri: string): Promise<strin
             xhr.send(null);
         });
         contentType = blob.type || "image/jpeg";
-
+        const formData = new FormData();
+        formData.append("", blob, `logo.${ext}`);
+        fileData = formData;
+    } else if (uri.startsWith("blob:")) {
+        // Web: blob URI (e.g. from expo-image-picker on web)
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        contentType = blob.type || "image/jpeg";
         const formData = new FormData();
         formData.append("", blob, `logo.${ext}`);
         fileData = formData;
     } else {
-        // Native: file URI — fetch as blob (natively supported)
+        // Native (iOS/Android): file URI — fetch as blob
         const response = await fetch(uri);
         const blob = await response.blob();
         contentType = blob.type || "image/jpeg";
-
         const formData = new FormData();
         formData.append("", {
             uri: uri,

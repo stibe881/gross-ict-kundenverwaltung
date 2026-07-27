@@ -980,6 +980,7 @@ Deno.serve(async (req) => {
 
         const pdfData = {
           title: contract.title,
+          contractNumber: contract.contract_number || undefined,
           customerName,
           customerAddress: addressParts.join("\n"),
           startDate: contract.start_date,
@@ -994,6 +995,8 @@ Deno.serve(async (req) => {
           signatureName: contract.signature_name || undefined,
           signatureDate: contract.signature_date ? new Date(contract.signature_date).toISOString().split("T")[0] : undefined,
           signatureIp: contract.signature_ip || undefined,
+          domains: Array.isArray(contract.domains) ? contract.domains : undefined,
+          m365_licenses: Array.isArray(contract.m365_licenses) ? contract.m365_licenses : undefined,
         };
 
         const pdfBase64 = generateContractPDF(pdfData);
@@ -1201,6 +1204,7 @@ Deno.serve(async (req) => {
 
             pdfBase64 = generateContractPDF({
               title: contract.title,
+              contractNumber: contract.contract_number || undefined,
               customerName,
               customerAddress: addressParts.join("\n"),
               startDate: contract.start_date,

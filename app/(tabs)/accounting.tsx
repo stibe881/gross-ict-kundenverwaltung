@@ -80,6 +80,7 @@ export default function AccountingScreen() {
   // Invoice Filters & Sorting
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<"all" | "unpaid" | "gesendet" | "geoeffnet" | "paid" | "overdue" | "cancelled" | "unsent" | "draft">("unpaid");
   const [invoiceSort, setInvoiceSort] = useState<"date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "number_desc" | "due_date_asc" | "due_date_desc">("due_date_asc");
+  const [invoiceSearchQuery, setInvoiceSearchQuery] = useState("");
 
   // Scanned Receipt Data
   const [scannedReceipt, setScannedReceipt] = useState<{
@@ -277,8 +278,20 @@ export default function AccountingScreen() {
       return 0;
     });
 
+    // Search filter
+    if (invoiceSearchQuery.trim()) {
+      const q = invoiceSearchQuery.toLowerCase();
+      result = result.filter(i =>
+        (i.invoice_number && i.invoice_number.toLowerCase().includes(q)) ||
+        (i.customer?.company_name && i.customer.company_name.toLowerCase().includes(q)) ||
+        (i.customer?.first_name && i.customer.first_name.toLowerCase().includes(q)) ||
+        (i.customer?.last_name && i.customer.last_name.toLowerCase().includes(q)) ||
+        (i.description && i.description.toLowerCase().includes(q))
+      );
+    }
+
     return result;
-  }, [yearInvoices, invoiceStatusFilter, invoiceSort]);
+  }, [yearInvoices, invoiceStatusFilter, invoiceSort, invoiceSearchQuery]);
 
   const yearExpenses = useMemo(
     () =>
@@ -847,6 +860,23 @@ export default function AccountingScreen() {
               Neue Rechnung
             </Text>
           </TouchableOpacity>
+
+          {/* Search Field */}
+          <View className="bg-surface rounded-xl p-3 border border-border mb-2 flex-row items-center">
+            <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
+            <TextInput
+              value={invoiceSearchQuery}
+              onChangeText={setInvoiceSearchQuery}
+              placeholder="Rechnung suchen (Nr., Kunde...)"
+              placeholderTextColor={colors.muted}
+              style={{ flex: 1, color: colors.foreground, marginLeft: 8, fontSize: 14 }}
+            />
+            {invoiceSearchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setInvoiceSearchQuery("")}>
+                <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* Filters & Sorting UI */}
           <View className="bg-surface rounded-xl p-3 border border-border mb-2 gap-3">
