@@ -173,12 +173,17 @@ serve(async (req) => {
       expoResult = await response.json();
       console.log("[send-push] Expo response:", JSON.stringify(expoResult));
 
-      // Clean up invalid tokens (DeviceNotRegistered)
+      // Clean up invalid tokens (DeviceNotRegistered) and surface hard errors
       if (expoResult?.data) {
         const invalidTokens: string[] = [];
         for (let i = 0; i < expoResult.data.length; i++) {
           if (expoResult.data[i]?.details?.error === 'DeviceNotRegistered') {
             invalidTokens.push(messages[i].to);
+          }
+          // InvalidCredentials = missing/expired APNs/FCM credentials on the EAS project.
+          // Without this log the function reports success while no push ever arrives.
+          if (expoResult.data[i]?.details?.error === 'InvalidCredentials') {
+            console.error("[send-push] PUSH CREDENTIALS INVALID — run 'eas credentials' and upload new APNs/FCM push credentials:", expoResult.data[i]?.message);
           }
         }
 
@@ -202,9 +207,15 @@ serve(async (req) => {
       }
     }
 
+    const pushErrors = (expoResult?.data || [])
+      .filter((t: any) => t?.status === 'error')
+      .map((t: any) => t?.details?.error || t?.message);
+
     return new Response(JSON.stringify({
       success: true,
       sent: messages.length,
+      failed: pushErrors.length,
+      pushErrors: pushErrors.length > 0 ? pushErrors : undefined,
       expoResult,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

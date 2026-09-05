@@ -37,6 +37,7 @@ const MAPPING = {
   "sun.max.fill": "wb-sunny",
   "moon.fill": "nightlight-round",
   "arrow.down.doc.fill": "download",
+  "arrow.up.arrow.down": "swap-vert",
   "xmark": "close",
   "checkmark": "check",
   "bell.fill": "notifications",

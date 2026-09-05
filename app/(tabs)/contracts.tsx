@@ -31,6 +31,9 @@ import { downloadContractPDF } from "@/lib/pdf-utils";
 
 type ContractStatus = "active" | "cancelled" | "expired";
 
+const getBillingCycleLabel = (cycle: string | null | undefined) =>
+  ({ monthly: "Monatlich", quarterly: "Quartalsweise", semi_annual: "Halbjährlich", yearly: "Jährlich" }[cycle || "yearly"] || "Jährlich");
+
 export default function ContractsScreen() {
   const colors = useColors();
   const { containerStyle, contentPadding } = useResponsiveLayout();
@@ -38,6 +41,7 @@ export default function ContractsScreen() {
   const queryClient = useQueryClient();
   const { refreshing, onRefresh } = useGlobalRefresh();
   const [filter, setFilter] = useState<"all" | ContractStatus | "signed" | "pending">("all");
+  const [sortBy, setSortBy] = useState<"newest" | "next_invoice" | "customer" | "amount">("newest");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Verträge aus DB laden
@@ -134,8 +138,8 @@ export default function ContractsScreen() {
     return colors.muted;
   };
 
-  const filteredContracts: any[] = useMemo(() =>
-    (filter === "all" ? contracts : contracts.filter((c) => {
+  const filteredContracts: any[] = useMemo(() => {
+    const filtered = (filter === "all" ? contracts : contracts.filter((c) => {
       if (filter === "signed") return !!c.signature_date;
       if (filter === "pending") return !c.signature_date && (c.status === "pending_signature" || c.status === "active");
       return c.status === filter;
@@ -146,8 +150,33 @@ export default function ContractsScreen() {
         (c.title || "").toLowerCase().includes(search) ||
         (c.customer_name || "").toLowerCase().includes(search)
       );
-    })
-  , [contracts, filter, searchQuery]);
+    });
+
+    const sorted = [...filtered];
+    switch (sortBy) {
+      case "next_invoice":
+        // Verträge ohne nächstes Rechnungsdatum ans Ende
+        sorted.sort((a, b) => {
+          const da = a.recurring_enabled && a.next_invoice_date ? a.next_invoice_date : null;
+          const db = b.recurring_enabled && b.next_invoice_date ? b.next_invoice_date : null;
+          if (da && db) return da.localeCompare(db);
+          if (da) return -1;
+          if (db) return 1;
+          return 0;
+        });
+        break;
+      case "customer":
+        sorted.sort((a, b) => (a.customer_name || "").localeCompare(b.customer_name || "", "de"));
+        break;
+      case "amount":
+        sorted.sort((a, b) => (b.amount || 0) - (a.amount || 0));
+        break;
+      default:
+        // "newest": Reihenfolge aus der DB (created_at desc) beibehalten
+        break;
+    }
+    return sorted;
+  }, [contracts, filter, sortBy, searchQuery]);
 
   const renderContractItem = useCallback(({ item }: { item: any }) => (
     <TouchableOpacity
@@ -208,6 +237,19 @@ export default function ContractsScreen() {
           Kündigungsfrist: {item.notice_period_months} {item.notice_period_months === 1 ? "Monat" : "Monate"}
         </Text>
       </View>
+      )}
+
+      {item.recurring_enabled && item.next_invoice_date && item.status === "active" && (
+        <View className="flex-row items-center gap-1.5 mt-2 pt-2 border-t border-border">
+          <IconSymbol name="calendar" size={14} color={colors.primary} />
+          <Text className="text-xs text-muted">Nächste Rechnung:</Text>
+          <Text className="text-xs font-semibold" style={{ color: colors.primary }}>
+            {formatDate(item.next_invoice_date)}
+          </Text>
+          <Text className="text-xs text-muted">
+            ({getBillingCycleLabel(item.billing_cycle)})
+          </Text>
+        </View>
       )}
     </TouchableOpacity>
   ), [colors, getStatusColor, getStatusLabel]);
@@ -331,7 +373,7 @@ export default function ContractsScreen() {
           </View>
 
           {/* Filter */}
-          <View className="mb-4">
+          <View className="mb-2">
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 4 }}>
               <View className="flex-row gap-2">
                 {["all", "active", "signed", "pending", "cancelled", "expired"].map((status) => (
@@ -350,10 +392,38 @@ export default function ContractsScreen() {
               </View>
             </ScrollView>
           </View>
+
+          {/* Sortierung */}
+          <View className="mb-4">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 4 }}>
+              <View className="flex-row items-center gap-2">
+                <IconSymbol name="arrow.up.arrow.down" size={16} color={colors.muted} />
+                {([
+                  ["newest", "Neueste"],
+                  ["next_invoice", "Nächste Rechnung"],
+                  ["customer", "Kunde"],
+                  ["amount", "Betrag"],
+                ] as const).map(([key, label]) => (
+                  <TouchableOpacity
+                    key={key}
+                    className={`px-3 py-1.5 rounded-lg ${sortBy === key ? "bg-primary/15 border border-primary/40" : "bg-surface border border-border"}`}
+                    onPress={() => setSortBy(key)}
+                  >
+                    <Text
+                      className="text-sm font-semibold"
+                      style={{ color: sortBy === key ? colors.primary : colors.foreground }}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
         </>
       )}
     </View>
-  ), [colors, router, activeTab, contracts, templates, filter, setActiveTab, setFilter, setShowPlusMenu, formatCurrency]);
+  ), [colors, router, activeTab, contracts, templates, filter, sortBy, setActiveTab, setFilter, setSortBy, setShowPlusMenu, formatCurrency]);
 
   const renderEmptyComponent = useCallback(() => {
     if (activeTab === "contracts") {
