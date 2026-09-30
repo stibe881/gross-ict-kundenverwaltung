@@ -1,0 +1,93 @@
+name: App Release
+
+# Wird vom Admin-Button in der App ausgelöst (Edge Function trigger-app-update)
+# oder manuell über den Actions-Tab. Führt aus, was sonst manuell nötig ist:
+# Branches mergen -> Version/Build erhöhen -> committen -> EAS Build + TestFlight Submit.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Versions-Erhöhung (build = nur Build-Nummer, patch = 1.2.x, minor = 1.x.0)"
+        type: choice
+        options: [build, patch, minor]
+        default: build
+
+permissions:
+  contents: write
+
+concurrency:
+  group: app-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Git-Identität setzen
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Alle Branches in main mergen
+        run: |
+          set -e
+          MERGED=""
+          SKIPPED=""
+          for BRANCH in $(git branch -r --format='%(refname:short)' | grep -v 'origin/main$' | grep -v 'origin/HEAD'); do
+            NAME="${BRANCH#origin/}"
+            # Backup-Branches nie mergen
+            case "$NAME" in backup*) SKIPPED="$SKIPPED $NAME (backup)"; continue;; esac
+            # Branches ohne gemeinsame Historie überspringen
+            if ! git merge-base main "$BRANCH" > /dev/null 2>&1; then
+              SKIPPED="$SKIPPED $NAME (keine gemeinsame Historie)"; continue
+            fi
+            # Bereits gemergte Branches überspringen
+            if [ -z "$(git rev-list main..$BRANCH)" ]; then
+              continue
+            fi
+            if git merge --no-edit "$BRANCH"; then
+              MERGED="$MERGED $NAME"
+            else
+              git merge --abort
+              SKIPPED="$SKIPPED $NAME (Konflikt)"
+            fi
+          done
+          echo "Gemergt:${MERGED:- keine}"
+          echo "Übersprungen:${SKIPPED:- keine}"
+          if echo "$SKIPPED" | grep -q "Konflikt"; then
+            echo "::warning::Branches mit Konflikten wurden übersprungen:$SKIPPED"
+          fi
+
+      - name: Version erhöhen
+        run: node scripts/bump-app-version.js "${{ inputs.bump }}"
+
+      - name: Version committen und pushen
+        run: |
+          VERSION=$(grep -oP 'version: "\K[0-9.]+' app.config.ts)
+          BUILD=$(grep -oP 'buildNumber: "\K[0-9]+' app.config.ts)
+          git add -A
+          git commit -m "chore: Release v${VERSION} (Build ${BUILD}) via App-Update-Button"
+          git push origin main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Abhängigkeiten installieren
+        run: pnpm install --no-frozen-lockfile
+
+      - name: EAS Build starten (inkl. TestFlight-Submit)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx eas-cli build --platform ios --profile production --non-interactive --no-wait --auto-submit
+          echo "Build wurde an EAS übergeben. Status: https://expo.dev/accounts/stibe88/projects/kundenverwaltung/builds"

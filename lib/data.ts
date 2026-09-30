@@ -43,6 +43,33 @@ export async function triggerPushNotification(
     }
 }
 
+// ==================== APP-RELEASE (Admin) ====================
+
+async function invokeAppUpdate(body: Record<string, unknown>) {
+    const { data, error } = await supabase.functions.invoke('trigger-app-update', { body });
+    if (error) {
+        let details = '';
+        try {
+            const ctx = (error as any)?.context;
+            if (ctx && typeof ctx.json === 'function') {
+                const errBody = await ctx.json();
+                details = errBody?.error || '';
+            }
+        } catch (_) { /* ignore */ }
+        throw new Error(details || error.message);
+    }
+    if (data?.error) throw new Error(data.error);
+    return data;
+}
+
+export async function triggerAppRelease(bump: "build" | "patch" | "minor" = "build") {
+    return invokeAppUpdate({ action: 'trigger', bump });
+}
+
+export async function getAppReleaseStatus() {
+    return invokeAppUpdate({ action: 'status' });
+}
+
 // ==================== KUNDEN ====================
 
 export async function getCustomersWithCounts() {

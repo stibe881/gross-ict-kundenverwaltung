@@ -451,3 +451,8 @@ entrypoint = "./functions/contract-page/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/stripe-terminal/index.ts"
+
+[functions.trigger-app-update]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/trigger-app-update/index.ts"
