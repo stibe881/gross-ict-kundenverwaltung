@@ -38,6 +38,7 @@ const MAPPING = {
   "moon.fill": "nightlight-round",
   "arrow.down.doc.fill": "download",
   "arrow.up.arrow.down": "swap-vert",
+  "wave.3.right": "contactless",
   "xmark": "close",
   "checkmark": "check",
   "bell.fill": "notifications",

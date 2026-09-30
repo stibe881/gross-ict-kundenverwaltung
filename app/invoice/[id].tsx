@@ -314,6 +314,24 @@ export default function InvoiceDetailScreen() {
 
                         {/* Aktions-Buttons */}
                         <View className="gap-3 mb-4">
+                            {remainingAmount > 0 && invoice.status !== "cancelled" && (
+                                <TouchableOpacity
+                                    className="bg-primary py-3 rounded-lg flex-row items-center justify-center"
+                                    activeOpacity={0.8}
+                                    onPress={() => router.push({
+                                        pathname: "/tap-to-pay",
+                                        params: {
+                                            invoiceId: invoice.id,
+                                            invoiceNumber: invoice.invoice_number,
+                                            customerName,
+                                            amount: remainingAmount.toFixed(2),
+                                        },
+                                    })}
+                                >
+                                    <IconSymbol name="wave.3.right" size={18} color="#FFFFFF" />
+                                    <Text className="text-white font-semibold ml-2 text-sm">Mit Tap to Pay kassieren</Text>
+                                </TouchableOpacity>
+                            )}
                             <View className="flex-row gap-3">
                                 <TouchableOpacity
                                     className="flex-1 bg-success py-3 rounded-lg flex-row items-center justify-center"

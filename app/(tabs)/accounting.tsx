@@ -1883,9 +1883,13 @@ export default function AccountingScreen() {
                     <IconSymbol name="arrow.down.circle.fill" size={18} color={colors.success || "#22c55e"} />
                     <Text className="text-sm font-semibold text-foreground">Neue Eingabe</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity className="flex-row items-center gap-3 px-4 py-3" activeOpacity={0.7} onPress={() => { setShowPlusMenu(false); if (isYearClosed) { showAlert("Gesperrt", "Dieses Jahr ist abgeschlossen."); return; } setEditingExpense(null); setInitialIsIncome(false); setShowExpenseModal(true); }}>
+                  <TouchableOpacity className="flex-row items-center gap-3 px-4 py-3 border-b border-border" activeOpacity={0.7} onPress={() => { setShowPlusMenu(false); if (isYearClosed) { showAlert("Gesperrt", "Dieses Jahr ist abgeschlossen."); return; } setEditingExpense(null); setInitialIsIncome(false); setShowExpenseModal(true); }}>
                     <IconSymbol name="arrow.up.circle.fill" size={18} color={colors.error || "#ef4444"} />
                     <Text className="text-sm font-semibold text-foreground">Neue Ausgabe</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity className="flex-row items-center gap-3 px-4 py-3" activeOpacity={0.7} onPress={() => { setShowPlusMenu(false); router.push("/tap-to-pay"); }}>
+                    <IconSymbol name="wave.3.right" size={18} color={colors.primary} />
+                    <Text className="text-sm font-semibold text-foreground">Tap to Pay kassieren</Text>
                   </TouchableOpacity>
                 </View>
               )}

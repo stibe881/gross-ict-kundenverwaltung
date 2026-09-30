@@ -446,3 +446,8 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/contract-page/index.ts"
 
+
+[functions.stripe-terminal]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/stripe-terminal/index.ts"

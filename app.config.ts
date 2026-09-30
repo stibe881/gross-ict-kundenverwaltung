@@ -50,11 +50,16 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
-    buildNumber: "180",
+    buildNumber: "181",
     "infoPlist": {
       "ITSAppUsesNonExemptEncryption": false,
       "NSFaceIDUsageDescription": "Wir nutzen Face ID für den schnellen Login."
-    }
+    },
+    // Tap to Pay on iPhone — Entitlement muss von Apple genehmigt sein
+    // (Antrag: https://developer.apple.com/contact/request/contactless-payments/)
+    entitlements: {
+      "com.apple.developer.proximity-reader.payment.acceptance": true,
+    },
   },
   android: {
     adaptiveIcon: {
@@ -88,6 +93,17 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    [
+      "@stripe/stripe-terminal-react-native",
+      {
+        locationWhenInUsePermission:
+          "Der Standort wird benötigt, um kontaktlose Zahlungen (Tap to Pay) zu akzeptieren.",
+        bluetoothPeripheralPermission:
+          "Bluetooth wird für die Verbindung mit Kartenlesern benötigt.",
+        bluetoothAlwaysUsagePermission:
+          "Bluetooth wird für die Verbindung mit Kartenlesern benötigt.",
+      },
+    ],
     [
       "expo-notifications",
       {
