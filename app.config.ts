@@ -55,8 +55,8 @@ const config: ExpoConfig = {
       "ITSAppUsesNonExemptEncryption": false,
       "NSFaceIDUsageDescription": "Wir nutzen Face ID für den schnellen Login."
     },
-    // Tap to Pay on iPhone — Entitlement muss von Apple genehmigt sein
-    // (Antrag: https://developer.apple.com/contact/request/contactless-payments/)
+    // Tap to Pay on iPhone — Entitlement muss von Apple genehmigt sein, Antrag siehe:
+    // https://developer.apple.com/documentation/proximityreader/setting-up-the-entitlement-for-tap-to-pay-on-iphone
     entitlements: {
       "com.apple.developer.proximity-reader.payment.acceptance": true,
     },
