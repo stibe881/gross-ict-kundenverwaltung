@@ -23,6 +23,7 @@ import { TicketFormModal } from "@/components/ticket-form-modal";
 import { LogoutButton } from "@/components/logout-button";
 import { QuoteFormModal } from "@/components/quote-form-modal";
 import { ProjectFormModal } from "@/components/project-form-modal";
+import { TapToPayAwareness } from "@/components/tap-to-pay-awareness";
 import { useQuery } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 
@@ -381,6 +382,7 @@ export default function DashboardScreen() {
 
   return (
     <ScreenContainer>
+      <TapToPayAwareness />
       <ScrollView
         className="flex-1"
         contentContainerStyle={{
