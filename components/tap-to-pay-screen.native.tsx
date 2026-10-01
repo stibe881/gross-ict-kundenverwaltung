@@ -16,7 +16,7 @@ import {
   StripeTerminalProvider,
   useStripeTerminal,
 } from "@stripe/stripe-terminal-react-native";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScreenContainer } from "@/components/screen-container";
@@ -53,6 +53,19 @@ function TapToPayInner() {
   const colors = useColors();
   const router = useRouter();
   const queryClient = useQueryClient();
+
+  // Nur berechtigte Benutzer (Admin/Finanzen) dürfen Tap to Pay nutzen und die
+  // Apple-AGB akzeptieren (Apple-Anforderungen 3.8 / 3.8.1)
+  const { data: session } = useQuery({
+    queryKey: ["currentSession"],
+    queryFn: async () => (await supabase.auth.getSession()).data.session,
+  });
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: ["userProfile", session?.user?.id],
+    queryFn: () => Data.getUserProfile(session?.user?.id as string),
+    enabled: !!session?.user?.id,
+  });
+  const isAuthorized = !!profile?.roles?.some((r: string) => r === "admin" || r === "finanzen");
   const params = useLocalSearchParams<{
     invoiceId?: string;
     invoiceNumber?: string;
@@ -102,6 +115,7 @@ function TapToPayInner() {
   // Tap to Pay beim Öffnen des Screens im Hintergrund vorbereiten
   // (Apple-Anforderungen 1.5 und 5.6: Reader "warm-up", UI < 1s)
   const warmUp = useCallback(async () => {
+    if (!isAuthorized) return;
     if (warmupStartedRef.current) return;
     warmupStartedRef.current = true;
     try {
@@ -139,7 +153,7 @@ function TapToPayInner() {
 
   useEffect(() => {
     warmUp();
-  }, [warmUp]);
+  }, [warmUp, isAuthorized]);
 
   const parseAmountChf = () => {
     const value = parseFloat(amount.replace(",", "."));
@@ -313,7 +327,22 @@ function TapToPayInner() {
             </TouchableOpacity>
           </View>
 
-          {step === "idle" && (
+          {/* Nicht berechtigte Benutzer: Hinweis statt Zahlungs-UI (Apple 3.8.1) */}
+          {!profileLoading && !isAuthorized && (
+            <View className="flex-1 items-center justify-center gap-4 py-20 px-6">
+              <IconSymbol name="lock.fill" size={40} color={colors.muted} />
+              <Text className="text-lg font-bold text-foreground text-center">
+                Tap to Pay ist nicht freigeschaltet
+              </Text>
+              <Text className="text-sm text-muted text-center">
+                Die Aktivierung und Nutzung von Tap to Pay auf dem iPhone ist Administratoren
+                und der Rolle Finanzen vorbehalten. Bitte wende dich an einen Administrator,
+                um Tap to Pay zu aktivieren.
+              </Text>
+            </View>
+          )}
+
+          {isAuthorized && step === "idle" && (
             <View className="gap-4">
               <View className="items-center">{readerStatusView}</View>
 
