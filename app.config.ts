@@ -55,12 +55,18 @@ const config: ExpoConfig = {
       "ITSAppUsesNonExemptEncryption": false,
       "NSFaceIDUsageDescription": "Wir nutzen Face ID für den schnellen Login."
     },
-    // Tap to Pay on iPhone — von Apple genehmigt, Capability ist bei der App ID aktiviert.
-    // EAS-Capability-Sync ist im Release-Workflow deaktiviert (EXPO_NO_CAPABILITY_SYNC=1),
-    // da die Apple-API diese spezielle Capability nicht setzen kann.
-    entitlements: {
-      "com.apple.developer.proximity-reader.payment.acceptance": true,
-    },
+    // Tap to Pay on iPhone: Apple vergibt das Entitlement zweistufig (Development,
+    // dann Distribution). Solange nur das Development-Entitlement gewährt ist,
+    // schlagen App-Store-/TestFlight-Builds damit fehl — darum nur im
+    // Development-Profil aktiv. Sobald Apple das Distribution-Entitlement gewährt:
+    // Bedingung entfernen (Entitlement immer setzen).
+    ...(process.env.EAS_BUILD_PROFILE === "development"
+      ? {
+          entitlements: {
+            "com.apple.developer.proximity-reader.payment.acceptance": true,
+          },
+        }
+      : {}),
   },
   android: {
     adaptiveIcon: {
