@@ -87,6 +87,9 @@ jobs:
       - name: EAS Build starten (inkl. TestFlight-Submit)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          # Tap-to-Pay-Capability wurde manuell im Apple-Portal aktiviert;
+          # der automatische Sync via API schlägt für diese Capability fehl.
+          EXPO_NO_CAPABILITY_SYNC: "1"
         run: |
           npx eas-cli build --platform ios --profile production --non-interactive --no-wait --auto-submit
           echo "Build wurde an EAS übergeben. Status: https://expo.dev/accounts/stibe88/projects/kundenverwaltung/builds"
