@@ -39,6 +39,7 @@ const MAPPING = {
   "arrow.down.doc.fill": "download",
   "arrow.up.arrow.down": "swap-vert",
   "wave.3.right": "contactless",
+  "iphone": "smartphone",
   "xmark": "close",
   "checkmark": "check",
   "bell.fill": "notifications",

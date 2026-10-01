@@ -47,17 +47,18 @@ serve(async (req) => {
   }
 
   try {
-    const { action, bump } = await req.json();
+    const { action, bump, target } = await req.json();
     await requireAdmin(req);
 
     if (action === "trigger") {
       const validBump = ["build", "patch", "minor"].includes(bump) ? bump : "build";
+      const validTarget = ["all", "apps", "web"].includes(target) ? target : "all";
       const res = await fetch(
         `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${WORKFLOW_FILE}/dispatches`,
         {
           method: "POST",
           headers: githubHeaders(),
-          body: JSON.stringify({ ref: "main", inputs: { bump: validBump } }),
+          body: JSON.stringify({ ref: "main", inputs: { bump: validBump, target: validTarget } }),
         }
       );
       if (res.status !== 204) {

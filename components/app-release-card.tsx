@@ -41,18 +41,23 @@ export function AppReleaseCard() {
   const version = Constants.expoConfig?.version || "?";
   const build = (Constants.expoConfig?.ios as any)?.buildNumber || "?";
 
-  const trigger = (bump: "build" | "patch") => {
-    const label = bump === "build"
-      ? `Es wird ein neues TestFlight-Update erstellt (Version ${version}, neue Build-Nummer).`
-      : "Die Versionsnummer wird erhöht (nach einer App-Store-Freigabe nötig) und ein neues TestFlight-Update erstellt.";
+  const trigger = (bump: "build" | "patch", target: "all" | "apps" | "web") => {
+    const targetLabel = {
+      all: "Apps (iOS & Android via TestFlight) UND Web-Portal",
+      apps: "nur die Apps (iOS & Android via TestFlight)",
+      web: "nur das Web-Portal (portal.gross-ict.ch)",
+    }[target];
+    const bumpLabel = bump === "patch"
+      ? "\n\nDie Versionsnummer wird dabei erhöht (nach einer App-Store-Freigabe nötig)."
+      : "";
     showConfirm(
-      "App-Update veröffentlichen",
-      `${label}\n\nAblauf: Alle Branches werden gemergt, die Version erhöht und der Build automatisch zu TestFlight hochgeladen (dauert ca. 20–30 Min.).`,
+      "Update veröffentlichen",
+      `Aktualisiert wird: ${targetLabel}.${bumpLabel}\n\nAblauf: Alle Branches werden gemergt und das Update automatisch veröffentlicht (Apps: ca. 20–30 Min., Web: ca. 5 Min.).`,
       async () => {
         setTriggering(true);
         try {
-          await Data.triggerAppRelease(bump);
-          showToast("Update gestartet — Build läuft jetzt automatisch durch.");
+          await Data.triggerAppRelease(bump, target);
+          showToast("Update gestartet — läuft jetzt automatisch durch.");
           setTimeout(() => refetchStatus(), 3000);
         } catch (e: any) {
           showAlert("Fehler", e.message || "Update konnte nicht gestartet werden");
@@ -102,21 +107,42 @@ export function AppReleaseCard() {
         style={{ backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, opacity: triggering || statusInfo?.running ? 0.5 : 1 }}
         activeOpacity={0.8}
         disabled={triggering || !!statusInfo?.running}
-        onPress={() => trigger("build")}
+        onPress={() => trigger("build", "all")}
       >
         {triggering ? (
           <ActivityIndicator size="small" color={colors.background} />
         ) : (
           <IconSymbol name="paperplane.fill" size={16} color={colors.background} />
         )}
-        <Text style={{ color: colors.background, fontWeight: "700" }}>Update veröffentlichen</Text>
+        <Text style={{ color: colors.background, fontWeight: "700" }}>Alles aktualisieren</Text>
       </TouchableOpacity>
+
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: triggering || statusInfo?.running ? 0.5 : 1 }}
+          activeOpacity={0.8}
+          disabled={triggering || !!statusInfo?.running}
+          onPress={() => trigger("build", "apps")}
+        >
+          <IconSymbol name="iphone" size={14} color={colors.foreground} />
+          <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>Nur Apps</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: triggering || statusInfo?.running ? 0.5 : 1 }}
+          activeOpacity={0.8}
+          disabled={triggering || !!statusInfo?.running}
+          onPress={() => trigger("build", "web")}
+        >
+          <IconSymbol name="globe" size={14} color={colors.foreground} />
+          <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>Nur Web</Text>
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity
         style={{ paddingVertical: 10, alignItems: "center" }}
         activeOpacity={0.7}
         disabled={triggering || !!statusInfo?.running}
-        onPress={() => trigger("patch")}
+        onPress={() => trigger("patch", "all")}
       >
         <Text style={{ fontSize: 12, color: colors.muted, textDecorationLine: "underline" }}>
           Neue Versionsnummer (nach App-Store-Freigabe)
@@ -124,7 +150,7 @@ export function AppReleaseCard() {
       </TouchableOpacity>
 
       <Text style={{ fontSize: 11, color: colors.muted, lineHeight: 16 }}>
-        Merged alle Branches, erhöht die Build-Nummer und lädt den Build automatisch zu TestFlight hoch.
+        Merged alle Branches und veröffentlicht automatisch: Apps zu TestFlight, Web-Portal auf portal.gross-ict.ch.
       </Text>
     </View>
   );

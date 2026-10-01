@@ -2,10 +2,16 @@ name: App Release
 
 # Wird vom Admin-Button in der App ausgelöst (Edge Function trigger-app-update)
 # oder manuell über den Actions-Tab. Führt aus, was sonst manuell nötig ist:
-# Branches mergen -> Version/Build erhöhen -> committen -> EAS Build + TestFlight Submit.
+# Branches mergen -> Version/Build erhöhen -> committen -> EAS Build + TestFlight
+# Submit und/oder Web-Export + Upload auf den Webserver.
 on:
   workflow_dispatch:
     inputs:
+      target:
+        description: "Was soll aktualisiert werden?"
+        type: choice
+        options: [all, apps, web]
+        default: all
       bump:
         description: "Versions-Erhöhung (build = nur Build-Nummer, patch = 1.2.x, minor = 1.x.0)"
         type: choice
@@ -64,14 +70,21 @@ jobs:
           fi
 
       - name: Version erhöhen
+        if: inputs.target != 'web'
         run: node scripts/bump-app-version.js "${{ inputs.bump }}"
 
-      - name: Version committen und pushen
+      - name: Änderungen committen und pushen
         run: |
-          VERSION=$(grep -oP 'version: "\K[0-9.]+' app.config.ts)
-          BUILD=$(grep -oP 'buildNumber: "\K[0-9]+' app.config.ts)
-          git add -A
-          git commit -m "chore: Release v${VERSION} (Build ${BUILD}) via App-Update-Button"
+          if git diff --quiet && [ -z "$(git log origin/main..main --oneline)" ]; then
+            echo "Keine Änderungen zu pushen."
+            exit 0
+          fi
+          if ! git diff --quiet; then
+            VERSION=$(grep -oP 'version: "\K[0-9.]+' app.config.ts)
+            BUILD=$(grep -oP 'buildNumber: "\K[0-9]+' app.config.ts)
+            git add -A
+            git commit -m "chore: Release v${VERSION} (Build ${BUILD}) via App-Update-Button"
+          fi
           git push origin main
 
       - uses: actions/setup-node@v4
@@ -84,7 +97,8 @@ jobs:
       - name: Abhängigkeiten installieren
         run: pnpm install --no-frozen-lockfile
 
-      - name: EAS Build starten (inkl. TestFlight-Submit)
+      - name: iOS-Build starten (inkl. TestFlight-Submit)
+        if: inputs.target == 'apps' || inputs.target == 'all'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           # Tap-to-Pay-Capability wurde manuell im Apple-Portal aktiviert;
@@ -92,4 +106,39 @@ jobs:
           EXPO_NO_CAPABILITY_SYNC: "1"
         run: |
           npx eas-cli build --platform ios --profile production --non-interactive --no-wait --auto-submit
-          echo "Build wurde an EAS übergeben. Status: https://expo.dev/accounts/stibe88/projects/kundenverwaltung/builds"
+          echo "iOS-Build an EAS übergeben: https://expo.dev/accounts/stibe88/projects/kundenverwaltung/builds"
+
+      - name: Android-Build starten
+        if: inputs.target == 'apps' || inputs.target == 'all'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_NO_CAPABILITY_SYNC: "1"
+        run: |
+          # Nicht blockierend: solange kein Android-Keystore in EAS eingerichtet ist,
+          # schlägt dieser Schritt fehl, ohne den Release zu stoppen.
+          npx eas-cli build --platform android --profile production --non-interactive --no-wait \
+            || echo "::warning::Android-Build konnte nicht gestartet werden (Keystore in EAS eingerichtet? 'npx eas-cli credentials -p android')"
+
+      - name: Web-Export erstellen
+        if: inputs.target == 'web' || inputs.target == 'all'
+        run: npx expo export --platform web
+
+      - name: Web-Portal deployen
+        if: inputs.target == 'web' || inputs.target == 'all'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ] || [ -z "$DEPLOY_SSH_KEY" ]; then
+            echo "::error::Web-Deploy braucht die Secrets DEPLOY_HOST, DEPLOY_USER und DEPLOY_SSH_KEY (optional DEPLOY_PATH, Standard: public_html/portal)."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
+            dist/ "$DEPLOY_USER@$DEPLOY_HOST:${DEPLOY_PATH:-public_html/portal}/"
+          echo "Web-Portal aktualisiert."

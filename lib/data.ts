@@ -62,8 +62,11 @@ async function invokeAppUpdate(body: Record<string, unknown>) {
     return data;
 }
 
-export async function triggerAppRelease(bump: "build" | "patch" | "minor" = "build") {
-    return invokeAppUpdate({ action: 'trigger', bump });
+export async function triggerAppRelease(
+    bump: "build" | "patch" | "minor" = "build",
+    target: "all" | "apps" | "web" = "all"
+) {
+    return invokeAppUpdate({ action: 'trigger', bump, target });
 }
 
 export async function getAppReleaseStatus() {
