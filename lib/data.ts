@@ -2053,7 +2053,7 @@ export const ROLE_TILE_ACCESS: Record<string, string[]> = {
     admin: [], // empty = everything
     administration: ["customers", "leads", "quotes", "contracts"],
     akquise: ["leads", "quotes"],
-    finanzen: ["accounting"],
+    finanzen: ["accounting", "tap-to-pay"],
     technik: ["tickets", "knowledge-base", "projects", "contracts", "links", "tasks", "uberwachung"],
     projekte: ["projects"],
     marketing: ["marketing", "newsletter"],

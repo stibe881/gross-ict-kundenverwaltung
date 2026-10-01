@@ -226,6 +226,14 @@ export default function DashboardScreen() {
           route: "/accounting",
         },
         {
+          id: "tap-to-pay",
+          title: "Tap to Pay",
+          subtitle: "Kontaktlos kassieren",
+          icon: "wave.3.right",
+          color: "#635BFF",
+          route: "/tap-to-pay",
+        },
+        {
           id: "quotes",
           title: "Angebote",
           subtitle: "Angebote erstellen",
