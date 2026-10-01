@@ -78,9 +78,8 @@ jobs:
         with:
           node-version: 22
 
+      # pnpm-Version kommt aus dem packageManager-Feld der package.json
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Abhängigkeiten installieren
         run: pnpm install --no-frozen-lockfile
