@@ -60,7 +60,9 @@ const config: ExpoConfig = {
     // schlagen App-Store-/TestFlight-Builds damit fehl — darum nur im
     // Development-Profil aktiv. Sobald Apple das Distribution-Entitlement gewährt:
     // Bedingung entfernen (Entitlement immer setzen).
-    ...(process.env.EAS_BUILD_PROFILE === "development"
+    // TAP_TO_PAY_ENTITLEMENT wird in eas.json (development-Profil) gesetzt und gilt
+    // dadurch sowohl lokal (Credential-Erstellung) als auch auf dem Build-Server.
+    ...(process.env.TAP_TO_PAY_ENTITLEMENT === "1" || process.env.EAS_BUILD_PROFILE === "development"
       ? {
           entitlements: {
             "com.apple.developer.proximity-reader.payment.acceptance": true,
