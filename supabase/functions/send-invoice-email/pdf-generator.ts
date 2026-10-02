@@ -27,6 +27,8 @@ export interface InvoiceData {
   notes?: string;
   paidAmount?: number;
   dunningLevel?: number;
+  /** Überschreibt den Dokumenttyp, z.B. "Quittung" (Standard: "Rechnung"/Mahnstufen) */
+  docType?: string;
 }
 
 function fmtCHF(amount: number): string {
@@ -67,8 +69,8 @@ export function generateInvoicePDF(data: InvoiceData): string {
   
   y = 25;
 
-  let docType = "Rechnung";
-  if (data.is_dunning_document || (data.dunningLevel !== undefined && data.dunningLevel !== null && data.dunningLevel > 0)) {
+  let docType = data.docType || "Rechnung";
+  if (!data.docType && (data.is_dunning_document || (data.dunningLevel !== undefined && data.dunningLevel !== null && data.dunningLevel > 0))) {
     if (data.dunningLevel === 0) docType = "Zahlungserinnerung";
     else if (data.dunningLevel === 1) docType = "1. Mahnung";
     else if (data.dunningLevel === 2) docType = "2. Mahnung";

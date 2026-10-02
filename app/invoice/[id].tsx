@@ -324,6 +324,7 @@ export default function InvoiceDetailScreen() {
                                             invoiceId: invoice.id,
                                             invoiceNumber: invoice.invoice_number,
                                             customerName,
+                                            customerEmail: invoice.customer?.email || "",
                                             amount: remainingAmount.toFixed(2),
                                         },
                                     })}

@@ -26,6 +26,8 @@ import { formatCurrency } from "@/lib/format";
 import * as Data from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { showAppleTapToPayEducation } from "@/lib/tap-to-pay-education";
+import { showAlert } from "@/lib/alert";
+import { showToast } from "@/components/toast-provider";
 import { scheduleLocalNotification } from "@/lib/push-notifications";
 
 type Step = "idle" | "paying" | "success" | "error";
@@ -70,6 +72,7 @@ function TapToPayInner() {
     invoiceId?: string;
     invoiceNumber?: string;
     customerName?: string;
+    customerEmail?: string;
     amount?: string;
   }>();
 
@@ -84,6 +87,9 @@ function TapToPayInner() {
   const [readerStatus, setReaderStatus] = useState<"connecting" | "ready" | "failed">("connecting");
   const [configProgress, setConfigProgress] = useState<number | null>(null);
   const [showFallbackEducation, setShowFallbackEducation] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [receiptEmail, setReceiptEmail] = useState(params.customerEmail ? String(params.customerEmail) : "");
+  const [sendingEmail, setSendingEmail] = useState(false);
   const initializedRef = useRef(false);
   const warmupStartedRef = useRef(false);
   const currentIntentRef = useRef<string | null>(null);
@@ -275,6 +281,43 @@ function TapToPayInner() {
     } catch (_) { /* Abbruch durch Benutzer */ }
   }, [lastReceipt]);
 
+  // Quittung per E-Mail im Rechnungs-Design (gleiches PDF-Layout und Mail-Template
+  // wie der Rechnungsversand) — via Edge Function send-receipt-email
+  const sendReceiptEmail = useCallback(async () => {
+    if (!lastReceipt) return;
+    const email = receiptEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showAlert("Fehler", "Bitte eine gültige E-Mail-Adresse eingeben.");
+      return;
+    }
+    setSendingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-receipt-email", {
+        body: {
+          email,
+          amount: lastReceipt.amount,
+          description: lastReceipt.description,
+          invoice_id: params.invoiceId || undefined,
+        },
+      });
+      if (error) {
+        let details = "";
+        try {
+          const ctx = (error as any)?.context;
+          if (ctx && typeof ctx.json === "function") details = (await ctx.json())?.error || "";
+        } catch (_) { /* ignore */ }
+        throw new Error(details || error.message);
+      }
+      if (data?.error) throw new Error(data.error);
+      setShowEmailModal(false);
+      showToast(`Quittung an ${email} gesendet`);
+    } catch (e: any) {
+      showAlert("Fehler", e?.message || "Quittung konnte nicht gesendet werden");
+    } finally {
+      setSendingEmail(false);
+    }
+  }, [lastReceipt, receiptEmail, params.invoiceId]);
+
   const resetForNext = () => {
     setStep("idle");
     setStatusText("");
@@ -446,12 +489,20 @@ function TapToPayInner() {
               </View>
               <View className="gap-3 w-full px-8">
                 <TouchableOpacity
+                  className="bg-primary py-3 rounded-xl flex-row items-center justify-center gap-2"
+                  activeOpacity={0.8}
+                  onPress={() => setShowEmailModal(true)}
+                >
+                  <IconSymbol name="envelope.fill" size={18} color={colors.background} />
+                  <Text className="text-background font-semibold">Quittung per E-Mail</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   className="bg-surface border border-border py-3 rounded-xl flex-row items-center justify-center gap-2"
                   activeOpacity={0.8}
                   onPress={shareReceipt}
                 >
                   <IconSymbol name="square.and.arrow.up" size={18} color={colors.primary} />
-                  <Text className="font-semibold" style={{ color: colors.primary }}>Quittung senden</Text>
+                  <Text className="font-semibold" style={{ color: colors.primary }}>Teilen (SMS, AirDrop …)</Text>
                 </TouchableOpacity>
                 {!params.invoiceId && (
                   <TouchableOpacity
@@ -513,6 +564,50 @@ function TapToPayInner() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Quittung per E-Mail senden (gleiches Design wie Rechnungsversand) */}
+      <Modal visible={showEmailModal} animationType="slide" transparent onRequestClose={() => setShowEmailModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-black/60 justify-center p-4">
+          <View className="bg-background rounded-2xl p-6 border border-border mx-2">
+            <Text className="text-xl font-bold text-foreground mb-1">Quittung per E-Mail</Text>
+            <Text className="text-sm text-muted mb-4">
+              Der Kunde erhält die Quittung als PDF im Gross-ICT-Design.
+            </Text>
+            <TextInput
+              className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground mb-4"
+              placeholder="kunde@example.ch"
+              placeholderTextColor={colors.muted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={receiptEmail}
+              onChangeText={setReceiptEmail}
+              autoFocus
+            />
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                className="flex-1 bg-surface border border-border py-3 rounded-lg"
+                activeOpacity={0.8}
+                onPress={() => setShowEmailModal(false)}
+              >
+                <Text className="text-foreground font-semibold text-center">Abbrechen</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 bg-primary py-3 rounded-lg flex-row items-center justify-center"
+                activeOpacity={0.8}
+                onPress={sendReceiptEmail}
+                disabled={sendingEmail}
+              >
+                {sendingEmail ? (
+                  <ActivityIndicator size="small" color={colors.background} />
+                ) : (
+                  <Text className="text-background font-semibold text-center">Senden</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Fallback-Anleitung für iOS < 18 (Apple-Education nicht verfügbar) */}
       <Modal visible={showFallbackEducation} animationType="slide" transparent onRequestClose={() => setShowFallbackEducation(false)}>

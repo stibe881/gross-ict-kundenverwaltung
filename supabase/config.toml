@@ -456,3 +456,8 @@ entrypoint = "./functions/stripe-terminal/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/trigger-app-update/index.ts"
+
+[functions.send-receipt-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send-receipt-email/index.ts"
