@@ -2613,9 +2613,12 @@ export const DUNNING_LEVELS = [
 ] as const;
 
 export async function getDunningSettings() {
+    // Deterministisch die zuletzt geänderte Zeile lesen — falls durch
+    // mehrfach gelaufene Migrationen Duplikate existieren
     const { data, error } = await supabase
         .from("dunning_settings")
         .select("*")
+        .order("updated_at", { ascending: false })
         .limit(1)
         .single();
 
@@ -2709,9 +2712,11 @@ export async function addDunningRecord(record: {
 // ==================== RECHNUNGSEINSTELLUNGEN ====================
 
 export async function getInvoiceSettings() {
+    // Deterministisch die zuletzt geänderte Zeile lesen (siehe getDunningSettings)
     const { data, error } = await supabase
         .from("invoice_settings")
         .select("*")
+        .order("updated_at", { ascending: false })
         .limit(1)
         .single();
 

@@ -18,10 +18,11 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // 1. Dunning-Settings laden
+    // 1. Dunning-Settings laden (zuletzt geänderte Zeile, falls Duplikate existieren)
     const { data: settings } = await supabase
       .from("dunning_settings")
       .select("*")
+      .order("updated_at", { ascending: false })
       .limit(1)
       .single();
 
