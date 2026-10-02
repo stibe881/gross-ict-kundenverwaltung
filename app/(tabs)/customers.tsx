@@ -85,6 +85,8 @@ export default function CustomersScreen() {
       "Unbenannt";
 
     const counts = item._counts;
+    // Konvention wie im Kundenformular: Firmenname gesetzt = Firmenkunde
+    const isCompany = !!item.company_name;
 
     return (
       <TouchableOpacity
@@ -151,10 +153,18 @@ export default function CustomersScreen() {
           </View>
         </View>
 
-        {/* Indikatoren: Verträge, Tickets, Rechnungen */}
-        {counts && (counts.activeContracts > 0 || counts.openTickets > 0 || counts.openInvoices > 0) && (
-          <View className="flex-row items-center gap-2 mt-3 pt-3 border-t border-border">
-            {counts.activeContracts > 0 && (
+        {/* Indikatoren: Kundentyp, Verträge, Tickets, Rechnungen */}
+        <View className="flex-row items-center gap-2 mt-3 pt-3 border-t border-border">
+            <View
+              className="flex-row items-center px-2 py-1 rounded-lg"
+              style={{ backgroundColor: colors.primary + "20" }}
+            >
+              <IconSymbol name={isCompany ? "building.2.fill" : "person.fill"} size={12} color={colors.primary} />
+              <Text className="text-xs font-semibold ml-1" style={{ color: colors.primary }}>
+                {isCompany ? "Firmenkunde" : "Privatkunde"}
+              </Text>
+            </View>
+            {counts && counts.activeContracts > 0 && (
               <View className="flex-row items-center bg-success/15 px-2 py-1 rounded-lg">
                 <IconSymbol name="doc.text" size={12} color={colors.success} />
                 <Text className="text-xs font-semibold text-success ml-1">
@@ -162,7 +172,7 @@ export default function CustomersScreen() {
                 </Text>
               </View>
             )}
-            {counts.openTickets > 0 && (
+            {counts && counts.openTickets > 0 && (
               <View className="flex-row items-center bg-warning/15 px-2 py-1 rounded-lg">
                 <IconSymbol name="ticket" size={12} color={colors.warning} />
                 <Text className="text-xs font-semibold text-warning ml-1">
@@ -170,7 +180,7 @@ export default function CustomersScreen() {
                 </Text>
               </View>
             )}
-            {counts.openInvoices > 0 && (
+            {counts && counts.openInvoices > 0 && (
               <View className="flex-row items-center bg-error/15 px-2 py-1 rounded-lg">
                 <IconSymbol name="banknote" size={12} color={colors.error} />
                 <Text className="text-xs font-semibold text-error ml-1">
@@ -179,7 +189,6 @@ export default function CustomersScreen() {
               </View>
             )}
           </View>
-        )}
       </TouchableOpacity>
     );
   };
