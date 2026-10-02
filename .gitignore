@@ -60,3 +60,7 @@ Thumbs.db
 *.tgz
 *.tar.gz
 .cache/
+
+# EAS lokale Build-Credentials (niemals committen!)
+credentials.json
+/credentials/
