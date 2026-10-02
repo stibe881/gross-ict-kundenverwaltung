@@ -156,7 +156,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="accounting"
         options={{
-          href: showAccounting ? undefined : null,
+          // Mobil ersetzt der Scanner die Buchhaltung in der Tab-Leiste;
+          // auf Web bleibt sie sichtbar (erreichbar mobil über das Dashboard)
+          href: Platform.OS === "web" ? (showAccounting ? undefined : null) : null,
           title: "Buchhaltung",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
         }}
@@ -169,6 +171,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="camera.fill" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="tap-to-pay"
+        options={{
+          title: "Kassieren",
+          href: Platform.OS === "web" ? null : showAccounting ? undefined : null,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="wave.3.right.circle.fill" color={color} />,
+        }}
+      />
       {/* Hidden Screens inside Tabs (so they get the bottom menu) */}
       <Tabs.Screen name="products" options={{ href: null, title: "Produkte" }} />
       <Tabs.Screen name="leads" options={{ href: null, title: "Akquise" }} />
@@ -176,7 +186,6 @@ export default function TabLayout() {
       <Tabs.Screen name="contracts" options={{ href: null, title: "Verträge" }} />
       <Tabs.Screen name="knowledge-base" options={{ href: null, title: "Knowledge Base" }} />
       <Tabs.Screen name="links" options={{ href: null, title: "Links" }} />
-      <Tabs.Screen name="marketing" options={{ href: null, title: "Marketing" }} />
       <Tabs.Screen name="tasks" options={{ href: null, title: "Aufgaben" }} />
       <Tabs.Screen name="dunning-settings" options={{ href: null, title: "Mahnwesen Settings" }} />
       <Tabs.Screen name="business-card" options={{ href: null, title: "Visitenkarte" }} />

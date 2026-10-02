@@ -2471,7 +2471,6 @@ function BudgetTab({
   const totalActual   = yearExpenses.filter((e: any) => (e.amount || 0) > 0).reduce((s: number, e: any) => s + (e.amount || 0), 0);
   const budgetPct     = totalBudgeted > 0 ? Math.min(100, Math.round((totalActual / totalBudgeted) * 100)) : 0;
   const budgetColor   = budgetPct >= 90 ? "#EF4444" : budgetPct >= 70 ? "#F59E0B" : "#22C55E";
-  const mktBudget     = parseFloat(mktSettings?.annual_marketing_budget || "0") || 0;
 
   const ProgressBar = ({ pct, color }: { pct: number; color: string }) => (
     <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: "hidden", marginTop: 4 }}>
@@ -2610,9 +2609,6 @@ function BudgetTab({
           const barColor = pct >= 90 ? "#EF4444" : pct >= 70 ? "#F59E0B" : "#8B5CF6";
           const isEditingThis = editing?.category === cat.value;
 
-          // Marketing override hint
-          const isMktCat = cat.value === "marketing" && mktBudget > 0;
-
           return (
             <View key={cat.value} style={{ borderBottomWidth: idx < allCategories.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
               {isEditingThis ? (
@@ -2646,9 +2642,6 @@ function BudgetTab({
                         <Text style={{ fontSize: 13, fontWeight: "700", color: budget > 0 ? barColor : colors.muted }}>
                           {formatCurrency(actual)}{budget > 0 ? ` / ${formatCurrency(budget)}` : ""}
                         </Text>
-                        {isMktCat && budget === 0 && (
-                          <Text style={{ fontSize: 10, color: "#8B5CF6" }}>Marketing: {formatCurrency(mktBudget)}</Text>
-                        )}
                       </View>
                       <IconSymbol name="pencil" size={14} color={colors.primary} />
                     </View>

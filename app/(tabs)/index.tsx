@@ -311,19 +311,6 @@ export default function DashboardScreen() {
       ],
     },
     {
-      label: "Marketing",
-      tiles: [
-        {
-          id: "marketing",
-          title: "Marketing",
-          subtitle: "Kampagnen & Analysen",
-          icon: "megaphone.fill",
-          color: "#EC4899",
-          route: "/marketing",
-        },
-      ],
-    },
-    {
       label: "Konfiguration",
       tiles: [
         {
