@@ -1,8 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { contactPhotoB64 } from "./photo.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// Sonderzeichen in vCard-Werten escapen (RFC 2426)
+function esc(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+}
+
+// Lange Zeilen (z.B. PHOTO-Base64) gemäss Spec auf 75 Zeichen falten,
+// Folgezeilen beginnen mit einem Leerzeichen
+function fold(line: string): string {
+  if (line.length <= 75) return line;
+  const chunks: string[] = [line.slice(0, 75)];
+  for (let i = 75; i < line.length; i += 74) {
+    chunks.push(" " + line.slice(i, i + 74));
+  }
+  return chunks.join("\r\n");
 }
 
 serve(async (req) => {
@@ -30,16 +47,22 @@ serve(async (req) => {
         givenName = name;
     }
 
-    const vcard = `BEGIN:VCARD
-VERSION:3.0
-N:${familyName};${givenName};;;
-FN:${name}
-ORG:Gross ICT
-TITLE:${position}
-TEL;TYPE=WORK,VOICE:${phone}
-EMAIL;TYPE=PREF,INTERNET:${email}
-URL:${website}
-END:VCARD`;
+    const lines = [
+      "BEGIN:VCARD",
+      "VERSION:3.0",
+      `N:${esc(familyName)};${esc(givenName)};;;`,
+      `FN:${esc(name)}`,
+      "ORG:Gross ICT",
+      ...(position ? [`TITLE:${esc(position)}`] : []),
+      ...(phone ? [`TEL;TYPE=WORK,VOICE:${esc(phone)}`] : []),
+      ...(email ? [`EMAIL;TYPE=PREF,INTERNET:${esc(email)}`] : []),
+      ...(website ? [`URL:${esc(website)}`] : []),
+      // Kontaktfoto (Gross-ICT-Logo) – sonst zeigt iOS nur die Initialen
+      fold(`PHOTO;ENCODING=b;TYPE=JPEG:${contactPhotoB64}`),
+      "END:VCARD",
+    ];
+    // vCard-Spec verlangt CRLF-Zeilenenden
+    const vcard = lines.join("\r\n") + "\r\n";
 
     return new Response(vcard, {
       headers: {
