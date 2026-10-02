@@ -3,6 +3,7 @@ import { PKPass } from "npm:passkit-generator@3.x";
 import { Buffer } from "node:buffer";
 import * as crypto from "node:crypto";
 import { certs } from "./certs.ts";
+import { passImages } from "./images.ts";
 
 // Polyfill randomBytes for node-forge which passkit-generator uses internally
 if (typeof (globalThis as any).crypto === "undefined") {
@@ -16,9 +17,11 @@ const corsHeaders = {
 }
 
 async function generatePassBuffer(name: string, position: string, phone: string, email: string, website: string) {
-  const transparentPng = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 10, 73, 68, 65, 84, 120, 156, 99, 96, 0, 0, 0, 2, 0, 1, 226, 38, 5, 155, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130]);
+  const img = (b64: string) => Buffer.from(b64, "base64");
 
   const vcardUrl = `https://bvluvvyvftygnxtmboxw.supabase.co/functions/v1/vcard?name=${encodeURIComponent(name || "")}&position=${encodeURIComponent(position || "")}&phone=${encodeURIComponent(phone || "")}&email=${encodeURIComponent(email || "")}&website=${encodeURIComponent(website || "")}`;
+
+  const websiteDisplay = (website || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
 
   const pass = new PKPass({
     "pass.json": Buffer.from(JSON.stringify({
@@ -30,32 +33,51 @@ async function generatePassBuffer(name: string, position: string, phone: string,
       description: "Gross ICT Visitenkarte",
       logoText: "Gross ICT",
       foregroundColor: "rgb(255, 255, 255)",
-      backgroundColor: "rgb(0, 0, 0)",
+      backgroundColor: "rgb(17, 17, 17)",
       labelColor: "rgb(212, 164, 50)",
-      barcodes: [{
-        format: "PKBarcodeFormatQR",
-        message: vcardUrl,
-        messageEncoding: "iso-8859-1"
-      }],
       generic: {
+        ...(websiteDisplay ? { headerFields: [{ key: "website", value: websiteDisplay, label: "WEB" }] } : {}),
         primaryFields: [{ key: "name", value: name || "Mitarbeiter" }],
         secondaryFields: [{ key: "position", value: position || "-", label: "POSITION" }],
         auxiliaryFields: [
           { key: "phone", value: phone || "-", label: "TELEFON" },
           { key: "email", value: email || "-", label: "E-MAIL" }
+        ],
+        backFields: [
+          { key: "b-name", value: name || "-", label: "Name" },
+          ...(position ? [{ key: "b-position", value: position, label: "Position" }] : []),
+          ...(phone ? [{ key: "b-phone", value: phone, label: "Telefon" }] : []),
+          ...(email ? [{ key: "b-email", value: email, label: "E-Mail" }] : []),
+          ...(website ? [{ key: "b-website", value: website, label: "Website" }] : []),
+          { key: "b-info", value: "QR-Code auf der Vorderseite scannen, um den Kontakt direkt zu speichern.", label: "Kontakt teilen" }
         ]
       }
     })),
-    "icon.png": transparentPng,
-    "icon@2x.png": transparentPng,
-    "logo.png": transparentPng,
-    "logo@2x.png": transparentPng
+    // Icon: Symbol auf schwarzem Grund (erscheint z.B. in Mails/Share-Sheet)
+    "icon.png": img(passImages.icon1x),
+    "icon@2x.png": img(passImages.icon2x),
+    "icon@3x.png": img(passImages.icon3x),
+    // Logo oben links neben "Gross ICT"
+    "logo.png": img(passImages.logo1x),
+    "logo@2x.png": img(passImages.logo2x),
+    // Thumbnail rechts neben dem Namen – füllt das Kartenlayout
+    "thumbnail.png": img(passImages.thumb1x),
+    "thumbnail@2x.png": img(passImages.thumb2x)
   }, {
     wwdr: certs.wwdr,
     signerCert: certs.signerCert,
     signerKey: certs.signerKey,
   });
-  
+
+  // Explizit setzen – passkit-generator übernimmt Barcodes aus pass.json nicht zuverlässig,
+  // deshalb fehlte der QR-Code bisher auf der Karte
+  pass.setBarcodes({
+    format: "PKBarcodeFormatQR",
+    message: vcardUrl,
+    messageEncoding: "iso-8859-1",
+    altText: "Kontakt speichern"
+  });
+
   return pass.getAsBuffer();
 }
 
