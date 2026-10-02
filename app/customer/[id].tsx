@@ -1429,7 +1429,7 @@ export default function CustomerDetailScreen() {
       </ScreenContainer>
 
       {/* ── Vertragsdetail-Modal ── */}
-      {selectedContract && !selectedContract.customer_id && (
+      {selectedContract && (
         <Modal visible={true} animationType="slide" transparent onRequestClose={() => setSelectedContract(null)}>
           <View className="flex-1 bg-black/50 justify-end">
             <View className="bg-background rounded-t-3xl" style={{ maxHeight: "90%" }}>
