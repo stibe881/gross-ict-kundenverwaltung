@@ -9,7 +9,8 @@ import {
     ActivityIndicator,
     Alert,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
+import { useCallback } from "react";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -35,16 +36,25 @@ export default function DunningSettingsScreen() {
     const [expandedLevel, setExpandedLevel] = useState<string | null>(null);
 
     // Dunning Settings
-    const { data: dunningSettings, isLoading: loadingDunning } = useQuery({
+    const { data: dunningSettings, isLoading: loadingDunning, refetch: refetchDunning } = useQuery({
         queryKey: ["dunningSettings"],
         queryFn: Data.getDunningSettings,
     });
 
     // Invoice Settings
-    const { data: invoiceSettings, isLoading: loadingInvoice } = useQuery({
+    const { data: invoiceSettings, isLoading: loadingInvoice, refetch: refetchInvoice } = useQuery({
         queryKey: ["invoiceSettings"],
         queryFn: Data.getInvoiceSettings,
     });
+
+    // Tab-Screens bleiben gemountet — beim (erneuten) Öffnen der Seite
+    // die Einstellungen frisch aus der DB laden
+    useFocusEffect(
+        useCallback(() => {
+            refetchDunning();
+            refetchInvoice();
+        }, [refetchDunning, refetchInvoice])
+    );
 
     const [dunningForm, setDunningForm] = useState<any>(null);
     const [invoiceForm, setInvoiceForm] = useState<any>(null);
