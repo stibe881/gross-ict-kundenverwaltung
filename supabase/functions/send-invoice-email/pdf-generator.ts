@@ -29,6 +29,10 @@ export interface InvoiceData {
   dunningLevel?: number;
   /** Überschreibt den Dokumenttyp, z.B. "Quittung" (Standard: "Rechnung"/Mahnstufen) */
   docType?: string;
+  /** Bankverbindung aus invoice_settings — leere Werte fallen auf Standard zurück */
+  accountHolder?: string;
+  bankName?: string;
+  iban?: string;
 }
 
 function fmtCHF(amount: number): string {
@@ -359,10 +363,10 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(255, 255, 255); // #fff
 
-  doc.text("Gross ICT", col1X, fy + 15);
-  doc.text("Luzerner Kantonalbank AG", col2X, fy + 15);
-  
-  doc.text("CH32 0077 8229 1386 9200 1", col3X, fy + 15);
+  doc.text(data.accountHolder || "Gross ICT", col1X, fy + 15);
+  doc.text(data.bankName || "Luzerner Kantonalbank AG", col2X, fy + 15);
+
+  doc.text(data.iban || "CH32 0077 8229 1386 9200 1", col3X, fy + 15);
 
   // Buffer and Base64 return
   const dataUri = doc.output("datauristring");

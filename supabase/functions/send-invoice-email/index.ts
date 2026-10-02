@@ -15,7 +15,7 @@ function fmtDate(dateString: string): string {
   return `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()}`;
 }
 
-function buildInvoiceEmailHTML(invoice: any, trackingUrl?: string): string {
+function buildInvoiceEmailHTML(invoice: any, trackingUrl?: string, bank?: { accountHolder?: string; bankName?: string; iban?: string }): string {
   const trackingPixel = trackingUrl
     ? `<img src="${trackingUrl}" width="1" height="1" style="display:none" alt="" />`
     : "";
@@ -45,9 +45,9 @@ function buildInvoiceEmailHTML(invoice: any, trackingUrl?: string): string {
         </table>
         <p>Bitte überweisen Sie den Betrag bis zum <strong>${fmtDate(invoice.due_date)}</strong> auf folgendes Konto:</p>
         <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
-          <p style="margin: 0 0 4px;"><strong>Zahlungsempfänger:</strong> Gross ICT</p>
-          <p style="margin: 0 0 4px;"><strong>Bank:</strong> Luzerner Kantonalbank AG</p>
-          <p style="margin: 0;"><strong>IBAN:</strong> CH32 0077 8229 1386 9200 1</p>
+          <p style="margin: 0 0 4px;"><strong>Zahlungsempfänger:</strong> ${bank?.accountHolder || "Gross ICT"}</p>
+          <p style="margin: 0 0 4px;"><strong>Bank:</strong> ${bank?.bankName || "Luzerner Kantonalbank AG"}</p>
+          <p style="margin: 0;"><strong>IBAN:</strong> ${bank?.iban || "CH32 0077 8229 1386 9200 1"}</p>
         </div>
         <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
         <p>Freundliche Grüsse<br/><strong>Gross ICT</strong></p>
@@ -86,6 +86,19 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Kunde hat keine E-Mail-Adresse" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Bankverbindung aus den Rechnungseinstellungen (leere Felder → Standardwerte)
+    const { data: invSettings } = await supabase
+      .from("invoice_settings")
+      .select("account_holder, bank_name, iban")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .single();
+    const bank = {
+      accountHolder: invSettings?.account_holder || undefined,
+      bankName: invSettings?.bank_name || undefined,
+      iban: invSettings?.iban || undefined,
+    };
+
     // PDF: Client-seitig generiert (bevorzugt) oder serverseitig als Fallback
     let finalPdfBase64 = pdfBase64;
     if (!finalPdfBase64) {
@@ -119,6 +132,7 @@ Deno.serve(async (req) => {
         total: invoice.total,
         paidAmount: invoice.paid_amount,
         dunningLevel: invoice.dunning_level,
+        ...bank,
       };
 
       try {
@@ -143,7 +157,7 @@ Deno.serve(async (req) => {
       from: "Gross ICT <info@gross-ict.ch>",
       to: [invoice.customer.email],
       subject: `Rechnung ${invoice.invoice_number} - Gross ICT`,
-      html: buildInvoiceEmailHTML(invoice, trackingUrl),
+      html: buildInvoiceEmailHTML(invoice, trackingUrl, bank),
     };
 
     if (finalPdfBase64) {

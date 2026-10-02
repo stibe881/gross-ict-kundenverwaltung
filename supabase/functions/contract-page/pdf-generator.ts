@@ -600,7 +600,7 @@ function drawInvoiceFooter(doc: any, settings?: InvoiceData["settings"]) {
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("Gross ICT", col1X, FOOTER_Y + 13);
+  doc.text(settings?.accountHolder || "Gross ICT", col1X, FOOTER_Y + 13);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(203, 213, 225);
   doc.text("Neuhushof 3, 6144 Zell LU", col1X, FOOTER_Y + 18);
@@ -608,11 +608,11 @@ function drawInvoiceFooter(doc: any, settings?: InvoiceData["settings"]) {
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("Luzerner Kantonalbank AG", col2X, FOOTER_Y + 13);
+  doc.text(settings?.bankName || "Luzerner Kantonalbank AG", col2X, FOOTER_Y + 13);
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("CH32 0077 8229 1386 9200 1", col3X, FOOTER_Y + 13);
+  doc.text(settings?.iban || "CH32 0077 8229 1386 9200 1", col3X, FOOTER_Y + 13);
 }
 
 function checkInvoicePageBreak(doc: any, y: number, needed: number, settings?: InvoiceData["settings"]): number {
