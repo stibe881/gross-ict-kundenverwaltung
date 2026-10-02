@@ -82,9 +82,14 @@ export default function BusinessCardScreen() {
 
         const loadSavedData = async () => {
             try {
-                const saved = await AsyncStorage.getItem(`business_card_${email}`);
-                if (saved) {
-                    const data = JSON.parse(saved);
+                // Zuerst zentral aus dem Benutzerprofil laden (auf allen Geräten gleich),
+                // lokaler Speicher nur als Fallback (z.B. offline)
+                let data: any = await Data.getBusinessCard(email);
+                if (!data) {
+                    const saved = await AsyncStorage.getItem(`business_card_${email}`);
+                    if (saved) data = JSON.parse(saved);
+                }
+                if (data) {
                     if (data.name) setName(data.name);
                     if (data.position) setPosition(data.position);
                     if (data.phone) setPhone(data.phone);
@@ -102,8 +107,14 @@ export default function BusinessCardScreen() {
         if (!email) return;
         try {
             const dataToSave = { name, position, phone, website };
+            // Lokal als Cache und zentral im Benutzerprofil speichern
             await AsyncStorage.setItem(`business_card_${email}`, JSON.stringify(dataToSave));
-            Alert.alert("Gespeichert", "Die Kartendaten wurden lokal auf diesem Gerät gespeichert.");
+            const savedCentrally = await Data.saveBusinessCard(email, dataToSave);
+            if (savedCentrally) {
+                Alert.alert("Gespeichert", "Die Kartendaten wurden gespeichert und sind auf allen deinen Geräten verfügbar.");
+            } else {
+                Alert.alert("Gespeichert", "Die Kartendaten wurden lokal gespeichert. Zentrale Speicherung nicht möglich — ggf. fehlt die Migration '20261002_business_card.sql' oder die Karte gehört einem anderen Benutzer.");
+            }
         } catch (e) {
             console.error("Error saving card data:", e);
             Alert.alert("Fehler", "Die Daten konnten nicht gespeichert werden.");

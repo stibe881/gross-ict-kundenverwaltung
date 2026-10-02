@@ -73,6 +73,37 @@ export async function getAppReleaseStatus() {
     return invokeAppUpdate({ action: 'status' });
 }
 
+// ==================== DIGITALE VISITENKARTE ====================
+
+// Kartendaten zentral im Benutzerprofil speichern (Spalte users.business_card),
+// damit sie auf allen Geräten verfügbar sind. Braucht Migration 20261002_business_card.sql.
+export async function getBusinessCard(email: string): Promise<any | null> {
+    const { data, error } = await supabase
+        .from("users")
+        .select("business_card")
+        .eq("email", email)
+        .maybeSingle();
+    if (error) {
+        console.warn("[BusinessCard] Laden fehlgeschlagen:", error.message);
+        return null;
+    }
+    return (data as any)?.business_card || null;
+}
+
+export async function saveBusinessCard(email: string, card: any): Promise<boolean> {
+    const { data, error } = await supabase
+        .from("users")
+        .update({ business_card: card } as any)
+        .eq("email", email)
+        .select("id");
+    if (error) {
+        console.warn("[BusinessCard] Speichern fehlgeschlagen:", error.message);
+        return false;
+    }
+    // RLS erlaubt nur das eigene Profil — 0 aktualisierte Zeilen heisst: nicht gespeichert
+    return (data || []).length > 0;
+}
+
 // ==================== KUNDEN ====================
 
 export async function getCustomersWithCounts() {
