@@ -350,7 +350,13 @@ export default function AccountingScreen() {
     .reduce((s: number, i: any) => {
       return s + getInvoiceTotal(i);
     }, 0);
+  // Gefilterte Summe (nur für die Anzeige im Ausgaben-Tab)
   const totalExpenses = processedExpenses
+    .filter((e: any) => (e.amount || 0) > 0)
+    .reduce((s: number, e: any) => s + (e.amount || 0), 0);
+  // ALLE Ausgaben des Jahres — unabhängig von Tab-Filtern und vom
+  // "Geschäftsausgabe"-Schalter (für Gewinn/Verlust = Kontostand-Sicht)
+  const totalExpensesAll = yearExpenses
     .filter((e: any) => (e.amount || 0) > 0)
     .reduce((s: number, e: any) => s + (e.amount || 0), 0);
   const deductibleExpenses = yearExpenses
@@ -370,7 +376,7 @@ export default function AccountingScreen() {
 
   const totalSentQuotes = sentQuotesBase + sentQuotesOptional;
 
-  const profit = totalRevenue - totalExpenses;
+  const profit = totalRevenue - totalExpensesAll;
   const grossNetIncome = totalRevenue - deductibleExpenses;
   
   // Bereits bezahlte Akonto-Rechnungen (Kategorie Sozialversicherungen) extrahieren
@@ -671,10 +677,13 @@ export default function AccountingScreen() {
           <View>
             <Text className="text-xs text-muted">Ausgaben</Text>
             <Text className="text-sm font-semibold text-error">
-              {formatCurrency(totalExpenses)}
+              {formatCurrency(totalExpensesAll)}
             </Text>
           </View>
         </View>
+        <Text className="text-xs text-muted mt-2">
+          Alle Ein- und Ausgänge {selectedYear} — unabhängig vom Schalter «Geschäftsausgabe»
+        </Text>
       </View>
 
       {/* Reingewinn / Nettoeinkommen Inhaber */}
@@ -742,7 +751,7 @@ export default function AccountingScreen() {
           className="flex-1 bg-surface rounded-xl p-4 border border-border"
           activeOpacity={0.7}
           onPress={() => {
-            setInvoiceStatusFilter("open");
+            setInvoiceStatusFilter("unpaid");
             setActiveTab("invoices");
           }}
         >
@@ -1372,7 +1381,7 @@ export default function AccountingScreen() {
     const salaryExpense = yearExpenses
       .filter((e: any) => e.category === "salary")
       .reduce((s: number, e: any) => s + (e.amount || 0), 0);
-    const sachaufwand = totalExpenses - salaryExpense;
+    const sachaufwand = totalExpensesAll - salaryExpense;
 
     const agBeitrage = salaryExpense * 0.064; // 6.4% AG-Beiträge
     const uvgPremie = salaryExpense * 0.01; // 1.0% UVG
