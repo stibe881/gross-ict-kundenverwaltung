@@ -94,19 +94,26 @@ export default function DashboardScreen() {
     enabled: !!user?.id,
   });
 
-  if (loading) {
-    return (
-      <ScreenContainer className="items-center justify-center">
-        <ActivityIndicator size="large" color={colors.primary} />
-      </ScreenContainer>
-    );
-  }
-
-  const userName =
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    user?.email?.split("@")[0] ||
-    "Admin";
+  // Live-Kennzahlen für die KPI-Zeile (reine Zähl-Abfragen, günstig)
+  const { data: stats } = useQuery({
+    queryKey: ["dashboardStats"],
+    queryFn: async () => {
+      const [tickets, invoices, projects, customers] = await Promise.all([
+        supabase.from("tickets").select("*", { count: "exact", head: true }).eq("status", "open"),
+        supabase.from("invoices").select("*", { count: "exact", head: true }).not("status", "in", "(paid,cancelled)"),
+        supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "in_progress"),
+        supabase.from("customers").select("*", { count: "exact", head: true }).eq("status", "active"),
+      ]);
+      return {
+        openTickets: tickets.count || 0,
+        unpaidInvoices: invoices.count || 0,
+        activeProjects: projects.count || 0,
+        activeCustomers: customers.count || 0,
+      };
+    },
+    enabled: !!user,
+    refetchInterval: 60000,
+  });
 
   // Global search with debounce
   const performSearch = useCallback(async (query: string) => {
@@ -182,6 +189,28 @@ export default function DashboardScreen() {
     setSearching(false);
   }, [colors]);
 
+  if (loading) {
+    return (
+      <ScreenContainer className="items-center justify-center">
+        <ActivityIndicator size="large" color={colors.primary} />
+      </ScreenContainer>
+    );
+  }
+
+  const userName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email?.split("@")[0] ||
+    "Admin";
+
+  const hour = new Date().getHours();
+  const greeting = hour < 11 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend";
+  const todayLabel = new Date().toLocaleDateString("de-CH", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
   const handleSearchChange = (text: string) => {
     setGlobalSearch(text);
     if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -227,10 +256,12 @@ export default function DashboardScreen() {
           route: "/accounting",
         },
         {
+          // Hinweis: Apple-Vorgaben – voller Funktionsname "Tap to Pay auf dem iPhone",
+          // kein eigenes Kontaktlos-Symbol ausserhalb des Bezahl-Screens verwenden
           id: "tap-to-pay",
-          title: "Tap to Pay",
-          subtitle: "Kontaktlos kassieren",
-          icon: "wave.3.right",
+          title: "Kassieren",
+          subtitle: "Tap to Pay auf dem iPhone",
+          icon: "banknote",
           color: "#635BFF",
           route: "/tap-to-pay",
         },
@@ -246,7 +277,7 @@ export default function DashboardScreen() {
           id: "contracts",
           title: "Verträge",
           subtitle: "Verwaltung",
-          icon: "doc.text.fill",
+          icon: "doc.on.doc.fill",
           color: "#6366F1",
           route: "/contracts",
         },
@@ -352,6 +383,9 @@ export default function DashboardScreen() {
   const allowedTileIds = Data.getAllowedTileIds(
     userProfile?.roles || []
   );
+  const isAdmin = (userProfile?.roles || []).includes("admin");
+
+  const tileAllowed = (id: string) => !allowedTileIds || allowedTileIds.includes(id);
 
   // Filter tiles by role
   const filteredCategories = tileCategories
@@ -363,9 +397,18 @@ export default function DashboardScreen() {
     }))
     .filter((cat) => cat.tiles.length > 0);
 
+  // KPI-Kacheln: nur anzeigen, was die Rolle sehen darf
+  const kpiCards = [
+    { id: "tickets", label: "Offene Tickets", value: stats?.openTickets, color: "#F59E0B", icon: "ticket.fill", route: "/tickets" },
+    { id: "accounting", label: "Offene Rechnungen", value: stats?.unpaidInvoices, color: "#EF4444", icon: "doc.text.fill", route: "/accounting" },
+    { id: "projects", label: "Aktive Projekte", value: stats?.activeProjects, color: "#14B8A6", icon: "folder.fill", route: "/projects" },
+    { id: "customers", label: "Aktive Kunden", value: stats?.activeCustomers, color: colors.primary, icon: "person.2.fill", route: "/customers" },
+  ].filter((k) => tileAllowed(k.id));
+
   // Tile column count based on screen width
   const tileColumns = isWide ? 4 : isMedium ? 3 : 2;
   const tileGap = isWide ? 16 : 12;
+  const useGrid = isWide || isMedium;
 
   return (
     <ScreenContainer>
@@ -391,28 +434,32 @@ export default function DashboardScreen() {
               flexDirection: "row",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: isWide ? 32 : 20,
+              marginBottom: isWide ? 28 : 16,
               paddingTop: isWide ? 8 : 0,
             }}
           >
             <View style={{ flex: 1, paddingBottom: 4 }}>
               <Image
                 source={require("@/assets/images/android-icon-foreground.png")}
-                style={{ width: isWide ? 220 : 160, height: isWide ? 48 : 36, marginLeft: -12 }}
+                style={{ width: isWide ? 200 : 150, height: isWide ? 44 : 34, marginLeft: -12 }}
                 resizeMode="contain"
               />
               <Text
                 style={{
-                  fontSize: isWide ? 16 : 14,
-                  color: colors.muted,
-                  marginTop: 2,
+                  fontSize: isWide ? 17 : 15,
+                  fontWeight: "700",
+                  color: colors.foreground,
+                  marginTop: 4,
                 }}
               >
-                Willkommen, {userName}
+                {greeting}, {userName}
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.muted, marginTop: 1 }}>
+                {todayLabel}
               </Text>
             </View>
 
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
               <TouchableOpacity
                 onPress={() => router.push("/admin-notifications")}
                 style={{ position: "relative" }}
@@ -420,9 +467,9 @@ export default function DashboardScreen() {
               >
                 <View
                   style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
+                    width: 42,
+                    height: 42,
+                    borderRadius: 21,
                     backgroundColor: colors.surface,
                     borderWidth: 1,
                     borderColor: colors.border,
@@ -432,7 +479,7 @@ export default function DashboardScreen() {
                 >
                   <IconSymbol
                     name="bell.fill"
-                    size={20}
+                    size={19}
                     color={colors.foreground}
                   />
                 </View>
@@ -468,17 +515,18 @@ export default function DashboardScreen() {
           </View>
 
           {/* Global Search */}
-          <View style={{ marginBottom: isWide ? 24 : 16, position: "relative", zIndex: 100 }}>
+          <View style={{ marginBottom: isWide ? 20 : 14, position: "relative", zIndex: 100 }}>
             <View style={{
               backgroundColor: colors.surface,
               borderRadius: 14,
-              padding: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
               flexDirection: "row",
               alignItems: "center",
               borderWidth: 1,
               borderColor: globalSearch ? colors.primary + "60" : colors.border,
             }}>
-              <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
+              <IconSymbol name="magnifyingglass" size={18} color={colors.muted} />
               <TextInput
                 style={{ flex: 1, marginLeft: 10, fontSize: 15, color: colors.foreground }}
                 placeholder="Kunden, Tickets, Rechnungen suchen..."
@@ -488,7 +536,7 @@ export default function DashboardScreen() {
               />
               {globalSearch.length > 0 && (
                 <TouchableOpacity onPress={() => { setGlobalSearch(""); setSearchResults([]); }}>
-                  <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
+                  <IconSymbol name="xmark.circle.fill" size={18} color={colors.muted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -496,7 +544,7 @@ export default function DashboardScreen() {
             {/* Search Results Dropdown */}
             {(searchResults.length > 0 || (searching && globalSearch.length >= 2)) && (
               <View style={{
-                position: "absolute", top: 56, left: 0, right: 0,
+                position: "absolute", top: 52, left: 0, right: 0,
                 backgroundColor: colors.surface,
                 borderRadius: 14,
                 borderWidth: 1,
@@ -555,11 +603,47 @@ export default function DashboardScreen() {
             )}
           </View>
 
+          {/* KPI-Zeile: Live-Kennzahlen, tippen öffnet den Bereich */}
+          {kpiCards.length > 0 && (
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: isWide ? 24 : 18 }}>
+              {kpiCards.map((kpi) => (
+                <TouchableOpacity
+                  key={kpi.id}
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.surface,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    paddingVertical: isWide ? 14 : 10,
+                    paddingHorizontal: 8,
+                    alignItems: "center",
+                  }}
+                  activeOpacity={0.7}
+                  onPress={() => router.push(kpi.route as any)}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 2 }}>
+                    <IconSymbol name={kpi.icon as any} size={13} color={kpi.color} />
+                    <Text style={{ fontSize: isWide ? 22 : 18, fontWeight: "800", color: kpi.color }}>
+                      {kpi.value ?? "–"}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{ fontSize: isWide ? 11 : 9, color: colors.muted, fontWeight: "600", textAlign: "center" }}
+                    numberOfLines={1}
+                  >
+                    {kpi.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           {/* Quick Actions Bar - nur Web/Desktop, mobil hat FAB */}
           {isWeb && <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: isWide ? 32 : 20 }}
+            style={{ marginBottom: isWide ? 28 : 18 }}
             contentContainerStyle={{ gap: 10 }}
           >
             {[
@@ -623,9 +707,9 @@ export default function DashboardScreen() {
             ))}
           </ScrollView>}
 
-          {/* Categorized Tiles */}
+          {/* Module – Desktop/Tablet: Kachel-Grid, Mobil: gruppierte Listen */}
           {filteredCategories.map((category) => (
-            <View key={category.label} style={{ marginBottom: isWide ? 28 : 20 }}>
+            <View key={category.label} style={{ marginBottom: isWide ? 28 : 18 }}>
               <Text
                 style={{
                   fontSize: 11,
@@ -633,37 +717,102 @@ export default function DashboardScreen() {
                   color: colors.muted,
                   textTransform: "uppercase",
                   letterSpacing: 1.5,
-                  marginBottom: 12,
+                  marginBottom: 10,
                 }}
               >
                 {category.label}
               </Text>
-              <View
-                style={{
-                  flexDirection: "row",
-                  flexWrap: "wrap",
-                  gap: tileGap,
-                }}
-              >
-                {category.tiles.map((tile) => {
-                  // Calculate tile width for responsive grid
-                  const tileWidth = isWide
-                    ? `${100 / tileColumns - 1.5}%`
-                    : isMedium
-                      ? `${100 / tileColumns - 1.5}%`
-                      : "47%";
 
-                  return (
+              {useGrid ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    gap: tileGap,
+                  }}
+                >
+                  {category.tiles.map((tile) => {
+                    const tileWidth = `${100 / tileColumns - 1.5}%`;
+                    return (
+                      <TouchableOpacity
+                        key={tile.id}
+                        style={{
+                          width: tileWidth as any,
+                          flexGrow: 1,
+                          backgroundColor: colors.surface,
+                          borderRadius: 16,
+                          padding: isWide ? 24 : 18,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                        }}
+                        onPress={() => {
+                          if (tile.route) {
+                            router.push(tile.route as any);
+                          }
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <View
+                          style={{
+                            width: isWide ? 48 : 40,
+                            height: isWide ? 48 : 40,
+                            borderRadius: 14,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            backgroundColor: tile.color + "18",
+                            marginBottom: isWide ? 16 : 12,
+                          }}
+                        >
+                          <IconSymbol
+                            name={tile.icon as any}
+                            size={isWide ? 24 : 20}
+                            color={tile.color}
+                          />
+                        </View>
+                        <Text
+                          style={{
+                            fontSize: isWide ? 17 : 15,
+                            fontWeight: "700",
+                            color: colors.foreground,
+                            marginBottom: 2,
+                          }}
+                        >
+                          {tile.title}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: isWide ? 13 : 12,
+                            color: colors.muted,
+                          }}
+                        >
+                          {tile.subtitle}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                /* Mobil: eine Karte pro Kategorie mit Zeilen – kompakt und scannbar */
+                <View
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    overflow: "hidden",
+                  }}
+                >
+                  {category.tiles.map((tile, idx) => (
                     <TouchableOpacity
                       key={tile.id}
                       style={{
-                        width: tileWidth as any,
-                        flexGrow: 1,
-                        backgroundColor: colors.surface,
-                        borderRadius: 16,
-                        padding: isWide ? 24 : 18,
-                        borderWidth: 1,
-                        borderColor: colors.border,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingHorizontal: 14,
+                        paddingVertical: 12,
+                        gap: 12,
+                        borderBottomWidth: idx < category.tiles.length - 1 ? 1 : 0,
+                        borderBottomColor: colors.border,
                       }}
                       onPress={() => {
                         if (tile.route) {
@@ -674,47 +823,34 @@ export default function DashboardScreen() {
                     >
                       <View
                         style={{
-                          width: isWide ? 48 : 40,
-                          height: isWide ? 48 : 40,
-                          borderRadius: 14,
+                          width: 36,
+                          height: 36,
+                          borderRadius: 10,
                           alignItems: "center",
                           justifyContent: "center",
                           backgroundColor: tile.color + "18",
-                          marginBottom: isWide ? 16 : 12,
                         }}
                       >
-                        <IconSymbol
-                          name={tile.icon as any}
-                          size={isWide ? 24 : 20}
-                          color={tile.color}
-                        />
+                        <IconSymbol name={tile.icon as any} size={18} color={tile.color} />
                       </View>
-                      <Text
-                        style={{
-                          fontSize: isWide ? 17 : 15,
-                          fontWeight: "700",
-                          color: colors.foreground,
-                          marginBottom: 2,
-                        }}
-                      >
-                        {tile.title}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: isWide ? 13 : 12,
-                          color: colors.muted,
-                        }}
-                      >
-                        {tile.subtitle}
-                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: "600", color: colors.foreground }}>
+                          {tile.title}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: colors.muted, marginTop: 1 }} numberOfLines={1}>
+                          {tile.subtitle}
+                        </Text>
+                      </View>
+                      <IconSymbol name="chevron.right" size={14} color={colors.muted} />
                     </TouchableOpacity>
-                  );
-                })}
-              </View>
+                  ))}
+                </View>
+              )}
             </View>
           ))}
 
-
+          {/* Letzte Aktivitäten (nur Admin) */}
+          {isAdmin && <RecentActivities userId={user?.id} colors={colors} isWide={isWide} />}
         </View>
       </ScrollView>
 
@@ -876,46 +1012,32 @@ export default function DashboardScreen() {
   );
 }
 
-function getRoleLabel(role?: string): string {
-  const roleLabels: Record<string, string> = {
-    admin: "Administrator",
-    manager: "Manager",
-    accountant: "Buchhalter",
-    sales: "Vertrieb",
-    support: "Support",
-  };
-  return roleLabels[role || ""] || "Unbekannt";
-}
-
 function RecentActivities({ userId, colors, isWide }: { userId?: string; colors: any; isWide: boolean }) {
   const { data: activities = [] } = useQuery({
     queryKey: ["recentActivities", userId],
     queryFn: async () => {
-      console.log("[Activities] v2 - Fetching business data...");
       const items: Array<{ id: string; title: string; message: string; created_at: string; type: string; is_read: boolean }> = [];
 
       // 1. Push-Notifications aus DB
       try {
-        const { data: notifs, error: nErr } = await supabase
+        const { data: notifs } = await supabase
           .from("notifications")
           .select("id, title, message, created_at, is_read")
           .eq("user_id", userId!)
           .order("created_at", { ascending: false })
           .limit(5);
-        console.log("[Activities] Notifications:", notifs?.length || 0, nErr?.message || "ok");
         if (notifs) {
-          items.push(...notifs.map(n => ({ ...n, type: "notification" })));
+          items.push(...notifs.map(n => ({ ...n, type: "notification" } as any)));
         }
       } catch (e: any) { console.error("[Activities] Notifications error:", e.message); }
 
       // 2. Neueste Rechnungen
       try {
-        const { data: invoices, error: iErr } = await supabase
+        const { data: invoices } = await supabase
           .from("invoices")
           .select("id, invoice_number, total, status, created_at, customer:customers(company_name, first_name, last_name)")
           .order("created_at", { ascending: false })
           .limit(5);
-        console.log("[Activities] Invoices:", invoices?.length || 0, iErr?.message || "ok");
         if (invoices) {
           items.push(...invoices.map((inv: any) => {
             const customerName = inv.customer?.company_name || `${inv.customer?.first_name || ""} ${inv.customer?.last_name || ""}`.trim() || "Unbekannt";
@@ -934,12 +1056,11 @@ function RecentActivities({ userId, colors, isWide }: { userId?: string; colors:
 
       // 3. Neueste Tickets
       try {
-        const { data: tickets, error: tErr } = await supabase
+        const { data: tickets } = await supabase
           .from("tickets")
           .select("id, title, status, created_at")
           .order("created_at", { ascending: false })
           .limit(5);
-        console.log("[Activities] Tickets:", tickets?.length || 0, tErr?.message || "ok");
         if (tickets) {
           items.push(...tickets.map((t: any) => ({
             id: `tkt-${t.id}`,
@@ -954,12 +1075,11 @@ function RecentActivities({ userId, colors, isWide }: { userId?: string; colors:
 
       // 4. Neueste Kunden
       try {
-        const { data: customers, error: cErr } = await supabase
+        const { data: customers } = await supabase
           .from("customers")
           .select("id, company_name, first_name, last_name, created_at")
           .order("created_at", { ascending: false })
           .limit(3);
-        console.log("[Activities] Customers:", customers?.length || 0, cErr?.message || "ok");
         if (customers) {
           items.push(...customers.map((c: any) => ({
             id: `cust-${c.id}`,
@@ -973,7 +1093,6 @@ function RecentActivities({ userId, colors, isWide }: { userId?: string; colors:
       } catch (e: any) { console.error("[Activities] Customers error:", e.message); }
 
       // Sortiere nach Datum (neueste zuerst) und limit auf 8
-      console.log("[Activities] Total items:", items.length);
       items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       return items.slice(0, 8);
     },

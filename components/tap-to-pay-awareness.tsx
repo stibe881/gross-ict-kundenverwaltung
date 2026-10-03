@@ -52,7 +52,8 @@ export function TapToPayAwareness() {
             className="w-28 h-28 rounded-full items-center justify-center"
             style={{ backgroundColor: colors.primary + "15" }}
           >
-            <IconSymbol name="wave.3.right.circle.fill" size={64} color={colors.primary} />
+            {/* Apple-Vorgabe: Kontaktlos-Symbol nur im Bezahl-Screen – hier neutrales Icon */}
+            <IconSymbol name="iphone" size={64} color={colors.primary} />
           </View>
           <View className="items-center gap-2">
             <Text className="text-3xl font-bold text-foreground text-center">

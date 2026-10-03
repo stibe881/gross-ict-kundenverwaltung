@@ -176,7 +176,8 @@ export default function TabLayout() {
         options={{
           title: "Kassieren",
           href: Platform.OS === "web" ? null : showAccounting ? undefined : null,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="wave.3.right.circle.fill" color={color} />,
+          // Apple-Vorgabe: Kontaktlos-Symbol nur im Bezahl-Screen selbst verwenden
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="banknote" color={color} />,
         }}
       />
       {/* Hidden Screens inside Tabs (so they get the bottom menu) */}
