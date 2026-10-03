@@ -132,7 +132,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="customers"
         options={{
-          href: showCustomers ? undefined : null,
+          // Mobil nicht in der Tab-Leiste (erreichbar über das Dashboard), auf Web sichtbar
+          href: Platform.OS === "web" ? (showCustomers ? undefined : null) : null,
           title: "Kunden",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
         }}
