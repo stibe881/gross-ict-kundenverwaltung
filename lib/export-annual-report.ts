@@ -88,6 +88,44 @@ export async function exportAnnualZIP(
         zipData[`02_Buchungsjournal_${year}.pdf`] = new Uint8Array(decode(journalBase64));
     }
 
+    // 2b. CSV-Dateien für den Treuhänder (Excel-tauglich, Semikolon, mit BOM)
+    if (onProgress) onProgress("Erstelle CSV-Dateien...");
+    const encoder = new TextEncoder();
+    const esc = (v: any) => {
+        if (v === null || v === undefined) return "";
+        const s = String(v);
+        return s.includes(";") || s.includes('"') || s.includes("\n") ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const csv = (header: string[], rows: any[][]) =>
+        "﻿" + [header.join(";"), ...rows.map((r) => r.map(esc).join(";"))].join("\r\n");
+
+    zipData[`04_Rechnungen_${year}.csv`] = encoder.encode(csv(
+        ["Nummer", "Datum", "Fällig", "Kunde", "Status", "Betrag CHF"],
+        invoices.map((inv) => [
+            inv.invoice_number,
+            inv.invoice_date,
+            inv.due_date || "",
+            inv.customer?.company_name || `${inv.customer?.first_name || ""} ${inv.customer?.last_name || ""}`.trim(),
+            inv.status,
+            getInvoiceTotal(inv).toFixed(2),
+        ]),
+    ));
+    zipData[`05_Ausgaben_${year}.csv`] = encoder.encode(csv(
+        ["Datum", "Beschreibung", "Kategorie", "MwSt %", "Betrag CHF", "Beleg vorhanden"],
+        expenses.map((exp) => [
+            exp.expense_date,
+            exp.description || "",
+            exp.category || "",
+            exp.tax_rate ?? 0,
+            (exp.amount || 0).toFixed(2),
+            exp.receipt_url ? "ja" : "nein",
+        ]),
+    ));
+    zipData[`06_Buchungsjournal_${year}.csv`] = encoder.encode(csv(
+        ["Datum", "Typ", "Beschreibung", "Kategorie/Status", "Betrag CHF"],
+        entries.map((e) => [e.date, e.type, e.description, e.categoryOrStatus, e.amount.toFixed(2)]),
+    ));
+
     // 3. Download Receipts
     const expensesWithReceipts = expenses.filter(e => !!e.receipt_url);
     if (expensesWithReceipts.length > 0) {

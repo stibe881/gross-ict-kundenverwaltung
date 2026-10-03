@@ -39,7 +39,25 @@ export function CustomerDocuments({ customerId }: { customerId: string }) {
     enabled: !!customerId,
   });
 
+  // Im Kundenportal freigegebene Dokumente
+  const { data: sharedNames = [] } = useQuery({
+    queryKey: ["customerDocShares", customerId],
+    queryFn: () => Data.getSharedDocumentNames(customerId),
+    enabled: !!customerId,
+  });
+
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["customerDocuments", customerId] });
+
+  const handleToggleShare = async (name: string) => {
+    const isShared = (sharedNames as string[]).includes(name);
+    try {
+      await Data.setDocumentShared(customerId, name, !isShared);
+      queryClient.invalidateQueries({ queryKey: ["customerDocShares", customerId] });
+      showToast(isShared ? "Freigabe im Portal entfernt" : "Dokument im Kundenportal freigegeben");
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    }
+  };
 
   const handleUpload = async () => {
     try {
@@ -141,8 +159,17 @@ export function CustomerDocuments({ customerId }: { customerId: string }) {
                   <Text className="text-[11px] text-muted">
                     {f.created_at ? new Date(f.created_at).toLocaleDateString("de-CH") : ""}
                     {f.metadata?.size ? ` · ${fmtSize(f.metadata.size)}` : ""}
+                    {(sharedNames as string[]).includes(f.name) ? " · im Portal sichtbar" : ""}
                   </Text>
                 </View>
+                {/* Portal-Freigabe umschalten */}
+                <TouchableOpacity onPress={() => handleToggleShare(f.name)} activeOpacity={0.7} className="p-1">
+                  <IconSymbol
+                    name={(sharedNames as string[]).includes(f.name) ? "globe" : "lock.fill"}
+                    size={16}
+                    color={(sharedNames as string[]).includes(f.name) ? "#22C55E" : colors.muted}
+                  />
+                </TouchableOpacity>
                 <IconSymbol name="chevron.right" size={13} color={colors.muted} />
               </TouchableOpacity>
             );
@@ -151,7 +178,7 @@ export function CustomerDocuments({ customerId }: { customerId: string }) {
       )}
       {files.length > 0 && (
         <Text className="text-[10px] text-muted text-center">
-          Tippen zum Öffnen · gedrückt halten zum Löschen
+          Tippen zum Öffnen · gedrückt halten zum Löschen · Globus/Schloss = Portal-Freigabe
         </Text>
       )}
     </View>

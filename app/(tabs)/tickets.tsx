@@ -25,6 +25,7 @@ import { ContractFormModal } from "@/components/contract-form-modal";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
+import { exportCsv } from "@/lib/export";
 import { showAlert, showConfirm, showConfirm2 } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
 
@@ -490,14 +491,32 @@ export default function TicketsScreen() {
                 <Text className="text-sm text-muted">{filteredTickets.length} von {tickets.length} Tickets</Text>
               </View>
             </View>
-            <TouchableOpacity
-              className={isDesktop ? "bg-primary px-4 py-2.5 rounded-xl flex-row items-center gap-2" : "bg-primary w-10 h-10 rounded-full items-center justify-center"}
-              activeOpacity={0.8}
-              onPress={() => setShowAddModal(true)}
-            >
-              <IconSymbol name="plus" size={isDesktop ? 16 : 22} color={colors.background} />
-              {isDesktop && <Text style={{ color: colors.background, fontWeight: "700", fontSize: 14 }}>Neues Ticket</Text>}
-            </TouchableOpacity>
+            <View className="flex-row items-center gap-2">
+              <TouchableOpacity
+                className="bg-surface border border-border w-10 h-10 rounded-full items-center justify-center"
+                activeOpacity={0.8}
+                onPress={() =>
+                  exportCsv("Tickets.csv", filteredTickets || [], [
+                    { key: "title", label: "Titel" },
+                    { key: "status", label: "Status" },
+                    { key: "priority", label: "Priorität" },
+                    { key: "customer", label: "Kunde", map: (t: any) => t.customer?.company_name || `${t.customer?.first_name || ""} ${t.customer?.last_name || ""}`.trim() },
+                    { key: "created_at", label: "Erstellt", map: (t: any) => (t.created_at || "").split("T")[0] },
+                    { key: "due_date", label: "Fällig" },
+                  ]).catch(() => {})
+                }
+              >
+                <IconSymbol name="square.and.arrow.up" size={18} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                className={isDesktop ? "bg-primary px-4 py-2.5 rounded-xl flex-row items-center gap-2" : "bg-primary w-10 h-10 rounded-full items-center justify-center"}
+                activeOpacity={0.8}
+                onPress={() => setShowAddModal(true)}
+              >
+                <IconSymbol name="plus" size={isDesktop ? 16 : 22} color={colors.background} />
+                {isDesktop && <Text style={{ color: colors.background, fontWeight: "700", fontSize: 14 }}>Neues Ticket</Text>}
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Search & Filters Row */}
@@ -848,6 +867,51 @@ function TicketDetailsModal({
       setSuggesting(false);
     }
   };
+
+  // Antwort zusätzlich per E-Mail an den Kunden senden
+  const [sendEmailCopy, setSendEmailCopy] = useState(false);
+
+  // Ticket → Wissensdatenbank-Artikel (KI-Zusammenfassung)
+  const [creatingKb, setCreatingKb] = useState(false);
+  const handleCreateKbArticle = async () => {
+    setCreatingKb(true);
+    try {
+      const { data, error } = await Data.supabase.functions.invoke("suggest-reply", {
+        body: { ticket_id: ticket.id, mode: "kb" },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      const reply: string = data?.reply || "";
+      if (!reply) throw new Error("Keine Zusammenfassung erhalten");
+      const [firstLine, ...rest] = reply.split("\n");
+      const title = (firstLine || ticket.title || "Artikel").replace(/^#+\s*/, "").trim().substring(0, 200);
+      const content = rest.join("\n").trim() || reply;
+      await Data.createKbArticle({ title, content, status: "published", tags: ["aus-ticket"] });
+      queryClient.invalidateQueries({ queryKey: ["kb_articles"] });
+      showToast(`KB-Artikel erstellt: ${title}`);
+    } catch (e: any) {
+      showAlert("Fehler", "KB-Artikel konnte nicht erstellt werden: " + e.message);
+    } finally {
+      setCreatingKb(false);
+    }
+  };
+
+  // Ähnliche KB-Artikel zum Ticket-Titel
+  const { data: kbArticlesAll = [] } = useQuery({
+    queryKey: ["kb_articles", "forTickets"],
+    queryFn: () => Data.getKbArticles({ status: "published" }),
+  });
+  const similarKbArticles = React.useMemo(() => {
+    const words = (ticket.title || "").toLowerCase().split(/[^a-zäöüéèà0-9]+/).filter((w: string) => w.length > 3);
+    if (!words.length) return [];
+    return (kbArticlesAll as any[])
+      .filter((a: any) => {
+        const t = `${a.title || ""} ${(a.tags || []).join(" ")}`.toLowerCase();
+        return words.some((w: string) => t.includes(w));
+      })
+      .slice(0, 3);
+  }, [kbArticlesAll, ticket.title]);
+
   const [showAssignPicker, setShowAssignPicker] = useState(false);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showPriorityPicker, setShowPriorityPicker] = useState(false);
@@ -867,6 +931,18 @@ function TicketDetailsModal({
     queryKey: ["customers"],
     queryFn: Data.getCustomersWithCounts,
   });
+
+  // SLA aus aktiven Verträgen des Kunden (kürzeste Reaktionszeit gilt)
+  const slaInfo = React.useMemo(() => {
+    const hoursList = (customerContracts || [])
+      .filter((c: any) => c.status === "active" && Number((c as any).sla_response_hours) > 0)
+      .map((c: any) => Number((c as any).sla_response_hours));
+    if (!hoursList.length || !ticket.created_at) return null;
+    const hours = Math.min(...hoursList);
+    const deadlineMs = new Date(ticket.created_at).getTime() + hours * 3600000;
+    const remainingMs = deadlineMs - Date.now();
+    return { hours, deadlineMs, remainingMs };
+  }, [customerContracts, ticket.created_at]);
 
   // Kommentare laden
   const { data: comments, refetch: refetchComments } = useQuery({
@@ -1083,10 +1159,23 @@ function TicketDetailsModal({
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
     setAddingComment(true);
+    const commentText = newComment.trim();
     try {
-      await Data.addTicketComment(ticket.id, newComment.trim(), currentUserName, isInternalComment);
+      await Data.addTicketComment(ticket.id, commentText, currentUserName, isInternalComment);
       setNewComment("");
       refetchComments();
+
+      // Öffentliche Antwort optional per E-Mail an den Kunden senden
+      if (!isInternalComment && sendEmailCopy) {
+        const { data, error } = await Data.supabase.functions.invoke("send-ticket-email", {
+          body: { ticket_id: ticket.id, message: commentText, user_name: currentUserName },
+        });
+        if (error || data?.error) {
+          showAlert("E-Mail", "Kommentar gespeichert, aber E-Mail fehlgeschlagen: " + (data?.error || error?.message));
+        } else {
+          showToast(`Antwort per E-Mail an ${data?.to} gesendet`);
+        }
+      }
     } catch (err: any) {
       showAlert("Fehler", err.message);
     } finally {
@@ -1570,7 +1659,51 @@ function TicketDetailsModal({
             </View>
           )}
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          {/* SLA-Countdown aus Vertrag */}
+          {slaInfo && currentStatus === "open" ? (
+            <View
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 8,
+                backgroundColor: (slaInfo.remainingMs < 0 ? colors.error : slaInfo.remainingMs < slaInfo.hours * 3600000 * 0.25 ? colors.warning : colors.success) + "15",
+                borderWidth: 1,
+                borderColor: (slaInfo.remainingMs < 0 ? colors.error : slaInfo.remainingMs < slaInfo.hours * 3600000 * 0.25 ? colors.warning : colors.success) + "40",
+                borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8,
+              }}
+            >
+              <IconSymbol
+                name="clock.fill"
+                size={14}
+                color={slaInfo.remainingMs < 0 ? colors.error : slaInfo.remainingMs < slaInfo.hours * 3600000 * 0.25 ? colors.warning : colors.success}
+              />
+              <Text style={{ fontSize: 12, fontWeight: "600", color: colors.foreground, flex: 1 }}>
+                {slaInfo.remainingMs < 0
+                  ? `SLA verletzt – Reaktionszeit (${slaInfo.hours}h) seit ${Math.max(1, Math.round(-slaInfo.remainingMs / 3600000))}h überschritten`
+                  : `SLA: Reaktion innert ${slaInfo.hours}h – noch ${Math.max(1, Math.round(slaInfo.remainingMs / 3600000))}h Zeit`}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Ähnliche KB-Artikel */}
+          {similarKbArticles.length > 0 ? (
+            <View style={{ backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, padding: 10, marginBottom: 8 }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
+                Ähnliche KB-Artikel
+              </Text>
+              {similarKbArticles.map((a: any) => (
+                <TouchableOpacity
+                  key={a.id}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}
+                  onPress={() => { onClose(); router.push(`/knowledge-base?articleId=${a.id}` as any); }}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol name="book.fill" size={12} color={colors.primary} />
+                  <Text style={{ fontSize: 13, color: colors.primary, flex: 1 }} numberOfLines={1}>{a.title}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
             <TouchableOpacity
               style={{
                 flexDirection: "row", alignItems: "center", gap: 6,
@@ -1590,7 +1723,25 @@ function TicketDetailsModal({
                 {isInternalComment ? "Nur intern" : "Kunde sichtbar"}
               </Text>
             </TouchableOpacity>
-            <Text style={{ fontSize: 11, color: colors.muted }}>Tippen um zu wechseln</Text>
+            {!isInternalComment ? (
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row", alignItems: "center", gap: 6,
+                  paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+                  backgroundColor: sendEmailCopy ? "#06B6D415" : colors.surface,
+                  borderWidth: 1, borderColor: sendEmailCopy ? "#06B6D440" : colors.border,
+                }}
+                onPress={() => setSendEmailCopy(!sendEmailCopy)}
+                activeOpacity={0.7}
+              >
+                <IconSymbol name="envelope.fill" size={12} color={sendEmailCopy ? "#06B6D4" : colors.muted} />
+                <Text style={{ fontSize: 12, fontWeight: "600", color: sendEmailCopy ? "#06B6D4" : colors.muted }}>
+                  {sendEmailCopy ? "Per E-Mail senden ✓" : "Per E-Mail senden"}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={{ fontSize: 11, color: colors.muted }}>Tippen um zu wechseln</Text>
+            )}
           </View>
 
           {/* Textbausteine + KI-Vorschlag */}
@@ -1616,6 +1767,26 @@ function TicketDetailsModal({
               )}
               <Text style={{ fontSize: 12, fontWeight: "600", color: "#8B5CF6" }}>
                 {suggesting ? "KI schreibt…" : "KI-Antwort vorschlagen"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, opacity: creatingKb ? 0.6 : 1 }}
+              onPress={() => showConfirm(
+                "KB-Artikel erstellen",
+                "Aus diesem Ticket mit KI einen Wissensdatenbank-Artikel erstellen?",
+                handleCreateKbArticle,
+                "Erstellen"
+              )}
+              disabled={creatingKb}
+              activeOpacity={0.7}
+            >
+              {creatingKb ? (
+                <ActivityIndicator size="small" color="#0EA5E9" />
+              ) : (
+                <IconSymbol name="book.fill" size={12} color="#0EA5E9" />
+              )}
+              <Text style={{ fontSize: 12, fontWeight: "600", color: "#0EA5E9" }}>
+                {creatingKb ? "KI fasst zusammen…" : "Als KB-Artikel"}
               </Text>
             </TouchableOpacity>
           </View>

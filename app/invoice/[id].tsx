@@ -539,6 +539,16 @@ export default function InvoiceDetailScreen() {
                             </View>
                         )}
 
+                        {/* Zahlungsplan (Teilzahlungen) */}
+                        {invoice.status !== "draft" && invoice.status !== "cancelled" ? (
+                            <InstallmentPlanCard
+                                invoiceId={id as string}
+                                invoiceTotal={getInvoiceTotal(invoice)}
+                                colors={colors}
+                                onPaymentBooked={() => { refetch(); queryClient.invalidateQueries({ queryKey: ["invoices"] }); }}
+                            />
+                        ) : null}
+
                         {/* Aktivitätsverlauf */}
                         <View className="bg-surface rounded-xl border border-border p-4 mb-4">
                             <Text className="text-lg font-bold text-foreground mb-3">Verlauf</Text>
@@ -775,3 +785,175 @@ export default function InvoiceDetailScreen() {
     );
 }
 
+
+// ── Zahlungsplan: Rechnung in Raten aufteilen ──
+function InstallmentPlanCard({
+    invoiceId,
+    invoiceTotal,
+    colors,
+    onPaymentBooked,
+}: {
+    invoiceId: string;
+    invoiceTotal: number;
+    colors: any;
+    onPaymentBooked: () => void;
+}) {
+    const queryClient = useQueryClient();
+    const [expanded, setExpanded] = useState(false);
+    const [rateCount, setRateCount] = useState("3");
+    const [creating, setCreating] = useState(false);
+
+    const { data: installments = [] } = useQuery({
+        queryKey: ["invoiceInstallments", invoiceId],
+        queryFn: () => Data.getInvoiceInstallments(invoiceId),
+    });
+
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ["invoiceInstallments", invoiceId] });
+
+    const handleCreatePlan = async () => {
+        const n = parseInt(rateCount, 10);
+        if (!n || n < 2 || n > 24) {
+            showAlert("Fehler", "Bitte 2–24 Raten angeben.");
+            return;
+        }
+        setCreating(true);
+        try {
+            const per = Math.floor((invoiceTotal / n) * 100) / 100;
+            const rows: { amount: number; due_date: string }[] = [];
+            let assigned = 0;
+            for (let i = 0; i < n; i++) {
+                const due = new Date();
+                due.setMonth(due.getMonth() + i + 1);
+                due.setDate(1);
+                const amount = i === n - 1 ? Math.round((invoiceTotal - assigned) * 100) / 100 : per;
+                assigned += amount;
+                rows.push({ amount, due_date: due.toISOString().split("T")[0] });
+            }
+            await Data.createInstallmentPlan(invoiceId, rows);
+            await Data.addInvoiceActivity(invoiceId, "installments", `Zahlungsplan mit ${n} Raten erstellt.`);
+            refresh();
+            showToast(`Zahlungsplan mit ${n} Raten erstellt`);
+        } catch (e: any) {
+            showAlert("Fehler", e.message);
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const handleTogglePaid = async (inst: any) => {
+        try {
+            if (!inst.paid_at) {
+                await Data.markInstallmentPaid(inst.id, true);
+                // Rate auch als Zahlung auf der Rechnung verbuchen
+                await Data.addPayment(invoiceId, Number(inst.amount), "Teilzahlung (Rate)");
+                onPaymentBooked();
+            } else {
+                await Data.markInstallmentPaid(inst.id, false);
+            }
+            refresh();
+        } catch (e: any) {
+            showAlert("Fehler", e.message);
+        }
+    };
+
+    const paidCount = (installments as any[]).filter((i) => i.paid_at).length;
+    const overdue = (installments as any[]).filter((i) => !i.paid_at && i.due_date < new Date().toISOString().split("T")[0]).length;
+
+    return (
+        <View className="bg-surface rounded-xl border border-border p-4 mb-4">
+            <TouchableOpacity className="flex-row items-center justify-between" onPress={() => setExpanded(!expanded)} activeOpacity={0.7}>
+                <View className="flex-row items-center gap-2">
+                    <IconSymbol name="calendar" size={16} color={colors.primary} />
+                    <Text className="text-lg font-bold text-foreground">Zahlungsplan</Text>
+                    {(installments as any[]).length > 0 ? (
+                        <Text className="text-xs text-muted">
+                            {paidCount}/{(installments as any[]).length} Raten bezahlt{overdue > 0 ? ` · ${overdue} überfällig` : ""}
+                        </Text>
+                    ) : null}
+                </View>
+                <IconSymbol name={expanded ? "chevron.up" : "chevron.down"} size={14} color={colors.muted} />
+            </TouchableOpacity>
+
+            {expanded ? (
+                <View className="mt-3">
+                    {(installments as any[]).length === 0 ? (
+                        <View>
+                            <Text className="text-sm text-muted mb-2">
+                                Rechnung in gleichmässige Monatsraten aufteilen (je zum 1. des Monats fällig):
+                            </Text>
+                            <View className="flex-row items-center gap-2">
+                                <TextInput
+                                    value={rateCount}
+                                    onChangeText={setRateCount}
+                                    keyboardType="number-pad"
+                                    className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                                    style={{ width: 60 }}
+                                />
+                                <Text className="text-sm text-foreground">Raten à ca. {formatCurrency(invoiceTotal / (parseInt(rateCount, 10) || 3))}</Text>
+                                <TouchableOpacity
+                                    className="bg-primary px-4 py-2 rounded-lg ml-auto"
+                                    onPress={handleCreatePlan}
+                                    disabled={creating}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text className="text-background text-xs font-semibold">{creating ? "Erstellt…" : "Plan erstellen"}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ) : (
+                        <View>
+                            {(installments as any[]).map((inst, idx) => {
+                                const isOverdue = !inst.paid_at && inst.due_date < new Date().toISOString().split("T")[0];
+                                return (
+                                    <TouchableOpacity
+                                        key={inst.id}
+                                        className="flex-row items-center gap-3 py-2 border-t border-border"
+                                        onPress={() => handleTogglePaid(inst)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <View
+                                            style={{
+                                                width: 20, height: 20, borderRadius: 10, borderWidth: 2,
+                                                borderColor: inst.paid_at ? "#22C55E" : isOverdue ? "#EF4444" : colors.border,
+                                                backgroundColor: inst.paid_at ? "#22C55E" : "transparent",
+                                                alignItems: "center", justifyContent: "center",
+                                            }}
+                                        >
+                                            {inst.paid_at ? <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>✓</Text> : null}
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text className="text-sm font-semibold text-foreground">
+                                                Rate {idx + 1} · {formatCurrency(Number(inst.amount))}
+                                            </Text>
+                                            <Text className="text-xs" style={{ color: isOverdue ? "#EF4444" : colors.muted }}>
+                                                fällig {formatDate(inst.due_date)}
+                                                {inst.paid_at ? ` · bezahlt am ${formatDate(inst.paid_at)}` : isOverdue ? " · überfällig" : ""}
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                            <TouchableOpacity
+                                className="mt-2 pt-2 border-t border-border"
+                                onPress={() =>
+                                    showConfirm("Zahlungsplan löschen", "Alle Raten entfernen? Bereits verbuchte Zahlungen bleiben bestehen.", async () => {
+                                        try {
+                                            await Data.deleteInstallments(invoiceId);
+                                            refresh();
+                                        } catch (e: any) { showAlert("Fehler", e.message); }
+                                    }, "Löschen")
+                                }
+                                activeOpacity={0.7}
+                            >
+                                <Text className="text-xs font-bold" style={{ color: "#EF4444" }}>Zahlungsplan löschen</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                    <Text className="text-xs text-muted mt-2">
+                        Rate antippen = als bezahlt verbuchen (erfasst automatisch eine Teilzahlung). Fällige, unbezahlte Raten lösen eine Push-Erinnerung aus.
+                    </Text>
+                </View>
+            ) : null}
+        </View>
+    );
+}

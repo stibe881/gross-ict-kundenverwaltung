@@ -142,6 +142,7 @@ const MAPPING = {
   "checkmark.circle": "check-circle-outline",
   "chevron.up": "expand-less",
   "person.crop.circle.badge.plus": "person-add",
+  "person.crop.circle.badge.exclamationmark": "manage-accounts",
   "magnifyingglass.circle.fill": "manage-search",
   "wifi": "wifi",
   "wifi.slash": "wifi-off",

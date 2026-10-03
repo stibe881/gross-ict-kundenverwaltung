@@ -65,6 +65,46 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // Threading: Enthält der Betreff einen Ticket-Marker [TKT-xxxxxxxx],
+    // wird die Mail als Kommentar an das bestehende Ticket angehängt.
+    const markerMatch = subject.match(/\[TKT-([0-9a-fA-F]{8})\]/);
+    if (markerMatch) {
+      const idPrefix = markerMatch[1].toLowerCase();
+      const { data: candidates } = await supabase.rpc("find_ticket_by_prefix", { prefix: idPrefix });
+      const existing = candidates?.[0];
+      if (existing) {
+        await supabase.from("ticket_comments").insert({
+          ticket_id: existing.id,
+          comment: `${text.substring(0, 4000)}\n\n—\nPer E-Mail geantwortet von: ${fromRaw || fromEmail}`,
+          user_name: fromEmail,
+          is_internal: false,
+        });
+        // Geschlossene Tickets bei Kundenantwort wieder öffnen
+        if (existing.status === "closed") {
+          await supabase.from("tickets").update({ status: "open", updated_at: new Date().toISOString() }).eq("id", existing.id);
+        }
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              recipients: "all_admins", recipientType: "admin",
+              title: "Antwort auf Ticket",
+              body: `${existing.title} – neue E-Mail-Antwort von ${fromEmail}`,
+              data: { url: `/tickets?ticketId=${existing.id}`, category: "tickets" },
+            }),
+          });
+        } catch (e) { console.error("[inbound-email] Push fehlgeschlagen:", e); }
+
+        return new Response(JSON.stringify({ success: true, ticket_id: existing.id, threaded: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Kunde über Absenderadresse finden (customers.email oder Portal-Benutzer)
     let customerId: string | null = null;
     const { data: customer } = await supabase

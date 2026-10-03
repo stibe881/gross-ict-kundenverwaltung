@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     ScrollView,
     Text,
@@ -11,7 +11,7 @@ import {
     RefreshControl,
 } from "react-native";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -40,6 +40,15 @@ export default function KnowledgeBaseScreen() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [selectedArticle, setSelectedArticle] = useState<any>(null);
     const [showCategoryModal, setShowCategoryModal] = useState(false);
+
+    // Deep-Link aus dem Ticket-Detail: /knowledge-base?articleId=...
+    const { articleId } = useLocalSearchParams();
+    useEffect(() => {
+        if (!articleId) return;
+        Data.getKbArticleById(String(articleId))
+            .then((a) => { if (a) setSelectedArticle(a); })
+            .catch(() => {});
+    }, [articleId]);
 
     const { data: categories = [] } = useQuery({
         queryKey: ["kb_categories"],

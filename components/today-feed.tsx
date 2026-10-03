@@ -20,7 +20,7 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
       const endOfToday = new Date(new Date().setHours(23, 59, 59, 999)).toISOString();
       const result: LinkedRecord[] = [];
 
-      const [tickets, invoices, reminders, contracts, quotes, noticeContracts] = await Promise.all([
+      const [tickets, invoices, reminders, contracts, quotes, noticeContracts, leadActions, changeRequests] = await Promise.all([
         allowed("tickets")
           ? supabase.from("tickets").select("id, title, due_date, status").neq("status", "closed").lte("due_date", today).limit(5)
           : Promise.resolve({ data: [] } as any),
@@ -38,6 +38,12 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
           : Promise.resolve({ data: [] } as any),
         allowed("contracts")
           ? supabase.from("contracts").select("id, title, end_date, notice_period_months").eq("status", "active").is("cancellation_date", null).not("end_date", "is", null).limit(50)
+          : Promise.resolve({ data: [] } as any),
+        allowed("leads")
+          ? (supabase as any).from("leads").select("id, name, company, next_action, next_action_date").not("next_action", "is", null).lte("next_action_date", today).not("status", "in", '("won","lost")').limit(5)
+          : Promise.resolve({ data: [] } as any),
+        allowed("customers")
+          ? (supabase as any).from("customer_change_requests").select("id, customer_id, requested_by, customer:customers(company_name, first_name, last_name)").eq("status", "pending").limit(5)
           : Promise.resolve({ data: [] } as any),
       ]);
 
@@ -94,6 +100,29 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
           title: q.quote_number,
           subtitle: `Angebot läuft am ${formatDate(q.valid_until)} ab · ${formatCurrency(q.total || 0)}`,
           route: `/quote/${q.id}`,
+        });
+      }
+
+      for (const l of leadActions.data || []) {
+        result.push({
+          key: `la-${l.id}`,
+          icon: "flag.fill",
+          color: "#EF4444",
+          title: l.company || l.name || "Lead",
+          subtitle: `Nächste Aktion überfällig: ${l.next_action}`,
+          route: "/leads",
+        });
+      }
+      for (const cr of changeRequests.data || []) {
+        const name = (cr.customer as any)?.company_name ||
+          `${(cr.customer as any)?.first_name || ""} ${(cr.customer as any)?.last_name || ""}`.trim() || "Kunde";
+        result.push({
+          key: `cr-${cr.id}`,
+          icon: "person.crop.circle.badge.exclamationmark",
+          color: "#8B5CF6",
+          title: name,
+          subtitle: `Stammdaten-Änderung aus dem Portal prüfen${cr.requested_by ? ` (${cr.requested_by})` : ""}`,
+          route: `/customer/${cr.customer_id}`,
         });
       }
 

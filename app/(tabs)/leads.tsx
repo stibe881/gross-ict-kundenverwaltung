@@ -431,6 +431,7 @@ export default function LeadsScreen() {
                             >
                               <View className="flex-row items-center justify-between mb-1">
                                 <Text className="text-base font-semibold text-foreground">
+                                  {lead.rating === "hot" ? "🔥 " : lead.rating === "warm" ? "🌤 " : lead.rating === "cold" ? "❄️ " : ""}
                                   {lead.company || lead.name || "-"}
                                 </Text>
                                 <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: getPriorityColor(lead.priority) + '20' }}>
@@ -440,6 +441,20 @@ export default function LeadsScreen() {
                                 </View>
                               </View>
                               {lead.name && lead.company ? <Text className="text-sm text-muted mb-2">{lead.name}{lead.position ? ` · ${lead.position}` : ''}</Text> : null}
+                              {lead.next_action ? (
+                                <Text
+                                  className="text-xs mb-1"
+                                  style={{
+                                    color: lead.next_action_date && lead.next_action_date < new Date().toISOString().split("T")[0]
+                                      ? colors.error
+                                      : colors.muted,
+                                  }}
+                                  numberOfLines={1}
+                                >
+                                  Nächste Aktion: {lead.next_action}
+                                  {lead.next_action_date ? ` (bis ${new Date(lead.next_action_date).toLocaleDateString("de-CH")})` : ""}
+                                </Text>
+                              ) : null}
                               <Text className="text-sm font-semibold text-success">
                                 CHF {(lead.value || 0).toLocaleString("de-CH")}
                               </Text>

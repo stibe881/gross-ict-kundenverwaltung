@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { ticket_id } = await req.json();
+    const { ticket_id, mode } = await req.json();
     if (!ticket_id) return json({ error: "ticket_id fehlt" }, 400);
 
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
@@ -81,11 +81,26 @@ Deno.serve(async (req) => {
 
     const anthropic = new Anthropic({ apiKey });
 
+    // Modus "kb": aus dem gelösten Ticket einen Wissensdatenbank-Artikel machen
+    const systemPrompt = mode === "kb"
+      ? [
+          "Du bist technischer Redaktor bei Gross ICT, einem Schweizer IT-Dienstleister.",
+          "Fasse das vorliegende, gelöste Support-Ticket als internen Wissensdatenbank-Artikel zusammen.",
+          "Regeln:",
+          "- Schweizer Hochdeutsch, kein ß (stattdessen ss).",
+          "- Erste Zeile: prägnanter Artikel-Titel (ohne Präfix wie 'Titel:').",
+          "- Danach der Artikel: Problem/Symptom, Ursache (falls erkennbar), Lösung Schritt für Schritt.",
+          "- Entferne alle personenbezogenen Daten (Namen, E-Mail-Adressen, Telefonnummern) und ersetze sie durch neutrale Platzhalter.",
+          "- Erfinde keine Schritte, die nicht aus dem Verlauf hervorgehen; Unklares als 'zu prüfen' kennzeichnen.",
+          "- Gib nur Titel und Artikeltext aus, ohne weitere Erklärungen.",
+        ].join("\n")
+      : null;
+
     const response = await anthropic.messages.create({
       model: "claude-opus-5-5",
       max_tokens: 16000,
       output_config: { effort: "low" },
-      system: [
+      system: systemPrompt ?? [
         "Du bist Support-Mitarbeiter von Gross ICT, einem Schweizer IT-Dienstleister (Inhaber: Stefan Gross).",
         "Verfasse einen Antwortentwurf an den Kunden zum vorliegenden Support-Ticket.",
         "Regeln:",

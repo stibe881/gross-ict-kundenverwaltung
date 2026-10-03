@@ -16,6 +16,7 @@ import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
+import { exportCsv } from "@/lib/export";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { showConfirm } from "@/lib/alert";
 import { ProjectFormModal } from "@/components/project-form-modal";
@@ -308,6 +309,22 @@ export default function ProjectsScreen() {
                                         ))}
                                     </View>
                                 )}
+                                <TouchableOpacity
+                                    className="w-10 h-10 rounded-full items-center justify-center border border-border bg-surface"
+                                    onPress={() =>
+                                        exportCsv("Projekte.csv", filteredProjects || [], [
+                                            { key: "project_number", label: "Nummer" },
+                                            { key: "title", label: "Titel" },
+                                            { key: "status", label: "Status" },
+                                            { key: "customer", label: "Kunde", map: (p: any) => p.customer?.company_name || `${p.customer?.first_name || ""} ${p.customer?.last_name || ""}`.trim() },
+                                            { key: "budget", label: "Budget" },
+                                            { key: "created_at", label: "Erstellt", map: (p: any) => (p.created_at || "").split("T")[0] },
+                                        ]).catch(() => {})
+                                    }
+                                    activeOpacity={0.8}
+                                >
+                                    <IconSymbol name="square.and.arrow.up" size={18} color={colors.primary} />
+                                </TouchableOpacity>
                                 <TouchableOpacity
                                     className="w-10 h-10 rounded-full items-center justify-center"
                                     style={{ backgroundColor: colors.primary }}

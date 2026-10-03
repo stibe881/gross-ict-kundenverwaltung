@@ -492,3 +492,9 @@ enabled = true
 # Nur aus der App mit gültigem Login aufrufbar
 verify_jwt = true
 entrypoint = "./functions/suggest-reply/index.ts"
+
+[functions.send-ticket-email]
+enabled = true
+# Nur aus der App mit gültigem Login aufrufbar
+verify_jwt = true
+entrypoint = "./functions/send-ticket-email/index.ts"

@@ -19,6 +19,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
+import { exportCsv } from "@/lib/export";
 import { CustomerFormModal } from "@/components/customer-form-modal";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 
@@ -205,13 +206,34 @@ export default function CustomersScreen() {
               </TouchableOpacity>
               <Text className="text-3xl font-bold text-foreground">Kunden</Text>
             </View>
-            <TouchableOpacity
-              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
-              activeOpacity={0.8}
-              onPress={() => setShowAddModal(true)}
-            >
-              <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
-            </TouchableOpacity>
+            <View className="flex-row items-center gap-2">
+              <TouchableOpacity
+                className="bg-surface border border-border w-12 h-12 rounded-full items-center justify-center"
+                activeOpacity={0.8}
+                onPress={() =>
+                  exportCsv("Kunden.csv", filteredCustomers || [], [
+                    { key: "company_name", label: "Firma" },
+                    { key: "first_name", label: "Vorname" },
+                    { key: "last_name", label: "Nachname" },
+                    { key: "email", label: "E-Mail" },
+                    { key: "phone", label: "Telefon" },
+                    { key: "address", label: "Adresse" },
+                    { key: "postal_code", label: "PLZ" },
+                    { key: "city", label: "Ort" },
+                    { key: "status", label: "Status" },
+                  ]).catch(() => {})
+                }
+              >
+                <IconSymbol name="square.and.arrow.up" size={20} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+                activeOpacity={0.8}
+                onPress={() => setShowAddModal(true)}
+              >
+                <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Suchleiste */}

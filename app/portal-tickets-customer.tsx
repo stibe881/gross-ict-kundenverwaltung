@@ -40,7 +40,7 @@ interface TicketComment {
   is_system: boolean;
 }
 
-type PortalSection = "tickets" | "invoices" | "contracts";
+type PortalSection = "tickets" | "invoices" | "contracts" | "quotes" | "documents" | "profile";
 
 export default function PortalTicketsScreen() {
   const colors = useColors();
@@ -51,6 +51,8 @@ export default function PortalTicketsScreen() {
   const [portalUserId, setPortalUserId] = useState<string | null>(null);
   const { ticketId } = useLocalSearchParams();
 
+  const [portalUserName, setPortalUserName] = useState("Kunde");
+
   useEffect(() => {
     Data.supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
       if (session?.user?.id) {
@@ -59,6 +61,10 @@ export default function PortalTicketsScreen() {
       if (session?.user?.user_metadata?.customer_id) {
         setCustomerId(session.user.user_metadata.customer_id);
       }
+      const meta = session?.user?.user_metadata || {};
+      const name = `${meta.first_name || ""} ${meta.last_name || ""}`.trim();
+      if (name) setPortalUserName(name);
+      else if (session?.user?.email) setPortalUserName(session.user.email);
     });
   }, []);
 
@@ -93,6 +99,38 @@ export default function PortalTicketsScreen() {
   const visibleInvoices = invoices.filter(
     (inv: any) => inv.status !== "draft" && inv.status !== "cancelled"
   );
+
+  const { data: quotes = [] } = useQuery({
+    queryKey: ["portalQuotes", customerId],
+    queryFn: () => Data.getCustomerQuotes(customerId!),
+    enabled: !!customerId,
+  });
+  // Nur versendete/beantwortete Angebote zeigen, keine Entwürfe
+  const visibleQuotes = quotes.filter((q: any) => q.status !== "draft");
+
+  const { data: sharedDocNames = [] } = useQuery({
+    queryKey: ["portalSharedDocs", customerId],
+    queryFn: () => Data.getSharedDocumentNames(customerId!),
+    enabled: !!customerId,
+  });
+
+  const { data: maintenance = [] } = useQuery({
+    queryKey: ["portalMaintenance", customerId],
+    queryFn: () => Data.getPortalMaintenanceWindows(customerId!),
+    enabled: !!customerId,
+  });
+
+  const { data: assets = [] } = useQuery({
+    queryKey: ["portalAssets", customerId],
+    queryFn: () => Data.getCustomerAssets(customerId!),
+    enabled: !!customerId,
+  });
+
+  const { data: customerData } = useQuery({
+    queryKey: ["portalCustomer", customerId],
+    queryFn: () => Data.getCustomerById(customerId!),
+    enabled: !!customerId,
+  });
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ["unreadPortalNotifications", portalUserId],
@@ -287,6 +325,50 @@ export default function PortalTicketsScreen() {
     </View>
   );
 
+  // ── Angebote ──
+  const quoteStatusLabel = (s: string) =>
+    s === "sent" ? "Offen" : s === "opened" ? "Offen" : s === "accepted" ? "Angenommen" : s === "declined" ? "Abgelehnt" : s === "expired" ? "Abgelaufen" : s;
+  const quoteStatusColor = (s: string) =>
+    s === "accepted" ? colors.success : s === "declined" ? colors.error : s === "expired" ? colors.warning : colors.primary;
+
+  const renderQuoteItem = ({ item }: { item: any }) => {
+    const open = item.status === "sent" || item.status === "opened";
+    return (
+      <View className="bg-surface p-4 rounded-lg border border-border mb-3">
+        <View className="flex-row items-center justify-between mb-2">
+          <Text className="text-base font-semibold text-foreground flex-1">
+            Angebot {item.quote_number}
+          </Text>
+          <View
+            style={{ backgroundColor: quoteStatusColor(item.status) + "20" }}
+            className="px-3 py-1 rounded-full ml-2"
+          >
+            <Text style={{ color: quoteStatusColor(item.status) }} className="text-xs font-semibold">
+              {quoteStatusLabel(item.status)}
+            </Text>
+          </View>
+        </View>
+        <View className="flex-row items-center justify-between">
+          <Text className="text-sm text-muted">
+            {formatDate(item.quote_date)}
+            {item.valid_until ? ` · gültig bis ${formatDate(item.valid_until)}` : ""}
+          </Text>
+          <Text className="text-base font-bold text-foreground">{formatCurrency(item.total || 0)}</Text>
+        </View>
+        {open ? (
+          <TouchableOpacity
+            className="bg-primary py-2.5 rounded-lg mt-3 flex-row items-center justify-center gap-2"
+            onPress={() => Linking.openURL(`https://angebote.gross-ict.ch/?id=${item.id}`)}
+            activeOpacity={0.8}
+          >
+            <IconSymbol name="doc.on.doc.fill" size={16} color={colors.background} />
+            <Text className="text-background font-semibold">Ansehen & antworten</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    );
+  };
+
   const handleLogout = async () => {
     await Data.supabase.auth.signOut();
     await AsyncStorage.removeItem("isCustomerLoggedIn");
@@ -339,34 +421,60 @@ export default function PortalTicketsScreen() {
             </View>
           </View>
 
-          {/* Bereichswahl: Tickets / Rechnungen / Verträge */}
-          <View className="flex-row bg-surface border border-border rounded-xl overflow-hidden mb-3">
-            {([
-              { key: "tickets", label: "Tickets", icon: "ticket.fill" },
-              { key: "invoices", label: "Rechnungen", icon: "doc.text.fill" },
-              { key: "contracts", label: "Verträge", icon: "doc.badge.clock.fill" },
-            ] as { key: PortalSection; label: string; icon: any }[]).map((s) => (
-              <TouchableOpacity
-                key={s.key}
-                className="flex-1 flex-row items-center justify-center gap-1.5 py-2.5"
-                style={{ backgroundColor: section === s.key ? colors.primary : "transparent" }}
-                onPress={() => setSection(s.key)}
-                activeOpacity={0.7}
-              >
-                <IconSymbol
-                  name={s.icon}
-                  size={14}
-                  color={section === s.key ? colors.background : colors.muted}
-                />
-                <Text
-                  className="text-xs font-semibold"
-                  style={{ color: section === s.key ? colors.background : colors.foreground }}
-                >
-                  {s.label}
+          {/* Wartungsfenster-Ankündigungen */}
+          {(maintenance as any[]).length > 0 ? (
+            <View
+              className="rounded-xl border p-3 mb-3"
+              style={{ backgroundColor: "#F59E0B15", borderColor: "#F59E0B50" }}
+            >
+              <View className="flex-row items-center gap-2 mb-1">
+                <IconSymbol name="wrench.fill" size={14} color="#F59E0B" />
+                <Text className="text-sm font-bold text-foreground">Geplante Wartung</Text>
+              </View>
+              {(maintenance as any[]).slice(0, 3).map((w: any) => (
+                <Text key={w.id} className="text-xs text-foreground mt-0.5">
+                  {w.title}: {new Date(w.starts_at).toLocaleString("de-CH", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                  {" – "}
+                  {new Date(w.ends_at).toLocaleString("de-CH", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                  {w.description ? ` · ${w.description}` : ""}
                 </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* Bereichswahl */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+            <View className="flex-row bg-surface border border-border rounded-xl overflow-hidden">
+              {([
+                { key: "tickets", label: "Tickets", icon: "ticket.fill" },
+                { key: "invoices", label: "Rechnungen", icon: "doc.text.fill" },
+                { key: "contracts", label: "Verträge", icon: "doc.badge.clock.fill" },
+                { key: "quotes", label: "Angebote", icon: "doc.on.doc.fill" },
+                { key: "documents", label: "Dokumente", icon: "folder.fill" },
+                { key: "profile", label: "Profil", icon: "person.2.fill" },
+              ] as { key: PortalSection; label: string; icon: any }[]).map((s) => (
+                <TouchableOpacity
+                  key={s.key}
+                  className="flex-row items-center justify-center gap-1.5 py-2.5 px-3"
+                  style={{ backgroundColor: section === s.key ? colors.primary : "transparent" }}
+                  onPress={() => setSection(s.key)}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    name={s.icon}
+                    size={14}
+                    color={section === s.key ? colors.background : colors.muted}
+                  />
+                  <Text
+                    className="text-xs font-semibold"
+                    style={{ color: section === s.key ? colors.background : colors.foreground }}
+                  >
+                    {s.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
 
           {/* Filter (nur für Tickets) */}
           {section === "tickets" ? (
@@ -441,21 +549,82 @@ export default function PortalTicketsScreen() {
                 </Text>
               </View>
             )
-          ) : contracts.length > 0 ? (
-            <FlatList
-              data={contracts}
-              renderItem={renderContractItem}
-              keyExtractor={(item: any) => String(item.id)}
-              showsVerticalScrollIndicator={false}
-            />
+          ) : section === "contracts" ? (
+            contracts.length > 0 ? (
+              <FlatList
+                data={contracts}
+                renderItem={renderContractItem}
+                keyExtractor={(item: any) => String(item.id)}
+                showsVerticalScrollIndicator={false}
+              />
+            ) : (
+              <View className="flex-1 items-center justify-center">
+                <IconSymbol name="doc.badge.clock.fill" size={48} color={colors.muted} />
+                <Text className="text-lg text-muted mt-4">Keine Verträge</Text>
+                <Text className="text-sm text-muted text-center mt-2">
+                  Es sind noch keine Verträge vorhanden.
+                </Text>
+              </View>
+            )
+          ) : section === "quotes" ? (
+            visibleQuotes.length > 0 ? (
+              <FlatList
+                data={visibleQuotes}
+                renderItem={renderQuoteItem}
+                keyExtractor={(item: any) => String(item.id)}
+                showsVerticalScrollIndicator={false}
+              />
+            ) : (
+              <View className="flex-1 items-center justify-center">
+                <IconSymbol name="doc.on.doc.fill" size={48} color={colors.muted} />
+                <Text className="text-lg text-muted mt-4">Keine Angebote</Text>
+                <Text className="text-sm text-muted text-center mt-2">
+                  Es liegen keine Angebote vor.
+                </Text>
+              </View>
+            )
+          ) : section === "documents" ? (
+            (sharedDocNames as string[]).length > 0 ? (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {(sharedDocNames as string[]).map((name) => (
+                  <TouchableOpacity
+                    key={name}
+                    className="bg-surface p-4 rounded-lg border border-border mb-3 flex-row items-center gap-3"
+                    activeOpacity={0.7}
+                    onPress={async () => {
+                      try {
+                        const url = await Data.getCustomerDocumentUrl(customerId!, name);
+                        Linking.openURL(url);
+                      } catch (e: any) {
+                        console.error("Dokument konnte nicht geöffnet werden:", e.message);
+                      }
+                    }}
+                  >
+                    <IconSymbol name="doc.text.fill" size={22} color={colors.primary} />
+                    <Text className="text-sm font-semibold text-foreground flex-1" numberOfLines={2}>
+                      {name.replace(/^\d+_/, "")}
+                    </Text>
+                    <IconSymbol name="square.and.arrow.up" size={16} color={colors.muted} />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <View className="flex-1 items-center justify-center">
+                <IconSymbol name="folder.fill" size={48} color={colors.muted} />
+                <Text className="text-lg text-muted mt-4">Keine Dokumente</Text>
+                <Text className="text-sm text-muted text-center mt-2">
+                  Es wurden noch keine Dokumente für Sie freigegeben.
+                </Text>
+              </View>
+            )
           ) : (
-            <View className="flex-1 items-center justify-center">
-              <IconSymbol name="doc.badge.clock.fill" size={48} color={colors.muted} />
-              <Text className="text-lg text-muted mt-4">Keine Verträge</Text>
-              <Text className="text-sm text-muted text-center mt-2">
-                Es sind noch keine Verträge vorhanden.
-              </Text>
-            </View>
+            <ProfileSection
+              customerId={customerId!}
+              customerData={customerData}
+              assets={assets as any[]}
+              portalUserName={portalUserName}
+              colors={colors}
+            />
           )}
         </View>
       </View>
@@ -676,5 +845,142 @@ function TicketDetailsModal({
         </View>
       </View>
     </Modal>
+  );
+}
+
+// ── Profil: Stammdaten-Selfservice + Geräte/Lizenzen ──
+function ProfileSection({
+  customerId,
+  customerData,
+  assets,
+  portalUserName,
+  colors,
+}: {
+  customerId: string;
+  customerData: any;
+  assets: any[];
+  portalUserName: string;
+  colors: any;
+}) {
+  const [address, setAddress] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [city, setCity] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (customerData) {
+      setAddress(customerData.address || "");
+      setPostalCode(customerData.postal_code || "");
+      setCity(customerData.city || "");
+      setPhone(customerData.phone || "");
+      setEmail(customerData.email || "");
+    }
+  }, [customerData]);
+
+  const handleSubmit = async () => {
+    if (!customerData) return;
+    const changes: Record<string, any> = {};
+    if (address !== (customerData.address || "")) changes.address = address;
+    if (postalCode !== (customerData.postal_code || "")) changes.postal_code = postalCode;
+    if (city !== (customerData.city || "")) changes.city = city;
+    if (phone !== (customerData.phone || "")) changes.phone = phone;
+    if (email !== (customerData.email || "")) changes.email = email;
+    if (Object.keys(changes).length === 0) return;
+
+    setSubmitting(true);
+    try {
+      await Data.createChangeRequest(customerId, portalUserName, changes);
+      setSubmitted(true);
+    } catch (e: any) {
+      console.error("Änderungsantrag fehlgeschlagen:", e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const inputClass = "bg-surface border border-border rounded-lg px-4 py-3 text-foreground mb-2";
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <Text className="text-lg font-bold text-foreground mb-2">Ihre Stammdaten</Text>
+      <Text className="text-xs text-muted mb-3">
+        Änderungen werden an Gross ICT übermittelt und nach Prüfung übernommen.
+      </Text>
+
+      <Text className="text-xs font-semibold text-muted mb-1">Adresse</Text>
+      <TextInput value={address} onChangeText={setAddress} className={inputClass} placeholder="Strasse Nr." placeholderTextColor={colors.muted} />
+      <View className="flex-row gap-2">
+        <View style={{ width: 110 }}>
+          <Text className="text-xs font-semibold text-muted mb-1">PLZ</Text>
+          <TextInput value={postalCode} onChangeText={setPostalCode} className={inputClass} placeholder="PLZ" placeholderTextColor={colors.muted} keyboardType="number-pad" />
+        </View>
+        <View className="flex-1">
+          <Text className="text-xs font-semibold text-muted mb-1">Ort</Text>
+          <TextInput value={city} onChangeText={setCity} className={inputClass} placeholder="Ort" placeholderTextColor={colors.muted} />
+        </View>
+      </View>
+      <Text className="text-xs font-semibold text-muted mb-1">Telefon</Text>
+      <TextInput value={phone} onChangeText={setPhone} className={inputClass} placeholder="Telefon" placeholderTextColor={colors.muted} keyboardType="phone-pad" />
+      <Text className="text-xs font-semibold text-muted mb-1">E-Mail</Text>
+      <TextInput value={email} onChangeText={setEmail} className={inputClass} placeholder="E-Mail" placeholderTextColor={colors.muted} keyboardType="email-address" autoCapitalize="none" />
+
+      {submitted ? (
+        <View className="rounded-lg p-3 mt-1 mb-4" style={{ backgroundColor: colors.success + "15", borderWidth: 1, borderColor: colors.success + "40" }}>
+          <Text className="text-sm font-semibold" style={{ color: colors.success }}>
+            Änderungsantrag übermittelt – wir prüfen die Angaben und melden uns bei Rückfragen.
+          </Text>
+        </View>
+      ) : (
+        <TouchableOpacity
+          className="bg-primary py-3 rounded-lg mt-1 mb-4"
+          onPress={handleSubmit}
+          disabled={submitting}
+          activeOpacity={0.8}
+        >
+          {submitting ? (
+            <ActivityIndicator size="small" color={colors.background} />
+          ) : (
+            <Text className="text-background font-semibold text-center">Änderung beantragen</Text>
+          )}
+        </TouchableOpacity>
+      )}
+
+      {/* Geräte & Lizenzen */}
+      <Text className="text-lg font-bold text-foreground mb-2">Geräte & Lizenzen</Text>
+      {assets.length === 0 ? (
+        <Text className="text-sm text-muted mb-6">Noch keine Geräte oder Lizenzen hinterlegt.</Text>
+      ) : (
+        assets.map((a: any) => {
+          const expired = a.expires_at && a.expires_at < new Date().toISOString().split("T")[0];
+          const soon = !expired && a.expires_at && new Date(a.expires_at).getTime() - Date.now() < 30 * 86400000;
+          return (
+            <View key={a.id} className="bg-surface p-3 rounded-lg border border-border mb-2 flex-row items-center gap-3">
+              <IconSymbol
+                name={a.type === "license" ? "key.fill" : "desktopcomputer"}
+                size={20}
+                color={expired ? colors.error : soon ? colors.warning : colors.primary}
+              />
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground">{a.name}</Text>
+                <Text className="text-xs text-muted">
+                  {a.type === "license" ? "Lizenz" : "Gerät"}
+                  {a.serial_number ? ` · SN ${a.serial_number}` : ""}
+                  {a.expires_at ? ` · ${a.type === "license" ? "läuft ab" : "Garantie bis"} ${formatDate(a.expires_at)}` : ""}
+                </Text>
+                {expired ? (
+                  <Text className="text-xs font-semibold" style={{ color: colors.error }}>Abgelaufen</Text>
+                ) : soon ? (
+                  <Text className="text-xs font-semibold" style={{ color: colors.warning }}>Läuft bald ab</Text>
+                ) : null}
+              </View>
+            </View>
+          );
+        })
+      )}
+      <View style={{ height: 24 }} />
+    </ScrollView>
   );
 }

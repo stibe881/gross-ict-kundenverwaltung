@@ -166,6 +166,7 @@ export async function createCustomer(customer: any) {
         .single();
 
     if (error) throw new Error(error.message);
+    logActivity("customer", data.id, "created", `Kunde "${data.company_name || `${data.first_name || ""} ${data.last_name || ""}`.trim()}" erstellt`);
     return data;
 }
 
@@ -178,10 +179,25 @@ export async function updateCustomer(id: string, customer: any) {
         .single();
 
     if (error) throw new Error(error.message);
+    logActivity("customer", id, "updated", `Kunde "${data.company_name || `${data.first_name || ""} ${data.last_name || ""}`.trim()}" geändert (${Object.keys(customer).join(", ")})`);
     return data;
 }
 
 export async function deleteCustomer(id: string) {
+    // Papierkorb: Kundendaten + Kontakte + Links sichern (30 Tage wiederherstellbar)
+    try {
+        const [{ data: cust }, { data: contacts }, { data: links }] = await Promise.all([
+            supabase.from("customers").select("*").eq("id", id).single(),
+            (supabase as any).from("customer_contacts").select("*").eq("customer_id", id),
+            (supabase as any).from("customer_links").select("*").eq("customer_id", id),
+        ]);
+        if (cust) {
+            const label = (cust as any).company_name || `${(cust as any).first_name || ""} ${(cust as any).last_name || ""}`.trim() || "Kunde";
+            await addToTrash("customer", label, { ...cust, contacts: contacts || [], links: links || [] });
+            logActivity("customer", id, "deleted", `Kunde "${label}" gelöscht (inkl. Angebote, Rechnungen, Tickets, Verträge)`);
+        }
+    } catch (e) { console.warn("[trash] Kunden-Snapshot fehlgeschlagen:", e); }
+
     // 1. Quote-Items der Kunden-Angebote löschen
     const { data: customerQuotes } = await supabase
         .from("quotes")
@@ -458,6 +474,7 @@ export async function createInvoice(invoice: any, items: any[]) {
         .single();
 
     if (invoiceError) throw new Error(invoiceError.message);
+    logActivity("invoice", invoiceData.id, "created", `Rechnung ${invoiceData.invoice_number} erstellt`);
 
     if (items.length > 0) {
         const itemsWithId = items.map((item) => ({
@@ -554,6 +571,18 @@ export async function updateInvoice(id: string, invoice: any, items: any[]) {
 }
 
 export async function deleteInvoice(id: string) {
+    // Papierkorb: Rechnung + Positionen sichern (30 Tage wiederherstellbar)
+    try {
+        const [{ data: inv }, { data: items }] = await Promise.all([
+            supabase.from("invoices").select("*").eq("id", id).single(),
+            supabase.from("invoice_items").select("*").eq("invoice_id", id),
+        ]);
+        if (inv) {
+            await addToTrash("invoice", `Rechnung ${(inv as any).invoice_number}`, { ...inv, items: items || [] });
+            logActivity("invoice", id, "deleted", `Rechnung ${(inv as any).invoice_number} gelöscht`);
+        }
+    } catch (e) { console.warn("[trash] Rechnungs-Snapshot fehlgeschlagen:", e); }
+
     const { error: itemsError } = await supabase
         .from("invoice_items")
         .delete()
@@ -715,6 +744,7 @@ export async function createTicket(ticket: any) {
         .single();
 
     if (error) throw new Error(error.message);
+    logActivity("ticket", data.id, "created", `Ticket "${data.title}" erstellt`);
 
     // Push Notifizierung: Neues Ticket
     try {
@@ -776,6 +806,19 @@ export async function updateTicket(id: string, updates: any) {
 }
 
 export async function deleteTicket(id: string) {
+    // Papierkorb: Ticket + Kommentare + Positionen sichern (30 Tage wiederherstellbar)
+    try {
+        const [{ data: ticket }, { data: comments }, { data: items }] = await Promise.all([
+            supabase.from("tickets").select("*").eq("id", id).single(),
+            supabase.from("ticket_comments").select("*").eq("ticket_id", id),
+            supabase.from("ticket_items").select("*").eq("ticket_id", id),
+        ]);
+        if (ticket) {
+            await addToTrash("ticket", `Ticket "${(ticket as any).title}"`, { ...ticket, comments: comments || [], items: items || [] });
+            logActivity("ticket", id, "deleted", `Ticket "${(ticket as any).title}" gelöscht`);
+        }
+    } catch (e) { console.warn("[trash] Ticket-Snapshot fehlgeschlagen:", e); }
+
     const { error } = await supabase.from("tickets").delete().eq("id", id);
     if (error) throw new Error(error.message);
     return { success: true };
@@ -1033,6 +1076,7 @@ export async function createQuote(quote: any, items: any[]) {
         .single();
 
     if (quoteError) throw new Error(quoteError.message);
+    logActivity("quote", quoteData.id, "created", `Angebot ${quoteData.quote_number} erstellt`);
 
     if (items.length > 0) {
         const itemsWithId = items.map((item) => ({
@@ -1083,6 +1127,11 @@ export async function updateQuote(id: string, quote: any, items: any[]) {
 }
 
 export async function deleteQuote(id: string) {
+    try {
+        const { data: q } = await supabase.from("quotes").select("quote_number").eq("id", id).single();
+        if (q) logActivity("quote", id, "deleted", `Angebot ${(q as any).quote_number} gelöscht`);
+    } catch (_) { /* Log ist optional */ }
+
     await supabase.from("quote_items").delete().eq("quote_id", id);
     const { error } = await supabase.from("quotes").delete().eq("id", id);
     if (error) throw new Error(error.message);
@@ -4219,4 +4268,350 @@ export async function getMonitoringLogs(urlId: string) {
         .limit(10000);
     if (error) throw new Error(error.message);
     return data || [];
+}
+
+// ============================================================
+// Runde 4: Wiederkehrende Ausgaben, Zahlungspläne, Meilensteine,
+// Aufgaben, SLA, Leads, Portal-Ausbau, Inventar, Wartung, Log
+// (neue Tabellen sind noch nicht in den generierten DB-Typen)
+// ============================================================
+const db = supabase as any;
+
+async function resolveCurrentUserName(): Promise<string> {
+    try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const user = sessionData?.session?.user;
+        if (!user) return "System";
+        const { data: profile } = await supabase.from("users").select("name").eq("id", user.id).single();
+        if (profile?.name) return profile.name;
+        const meta = user.user_metadata || {};
+        const metaName = `${meta.first_name || meta.name || ""} ${meta.last_name || ""}`.trim();
+        if (metaName) return metaName;
+        if (user.email) return user.email.split("@")[0];
+    } catch (e) {}
+    return "System";
+}
+
+// ── Aktivitäts-Log ──
+export async function logActivity(entityType: string, entityId: string | null, action: string, description: string) {
+    try {
+        const userName = await resolveCurrentUserName();
+        await db.from("audit_log").insert({
+            entity_type: entityType,
+            entity_id: entityId,
+            action,
+            description,
+            user_name: userName,
+        });
+    } catch (e) {
+        console.warn("[audit_log]", e);
+    }
+}
+
+export async function getAuditLog(limit = 200) {
+    const { data, error } = await db
+        .from("audit_log")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+// ── Papierkorb ──
+export async function addToTrash(entityType: string, entityLabel: string, payload: any) {
+    const userName = await resolveCurrentUserName();
+    const { error } = await db.from("trash_bin").insert({
+        entity_type: entityType,
+        entity_label: entityLabel,
+        payload,
+        deleted_by: userName,
+    });
+    if (error) console.warn("[trash_bin]", error.message);
+}
+
+export async function getTrash() {
+    const { data, error } = await db
+        .from("trash_bin")
+        .select("*")
+        .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function removeFromTrash(id: string) {
+    const { error } = await db.from("trash_bin").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+export async function restoreFromTrash(trashId: string) {
+    const { data: entry, error } = await db.from("trash_bin").select("*").eq("id", trashId).single();
+    if (error || !entry) throw new Error(error?.message || "Eintrag nicht gefunden");
+    const p = entry.payload || {};
+
+    if (entry.entity_type === "customer") {
+        const { contacts, links, ...customer } = p;
+        const { error: e1 } = await db.from("customers").insert(customer);
+        if (e1) throw new Error(e1.message);
+        if (contacts?.length) await db.from("customer_contacts").insert(contacts);
+        if (links?.length) await db.from("customer_links").insert(links);
+    } else if (entry.entity_type === "invoice") {
+        const { items, payments, ...invoice } = p;
+        const { error: e1 } = await db.from("invoices").insert(invoice);
+        if (e1) throw new Error(e1.message);
+        if (items?.length) await db.from("invoice_items").insert(items);
+        if (payments?.length) await db.from("invoice_payments").insert(payments);
+    } else if (entry.entity_type === "ticket") {
+        const { comments, items, ...ticket } = p;
+        const { error: e1 } = await db.from("tickets").insert(ticket);
+        if (e1) throw new Error(e1.message);
+        if (comments?.length) await db.from("ticket_comments").insert(comments);
+        if (items?.length) await db.from("ticket_items").insert(items);
+    } else {
+        throw new Error(`Unbekannter Typ: ${entry.entity_type}`);
+    }
+
+    await db.from("trash_bin").delete().eq("id", trashId);
+    await logActivity(entry.entity_type, null, "restored", `${entry.entity_label} aus dem Papierkorb wiederhergestellt`);
+    return { success: true };
+}
+
+// ── Wiederkehrende Ausgaben ──
+export async function getRecurringExpenses() {
+    const { data, error } = await db
+        .from("recurring_expenses")
+        .select("*")
+        .order("next_date", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createRecurringExpense(rec: {
+    description: string;
+    category?: string | null;
+    amount: number;
+    tax_rate?: number;
+    interval: string;
+    next_date: string;
+}) {
+    const { data, error } = await db.from("recurring_expenses").insert([rec]).select().single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateRecurringExpense(id: string, updates: any) {
+    const { error } = await db.from("recurring_expenses").update(updates).eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+export async function deleteRecurringExpense(id: string) {
+    const { error } = await db.from("recurring_expenses").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+// ── Teilzahlungen / Zahlungspläne ──
+export async function getInvoiceInstallments(invoiceId: string) {
+    const { data, error } = await db
+        .from("invoice_installments")
+        .select("*")
+        .eq("invoice_id", invoiceId)
+        .order("sort", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createInstallmentPlan(invoiceId: string, installments: { amount: number; due_date: string }[]) {
+    await db.from("invoice_installments").delete().eq("invoice_id", invoiceId).is("paid_at", null);
+    const rows = installments.map((r, idx) => ({ invoice_id: invoiceId, amount: r.amount, due_date: r.due_date, sort: idx }));
+    const { error } = await db.from("invoice_installments").insert(rows);
+    if (error) throw new Error(error.message);
+}
+
+export async function markInstallmentPaid(installmentId: string, paid: boolean) {
+    const { error } = await db
+        .from("invoice_installments")
+        .update({ paid_at: paid ? new Date().toISOString() : null })
+        .eq("id", installmentId);
+    if (error) throw new Error(error.message);
+}
+
+export async function deleteInstallments(invoiceId: string) {
+    const { error } = await db.from("invoice_installments").delete().eq("invoice_id", invoiceId);
+    if (error) throw new Error(error.message);
+}
+
+// ── Zeit → Rechnung: unverrechnete Ticket-Aufwände eines Kunden ──
+export async function getUnbilledTicketItems(customerId: string) {
+    const { data: tickets } = await supabase
+        .from("tickets")
+        .select("id, title")
+        .eq("customer_id", customerId);
+    const ticketIds = (tickets || []).map((t: any) => t.id);
+    if (!ticketIds.length) return [];
+    const { data, error } = await db
+        .from("ticket_items")
+        .select("*")
+        .in("ticket_id", ticketIds)
+        .is("invoice_id", null);
+    if (error) throw new Error(error.message);
+    const titleById = new Map((tickets || []).map((t: any) => [t.id, t.title]));
+    return (data || []).map((i: any) => ({ ...i, ticket_title: titleById.get(i.ticket_id) || "" }));
+}
+
+export async function markTicketItemsBilled(itemIds: string[], invoiceId: string) {
+    if (!itemIds.length) return;
+    const { error } = await db.from("ticket_items").update({ invoice_id: invoiceId }).in("id", itemIds);
+    if (error) throw new Error(error.message);
+}
+
+// ── Kunden-Inventar (Geräte & Lizenzen) ──
+export async function getCustomerAssets(customerId: string) {
+    const { data, error } = await db
+        .from("customer_assets")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createCustomerAsset(asset: {
+    customer_id: string;
+    type: string;
+    name: string;
+    serial_number?: string | null;
+    expires_at?: string | null;
+    notes?: string | null;
+}) {
+    const { data, error } = await db.from("customer_assets").insert([asset]).select().single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateCustomerAsset(id: string, updates: any) {
+    const { error } = await db.from("customer_assets").update(updates).eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+export async function deleteCustomerAsset(id: string) {
+    const { error } = await db.from("customer_assets").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+// ── Portal: geteilte Dokumente ──
+export async function getSharedDocumentNames(customerId: string): Promise<string[]> {
+    const { data, error } = await db
+        .from("customer_document_shares")
+        .select("file_name")
+        .eq("customer_id", customerId);
+    if (error) throw new Error(error.message);
+    return (data || []).map((r: any) => r.file_name);
+}
+
+export async function setDocumentShared(customerId: string, fileName: string, shared: boolean) {
+    if (shared) {
+        const { error } = await db
+            .from("customer_document_shares")
+            .upsert({ customer_id: customerId, file_name: fileName });
+        if (error) throw new Error(error.message);
+    } else {
+        const { error } = await db
+            .from("customer_document_shares")
+            .delete()
+            .eq("customer_id", customerId)
+            .eq("file_name", fileName);
+        if (error) throw new Error(error.message);
+    }
+}
+
+// ── Portal: Stammdaten-Änderungsanträge ──
+export async function createChangeRequest(customerId: string, requestedBy: string, changes: Record<string, any>) {
+    const { error } = await db.from("customer_change_requests").insert({
+        customer_id: customerId,
+        requested_by: requestedBy,
+        changes,
+    });
+    if (error) throw new Error(error.message);
+}
+
+export async function getPendingChangeRequests() {
+    const { data, error } = await db
+        .from("customer_change_requests")
+        .select("*, customer:customers(company_name, first_name, last_name)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function resolveChangeRequest(id: string, approve: boolean) {
+    const { data: req, error } = await db.from("customer_change_requests").select("*").eq("id", id).single();
+    if (error || !req) throw new Error(error?.message || "Antrag nicht gefunden");
+    if (approve) {
+        const { error: e1 } = await supabase
+            .from("customers")
+            .update({ ...req.changes, updated_at: new Date().toISOString() } as any)
+            .eq("id", req.customer_id);
+        if (e1) throw new Error(e1.message);
+    }
+    const { error: e2 } = await db
+        .from("customer_change_requests")
+        .update({ status: approve ? "approved" : "rejected", resolved_at: new Date().toISOString() })
+        .eq("id", id);
+    if (e2) throw new Error(e2.message);
+    await logActivity("customer", req.customer_id, "updated", approve ? "Stammdaten-Änderung aus dem Portal übernommen" : "Stammdaten-Änderung aus dem Portal abgelehnt");
+}
+
+// ── Wartungsfenster ──
+export async function getMaintenanceWindows(includePast = false) {
+    let query = db.from("maintenance_windows").select("*").order("starts_at", { ascending: true });
+    if (!includePast) query = query.gte("ends_at", new Date().toISOString());
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createMaintenanceWindow(w: {
+    title: string;
+    description?: string | null;
+    starts_at: string;
+    ends_at: string;
+    customer_ids?: string[] | null;
+}) {
+    const { data, error } = await db.from("maintenance_windows").insert([w]).select().single();
+    if (error) throw new Error(error.message);
+
+    // Portal-Benutzer der betroffenen Kunden benachrichtigen
+    try {
+        let portalQuery = db.from("customer_portal_users").select("id, customer_id");
+        if (w.customer_ids && w.customer_ids.length > 0) {
+            portalQuery = portalQuery.in("customer_id", w.customer_ids);
+        }
+        const { data: portalUsers } = await portalQuery;
+        const ids = (portalUsers || []).map((u: any) => u.id);
+        if (ids.length) {
+            const when = new Date(w.starts_at).toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+            await triggerPushNotification(ids, "customer", "Geplante Wartung", `${w.title} – ab ${when}`, { category: "maintenance" });
+        }
+    } catch (e) {
+        console.warn("[maintenance] Push fehlgeschlagen:", e);
+    }
+    return data;
+}
+
+export async function deleteMaintenanceWindow(id: string) {
+    const { error } = await db.from("maintenance_windows").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+export async function getPortalMaintenanceWindows(customerId: string) {
+    const { data, error } = await db
+        .from("maintenance_windows")
+        .select("*")
+        .gte("ends_at", new Date().toISOString())
+        .order("starts_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data || []).filter(
+        (w: any) => !w.customer_ids || w.customer_ids.length === 0 || w.customer_ids.includes(customerId)
+    );
 }

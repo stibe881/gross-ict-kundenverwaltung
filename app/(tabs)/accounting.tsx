@@ -26,8 +26,10 @@ import { ImageViewerModal } from "@/components/image-viewer-modal";
 import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
 import { router as expoRouter } from "expo-router";
 import { showConfirm, showAlert } from "@/lib/alert";
+import { showToast } from "@/components/toast-provider";
 import { downloadAnnualReportPDF } from "@/lib/pdf-annual-report";
 import { exportAnnualZIP } from "@/lib/export-annual-report";
+import { exportCsv } from "@/lib/export";
 import { generateQuittungBase64 } from "@/lib/pdf-quittung";
 import { ScenarioBookingModal } from "@/components/scenario-booking-modal";
 import * as FileSystem from "expo-file-system/legacy";
@@ -869,6 +871,9 @@ export default function AccountingScreen() {
 
       {/* Kunden-Profitabilität */}
       <CustomerProfitabilityCard selectedYear={selectedYear} colors={colors} />
+
+      {/* Liquiditätsvorschau 90 Tage */}
+      <LiquidityCard colors={colors} />
     </View>
   );
 
@@ -919,17 +924,40 @@ export default function AccountingScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Bankabgleich */}
-          <TouchableOpacity
-            className="flex-row items-center justify-center gap-2 bg-surface border border-border py-2.5 rounded-xl"
-            activeOpacity={0.7}
-            onPress={() => setShowBankModal(true)}
-          >
-            <IconSymbol name="building.columns.fill" size={15} color={colors.primary} />
-            <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
-              Bankabgleich (Kontoauszug einlesen)
-            </Text>
-          </TouchableOpacity>
+          {/* Bankabgleich + Export */}
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              className="flex-1 flex-row items-center justify-center gap-2 bg-surface border border-border py-2.5 rounded-xl"
+              activeOpacity={0.7}
+              onPress={() => setShowBankModal(true)}
+            >
+              <IconSymbol name="building.columns.fill" size={15} color={colors.primary} />
+              <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+                Bankabgleich
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-row items-center justify-center gap-2 bg-surface border border-border py-2.5 px-4 rounded-xl"
+              activeOpacity={0.7}
+              onPress={() =>
+                exportCsv(
+                  `Rechnungen_${selectedYear}.csv`,
+                  processedInvoices,
+                  [
+                    { key: "invoice_number", label: "Nummer" },
+                    { key: "invoice_date", label: "Datum" },
+                    { key: "due_date", label: "Fällig" },
+                    { key: "customer", label: "Kunde", map: (i: any) => i.customer?.company_name || `${i.customer?.first_name || ""} ${i.customer?.last_name || ""}`.trim() },
+                    { key: "status", label: "Status" },
+                    { key: "total", label: "Betrag", map: (i: any) => getInvoiceTotal(i).toFixed(2) },
+                  ]
+                ).catch((e: any) => showAlert("Fehler", e.message))
+              }
+            >
+              <IconSymbol name="square.and.arrow.up" size={15} color={colors.primary} />
+              <Text className="text-sm font-semibold" style={{ color: colors.primary }}>CSV</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Suche */}
           <View className="flex-row items-center bg-surface border border-border rounded-xl px-3 py-2.5 gap-2">
@@ -1139,6 +1167,9 @@ export default function AccountingScreen() {
               <Text className="text-background font-semibold text-sm">Neue Buchung</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Wiederkehrende Ausgaben */}
+          <RecurringExpensesCard colors={colors} />
 
           {yearExpenses.length > 0 ? (
             <>
@@ -2802,6 +2833,266 @@ function CustomerProfitabilityCard({ selectedYear, colors }: { selectedYear: num
           )}
         </>
       )}
+    </View>
+  );
+}
+
+// ── Liquiditätsvorschau: erwartete Zu-/Abflüsse der nächsten 90 Tage ──
+function LiquidityCard({ colors }: { colors: any }) {
+  const { data: invoices = [] } = useQuery({ queryKey: ["invoices"], queryFn: Data.getAllInvoices });
+  const { data: contracts = [] } = useQuery({ queryKey: ["contracts"], queryFn: Data.getContracts });
+  const { data: recurring = [] } = useQuery({ queryKey: ["recurringExpenses"], queryFn: Data.getRecurringExpenses });
+
+  const buckets = useMemo(() => {
+    const now = new Date();
+    const horizon = new Date(Date.now() + 90 * 86400000);
+    // Drei Monats-Buckets ab aktuellem Monat
+    const list: { label: string; year: number; month: number; incoming: number; outgoing: number }[] = [];
+    for (let i = 0; i < 3; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      list.push({
+        label: d.toLocaleDateString("de-CH", { month: "long", year: "numeric" }),
+        year: d.getFullYear(),
+        month: d.getMonth(),
+        incoming: 0,
+        outgoing: 0,
+      });
+    }
+    const addTo = (date: Date, amount: number, type: "incoming" | "outgoing") => {
+      // Überfälliges zählt zum aktuellen Monat
+      const clamped = date < now ? now : date;
+      if (clamped > horizon) return;
+      const b = list.find((x) => x.year === clamped.getFullYear() && x.month === clamped.getMonth());
+      if (b) b[type] += amount;
+    };
+
+    // Offene Rechnungen nach Fälligkeit
+    for (const inv of invoices as any[]) {
+      if (!["open", "sent", "overdue"].includes(inv.status)) continue;
+      const due = inv.due_date ? new Date(inv.due_date) : now;
+      addTo(due, getInvoiceTotal(inv), "incoming");
+    }
+
+    // Kommende Vertragsrechnungen
+    for (const c of contracts as any[]) {
+      if (c.status !== "active" || !c.recurring_enabled || !c.next_invoice_date) continue;
+      const months = c.billing_cycle === "monthly" ? 1 : c.billing_cycle === "quarterly" ? 3 : c.billing_cycle === "semi_annual" ? 6 : 12;
+      const perCycle = ((Number(c.annual_amount || c.amount) || 0) / 12) * months;
+      let d = new Date(c.next_invoice_date);
+      let guard = 0;
+      while (d <= horizon && guard < 6) {
+        addTo(d, perCycle, "incoming");
+        d = new Date(d);
+        d.setMonth(d.getMonth() + months);
+        guard++;
+      }
+    }
+
+    // Wiederkehrende Ausgaben
+    for (const r of recurring as any[]) {
+      if (!r.active) continue;
+      const months = r.interval === "yearly" ? 12 : 1;
+      let d = new Date(r.next_date);
+      let guard = 0;
+      while (d <= horizon && guard < 6) {
+        addTo(d, Number(r.amount) || 0, "outgoing");
+        d = new Date(d);
+        d.setMonth(d.getMonth() + months);
+        guard++;
+      }
+    }
+    return list;
+  }, [invoices, contracts, recurring]);
+
+  const maxVal = Math.max(1, ...buckets.map((b) => Math.max(b.incoming, b.outgoing)));
+  const totalIn = buckets.reduce((s, b) => s + b.incoming, 0);
+  const totalOut = buckets.reduce((s, b) => s + b.outgoing, 0);
+
+  return (
+    <View className="bg-surface rounded-2xl border border-border p-4 mt-3">
+      <View className="flex-row items-center gap-2 mb-1">
+        <IconSymbol name="chart.bar.fill" size={16} color={colors.primary} />
+        <Text className="text-base font-bold text-foreground">Liquiditätsvorschau 90 Tage</Text>
+      </View>
+      <Text className="text-xs text-muted mb-3">
+        Erwartet: {formatCurrency(totalIn)} Eingänge · {formatCurrency(totalOut)} wiederkehrende Ausgaben · Saldo {formatCurrency(totalIn - totalOut)}
+      </Text>
+      {buckets.map((b) => (
+        <View key={b.label} className="mb-3">
+          <View className="flex-row justify-between mb-1">
+            <Text className="text-xs font-semibold text-foreground">{b.label}</Text>
+            <Text className="text-xs text-muted">
+              +{formatCurrency(b.incoming)} / −{formatCurrency(b.outgoing)}
+            </Text>
+          </View>
+          <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.border + "60", overflow: "hidden", marginBottom: 3 }}>
+            <View style={{ width: `${Math.min(100, (b.incoming / maxVal) * 100)}%`, height: "100%", backgroundColor: "#22C55E" }} />
+          </View>
+          <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.border + "60", overflow: "hidden" }}>
+            <View style={{ width: `${Math.min(100, (b.outgoing / maxVal) * 100)}%`, height: "100%", backgroundColor: "#EF4444" }} />
+          </View>
+        </View>
+      ))}
+      <Text className="text-xs text-muted">
+        Basis: offene Rechnungen (Fälligkeit), kommende Vertragsrechnungen und aktive wiederkehrende Ausgaben.
+      </Text>
+    </View>
+  );
+}
+
+// ── Wiederkehrende Ausgaben: Verwaltung (automatische Verbuchung per Cron) ──
+function RecurringExpensesCard({ colors }: { colors: any }) {
+  const queryClient = useQueryClient();
+  const { data: recurring = [] } = useQuery({ queryKey: ["recurringExpenses"], queryFn: Data.getRecurringExpenses });
+  const [expanded, setExpanded] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [desc, setDesc] = useState("");
+  const [cat, setCat] = useState("");
+  const [amount, setAmount] = useState("");
+  const [interval, setIntervalKey] = useState<"monthly" | "yearly">("monthly");
+  const [nextDate, setNextDate] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["recurringExpenses"] });
+
+  const handleSave = async () => {
+    const amt = parseFloat(amount);
+    if (!desc.trim() || !amt || amt <= 0) {
+      showAlert("Fehler", "Bitte Beschreibung und Betrag angeben.");
+      return;
+    }
+    // DD.MM.YYYY → YYYY-MM-DD
+    let dbDate = nextDate.trim();
+    const parts = dbDate.split(".");
+    if (parts.length === 3) dbDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+    if (!dbDate) dbDate = new Date().toISOString().split("T")[0];
+    setSaving(true);
+    try {
+      await Data.createRecurringExpense({
+        description: desc.trim(),
+        category: cat.trim() || null,
+        amount: amt,
+        interval,
+        next_date: dbDate,
+      });
+      setDesc(""); setCat(""); setAmount(""); setNextDate(""); setShowForm(false);
+      refresh();
+      showToast("Wiederkehrende Ausgabe gespeichert");
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const monthlyTotal = (recurring as any[])
+    .filter((r) => r.active)
+    .reduce((s, r) => s + (r.interval === "yearly" ? (Number(r.amount) || 0) / 12 : Number(r.amount) || 0), 0);
+
+  return (
+    <View className="bg-surface rounded-2xl border border-border p-4">
+      <TouchableOpacity className="flex-row items-center justify-between" onPress={() => setExpanded(!expanded)} activeOpacity={0.7}>
+        <View className="flex-row items-center gap-2">
+          <IconSymbol name="arrow.triangle.2.circlepath" size={16} color={colors.primary} />
+          <Text className="text-base font-bold text-foreground">Wiederkehrende Ausgaben</Text>
+          <Text className="text-xs text-muted">({(recurring as any[]).length})</Text>
+        </View>
+        <IconSymbol name={expanded ? "chevron.up" : "chevron.down"} size={14} color={colors.muted} />
+      </TouchableOpacity>
+      <Text className="text-xs text-muted mt-1">
+        ≈ {formatCurrency(monthlyTotal)} pro Monat · werden am Stichtag automatisch verbucht
+      </Text>
+
+      {expanded ? (
+        <View className="mt-3">
+          {(recurring as any[]).map((r) => (
+            <View key={r.id} className="flex-row items-center gap-2 py-2 border-t border-border">
+              <TouchableOpacity
+                onPress={() => Data.updateRecurringExpense(r.id, { active: !r.active }).then(refresh)}
+                activeOpacity={0.7}
+                style={{
+                  width: 18, height: 18, borderRadius: 5, borderWidth: 2,
+                  borderColor: r.active ? "#22C55E" : colors.border,
+                  backgroundColor: r.active ? "#22C55E" : "transparent",
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >
+                {r.active ? <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>✓</Text> : null}
+              </TouchableOpacity>
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                  {r.description}{r.category ? ` · ${r.category}` : ""}
+                </Text>
+                <Text className="text-xs text-muted">
+                  {r.interval === "yearly" ? "Jährlich" : "Monatlich"} · nächste Buchung {formatDate(r.next_date)}
+                  {!r.active ? " · pausiert" : ""}
+                </Text>
+              </View>
+              <Text className="text-sm font-bold text-foreground">{formatCurrency(Number(r.amount))}</Text>
+              <TouchableOpacity
+                onPress={() => showConfirm("Löschen", `"${r.description}" entfernen?`, () => Data.deleteRecurringExpense(r.id).then(refresh), "Löschen")}
+                activeOpacity={0.7}
+                className="p-1"
+              >
+                <IconSymbol name="trash.fill" size={15} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
+          ))}
+
+          {showForm ? (
+            <View className="mt-2 pt-2 border-t border-border gap-2">
+              <TextInput
+                value={desc} onChangeText={setDesc}
+                placeholder="Beschreibung (z.B. Microsoft 365)" placeholderTextColor={colors.muted}
+                className="bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+              />
+              <View className="flex-row gap-2">
+                <TextInput
+                  value={cat} onChangeText={setCat}
+                  placeholder="Kategorie" placeholderTextColor={colors.muted}
+                  className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                />
+                <TextInput
+                  value={amount} onChangeText={setAmount} keyboardType="decimal-pad"
+                  placeholder="Betrag CHF" placeholderTextColor={colors.muted}
+                  className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                />
+              </View>
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  className={`flex-1 py-2 rounded-lg ${interval === "monthly" ? "bg-primary" : "bg-background border border-border"}`}
+                  onPress={() => setIntervalKey("monthly")}
+                >
+                  <Text className={`text-center text-xs font-semibold ${interval === "monthly" ? "text-background" : "text-foreground"}`}>Monatlich</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className={`flex-1 py-2 rounded-lg ${interval === "yearly" ? "bg-primary" : "bg-background border border-border"}`}
+                  onPress={() => setIntervalKey("yearly")}
+                >
+                  <Text className={`text-center text-xs font-semibold ${interval === "yearly" ? "text-background" : "text-foreground"}`}>Jährlich</Text>
+                </TouchableOpacity>
+                <TextInput
+                  value={nextDate} onChangeText={setNextDate}
+                  placeholder="Ab (DD.MM.YYYY)" placeholderTextColor={colors.muted}
+                  className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                />
+              </View>
+              <View className="flex-row gap-2">
+                <TouchableOpacity className="flex-1 bg-surface border border-border py-2 rounded-lg" onPress={() => setShowForm(false)}>
+                  <Text className="text-center text-xs font-semibold text-foreground">Abbrechen</Text>
+                </TouchableOpacity>
+                <TouchableOpacity className="flex-1 bg-primary py-2 rounded-lg" onPress={handleSave} disabled={saving}>
+                  <Text className="text-center text-xs font-semibold text-background">{saving ? "Speichert…" : "Speichern"}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity className="mt-2 pt-2 border-t border-border" onPress={() => setShowForm(true)} activeOpacity={0.7}>
+              <Text className="text-xs font-bold" style={{ color: colors.primary }}>+ Wiederkehrende Ausgabe hinzufügen</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : null}
     </View>
   );
 }

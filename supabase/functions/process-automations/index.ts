@@ -57,6 +57,11 @@ serve(async (req) => {
     createdInvoices: [] as string[],
     expiringQuotes: [] as string[],
     noticeDeadlines: [] as string[],
+    recurringExpenses: [] as string[],
+    installmentReminders: [] as string[],
+    slaWarnings: [] as string[],
+    quoteFollowups: [] as string[],
+    assetExpiries: [] as string[],
     errors: [] as string[],
   };
 
@@ -210,6 +215,221 @@ serve(async (req) => {
     summary.errors.push("Kündigungsfristen-Check: " + e.message);
   }
 
+  // ── 4. Wiederkehrende Ausgaben verbuchen ───────────────────────────────────
+  try {
+    const { data: recs } = await supabase
+      .from("recurring_expenses")
+      .select("*")
+      .eq("active", true)
+      .lte("next_date", today);
+
+    for (const rec of recs || []) {
+      try {
+        let nextDate = rec.next_date as string;
+        // Auch nachholen, falls der Cron einige Tage nicht lief
+        let guard = 0;
+        while (nextDate <= today && guard < 24) {
+          guard++;
+          const taxAmount = rec.tax_rate ? Math.round(rec.amount * rec.tax_rate) / 100 : 0;
+          const { error: expErr } = await supabase.from("expenses").insert({
+            description: `${rec.description} (wiederkehrend)`,
+            category: rec.category || null,
+            amount: rec.amount,
+            tax_rate: rec.tax_rate || 0,
+            tax_amount: taxAmount,
+            expense_date: nextDate,
+          });
+          if (expErr) throw expErr;
+          const d = new Date(nextDate);
+          d.setMonth(d.getMonth() + (rec.interval === "yearly" ? 12 : 1));
+          nextDate = d.toISOString().split("T")[0];
+          summary.recurringExpenses.push(`${rec.description} (${rec.amount} CHF)`);
+        }
+        await supabase.from("recurring_expenses").update({ next_date: nextDate }).eq("id", rec.id);
+      } catch (e: any) {
+        summary.errors.push(`Wiederkehrende Ausgabe ${rec.description}: ${e.message}`);
+      }
+    }
+  } catch (e: any) {
+    summary.errors.push("Wiederkehrende Ausgaben: " + e.message);
+  }
+
+  // ── 5. Erinnerungen für fällige Teilzahlungen ──────────────────────────────
+  try {
+    const { data: dueInstallments } = await supabase
+      .from("invoice_installments")
+      .select("*, invoice:invoices(invoice_number, customer:customers(company_name, first_name, last_name))")
+      .is("paid_at", null)
+      .is("reminder_sent_at", null)
+      .lte("due_date", today);
+
+    for (const inst of dueInstallments || []) {
+      const inv = inst.invoice as any;
+      const name = inv?.customer?.company_name ||
+        `${inv?.customer?.first_name || ""} ${inv?.customer?.last_name || ""}`.trim() || "Kunde";
+      summary.installmentReminders.push(`${inv?.invoice_number || "?"} – Rate CHF ${Number(inst.amount).toFixed(2)} (${name})`);
+      await supabase.from("invoice_installments").update({ reminder_sent_at: new Date().toISOString() }).eq("id", inst.id);
+    }
+  } catch (e: any) {
+    summary.errors.push("Teilzahlungs-Check: " + e.message);
+  }
+
+  // ── 6. SLA-Wächter: Reaktionszeit aus Verträgen ────────────────────────────
+  try {
+    const { data: slaContracts } = await supabase
+      .from("contracts")
+      .select("customer_id, sla_response_hours")
+      .eq("status", "active")
+      .not("sla_response_hours", "is", null)
+      .gt("sla_response_hours", 0);
+
+    const slaByCustomer = new Map<string, number>();
+    for (const c of slaContracts || []) {
+      const prev = slaByCustomer.get(c.customer_id);
+      // Strengste (kürzeste) SLA gilt
+      if (!prev || c.sla_response_hours < prev) slaByCustomer.set(c.customer_id, c.sla_response_hours);
+    }
+
+    if (slaByCustomer.size > 0) {
+      const { data: openTickets } = await supabase
+        .from("tickets")
+        .select("id, title, created_at, customer_id, sla_warning_sent")
+        .eq("status", "open")
+        .eq("sla_warning_sent", false)
+        .in("customer_id", [...slaByCustomer.keys()]);
+
+      const nowMs = Date.now();
+      for (const t of openTickets || []) {
+        const hours = slaByCustomer.get(t.customer_id);
+        if (!hours || !t.created_at) continue;
+        const deadlineMs = new Date(t.created_at).getTime() + hours * 3600000;
+        const remainingMs = deadlineMs - nowMs;
+        // Warnen, wenn weniger als 25% der Zeit übrig ist oder bereits verletzt
+        if (remainingMs < hours * 3600000 * 0.25) {
+          const label = remainingMs < 0
+            ? `SLA VERLETZT seit ${Math.round(-remainingMs / 3600000)}h`
+            : `noch ${Math.max(1, Math.round(remainingMs / 3600000))}h bis SLA-Verletzung`;
+          summary.slaWarnings.push(`"${t.title}" – ${label}`);
+          await supabase.from("tickets").update({ sla_warning_sent: true }).eq("id", t.id);
+        }
+      }
+    }
+  } catch (e: any) {
+    summary.errors.push("SLA-Check: " + e.message);
+  }
+
+  // ── 7. Follow-up-Mail für unbeantwortete Angebote (7 Tage) ─────────────────
+  try {
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (resendApiKey) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
+      const { data: staleQuotes } = await supabase
+        .from("quotes")
+        .select("id, quote_number, quote_date, total, valid_until, followup_sent_at, customer:customers(company_name, first_name, last_name, email)")
+        .in("status", ["sent", "opened"])
+        .is("followup_sent_at", null)
+        .lte("quote_date", sevenDaysAgo);
+
+      for (const q of staleQuotes || []) {
+        const cust = q.customer as any;
+        if (!cust?.email) continue;
+        if (q.valid_until && q.valid_until < today) continue; // abgelaufen → kein Follow-up
+        try {
+          const contact = [cust.first_name, cust.last_name].filter(Boolean).join(" ");
+          const anrede = contact ? `Guten Tag ${contact}` : "Guten Tag";
+          const quoteUrl = `https://angebote.gross-ict.ch/?id=${q.id}`;
+          const validHint = q.valid_until
+            ? ` Das Angebot ist noch bis am ${new Date(q.valid_until).toLocaleDateString("de-CH")} gültig.`
+            : "";
+          const res = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              from: "Gross ICT <info@gross-ict.ch>",
+              to: [cust.email],
+              subject: `Erinnerung: Angebot ${q.quote_number}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; color: #333; max-width: 560px;">
+                  <p>${anrede}</p>
+                  <p>Vor einigen Tagen haben wir Ihnen das Angebot <strong>${q.quote_number}</strong> zugestellt.
+                  Gerne möchten wir nachfragen, ob Sie dazu noch Fragen haben.${validHint}</p>
+                  <p style="margin: 24px 0;">
+                    <a href="${quoteUrl}" target="_blank" style="display: inline-block; background-color: #D4A432; color: #1a1a2e; font-weight: bold; text-decoration: none; padding: 12px 24px; border-radius: 6px;">Angebot ansehen</a>
+                  </p>
+                  <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
+                  <p>Freundliche Grüsse<br>Stefan Gross<br>Gross ICT</p>
+                </div>`,
+            }),
+          });
+          if (!res.ok) throw new Error(`Resend ${res.status}`);
+          await supabase.from("quotes").update({ followup_sent_at: new Date().toISOString() }).eq("id", q.id);
+          await supabase.from("quote_activities").insert({
+            quote_id: q.id,
+            type: "followup",
+            description: `Automatische Erinnerung per E-Mail an ${cust.email} gesendet.`,
+            user_name: "System",
+          });
+          summary.quoteFollowups.push(q.quote_number);
+        } catch (e: any) {
+          summary.errors.push(`Follow-up ${q.quote_number}: ${e.message}`);
+        }
+      }
+    }
+  } catch (e: any) {
+    summary.errors.push("Angebots-Follow-up: " + e.message);
+  }
+
+  // ── 8. Ablauf-Wächter für Geräte-Garantien & Lizenzen ──────────────────────
+  try {
+    const { data: assets } = await supabase
+      .from("customer_assets")
+      .select("*, customer:customers(company_name, first_name, last_name)")
+      .not("expires_at", "is", null);
+
+    const todayMs2 = new Date(today).getTime();
+    for (const a of assets || []) {
+      const daysUntil = Math.round((new Date(a.expires_at).getTime() - todayMs2) / 86400000);
+      if (![30, 14, 7, 1].includes(daysUntil)) continue;
+      if (a.expiry_warned_at === today) continue;
+      const name = (a.customer as any)?.company_name ||
+        `${(a.customer as any)?.first_name || ""} ${(a.customer as any)?.last_name || ""}`.trim() || "";
+      const typeLabel = a.type === "license" ? "Lizenz" : "Garantie";
+      summary.assetExpiries.push(`${typeLabel} "${a.name}"${name ? ` (${name})` : ""} läuft in ${daysUntil} Tag(en) ab`);
+      await supabase.from("customer_assets").update({ expiry_warned_at: today }).eq("id", a.id);
+
+      // Auch die Portal-Benutzer des Kunden informieren
+      try {
+        const { data: portalUsers } = await supabase
+          .from("customer_portal_users")
+          .select("id")
+          .eq("customer_id", a.customer_id);
+        const ids = (portalUsers || []).map((u: any) => u.id);
+        if (ids.length) {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              recipients: ids, recipientType: "customer",
+              title: `${typeLabel} läuft ab`,
+              body: `${a.name}: läuft in ${daysUntil} Tag(en) ab (${new Date(a.expires_at).toLocaleDateString("de-CH")}).`,
+              data: { category: "assets" },
+            }),
+          });
+        }
+      } catch (e) { console.error("[automations] Asset-Push (Kunde) fehlgeschlagen:", e); }
+    }
+  } catch (e: any) {
+    summary.errors.push("Inventar-Check: " + e.message);
+  }
+
+  // ── 9. Papierkorb aufräumen (älter als 30 Tage) ────────────────────────────
+  try {
+    const cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
+    await supabase.from("trash_bin").delete().lt("created_at", cutoff);
+  } catch (e: any) {
+    summary.errors.push("Papierkorb-Cleanup: " + e.message);
+  }
+
   // ── Push an Admins über die bestehende send-push-Funktion ──────────────────
   const pushUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push`;
   const pushAuth = { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`, "Content-Type": "application/json" };
@@ -254,6 +474,48 @@ serve(async (req) => {
         }),
       });
     } catch (e) { console.error("[automations] Push (Kündigungsfristen) fehlgeschlagen:", e); }
+  }
+
+  if (summary.installmentReminders.length > 0) {
+    try {
+      await fetch(pushUrl, {
+        method: "POST", headers: pushAuth,
+        body: JSON.stringify({
+          recipients: "all_admins", recipientType: "admin",
+          title: "Teilzahlung fällig",
+          body: summary.installmentReminders.join(" · "),
+          data: { url: "/accounting", category: "installments" },
+        }),
+      });
+    } catch (e) { console.error("[automations] Push (Teilzahlungen) fehlgeschlagen:", e); }
+  }
+
+  if (summary.slaWarnings.length > 0) {
+    try {
+      await fetch(pushUrl, {
+        method: "POST", headers: pushAuth,
+        body: JSON.stringify({
+          recipients: "all_admins", recipientType: "admin",
+          title: "SLA-Warnung",
+          body: summary.slaWarnings.join(" · "),
+          data: { url: "/tickets", category: "sla" },
+        }),
+      });
+    } catch (e) { console.error("[automations] Push (SLA) fehlgeschlagen:", e); }
+  }
+
+  if (summary.assetExpiries.length > 0) {
+    try {
+      await fetch(pushUrl, {
+        method: "POST", headers: pushAuth,
+        body: JSON.stringify({
+          recipients: "all_admins", recipientType: "admin",
+          title: "Garantie/Lizenz läuft ab",
+          body: summary.assetExpiries.join(" · "),
+          data: { url: "/customers", category: "assets" },
+        }),
+      });
+    } catch (e) { console.error("[automations] Push (Inventar) fehlgeschlagen:", e); }
   }
 
   return new Response(JSON.stringify({ success: true, ...summary }), {

@@ -122,6 +122,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
     const [editMilestoneTitle, setEditMilestoneTitle] = useState("");
     const [editMilestoneDueDate, setEditMilestoneDueDate] = useState("");
+    const [editMilestonePercent, setEditMilestonePercent] = useState("");
     const [savingMilestone, setSavingMilestone] = useState(false);
 
     // Milestone Notes State
@@ -282,6 +283,52 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
             } catch (_) { /* non-critical */ }
             await loadMilestones();
             onUpdate();
+
+            // Teilrechnung: Meilenstein mit Budget-Anteil abgeschlossen → Rechnungsvorschlag
+            const pct = Number(milestone.percent) || 0;
+            const budget = Number(projectData?.budget) || 0;
+            if (nextStatus === "completed" && pct > 0 && budget > 0 && projectData?.customer_id) {
+                const netAmount = Math.round(budget * pct) / 100;
+                showConfirm(
+                    "Teilrechnung erstellen?",
+                    `Meilenstein "${milestone.title}" ist abgeschlossen (${pct}% von ${formatCurrency(budget)}). Jetzt eine Teilrechnung über ${formatCurrency(netAmount)} (exkl. MwSt) als Entwurf erstellen?`,
+                    async () => {
+                        try {
+                            const invoiceNumber = await Data.getNextInvoiceNumber();
+                            const today = new Date().toISOString().split("T")[0];
+                            const vatRate = 8.1;
+                            const invoice = await Data.createInvoice(
+                                {
+                                    customer_id: projectData.customer_id,
+                                    invoice_number: invoiceNumber,
+                                    invoice_date: today,
+                                    due_date: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
+                                    subtotal: netAmount,
+                                    vat_amount: Math.round(netAmount * vatRate) / 100,
+                                    total: Math.round(netAmount * (1 + vatRate / 100) * 100) / 100,
+                                    status: "draft",
+                                    project_id: projectData.id,
+                                    notes: `Teilrechnung Meilenstein "${milestone.title}" (${pct}%) – Projekt ${projectData.project_number || ""}`,
+                                } as any,
+                                [{
+                                    description: `${projectData.title} – Meilenstein "${milestone.title}" (${pct}% des Projektbudgets)`,
+                                    quantity: 1,
+                                    unit: "Pauschale",
+                                    unit_price: netAmount,
+                                    vat_rate: vatRate,
+                                    total: netAmount * (1 + vatRate / 100),
+                                }]
+                            );
+                            await Data.addProjectActivity(project.id, "milestone", `Teilrechnung ${invoiceNumber} über ${formatCurrency(netAmount)} erstellt.`);
+                            showAlert("Teilrechnung erstellt", `Rechnung ${invoiceNumber} wurde als Entwurf erstellt.`);
+                            loadLinks();
+                        } catch (e: any) {
+                            showAlert("Fehler", "Teilrechnung konnte nicht erstellt werden: " + e.message);
+                        }
+                    },
+                    "Erstellen"
+                );
+            }
         } catch (error: any) {
             showAlert("Fehler", error.message);
         }
@@ -304,6 +351,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
         setEditingMilestoneId(milestone.id);
         setEditMilestoneTitle(milestone.title);
         setEditMilestoneDueDate(milestone.due_date ? new Date(milestone.due_date).toLocaleDateString('de-CH') : "");
+        setEditMilestonePercent(milestone.percent ? String(milestone.percent) : "");
         // Also load notes for this milestone if not yet loaded
         if (!milestoneNotes[milestone.id]) {
             loadMilestoneNotes(milestone.id);
@@ -324,6 +372,7 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
             await Data.updateMilestone(editingMilestoneId, {
                 title: editMilestoneTitle.trim(),
                 due_date: formattedDate || null,
+                percent: parseFloat(editMilestonePercent) || 0,
             });
             setEditingMilestoneId(null);
             setNewNoteText("");
@@ -940,6 +989,16 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                                     value={editMilestoneDueDate}
                                                     onChangeText={setEditMilestoneDueDate}
                                                     placeholder="Fällig am (DD.MM.YYYY)"
+                                                    placeholderTextColor={colors.muted}
+                                                    style={{ backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border }}
+                                                    className="p-3 rounded-lg border text-sm mb-3"
+                                                />
+
+                                                <TextInput
+                                                    value={editMilestonePercent}
+                                                    onChangeText={setEditMilestonePercent}
+                                                    keyboardType="decimal-pad"
+                                                    placeholder="Anteil am Budget in % (für Teilrechnung, z.B. 30)"
                                                     placeholderTextColor={colors.muted}
                                                     style={{ backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border }}
                                                     className="p-3 rounded-lg border text-sm mb-3"

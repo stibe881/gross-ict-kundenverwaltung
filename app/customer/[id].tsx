@@ -30,7 +30,7 @@ import { QuoteFormModal } from "@/components/quote-form-modal";
 import { TicketFormModal } from "@/components/ticket-form-modal";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 
-type Tab = "tickets" | "rechnungen" | "vertraege" | "angebote" | "links" | "kontakte" | "uberwachung" | "dokumente" | "timeline";
+type Tab = "tickets" | "rechnungen" | "vertraege" | "angebote" | "links" | "kontakte" | "uberwachung" | "dokumente" | "inventar" | "timeline";
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -113,6 +113,21 @@ export default function CustomerDetailScreen() {
     queryFn: () => Data.getCustomerTimeline(id as string),
     enabled: !!id,
   });
+
+  const { data: customerAssets = [] } = useQuery({
+    queryKey: ["customerAssets", id],
+    queryFn: () => Data.getCustomerAssets(id as string),
+    enabled: !!id,
+  });
+
+  const { data: pendingChangeRequests = [] } = useQuery({
+    queryKey: ["pendingChangeRequests"],
+    queryFn: Data.getPendingChangeRequests,
+  });
+  const myChangeRequests = useMemo(
+    () => (pendingChangeRequests as any[]).filter((r: any) => r.customer_id === id),
+    [pendingChangeRequests, id]
+  );
 
   // ── Mutations ──
   const deleteCustomer = useMutation({
@@ -245,6 +260,7 @@ export default function CustomerDetailScreen() {
     { key: "kontakte", label: "Kontakte", icon: "person.2.fill", count: (customerContacts.length || 0) + (contactPerson ? 1 : 0) },
     { key: "uberwachung", label: "Überwachung", icon: "globe", count: customerUrls.length },
     { key: "dokumente", label: "Dokumente", icon: "folder.fill", count: customerDocs.length },
+    { key: "inventar", label: "Inventar", icon: "desktopcomputer", count: customerAssets.length },
     { key: "timeline", label: "Timeline", icon: "clock.fill", count: timeline.length },
   ];
 
@@ -322,6 +338,9 @@ export default function CustomerDetailScreen() {
   const renderTabContent = () => {
     if (activeTab === "dokumente") {
       return <CustomerDocuments customerId={id as string} />;
+    }
+    if (activeTab === "inventar") {
+      return <CustomerAssetsTab customerId={id as string} colors={colors} />;
     }
     if (activeTab === "timeline") {
       if (timeline.length === 0) return renderEmpty("Noch keine Aktivitäten", "clock.fill");
@@ -453,10 +472,17 @@ export default function CustomerDetailScreen() {
         );
 
       case "rechnungen":
-        if (invoices.length === 0) return renderEmpty("Keine Rechnungen", "chart.bar.fill");
+        if (invoices.length === 0)
+          return (
+            <View className="gap-3">
+              <UnbilledWorkCard customerId={id as string} colors={colors} />
+              {renderEmpty("Keine Rechnungen", "chart.bar.fill")}
+            </View>
+          );
         if (!isWide) {
           return (
             <View className="gap-3">
+              <UnbilledWorkCard customerId={id as string} colors={colors} />
               {invoices.map((inv: any) => (
                 <TouchableOpacity
                   key={inv.id}
@@ -485,6 +511,8 @@ export default function CustomerDetailScreen() {
           );
         }
         return (
+          <View className="gap-3">
+          <UnbilledWorkCard customerId={id as string} colors={colors} />
           <View className="bg-surface rounded-xl border border-border overflow-hidden">
             <View className="flex-row px-4 py-3 border-b border-border">
               <Text className="text-[10px] font-semibold text-muted uppercase" style={{ width: 110 }}>Nr.</Text>
@@ -520,6 +548,7 @@ export default function CustomerDetailScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
+          </View>
           </View>
         );
 
@@ -1444,6 +1473,63 @@ export default function CustomerDetailScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* ── Stammdaten-Änderungsanträge aus dem Portal ── */}
+              {myChangeRequests.map((req: any) => (
+                <View
+                  key={req.id}
+                  className="rounded-xl border p-4 mb-4"
+                  style={{ backgroundColor: "#8B5CF610", borderColor: "#8B5CF650" }}
+                >
+                  <View className="flex-row items-center gap-2 mb-2">
+                    <IconSymbol name="person.crop.circle.badge.exclamationmark" size={16} color="#8B5CF6" />
+                    <Text className="text-sm font-bold text-foreground">
+                      Stammdaten-Änderung aus dem Portal{req.requested_by ? ` (${req.requested_by})` : ""}
+                    </Text>
+                  </View>
+                  {Object.entries(req.changes || {}).map(([field, value]) => {
+                    const labels: Record<string, string> = {
+                      address: "Adresse", postal_code: "PLZ", city: "Ort", phone: "Telefon", email: "E-Mail",
+                    };
+                    const current = (customer as any)?.[field];
+                    return (
+                      <Text key={field} className="text-xs text-foreground mb-0.5">
+                        {labels[field] || field}: <Text style={{ color: colors.muted, textDecorationLine: "line-through" }}>{String(current || "–")}</Text> → <Text style={{ fontWeight: "700" }}>{String(value || "–")}</Text>
+                      </Text>
+                    );
+                  })}
+                  <View className="flex-row gap-2 mt-3">
+                    <TouchableOpacity
+                      className="flex-1 py-2 rounded-lg"
+                      style={{ backgroundColor: "#22C55E" }}
+                      onPress={async () => {
+                        try {
+                          await Data.resolveChangeRequest(req.id, true);
+                          queryClient.invalidateQueries({ queryKey: ["pendingChangeRequests"] });
+                          queryClient.invalidateQueries({ queryKey: ["customer", id] });
+                          showToast("Änderung übernommen");
+                        } catch (e: any) { showAlert("Fehler", e.message); }
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text className="text-center text-xs font-bold text-white">Übernehmen</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="flex-1 py-2 rounded-lg border border-border bg-surface"
+                      onPress={async () => {
+                        try {
+                          await Data.resolveChangeRequest(req.id, false);
+                          queryClient.invalidateQueries({ queryKey: ["pendingChangeRequests"] });
+                          showToast("Änderung abgelehnt");
+                        } catch (e: any) { showAlert("Fehler", e.message); }
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text className="text-center text-xs font-bold text-foreground">Ablehnen</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+
               {/* ── Tab Navigation ── */}
               <ScrollView horizontal={!isWide} showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} className="mb-4 border-b border-border pb-2">
               <View className="flex-row items-center gap-4">
@@ -1711,5 +1797,265 @@ export default function CustomerDetailScreen() {
         />
       )}
     </>
+  );
+}
+
+// ── Zeit → Rechnung: offene (unverrechnete) Ticket-Aufwände sammeln ──
+function UnbilledWorkCard({ customerId, colors }: { customerId: string; colors: any }) {
+  const queryClient = useQueryClient();
+  const [creating, setCreating] = useState(false);
+
+  const { data: items = [] } = useQuery({
+    queryKey: ["unbilledItems", customerId],
+    queryFn: () => Data.getUnbilledTicketItems(customerId),
+    enabled: !!customerId,
+  });
+
+  const total = (items as any[]).reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_price) || 0), 0);
+  if (!(items as any[]).length) return null;
+
+  const handleCreateInvoice = () => {
+    showConfirm(
+      "Aufwände verrechnen",
+      `${(items as any[]).length} offene Position(en) über ${formatCurrency(total)} in eine neue Rechnung (Entwurf) übernehmen?`,
+      async () => {
+        setCreating(true);
+        try {
+          const invoiceNumber = await Data.getNextInvoiceNumber();
+          const today = new Date().toISOString().split("T")[0];
+          const dueDate = new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
+          const vatRate = 8.1;
+          const subtotal = total;
+          const invoiceItems = (items as any[]).map((i: any) => {
+            const qty = Number(i.quantity) || 1;
+            const price = Number(i.unit_price) || 0;
+            return {
+              description: `${i.description || "Aufwand"}${i.ticket_title ? ` (Ticket: ${i.ticket_title})` : ""}`,
+              quantity: qty,
+              unit: i.unit || "Std.",
+              unit_price: price,
+              vat_rate: vatRate,
+              total: qty * price * (1 + vatRate / 100),
+            };
+          });
+          const invoice = await Data.createInvoice(
+            {
+              customer_id: customerId,
+              invoice_number: invoiceNumber,
+              invoice_date: today,
+              due_date: dueDate,
+              subtotal,
+              vat_amount: Math.round(subtotal * vatRate) / 100,
+              total: Math.round(subtotal * (1 + vatRate / 100) * 100) / 100,
+              status: "draft",
+              notes: "Rechnung aus offenen Ticket-Aufwänden",
+            },
+            invoiceItems
+          );
+          await Data.markTicketItemsBilled((items as any[]).map((i: any) => i.id), invoice.id);
+          queryClient.invalidateQueries({ queryKey: ["unbilledItems", customerId] });
+          queryClient.invalidateQueries({ queryKey: ["invoices"] });
+          queryClient.invalidateQueries({ queryKey: ["invoices", "customer", customerId] });
+          showToast(`Rechnung ${invoiceNumber} als Entwurf erstellt`);
+          router.push(`/invoice/${invoice.id}`);
+        } catch (e: any) {
+          showAlert("Fehler", e.message);
+        } finally {
+          setCreating(false);
+        }
+      },
+      "Rechnung erstellen"
+    );
+  };
+
+  return (
+    <View className="bg-surface rounded-xl border p-4" style={{ borderColor: colors.warning + "60", backgroundColor: colors.warning + "08" }}>
+      <View className="flex-row items-center gap-2 mb-1">
+        <IconSymbol name="clock.fill" size={16} color={colors.warning} />
+        <Text className="text-base font-bold text-foreground">Offene Aufwände</Text>
+      </View>
+      <Text className="text-sm text-muted mb-3">
+        {(items as any[]).length} unverrechnete Position(en) aus Tickets · {formatCurrency(total)} (exkl. MwSt)
+      </Text>
+      <TouchableOpacity
+        className="bg-primary py-2.5 rounded-lg flex-row items-center justify-center gap-2"
+        onPress={handleCreateInvoice}
+        disabled={creating}
+        activeOpacity={0.8}
+      >
+        {creating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <IconSymbol name="doc.text.fill" size={14} color={colors.background} />}
+        <Text className="text-background font-semibold text-sm">In Rechnung übernehmen</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ── Inventar: Geräte & Lizenzen pro Kunde ──
+function CustomerAssetsTab({ customerId, colors }: { customerId: string; colors: any }) {
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [type, setType] = useState<"device" | "license">("device");
+  const [name, setName] = useState("");
+  const [serial, setSerial] = useState("");
+  const [expires, setExpires] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: assets = [] } = useQuery({
+    queryKey: ["customerAssets", customerId],
+    queryFn: () => Data.getCustomerAssets(customerId),
+    enabled: !!customerId,
+  });
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["customerAssets", customerId] });
+
+  const handleSave = async () => {
+    if (!name.trim()) { showAlert("Fehler", "Bitte eine Bezeichnung angeben."); return; }
+    let dbDate: string | null = expires.trim() || null;
+    if (dbDate) {
+      const parts = dbDate.split(".");
+      if (parts.length === 3) dbDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+    }
+    setSaving(true);
+    try {
+      await Data.createCustomerAsset({
+        customer_id: customerId,
+        type,
+        name: name.trim(),
+        serial_number: serial.trim() || null,
+        expires_at: dbDate,
+        notes: notes.trim() || null,
+      });
+      setName(""); setSerial(""); setExpires(""); setNotes(""); setShowForm(false);
+      refresh();
+      showToast("Eintrag gespeichert");
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  return (
+    <View className="gap-3">
+      {!showForm ? (
+        <TouchableOpacity
+          className="flex-row items-center justify-center gap-2 bg-primary py-3 rounded-xl"
+          onPress={() => setShowForm(true)}
+          activeOpacity={0.8}
+        >
+          <IconSymbol name="plus" size={16} color={colors.background} />
+          <Text className="text-background font-semibold">Gerät / Lizenz erfassen</Text>
+        </TouchableOpacity>
+      ) : (
+        <View className="bg-surface rounded-xl border border-border p-4 gap-2">
+          <View className="flex-row gap-2">
+            {([
+              { key: "device", label: "Gerät" },
+              { key: "license", label: "Lizenz" },
+            ] as const).map((t) => (
+              <TouchableOpacity
+                key={t.key}
+                className={`flex-1 py-2 rounded-lg ${type === t.key ? "bg-primary" : "bg-background border border-border"}`}
+                onPress={() => setType(t.key)}
+              >
+                <Text className={`text-center text-xs font-semibold ${type === t.key ? "text-background" : "text-foreground"}`}>
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TextInput
+            value={name} onChangeText={setName}
+            placeholder={type === "license" ? "Lizenz (z.B. Microsoft 365 Business)" : "Gerät (z.B. HP ProBook 450)"}
+            placeholderTextColor={colors.muted}
+            className="bg-background border border-border rounded-lg px-3 py-2.5 text-foreground text-sm"
+          />
+          <View className="flex-row gap-2">
+            <TextInput
+              value={serial} onChangeText={setSerial}
+              placeholder="Seriennummer / Schlüssel" placeholderTextColor={colors.muted}
+              className="flex-1 bg-background border border-border rounded-lg px-3 py-2.5 text-foreground text-sm"
+            />
+            <TextInput
+              value={expires} onChangeText={setExpires}
+              placeholder={type === "license" ? "Ablauf (DD.MM.YYYY)" : "Garantie bis (DD.MM.YYYY)"}
+              placeholderTextColor={colors.muted}
+              className="flex-1 bg-background border border-border rounded-lg px-3 py-2.5 text-foreground text-sm"
+            />
+          </View>
+          <TextInput
+            value={notes} onChangeText={setNotes} multiline
+            placeholder="Notizen (optional)" placeholderTextColor={colors.muted}
+            className="bg-background border border-border rounded-lg px-3 py-2.5 text-foreground text-sm"
+          />
+          <View className="flex-row gap-2">
+            <TouchableOpacity className="flex-1 bg-background border border-border py-2.5 rounded-lg" onPress={() => setShowForm(false)}>
+              <Text className="text-center text-xs font-semibold text-foreground">Abbrechen</Text>
+            </TouchableOpacity>
+            <TouchableOpacity className="flex-1 bg-primary py-2.5 rounded-lg" onPress={handleSave} disabled={saving}>
+              {saving ? <ActivityIndicator size="small" color={colors.background} /> : (
+                <Text className="text-center text-xs font-semibold text-background">Speichern</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {(assets as any[]).length === 0 ? (
+        <View className="items-center py-10">
+          <IconSymbol name="desktopcomputer" size={40} color={colors.muted} />
+          <Text className="text-base font-semibold text-foreground mt-3">Kein Inventar</Text>
+          <Text className="text-sm text-muted mt-1 text-center">
+            Geräte und Lizenzen mit Ablaufdatum erfassen – der Ablauf-Wächter erinnert dich und den Kunden automatisch.
+          </Text>
+        </View>
+      ) : (
+        <View className="bg-surface rounded-xl border border-border overflow-hidden">
+          {(assets as any[]).map((a: any, idx: number) => {
+            const expired = a.expires_at && a.expires_at < todayStr;
+            const soon = !expired && a.expires_at && new Date(a.expires_at).getTime() - Date.now() < 30 * 86400000;
+            const color = expired ? "#EF4444" : soon ? "#F59E0B" : colors.primary;
+            return (
+              <TouchableOpacity
+                key={a.id}
+                className="flex-row items-center px-3.5 py-3 gap-3"
+                style={{ borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: colors.border }}
+                activeOpacity={0.7}
+                onLongPress={() =>
+                  showConfirm("Löschen", `"${a.name}" entfernen?`, async () => {
+                    await Data.deleteCustomerAsset(a.id);
+                    refresh();
+                  }, "Löschen")
+                }
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: color + "18" }}>
+                  <IconSymbol name={a.type === "license" ? "key.fill" : "desktopcomputer"} size={17} color={color} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{a.name}</Text>
+                  <Text className="text-[11px] text-muted" numberOfLines={2}>
+                    {a.type === "license" ? "Lizenz" : "Gerät"}
+                    {a.serial_number ? ` · SN ${a.serial_number}` : ""}
+                    {a.expires_at ? ` · ${a.type === "license" ? "läuft ab" : "Garantie bis"} ${formatDate(a.expires_at)}` : ""}
+                    {a.notes ? ` · ${a.notes}` : ""}
+                  </Text>
+                  {expired ? (
+                    <Text className="text-[11px] font-bold" style={{ color: "#EF4444" }}>Abgelaufen</Text>
+                  ) : soon ? (
+                    <Text className="text-[11px] font-bold" style={{ color: "#F59E0B" }}>Läuft in weniger als 30 Tagen ab</Text>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+      {(assets as any[]).length > 0 && (
+        <Text className="text-[10px] text-muted text-center">Gedrückt halten zum Löschen</Text>
+      )}
+    </View>
   );
 }

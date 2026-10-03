@@ -63,6 +63,9 @@ export function LeadFormModal({
     extraDescription: "",
     reminderDate: "",
     reminderNote: "",
+    rating: "",
+    nextAction: "",
+    nextActionDate: "",
   });
 
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
@@ -105,6 +108,11 @@ export function LeadFormModal({
         extraDescription: lead.extra_description || "",
         reminderDate: "",
         reminderNote: "",
+        rating: lead.rating || "",
+        nextAction: lead.next_action || "",
+        nextActionDate: lead.next_action_date
+          ? new Date(lead.next_action_date).toLocaleDateString("de-CH")
+          : "",
       });
       // Load existing items
       Data.getLeadItems(lead.id).then((items) => {
@@ -136,6 +144,9 @@ export function LeadFormModal({
         extraDescription: "",
         reminderDate: "",
         reminderNote: "",
+        rating: "",
+        nextAction: "",
+        nextActionDate: "",
       });
       setSelectedProducts([]);
       setStep(1);
@@ -268,6 +279,15 @@ export function LeadFormModal({
         priority: formData.priority,
         source: formData.source || undefined,
         notes: formData.notes || undefined,
+        rating: formData.rating || null,
+        next_action: formData.nextAction || null,
+        next_action_date: (() => {
+          const v = formData.nextActionDate.trim();
+          if (!v) return null;
+          const parts = v.split(".");
+          if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+          return v;
+        })(),
       };
 
       const items = selectedProducts.map((p) => ({
@@ -604,6 +624,48 @@ export function LeadFormModal({
                     </TouchableOpacity>
                   ))}
                 </View>
+              </View>
+
+              {/* Einstufung & nächste Aktion */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">Einstufung</Text>
+                <View className="flex-row gap-2">
+                  {[
+                    { key: "", label: "Keine" },
+                    { key: "hot", label: "🔥 Heiss" },
+                    { key: "warm", label: "🌤 Warm" },
+                    { key: "cold", label: "❄️ Kalt" },
+                  ].map((r) => (
+                    <TouchableOpacity
+                      key={r.key}
+                      className={`px-3 py-1.5 rounded-lg border ${formData.rating === r.key ? "bg-primary border-primary" : "bg-surface border-border"}`}
+                      onPress={() => setFormData({ ...formData, rating: r.key })}
+                    >
+                      <Text className={`text-xs font-semibold ${formData.rating === r.key ? "text-background" : "text-foreground"}`}>
+                        {r.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">Nächste Aktion</Text>
+                <TextInput
+                  value={formData.nextAction}
+                  onChangeText={(v) => setFormData({ ...formData, nextAction: v })}
+                  placeholder="z.B. Anrufen, Offerte nachfassen…"
+                  placeholderTextColor={colors.muted}
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground mb-2"
+                />
+                <TextInput
+                  value={formData.nextActionDate}
+                  onChangeText={(v) => setFormData({ ...formData, nextActionDate: v })}
+                  placeholder="Bis wann? (DD.MM.YYYY)"
+                  placeholderTextColor={colors.muted}
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                />
+                <Text className="text-xs text-muted mt-1">Überfällige Aktionen erscheinen im Heute-Feed auf der Startseite.</Text>
               </View>
 
               {/* 8. Priorität */}

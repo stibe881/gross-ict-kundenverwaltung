@@ -101,6 +101,22 @@ export default function SettingsScreen() {
       color: "#6366F1",
       route: "/users",
     },
+    {
+      id: "maintenance",
+      title: "Wartungsfenster",
+      subtitle: "Geplante Wartungen ankündigen",
+      icon: "wrench.fill",
+      color: "#0EA5E9",
+      route: "/maintenance-windows",
+    },
+    {
+      id: "activity-log",
+      title: "Aktivitäten & Papierkorb",
+      subtitle: "Änderungsprotokoll, Gelöschtes wiederherstellen",
+      icon: "clock.fill",
+      color: "#8B5CF6",
+      route: "/activity-log",
+    },
   ];
 
   const renderSection = (label: string, rows: SettingsRow[]) => (
