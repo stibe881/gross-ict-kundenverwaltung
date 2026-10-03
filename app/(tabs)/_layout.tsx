@@ -177,8 +177,8 @@ export default function TabLayout() {
         options={{
           title: "Kassieren",
           href: Platform.OS === "web" ? null : showAccounting ? undefined : null,
-          // Apple-Vorgabe: Kontaktlos-Symbol nur im Bezahl-Screen selbst verwenden
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="banknote" color={color} />,
+          // Apple gibt wave.3.right(.circle) als Symbol für Tap to Pay vor
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="wave.3.right.circle.fill" color={color} />,
         }}
       />
       <Tabs.Screen

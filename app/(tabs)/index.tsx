@@ -256,12 +256,12 @@ export default function DashboardScreen() {
           route: "/accounting",
         },
         {
-          // Hinweis: Apple-Vorgaben – voller Funktionsname "Tap to Pay auf dem iPhone",
-          // kein eigenes Kontaktlos-Symbol ausserhalb des Bezahl-Screens verwenden
+          // Apple-Vorgaben: voller Funktionsname "Tap to Pay auf dem iPhone",
+          // Symbol wave.3.right ist von Apple für Tap to Pay vorgegeben
           id: "tap-to-pay",
           title: "Kassieren",
           subtitle: "Tap to Pay auf dem iPhone",
-          icon: "banknote",
+          icon: "wave.3.right",
           color: "#635BFF",
           route: "/tap-to-pay",
         },
