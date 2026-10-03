@@ -90,6 +90,7 @@ const MAPPING = {
   "exclamationmark.circle.fill": "error",
   "xmark.octagon.fill": "block",
   "flag.fill": "flag",
+  "envelope.open.fill": "drafts",
   "play.fill": "play-arrow",
   "pause.fill": "pause",
   "doc.text": "description",

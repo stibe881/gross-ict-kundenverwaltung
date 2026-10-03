@@ -138,6 +138,32 @@ export default function ContractsScreen() {
     return colors.muted;
   };
 
+  // Farben für die Filter-Chips
+  const FILTER_COLORS: Record<string, string> = {
+    active: "#3B82F6",
+    signed: "#10B981",
+    pending: "#F59E0B",
+    cancelled: "#EF4444",
+    expired: "#6B7280",
+  };
+
+  const filterCounts = useMemo(() => {
+    const c: Record<string, number> = { all: contracts.length, active: 0, signed: 0, pending: 0, cancelled: 0, expired: 0 };
+    contracts.forEach((ct: any) => {
+      if (ct.status === "active") c.active++;
+      if (ct.signature_date) c.signed++;
+      if (!ct.signature_date && (ct.status === "pending_signature" || ct.status === "active")) c.pending++;
+      if (ct.status === "cancelled") c.cancelled++;
+      if (ct.status === "expired") c.expired++;
+    });
+    return c;
+  }, [contracts]);
+
+  const activeYearlyTotal = useMemo(
+    () => contracts.filter((c: any) => c.status === "active").reduce((sum: number, c: any) => sum + ((c.amount || 0) - (c.internal_costs || 0)), 0),
+    [contracts]
+  );
+
   const filteredContracts: any[] = useMemo(() => {
     const filtered = (filter === "all" ? contracts : contracts.filter((c) => {
       if (filter === "signed") return !!c.signature_date;
@@ -178,81 +204,76 @@ export default function ContractsScreen() {
     return sorted;
   }, [contracts, filter, sortBy, searchQuery]);
 
-  const renderContractItem = useCallback(({ item }: { item: any }) => (
-    <TouchableOpacity
-      className="bg-surface rounded-xl p-4 mb-3 border border-border"
-      activeOpacity={0.7}
-      onPress={() => setSelectedContract(item)}
-    >
-      <View className="flex-row items-start justify-between mb-2">
-        <View className="flex-1">
-          <View className="flex-row items-center gap-2 mb-1">
-            <Text className="text-lg font-semibold text-foreground">{item.customer_name || item.employee_name || '–'}</Text>
+  const renderContractItem = useCallback(({ item }: { item: any }) => {
+    const statusColor = getStatusColor(item);
+    return (
+      <TouchableOpacity
+        className="bg-surface rounded-xl mb-3 border border-border overflow-hidden"
+        style={{ flexDirection: "row" }}
+        activeOpacity={0.7}
+        onPress={() => setSelectedContract(item)}
+      >
+        {/* Farbiger Status-Streifen links */}
+        <View style={{ width: 4, backgroundColor: statusColor }} />
+
+        <View className="flex-1 p-3.5">
+          {/* Kopfzeile: Nummer + Intern + Status */}
+          <View className="flex-row items-center mb-1.5">
+            {item.contract_number && (
+              <Text className="text-[11px] font-semibold text-muted">{item.contract_number}</Text>
+            )}
             {item.is_internal && (
-              <View className="px-2 py-0.5 rounded" style={{ backgroundColor: colors.primary + "20" }}>
+              <View className="ml-2 px-1.5 py-0.5 rounded" style={{ backgroundColor: colors.primary + "18" }}>
                 <Text className="text-[10px] font-bold" style={{ color: colors.primary }}>INTERN</Text>
               </View>
             )}
+            <View className="flex-1" />
+            <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: statusColor + "18" }}>
+              <Text className="text-[10px] font-bold" style={{ color: statusColor }}>
+                {getStatusLabel(item)}
+              </Text>
+            </View>
           </View>
-          {item.contract_number && (
-            <Text className="text-xs font-mono" style={{ color: colors.primary, marginBottom: 2 }}>
-              {item.contract_number}
-            </Text>
+
+          {/* Kunde + Titel */}
+          <Text className="text-base font-bold text-foreground" numberOfLines={1}>
+            {item.customer_name || item.employee_name || "–"}
+          </Text>
+          <Text className="text-xs text-muted mt-0.5" numberOfLines={1}>{item.title}</Text>
+
+          {/* Laufzeit + Betrag */}
+          <View className="flex-row items-end justify-between mt-2">
+            <View className="flex-row items-center flex-1 mr-2">
+              <IconSymbol name="calendar" size={11} color={colors.muted} />
+              <Text className="text-[11px] text-muted ml-1" numberOfLines={1}>
+                {item.is_internal ? `Ab ${formatDate(item.start_date)}` : `${formatDate(item.start_date)} – ${formatDate(item.end_date)}`}
+                {!item.is_internal && item.notice_period_months
+                  ? ` · Frist ${item.notice_period_months} Mt.`
+                  : ""}
+              </Text>
+            </View>
+            {!item.is_internal && (
+              <Text className="text-sm font-bold text-success">
+                {formatCurrency(item.amount)}/Jahr
+              </Text>
+            )}
+          </View>
+
+          {/* Nächste Rechnung */}
+          {item.recurring_enabled && item.next_invoice_date && item.status === "active" && (
+            <View className="flex-row items-center gap-1.5 mt-2 pt-2 border-t border-border">
+              <IconSymbol name="arrow.clockwise" size={12} color={colors.primary} />
+              <Text className="text-[11px] text-muted">Nächste Rechnung</Text>
+              <Text className="text-[11px] font-bold" style={{ color: colors.primary }}>
+                {formatDate(item.next_invoice_date)}
+              </Text>
+              <Text className="text-[11px] text-muted">· {getBillingCycleLabel(item.billing_cycle)}</Text>
+            </View>
           )}
-          <Text className="text-sm text-muted">{item.title}</Text>
         </View>
-        <View
-          className="px-3 py-1 rounded-full ml-2"
-          style={{ backgroundColor: getStatusColor(item) + "20" }}
-        >
-          <Text
-            className="text-xs font-semibold"
-            style={{ color: getStatusColor(item) }}
-          >
-            {getStatusLabel(item)}
-          </Text>
-        </View>
-      </View>
-
-      <View className="flex-row items-center justify-between mt-2">
-        <View>
-          <Text className="text-xs text-muted">{item.is_internal ? "Startdatum" : "Laufzeit"}</Text>
-          <Text className="text-sm text-foreground">
-            {item.is_internal ? formatDate(item.start_date) : `${formatDate(item.start_date)} - ${formatDate(item.end_date)}`}
-          </Text>
-        </View>
-        {!item.is_internal && (
-        <View>
-          <Text className="text-xs text-muted text-right">Betrag</Text>
-          <Text className="text-sm font-semibold text-success">
-            {formatCurrency(item.amount)}/Jahr
-          </Text>
-        </View>
-        )}
-      </View>
-
-      {!item.is_internal && (
-      <View className="mt-2">
-        <Text className="text-xs text-muted">
-          Kündigungsfrist: {item.notice_period_months} {item.notice_period_months === 1 ? "Monat" : "Monate"}
-        </Text>
-      </View>
-      )}
-
-      {item.recurring_enabled && item.next_invoice_date && item.status === "active" && (
-        <View className="flex-row items-center gap-1.5 mt-2 pt-2 border-t border-border">
-          <IconSymbol name="calendar" size={14} color={colors.primary} />
-          <Text className="text-xs text-muted">Nächste Rechnung:</Text>
-          <Text className="text-xs font-semibold" style={{ color: colors.primary }}>
-            {formatDate(item.next_invoice_date)}
-          </Text>
-          <Text className="text-xs text-muted">
-            ({getBillingCycleLabel(item.billing_cycle)})
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  ), [colors, getStatusColor, getStatusLabel]);
+      </TouchableOpacity>
+    );
+  }, [colors, getStatusColor, getStatusLabel]);
 
   const renderTemplateItem = useCallback(({ item }: { item: any }) => (
     <View className="bg-surface rounded-xl p-4 mb-3 border border-border">
@@ -305,99 +326,81 @@ export default function ContractsScreen() {
 
   const renderHeader = useCallback(() => (
     <View>
-      {/* Header */}
+      {/* Kopfzeile */}
       <View className="flex-row items-center justify-between mb-4">
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row items-center gap-3 flex-1">
           <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
             <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
           </TouchableOpacity>
-          <Text className="text-3xl font-bold text-foreground">Verträge</Text>
+          <View>
+            <Text className="text-2xl font-bold text-foreground">Verträge</Text>
+            <Text className="text-xs text-muted">
+              {filterCounts.active} aktiv · {formatCurrency(activeYearlyTotal)}/Jahr
+            </Text>
+          </View>
         </View>
         <TouchableOpacity
-          className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+          className="bg-primary w-10 h-10 rounded-full items-center justify-center"
           activeOpacity={0.8}
           onPress={() => setShowPlusMenu(true)}
         >
-          <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
+          <IconSymbol name="plus" size={22} color={colors.background} />
         </TouchableOpacity>
       </View>
 
       {/* Tab Switcher */}
-      <View className="flex-row gap-2 mb-4">
-        <TouchableOpacity
-          className={`flex-1 py-3 rounded-lg ${activeTab === "contracts" ? "bg-primary" : "bg-surface border border-border"}`}
-          onPress={() => setActiveTab("contracts")}
-        >
-          <Text className={`font-semibold text-center ${activeTab === "contracts" ? "text-background" : "text-foreground"}`}>
-            Verträge
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          className={`flex-1 py-3 rounded-lg ${activeTab === "templates" ? "bg-primary" : "bg-surface border border-border"}`}
-          onPress={() => setActiveTab("templates")}
-        >
-          <Text className={`font-semibold text-center ${activeTab === "templates" ? "text-background" : "text-foreground"}`}>
-            Vorlagen {templates?.length ? `(${templates.length})` : ""}
-          </Text>
-        </TouchableOpacity>
+      <View className="flex-row bg-surface border border-border rounded-xl overflow-hidden mb-4">
+        {([["contracts", `Verträge (${contracts.length})`], ["templates", `Vorlagen${templates?.length ? ` (${templates.length})` : ""}`]] as const).map(([key, label]) => (
+          <TouchableOpacity
+            key={key}
+            className="flex-1 py-2.5"
+            style={{ backgroundColor: activeTab === key ? colors.primary : "transparent" }}
+            onPress={() => setActiveTab(key)}
+            activeOpacity={0.8}
+          >
+            <Text className="font-semibold text-center text-sm" style={{ color: activeTab === key ? colors.background : colors.foreground }}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {activeTab === "contracts" && (
         <>
-          {/* Statistik */}
-          <View className="flex-row flex-wrap gap-3 mb-4">
-            <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
-              <Text className="text-2xl font-bold text-success">
-                {contracts.filter((c) => c.status === "active").length}
-              </Text>
-              <Text className="text-sm text-muted">Aktiv</Text>
-            </View>
-            <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
-              <Text className="text-2xl font-bold text-warning">
-                {contracts.filter((c) => c.status === "cancelled").length}
-              </Text>
-              <Text className="text-sm text-muted">Gekündigt</Text>
-            </View>
-            <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
-              <Text className="text-2xl font-bold text-error">
-                {contracts.filter((c) => c.status === "expired").length}
-              </Text>
-              <Text className="text-sm text-muted">Abgelaufen</Text>
-            </View>
-            <View className="flex-1 min-w-[45%] bg-surface rounded-xl p-4 border border-border">
-              <Text className="text-2xl font-bold text-success">
-                {formatCurrency(contracts.filter(c => c.status === "active").reduce((sum, c) => sum + ((c.amount || 0) - (c.internal_costs || 0)), 0))}
-              </Text>
-              <Text className="text-sm text-muted">Aktiv (pro Jahr)</Text>
-            </View>
-          </View>
-
-          {/* Filter */}
+          {/* Filter-Chips mit Zählern */}
           <View className="mb-2">
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 4 }}>
-              <View className="flex-row gap-2">
-                {["all", "active", "signed", "pending", "cancelled", "expired"].map((status) => (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+              {["all", "active", "signed", "pending", "cancelled", "expired"].map((status) => {
+                const active = filter === status;
+                const chipColor = status === "all" ? colors.primary : FILTER_COLORS[status] || colors.primary;
+                return (
                   <TouchableOpacity
                     key={status}
-                    className={`px-4 py-2 rounded-lg ${filter === status ? "bg-primary" : "bg-surface border border-border"}`}
+                    className="flex-row items-center px-3 py-1.5 rounded-full border"
+                    style={{
+                      backgroundColor: active ? chipColor : colors.surface,
+                      borderColor: active ? chipColor : colors.border,
+                    }}
                     onPress={() => setFilter(status as any)}
+                    activeOpacity={0.8}
                   >
-                    <Text
-                      className={`font-semibold ${filter === status ? "text-background" : "text-foreground"}`}
-                    >
+                    <Text className="text-xs font-semibold" style={{ color: active ? "#fff" : colors.foreground }}>
                       {status === "all" ? "Alle" : getFilterLabel(status)}
                     </Text>
+                    <Text className="text-xs font-bold ml-1.5" style={{ color: active ? "#fff" : chipColor }}>
+                      {filterCounts[status] || 0}
+                    </Text>
                   </TouchableOpacity>
-                ))}
-              </View>
+                );
+              })}
             </ScrollView>
           </View>
 
           {/* Sortierung */}
-          <View className="mb-4">
+          <View className="mb-3">
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 4 }}>
               <View className="flex-row items-center gap-2">
-                <IconSymbol name="arrow.up.arrow.down" size={16} color={colors.muted} />
+                <IconSymbol name="arrow.up.arrow.down" size={14} color={colors.muted} />
                 {([
                   ["newest", "Neueste"],
                   ["next_invoice", "Nächste Rechnung"],
@@ -406,11 +409,16 @@ export default function ContractsScreen() {
                 ] as const).map(([key, label]) => (
                   <TouchableOpacity
                     key={key}
-                    className={`px-3 py-1.5 rounded-lg ${sortBy === key ? "bg-primary/15 border border-primary/40" : "bg-surface border border-border"}`}
+                    className="px-3 py-1 rounded-full border"
+                    style={{
+                      backgroundColor: sortBy === key ? colors.primary + "15" : colors.surface,
+                      borderColor: sortBy === key ? colors.primary : colors.border,
+                    }}
                     onPress={() => setSortBy(key)}
+                    activeOpacity={0.8}
                   >
                     <Text
-                      className="text-sm font-semibold"
+                      className="text-xs font-semibold"
                       style={{ color: sortBy === key ? colors.primary : colors.foreground }}
                     >
                       {label}
@@ -423,14 +431,19 @@ export default function ContractsScreen() {
         </>
       )}
     </View>
-  ), [colors, router, activeTab, contracts, templates, filter, sortBy, setActiveTab, setFilter, setSortBy, setShowPlusMenu, formatCurrency]);
+  ), [colors, router, activeTab, contracts, templates, filter, sortBy, filterCounts, activeYearlyTotal, setActiveTab, setFilter, setSortBy, setShowPlusMenu]);
 
   const renderEmptyComponent = useCallback(() => {
     if (activeTab === "contracts") {
       return (
         <View className="flex-1 items-center justify-center py-20">
           <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
-          <Text className="text-lg text-muted mt-4">Keine Verträge</Text>
+          <Text className="text-base font-semibold text-foreground mt-4">
+            {searchQuery || filter !== "all" ? "Keine Verträge gefunden" : "Noch keine Verträge"}
+          </Text>
+          <Text className="text-sm text-muted mt-1 text-center">
+            {searchQuery || filter !== "all" ? "Suche oder Filter anpassen." : "Erstelle deinen ersten Vertrag."}
+          </Text>
         </View>
       );
     } else {
@@ -461,7 +474,7 @@ export default function ContractsScreen() {
         </View>
       );
     }
-  }, [activeTab, templatesLoading, colors, setEditingTemplate, setShowTemplateModal]);
+  }, [activeTab, templatesLoading, colors, searchQuery, filter, setEditingTemplate, setShowTemplateModal]);
 
   return (
     <ScreenContainer>

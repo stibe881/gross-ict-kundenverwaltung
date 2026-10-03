@@ -42,7 +42,6 @@ export default function TicketsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAssigneeFilterPicker, setShowAssigneeFilterPicker] = useState(false);
-  const [showStatusFilterPicker, setShowStatusFilterPicker] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
@@ -427,11 +426,11 @@ export default function TicketsScreen() {
               </View>
             </View>
             <TouchableOpacity
-              className="bg-primary px-4 py-2.5 rounded-xl flex-row items-center gap-2"
+              className={isDesktop ? "bg-primary px-4 py-2.5 rounded-xl flex-row items-center gap-2" : "bg-primary w-10 h-10 rounded-full items-center justify-center"}
               activeOpacity={0.8}
               onPress={() => setShowAddModal(true)}
             >
-              <IconSymbol name="plus" size={16} color={colors.background} />
+              <IconSymbol name="plus" size={isDesktop ? 16 : 22} color={colors.background} />
               {isDesktop && <Text style={{ color: colors.background, fontWeight: "700", fontSize: 14 }}>Neues Ticket</Text>}
             </TouchableOpacity>
           </View>
@@ -472,30 +471,15 @@ export default function TicketsScreen() {
                 <IconSymbol name="chevron.down" size={12} color={colors.muted} />
               </TouchableOpacity>
 
-              {/* Status Filter Dropdown */}
-              <TouchableOpacity
-                style={{ flex: 1, minWidth: isDesktop ? 220 : undefined, backgroundColor: colors.surface, borderRadius: 12, padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderColor: colors.border }}
-                onPress={() => setShowStatusFilterPicker(true)}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <IconSymbol name="circle.fill" size={12} color={filter === "all" ? colors.muted : filter === "open" ? colors.error : filter === "in_progress" ? colors.primary : filter === "waiting" ? colors.warning : colors.success} />
-                  <Text style={{ fontSize: 13, color: colors.foreground, fontWeight: "500" }} numberOfLines={1}>
-                    {filter === "all" ? "Alle Status" : filter === "open" ? "Offen" : filter === "in_progress" ? "In Bearbeitung" : filter === "waiting" ? "Wartend" : "Geschlossen"}
-                  </Text>
-                </View>
-                <IconSymbol name="chevron.down" size={12} color={colors.muted} />
-              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Stat Cards */}
-          <View style={{ flexDirection: "row", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+          {/* Stat Cards – dienen gleichzeitig als Status-Filter */}
+          <View style={{ flexDirection: "row", gap: 8, marginBottom: 14 }}>
             {statCards.map((stat) => (
               <TouchableOpacity
                 key={stat.label}
                 style={{
-                  minWidth: isDesktop ? 0 : "46%",
                   flex: 1,
                   backgroundColor: filter === (stat.label === "Offen" ? "open" : stat.label === "In Arbeit" ? "in_progress" : stat.label === "Wartend" ? "waiting" : "closed")
                     ? stat.color + "15"
@@ -631,81 +615,6 @@ export default function TicketsScreen() {
         </Modal>
       )}
 
-      {/* Status Filter Modal */}
-      {showStatusFilterPicker && (
-        <Modal visible={true} transparent animationType="fade" onRequestClose={() => setShowStatusFilterPicker(false)}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-            <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: isWide ? "center" : "flex-end", alignItems: "center" }}>
-              <TouchableOpacity activeOpacity={1} style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} onPress={() => setShowStatusFilterPicker(false)} />
-              
-              <View style={{ backgroundColor: colors.background, borderRadius: isWide ? 24 : 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, width: isWide ? 400 : "100%", maxHeight: "80%", overflow: "hidden" }}>
-                <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text style={{ fontSize: 18, fontWeight: "700", color: colors.foreground }}>Filter nach Status</Text>
-                  <TouchableOpacity onPress={() => setShowStatusFilterPicker(false)}>
-                    <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
-                  </TouchableOpacity>
-                </View>
-                <ScrollView contentContainerStyle={{ padding: 16 }}>
-                  <TouchableOpacity
-                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
-                    onPress={() => { setFilter("all"); setShowStatusFilterPicker(false); }}
-                  >
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <IconSymbol name="circle.fill" size={12} color={colors.muted} />
-                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: filter === "all" ? "700" : "500" }}>Alle Status</Text>
-                    </View>
-                    {filter === "all" && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
-                    onPress={() => { setFilter("open"); setShowStatusFilterPicker(false); }}
-                  >
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <IconSymbol name="circle.fill" size={12} color={colors.error} />
-                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: filter === "open" ? "700" : "500" }}>Offen</Text>
-                    </View>
-                    {filter === "open" && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
-                    onPress={() => { setFilter("in_progress"); setShowStatusFilterPicker(false); }}
-                  >
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <IconSymbol name="circle.fill" size={12} color={colors.primary} />
-                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: filter === "in_progress" ? "700" : "500" }}>In Bearbeitung</Text>
-                    </View>
-                    {filter === "in_progress" && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
-                    onPress={() => { setFilter("waiting"); setShowStatusFilterPicker(false); }}
-                  >
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <IconSymbol name="circle.fill" size={12} color={colors.warning} />
-                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: filter === "waiting" ? "700" : "500" }}>Wartend</Text>
-                    </View>
-                    {filter === "waiting" && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
-                    onPress={() => { setFilter("closed"); setShowStatusFilterPicker(false); }}
-                  >
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <IconSymbol name="circle.fill" size={12} color={colors.success} />
-                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: filter === "closed" ? "700" : "500" }}>Geschlossen</Text>
-                    </View>
-                    {filter === "closed" && <IconSymbol name="checkmark.circle.fill" size={20} color={colors.primary} />}
-                  </TouchableOpacity>
-                </ScrollView>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
-      )}
     </ScreenContainer>
   );
 }

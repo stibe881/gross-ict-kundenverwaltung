@@ -145,209 +145,98 @@ export default function LeadsScreen() {
         <View style={containerStyle}>
           {/* Header */}
           <View className="flex-row items-center justify-between mb-4">
-            <View className="flex-row items-center gap-3">
+            <View className="flex-row items-center gap-3 flex-1">
               <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
                 <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
               </TouchableOpacity>
-              <Text className="text-3xl font-bold text-foreground">Akquise</Text>
+              <View>
+                <Text className="text-2xl font-bold text-foreground">Akquise</Text>
+                <Text className="text-xs text-muted">
+                  {totalCounts.new + totalCounts.contacted + totalCounts.qualified + totalCounts.proposal} in der Pipeline · CHF {totalValue.toLocaleString("de-CH")}
+                </Text>
+              </View>
             </View>
             <TouchableOpacity
-              className="bg-primary w-12 h-12 rounded-full items-center justify-center"
+              className="bg-primary w-10 h-10 rounded-full items-center justify-center"
               activeOpacity={0.8}
               onPress={() => setShowAddModal(true)}
             >
-              <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
+              <IconSymbol name="plus" size={22} color={colors.background} />
             </TouchableOpacity>
           </View>
 
-
-
-          {/* Analytics Charts */}
-          {!isLoading && filteredLeads.length > 0 && (() => {
-            const pipelineData = [
-              { label: "Neu", count: totalCounts.new, color: colors.muted },
-              { label: "Kontaktiert", count: totalCounts.contacted, color: colors.primary },
-              { label: "Qualifiziert", count: totalCounts.qualified, color: colors.warning },
-              { label: "Angebot", count: totalCounts.proposal, color: "#9333EA" },
-            ];
-            const pipelineTotal = pipelineData.reduce((s, d) => s + d.count, 0);
-
-            const wonCount = filteredLeads.filter((l: any) => l.status === "won").length;
-            const lostCount = filteredLeads.filter((l: any) => l.status === "lost").length;
-            const closedTotal = wonCount + lostCount;
-            const winRate = closedTotal > 0 ? Math.round((wonCount / closedTotal) * 100) : 0;
-            const wonValue = filteredLeads.filter((l: any) => l.status === "won").reduce((s: number, l: any) => s + (l.value || 0), 0);
-            const lostValue = filteredLeads.filter((l: any) => l.status === "lost").reduce((s: number, l: any) => s + (l.value || 0), 0);
-
-            const resultData = [
-              { label: "Gewonnen", count: wonCount, color: colors.success, value: wonValue },
-              { label: "Verloren", count: lostCount, color: colors.error, value: lostValue },
-            ];
-
-            const renderDonut = (data: { label: string; count: number; color: string }[], total: number, centerText: string, centerSub: string) => {
-              const size = 120;
-              const strokeWidth = 14;
-              const radius = (size - strokeWidth) / 2;
-              const circumference = 2 * Math.PI * radius;
-              let accumulated = 0;
-
-              return (
-                <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-                  <Circle cx={size / 2} cy={size / 2} r={radius} stroke="#333" strokeWidth={strokeWidth} fill="none" />
-                  <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
-                    {data.map((segment, i) => {
-                      const pct = total > 0 ? segment.count / total : 0;
-                      const dashLength = pct * circumference;
-                      const offset = accumulated * circumference;
-                      accumulated += pct;
-                      if (pct === 0) return null;
-                      return (
-                        <Circle
-                          key={i}
-                          cx={size / 2}
-                          cy={size / 2}
-                          r={radius}
-                          stroke={segment.color}
-                          strokeWidth={strokeWidth}
-                          fill="none"
-                          strokeDasharray={`${dashLength} ${circumference - dashLength}`}
-                          strokeDashoffset={-offset}
-                          strokeLinecap="round"
-                        />
-                      );
-                    })}
-                  </G>
-                </Svg>
-              );
-            };
-
-            return (
-              <View style={isWide ? { flexDirection: 'row', gap: 16, marginBottom: 16 } : { gap: 16, marginBottom: 16 }}>
-                {/* Pipeline Verteilung */}
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-sm font-semibold text-foreground mb-3">Pipeline-Verteilung</Text>
-                  <View className="flex-row items-center gap-4">
-                    <View style={{ position: 'relative', width: 120, height: 120 }}>
-                      {renderDonut(pipelineData, pipelineTotal, String(pipelineTotal), 'Aktiv')}
-                      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
-                        <Text className="text-xl font-bold text-foreground">{pipelineTotal}</Text>
-                        <Text className="text-xs text-muted">Aktiv</Text>
-                      </View>
-                    </View>
-                    <View className="flex-1 gap-2">
-                      {pipelineData.map((d) => (
-                        <View key={d.label} className="flex-row items-center justify-between">
-                          <View className="flex-row items-center gap-2">
-                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: d.color }} />
-                            <Text className="text-xs text-muted">{d.label}</Text>
-                          </View>
-                          <Text className="text-xs font-semibold text-foreground">{d.count}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                </View>
-
-                {/* Abschlussquote */}
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-sm font-semibold text-foreground mb-3">Abschlussquote</Text>
-                  <View className="flex-row items-center gap-4">
-                    <View style={{ position: 'relative', width: 120, height: 120 }}>
-                      {renderDonut(resultData, closedTotal, `${winRate}%`, 'Gewonnen')}
-                      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
-                        <Text className="text-xl font-bold" style={{ color: winRate >= 50 ? colors.success : colors.error }}>{winRate}%</Text>
-                        <Text className="text-xs text-muted">Quote</Text>
-                      </View>
-                    </View>
-                    <View className="flex-1 gap-3">
-                      {resultData.map((d) => (
-                        <View key={d.label}>
-                          <View className="flex-row items-center gap-2 mb-1">
-                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: d.color }} />
-                            <Text className="text-xs text-muted">{d.label}</Text>
-                            <Text className="text-xs font-semibold text-foreground">{d.count}</Text>
-                          </View>
-                          <Text className="text-xs font-semibold" style={{ color: d.color, marginLeft: 18 }}>
-                            CHF {(d as any).value.toLocaleString('de-CH')}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                </View>
-              </View>
-            );
-          })()}
-
-          {/* Prioritätsfilter */}
-          <View className="flex-row gap-2 mb-4">
-            {[
-              { key: "all", label: "Alle", color: colors.foreground },
-              { key: "high", label: "↑ Hoch", color: "#EF4444" },
-              { key: "medium", label: "● Mittel", color: "#F59E0B" },
-              { key: "low", label: "↓ Tief", color: "#6B7280" },
-            ].map((f) => (
-              <TouchableOpacity
-                key={f.key}
-                className="px-3 py-1.5 rounded-lg border"
-                style={{
-                  backgroundColor: priorityFilter === f.key ? f.color + '20' : undefined,
-                  borderColor: priorityFilter === f.key ? f.color : '#374151',
-                }}
-                onPress={() => setPriorityFilter(f.key)}
-              >
-                <Text
-                  className="text-xs font-semibold"
-                  style={{ color: priorityFilter === f.key ? f.color : '#9CA3AF' }}
-                >
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Sortierung */}
-          <View className="flex-row gap-2 mb-4">
-            {[
-              { key: "date", label: "Neueste" },
-              { key: "name", label: "A-Z" },
-              { key: "value", label: "Wert ↓" },
-              { key: "priority", label: "Priorität" },
-            ].map((s) => (
-              <TouchableOpacity
-                key={s.key}
-                className="px-3 py-1.5 rounded-lg border"
-                style={{
-                  backgroundColor: sortBy === s.key ? colors.primary + '20' : undefined,
-                  borderColor: sortBy === s.key ? colors.primary : '#374151',
-                }}
-                onPress={() => setSortBy(s.key)}
-              >
-                <Text
-                  className="text-xs font-semibold"
-                  style={{ color: sortBy === s.key ? colors.primary : '#9CA3AF' }}
-                >
-                  {s.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
           {/* Suchfeld */}
-          <View className="mb-4 bg-surface rounded-xl flex-row items-center px-4 py-2 border border-border">
-            <IconSymbol name="magnifyingglass" size={20} color={colors.muted} />
+          <View className="mb-3 bg-surface rounded-xl flex-row items-center px-3 py-2.5 border border-border gap-2">
+            <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
             <TextInput
-              className="flex-1 ml-3 text-foreground text-base h-10"
-              placeholder="Suchen nach Name, Firma oder E-Mail..."
+              className="flex-1 text-foreground text-sm"
+              placeholder="Name, Firma oder E-Mail suchen..."
               placeholderTextColor={colors.muted}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <IconSymbol name="xmark.circle.fill" size={20} color={colors.muted} />
+                <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
               </TouchableOpacity>
             )}
+          </View>
+
+
+          {/* Priorität + Sortierung */}
+          <View className="mb-4">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, alignItems: "center" }}>
+              {[
+                { key: "all", label: "Alle", color: colors.primary },
+                { key: "high", label: "Hoch", color: "#EF4444" },
+                { key: "medium", label: "Mittel", color: "#F59E0B" },
+                { key: "low", label: "Tief", color: "#6B7280" },
+              ].map((f) => {
+                const active = priorityFilter === f.key;
+                return (
+                  <TouchableOpacity
+                    key={f.key}
+                    className="px-3 py-1.5 rounded-full border"
+                    style={{
+                      backgroundColor: active ? f.color : colors.surface,
+                      borderColor: active ? f.color : colors.border,
+                    }}
+                    onPress={() => setPriorityFilter(f.key)}
+                    activeOpacity={0.8}
+                  >
+                    <Text className="text-xs font-semibold" style={{ color: active ? "#fff" : colors.foreground }}>
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <View style={{ width: 1, height: 18, backgroundColor: colors.border, marginHorizontal: 2 }} />
+              <IconSymbol name="arrow.up.arrow.down" size={14} color={colors.muted} />
+              {[
+                { key: "date", label: "Neueste" },
+                { key: "name", label: "A-Z" },
+                { key: "value", label: "Wert" },
+                { key: "priority", label: "Priorität" },
+              ].map((s) => {
+                const active = sortBy === s.key;
+                return (
+                  <TouchableOpacity
+                    key={s.key}
+                    className="px-3 py-1.5 rounded-full border"
+                    style={{
+                      backgroundColor: active ? colors.primary + "15" : colors.surface,
+                      borderColor: active ? colors.primary : colors.border,
+                    }}
+                    onPress={() => setSortBy(s.key)}
+                    activeOpacity={0.8}
+                  >
+                    <Text className="text-xs font-semibold" style={{ color: active ? colors.primary : colors.foreground }}>
+                      {s.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
           {/* Website-Anfragen Kachel */}
           {!isLoading && (() => {
@@ -496,9 +385,12 @@ export default function LeadsScreen() {
                         }
                       }}
                     >
-                      <Text className="text-lg font-bold text-foreground">
-                        {getStatusLabel(stage)}
-                      </Text>
+                      <View className="flex-row items-center gap-2">
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: getStatusColor(stage) }} />
+                        <Text className="text-base font-bold text-foreground">
+                          {getStatusLabel(stage)}
+                        </Text>
+                      </View>
                       <View className="flex-row items-center gap-2">
                         <View
                           className="px-3 py-1 rounded-full"
@@ -738,6 +630,124 @@ export default function LeadsScreen() {
                   )}
                 </View>
               </View>
+
+          {/* Auswertung */}
+          {!isLoading && filteredLeads.length > 0 && (() => {
+            const pipelineData = [
+              { label: "Neu", count: totalCounts.new, color: colors.muted },
+              { label: "Kontaktiert", count: totalCounts.contacted, color: colors.primary },
+              { label: "Qualifiziert", count: totalCounts.qualified, color: colors.warning },
+              { label: "Angebot", count: totalCounts.proposal, color: "#9333EA" },
+            ];
+            const pipelineTotal = pipelineData.reduce((s, d) => s + d.count, 0);
+
+            const wonCount = filteredLeads.filter((l: any) => l.status === "won").length;
+            const lostCount = filteredLeads.filter((l: any) => l.status === "lost").length;
+            const closedTotal = wonCount + lostCount;
+            const winRate = closedTotal > 0 ? Math.round((wonCount / closedTotal) * 100) : 0;
+            const wonValue = filteredLeads.filter((l: any) => l.status === "won").reduce((s: number, l: any) => s + (l.value || 0), 0);
+            const lostValue = filteredLeads.filter((l: any) => l.status === "lost").reduce((s: number, l: any) => s + (l.value || 0), 0);
+
+            const resultData = [
+              { label: "Gewonnen", count: wonCount, color: colors.success, value: wonValue },
+              { label: "Verloren", count: lostCount, color: colors.error, value: lostValue },
+            ];
+
+            const renderDonut = (data: { label: string; count: number; color: string }[], total: number, centerText: string, centerSub: string) => {
+              const size = 120;
+              const strokeWidth = 14;
+              const radius = (size - strokeWidth) / 2;
+              const circumference = 2 * Math.PI * radius;
+              let accumulated = 0;
+
+              return (
+                <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+                  <Circle cx={size / 2} cy={size / 2} r={radius} stroke="#333" strokeWidth={strokeWidth} fill="none" />
+                  <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
+                    {data.map((segment, i) => {
+                      const pct = total > 0 ? segment.count / total : 0;
+                      const dashLength = pct * circumference;
+                      const offset = accumulated * circumference;
+                      accumulated += pct;
+                      if (pct === 0) return null;
+                      return (
+                        <Circle
+                          key={i}
+                          cx={size / 2}
+                          cy={size / 2}
+                          r={radius}
+                          stroke={segment.color}
+                          strokeWidth={strokeWidth}
+                          fill="none"
+                          strokeDasharray={`${dashLength} ${circumference - dashLength}`}
+                          strokeDashoffset={-offset}
+                          strokeLinecap="round"
+                        />
+                      );
+                    })}
+                  </G>
+                </Svg>
+              );
+            };
+
+            return (
+              <View style={isWide ? { flexDirection: 'row', gap: 16, marginBottom: 16 } : { gap: 16, marginBottom: 16 }}>
+                {/* Pipeline Verteilung */}
+                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-sm font-semibold text-foreground mb-3">Pipeline-Verteilung</Text>
+                  <View className="flex-row items-center gap-4">
+                    <View style={{ position: 'relative', width: 120, height: 120 }}>
+                      {renderDonut(pipelineData, pipelineTotal, String(pipelineTotal), 'Aktiv')}
+                      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+                        <Text className="text-xl font-bold text-foreground">{pipelineTotal}</Text>
+                        <Text className="text-xs text-muted">Aktiv</Text>
+                      </View>
+                    </View>
+                    <View className="flex-1 gap-2">
+                      {pipelineData.map((d) => (
+                        <View key={d.label} className="flex-row items-center justify-between">
+                          <View className="flex-row items-center gap-2">
+                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: d.color }} />
+                            <Text className="text-xs text-muted">{d.label}</Text>
+                          </View>
+                          <Text className="text-xs font-semibold text-foreground">{d.count}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Abschlussquote */}
+                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                  <Text className="text-sm font-semibold text-foreground mb-3">Abschlussquote</Text>
+                  <View className="flex-row items-center gap-4">
+                    <View style={{ position: 'relative', width: 120, height: 120 }}>
+                      {renderDonut(resultData, closedTotal, `${winRate}%`, 'Gewonnen')}
+                      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+                        <Text className="text-xl font-bold" style={{ color: winRate >= 50 ? colors.success : colors.error }}>{winRate}%</Text>
+                        <Text className="text-xs text-muted">Quote</Text>
+                      </View>
+                    </View>
+                    <View className="flex-1 gap-3">
+                      {resultData.map((d) => (
+                        <View key={d.label}>
+                          <View className="flex-row items-center gap-2 mb-1">
+                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: d.color }} />
+                            <Text className="text-xs text-muted">{d.label}</Text>
+                            <Text className="text-xs font-semibold text-foreground">{d.count}</Text>
+                          </View>
+                          <Text className="text-xs font-semibold" style={{ color: d.color, marginLeft: 18 }}>
+                            CHF {(d as any).value.toLocaleString('de-CH')}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              </View>
+            );
+          })()}
+
             </>
           )}
         </View>
