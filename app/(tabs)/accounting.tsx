@@ -293,6 +293,24 @@ export default function AccountingScreen() {
     return result;
   }, [yearInvoices, invoiceStatusFilter, invoiceSort, invoiceSearchQuery]);
 
+  // Zähler für die Status-Chips im Rechnungen-Tab (gleiche Logik wie der Filter)
+  const invoiceFilterCounts = useMemo(() => {
+    const c: Record<string, number> = {
+      all: yearInvoices.length,
+      unpaid: 0, unsent: 0, gesendet: 0, geoeffnet: 0, paid: 0, overdue: 0, cancelled: 0,
+    };
+    yearInvoices.forEach((i: any) => {
+      if (i.status !== "paid" && i.status !== "cancelled") c.unpaid++;
+      if (i.status === "draft") c.unsent++;
+      if (i.status === "open" && !isInvoiceOverdue(i)) c.gesendet++;
+      if (i.status === "sent" && !isInvoiceOverdue(i)) c.geoeffnet++;
+      if (i.status === "paid") c.paid++;
+      if (isInvoiceOverdue(i)) c.overdue++;
+      if (i.status === "cancelled") c.cancelled++;
+    });
+    return c;
+  }, [yearInvoices, isInvoiceOverdue]);
+
   const yearExpenses = useMemo(
     () =>
       expenses?.filter(
@@ -845,7 +863,20 @@ export default function AccountingScreen() {
     </View>
   );
 
-  const renderInvoices = () => (
+  const INVOICE_FILTERS: { label: string; value: string; color: string }[] = [
+    { label: "Noch nicht bezahlt", value: "unpaid", color: "#F59E0B" },
+    { label: "Alle", value: "all", color: colors.primary },
+    { label: "Überfällig", value: "overdue", color: "#EF4444" },
+    { label: "Ungesendet", value: "unsent", color: "#6B7280" },
+    { label: "Gesendet", value: "gesendet", color: "#F59E0B" },
+    { label: "Geöffnet", value: "geoeffnet", color: "#3B82F6" },
+    { label: "Bezahlt", value: "paid", color: "#22C55E" },
+    { label: "Storniert", value: "cancelled", color: "#9CA3AF" },
+  ];
+
+  const renderInvoices = () => {
+    const filteredTotal = processedInvoices.reduce((s: number, i: any) => s + getInvoiceTotal(i), 0);
+    return (
     <View>
       {loadingInvoices ? (
         <View className="flex-1 items-center justify-center py-12">
@@ -853,32 +884,41 @@ export default function AccountingScreen() {
         </View>
       ) : invoices && invoices.length > 0 ? (
         <View className="gap-3">
-          <TouchableOpacity
-            className={`py-3 rounded-lg flex-row items-center justify-center mb-2 ${isYearClosed ? "bg-muted" : "bg-primary"}`}
-            activeOpacity={0.8}
-            onPress={() => {
-              if (isYearClosed) {
-                showAlert("Gesperrt", "Dieses Jahr ist bereits abgeschlossen und kann nicht mehr verändert werden.");
-                return;
-              }
-              setShowInvoiceModal(true);
-            }}
-          >
-            <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
-            <Text className="text-background font-semibold ml-2">
-              Neue Rechnung
-            </Text>
-          </TouchableOpacity>
+          {renderYearSelector()}
 
-          {/* Search Field */}
-          <View className="bg-surface rounded-xl p-3 border border-border mb-2 flex-row items-center">
+          {/* Zusammenfassung + Neue Rechnung */}
+          <View className="flex-row items-center justify-between">
+            <View>
+              <Text className="text-base font-bold text-foreground">
+                {processedInvoices.length} {processedInvoices.length === 1 ? "Rechnung" : "Rechnungen"}
+              </Text>
+              <Text className="text-xs text-muted">{formatCurrency(filteredTotal)} in dieser Ansicht</Text>
+            </View>
+            <TouchableOpacity
+              className={`flex-row items-center gap-1.5 px-4 py-2.5 rounded-xl ${isYearClosed ? "bg-muted" : "bg-primary"}`}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (isYearClosed) {
+                  showAlert("Gesperrt", "Dieses Jahr ist bereits abgeschlossen und kann nicht mehr verändert werden.");
+                  return;
+                }
+                setShowInvoiceModal(true);
+              }}
+            >
+              <IconSymbol name="plus" size={16} color="#FFFFFF" />
+              <Text className="text-background font-semibold text-sm">Neue Rechnung</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Suche */}
+          <View className="flex-row items-center bg-surface border border-border rounded-xl px-3 py-2.5 gap-2">
             <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
             <TextInput
               value={invoiceSearchQuery}
               onChangeText={setInvoiceSearchQuery}
-              placeholder="Rechnung suchen (Nr., Kunde...)"
+              placeholder="Rechnung oder Kunde suchen..."
               placeholderTextColor={colors.muted}
-              style={{ flex: 1, color: colors.foreground, marginLeft: 8, fontSize: 14 }}
+              style={{ flex: 1, color: colors.foreground, fontSize: 14 }}
             />
             {invoiceSearchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setInvoiceSearchQuery("")}>
@@ -887,63 +927,71 @@ export default function AccountingScreen() {
             )}
           </View>
 
-          {/* Filters & Sorting UI */}
-          <View className="bg-surface rounded-xl p-3 border border-border mb-2 gap-3">
-            {/* Horizontal Filter Chips */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
-              {[
-                { label: "Noch nicht bezahlt", value: "unpaid" },
-                { label: "Alle", value: "all" },
-                { label: "Ungesendet", value: "unsent" },
-                { label: "Gesendet", value: "gesendet" },
-                { label: "Geöffnet", value: "geoeffnet" },
-                { label: "Bezahlt", value: "paid" },
-                { label: "Überfällig", value: "overdue" },
-                { label: "Storniert", value: "cancelled" },
-              ].map((opt) => (
+          {/* Status-Chips mit Zählern */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
+            {INVOICE_FILTERS.map((opt) => {
+              const active = invoiceStatusFilter === opt.value;
+              const count = invoiceFilterCounts[opt.value] || 0;
+              if (opt.value === "overdue" && count === 0) return null;
+              if (opt.value === "cancelled" && count === 0) return null;
+              return (
                 <TouchableOpacity
                   key={opt.value}
                   onPress={() => setInvoiceStatusFilter(opt.value as any)}
-                  activeOpacity={0.7}
-                  className={`px-4 py-2 rounded-full border ${invoiceStatusFilter === opt.value ? 'bg-primary border-primary' : 'bg-background border-border'}`}
+                  activeOpacity={0.8}
+                  className="flex-row items-center px-3 py-1.5 rounded-full border"
+                  style={{
+                    backgroundColor: active ? opt.color : colors.surface,
+                    borderColor: active ? opt.color : colors.border,
+                  }}
                 >
-                  <Text className={`text-sm font-semibold ${invoiceStatusFilter === opt.value ? 'text-background' : 'text-foreground'}`}>
+                  <Text className="text-xs font-semibold" style={{ color: active ? "#fff" : colors.foreground }}>
                     {opt.label}
                   </Text>
+                  <Text className="text-xs font-bold ml-1.5" style={{ color: active ? "#fff" : opt.color }}>
+                    {count}
+                  </Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              );
+            })}
+          </ScrollView>
 
-            {/* Sort Order Toggles */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingRight: 16 }} className="border-t border-border pt-3">
-              <View className="flex-row items-center mr-1">
-                <IconSymbol name="arrow.up.arrow.down" size={12} color={colors.muted} />
-              </View>
-              {[
-                { label: "Nächste Fälligkeit", value: "due_date_asc" },
-                { label: "Neueste", value: "date_desc" },
-                { label: "Älteste", value: "date_asc" },
-                { label: "Höchster Betrag", value: "amount_desc" },
-                { label: "Niedrigster Betrag", value: "amount_asc" },
-                { label: "Nr. absteigend", value: "number_desc" },
-              ].map((sort) => (
+          {/* Sortierung */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingRight: 16, alignItems: "center" }}>
+            <IconSymbol name="arrow.up.arrow.down" size={13} color={colors.muted} />
+            {[
+              { label: "Nächste Fälligkeit", value: "due_date_asc" },
+              { label: "Neueste", value: "date_desc" },
+              { label: "Älteste", value: "date_asc" },
+              { label: "Höchster Betrag", value: "amount_desc" },
+              { label: "Niedrigster Betrag", value: "amount_asc" },
+              { label: "Nr. absteigend", value: "number_desc" },
+            ].map((sort) => {
+              const active = invoiceSort === sort.value;
+              return (
                 <TouchableOpacity
                   key={sort.value}
                   onPress={() => setInvoiceSort(sort.value as any)}
-                  activeOpacity={0.7}
-                  className={`px-3 py-1.5 rounded-full ${invoiceSort === sort.value ? 'bg-primary' : 'bg-background border border-border'}`}
+                  activeOpacity={0.8}
+                  className="px-3 py-1 rounded-full border"
+                  style={{
+                    backgroundColor: active ? colors.primary + "15" : colors.surface,
+                    borderColor: active ? colors.primary : colors.border,
+                  }}
                 >
-                  <Text className={`text-xs font-medium ${invoiceSort === sort.value ? 'text-background' : 'text-muted'}`}>
+                  <Text className="text-xs font-semibold" style={{ color: active ? colors.primary : colors.foreground }}>
                     {sort.label}
                   </Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+              );
+            })}
+          </ScrollView>
 
           {processedInvoices.length === 0 && (
-             <View className="items-center py-8">
-               <Text className="text-muted">Keine Rechnungen in dieser Ansicht.</Text>
+             <View className="items-center py-10">
+               <IconSymbol name="doc.text" size={40} color={colors.muted} />
+               <Text className="text-base font-semibold text-foreground mt-3">Keine Rechnungen gefunden</Text>
+               <Text className="text-sm text-muted mt-1">Suche oder Filter anpassen.</Text>
              </View>
           )}
 
@@ -952,49 +1000,56 @@ export default function AccountingScreen() {
               invoice.customer?.company_name ||
               `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() ||
               "Unbekannt";
+            const overdue = isInvoiceOverdue(invoice);
+            const statusColor = overdue ? "#EF4444" : getStatusColor(invoice.status);
+            const restbetrag = Math.max(0, getInvoiceTotal(invoice) - (invoice.paid_amount || 0));
             return (
               <TouchableOpacity
                 key={invoice.id}
-                className="bg-surface rounded-xl p-4 border border-border"
+                className="bg-surface rounded-xl border border-border overflow-hidden"
+                style={{ flexDirection: "row" }}
                 activeOpacity={0.7}
                 onPress={() => {
                     if (isYearClosed) {
                         showAlert("Hinweis", "Dieses Jahr ist abgeschlossen (Nur-Lese-Modus).");
-                        // We still push to view it, but usually the invoice view might need to know about lock state. 
-                        // For now, allow viewing.
                     }
                     expoRouter.push(`/invoice/${invoice.id}` as any);
                 }}
               >
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-base font-bold text-foreground">
-                    {invoice.invoice_number}
-                  </Text>
-                  <View
-                    style={{ backgroundColor: getStatusColor(invoice.status), paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}
-                  >
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#ffffff' }}>
-                      {getStatusLabel(invoice.status)}
-                    </Text>
-                  </View>
-                </View>
-                <Text className="text-sm text-foreground mb-1">
-                  {customerName}
-                </Text>
-                <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-border">
-                  <Text className="text-xs text-muted">
-                    {invoice.status === 'draft' ? "Ungesendet" : formatDate(invoice.invoice_date)} · Fällig:{" "}
-                    {invoice.status === 'draft' ? "-" : formatDate(invoice.due_date)}
-                  </Text>
-                  <View className="items-end">
-                    <Text className="text-base font-bold text-primary">
-                      {formatCurrency(getInvoiceTotal(invoice))}
-                    </Text>
-                    {(invoice.paid_amount || 0) > 0 && invoice.status !== 'paid' && (
-                      <Text className="text-xs font-semibold text-warning mt-0.5">
-                        Restbetrag: {formatCurrency(Math.max(0, getInvoiceTotal(invoice) - (invoice.paid_amount || 0)))}
+                {/* Farbiger Status-Streifen links */}
+                <View style={{ width: 4, backgroundColor: statusColor }} />
+                <View className="flex-1 p-3.5">
+                  <View className="flex-row items-center mb-1.5">
+                    <Text className="text-[11px] font-semibold text-muted">{invoice.invoice_number}</Text>
+                    <View className="flex-1" />
+                    <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: statusColor + "18" }}>
+                      <Text className="text-[10px] font-bold" style={{ color: statusColor }}>
+                        {overdue ? "Überfällig" : getStatusLabel(invoice.status)}
                       </Text>
-                    )}
+                    </View>
+                  </View>
+                  <Text className="text-base font-bold text-foreground" numberOfLines={1}>
+                    {customerName}
+                  </Text>
+                  <View className="flex-row items-end justify-between mt-2">
+                    <View className="flex-row items-center flex-1 mr-2">
+                      {overdue && (
+                        <IconSymbol name="exclamationmark.triangle.fill" size={11} color="#EF4444" style={{ marginRight: 4 }} />
+                      )}
+                      <Text className="text-[11px]" style={{ color: overdue ? "#EF4444" : colors.muted, fontWeight: overdue ? "700" : "400" }}>
+                        {invoice.status === 'draft' ? "Ungesendet" : `${formatDate(invoice.invoice_date)} · Fällig ${formatDate(invoice.due_date)}`}
+                      </Text>
+                    </View>
+                    <View className="items-end">
+                      <Text className="text-base font-bold text-foreground">
+                        {formatCurrency(getInvoiceTotal(invoice))}
+                      </Text>
+                      {(invoice.paid_amount || 0) > 0 && invoice.status !== 'paid' && (
+                        <Text className="text-[11px] font-semibold text-warning mt-0.5">
+                          Rest: {formatCurrency(restbetrag)}
+                        </Text>
+                      )}
+                    </View>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -1002,11 +1057,12 @@ export default function AccountingScreen() {
           })}
         </View>
       ) : (
-        <View className="flex-1 items-center justify-center py-12">
+        <View className="flex-1 items-center justify-center py-16">
           <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
-          <Text className="text-lg text-muted mt-4 mb-2">Keine Rechnungen</Text>
+          <Text className="text-base font-semibold text-foreground mt-4">Noch keine Rechnungen</Text>
+          <Text className="text-sm text-muted mt-1">Erstelle deine erste Rechnung.</Text>
           <TouchableOpacity
-            className="bg-primary px-6 py-3 rounded-lg"
+            className="bg-primary px-6 py-3 rounded-xl mt-5"
             activeOpacity={0.8}
             onPress={() => setShowInvoiceModal(true)}
           >
@@ -1017,9 +1073,18 @@ export default function AccountingScreen() {
         </View>
       )}
     </View>
-  );
+    );
+  };
 
-  const renderExpenses = () => (
+  const renderExpenses = () => {
+    const filteredIncome = processedExpenses
+      .filter((e: any) => (e.amount || 0) < 0)
+      .reduce((s: number, e: any) => s + Math.abs(e.amount || 0), 0);
+    const filteredExpense = processedExpenses
+      .filter((e: any) => (e.amount || 0) > 0)
+      .reduce((s: number, e: any) => s + (e.amount || 0), 0);
+    const filteredSaldo = filteredIncome - filteredExpense;
+    return (
     <View>
       {loadingExpenses ? (
         <View className="flex-1 items-center justify-center py-12">
@@ -1027,152 +1092,123 @@ export default function AccountingScreen() {
         </View>
       ) : (
         <View className="gap-3">
-          <TouchableOpacity
-            className={`py-3 rounded-lg flex-row items-center justify-center mb-2 ${isYearClosed ? "bg-muted" : "bg-primary"}`}
-            activeOpacity={0.8}
-            onPress={() => {
-              if (isYearClosed) {
-                 showAlert("Gesperrt", "Dieses Jahr ist bereits abgeschlossen.");
-                 return;
-              }
-              setEditingExpense(null);
-              setShowExpenseModal(true);
-            }}
-          >
-            <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
-            <Text className="text-background font-semibold ml-2">
-              Neue Ein-/Ausgabe
-            </Text>
-          </TouchableOpacity>
+          {renderYearSelector()}
+
+          {/* Zusammenfassung + Neue Ein-/Ausgabe */}
+          <View className="flex-row items-center justify-between">
+            <View>
+              <Text className="text-base font-bold text-foreground">
+                {processedExpenses.length} {processedExpenses.length === 1 ? "Buchung" : "Buchungen"}
+              </Text>
+              <Text className="text-xs text-muted">in dieser Ansicht</Text>
+            </View>
+            <TouchableOpacity
+              className={`flex-row items-center gap-1.5 px-4 py-2.5 rounded-xl ${isYearClosed ? "bg-muted" : "bg-primary"}`}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (isYearClosed) {
+                   showAlert("Gesperrt", "Dieses Jahr ist bereits abgeschlossen.");
+                   return;
+                }
+                setEditingExpense(null);
+                setShowExpenseModal(true);
+              }}
+            >
+              <IconSymbol name="plus" size={16} color="#FFFFFF" />
+              <Text className="text-background font-semibold text-sm">Neue Buchung</Text>
+            </TouchableOpacity>
+          </View>
 
           {yearExpenses.length > 0 ? (
             <>
-              {/* Summe */}
-              <View className="bg-surface rounded-xl p-4 border border-border flex-row justify-between items-center">
-                <Text className="text-sm text-muted">
-                  Total Ausgaben (gefiltert)
-                </Text>
-                <Text className="text-lg font-bold text-error">
-                  {formatCurrency(totalExpenses)}
-                </Text>
+              {/* Kennzahlen der gefilterten Ansicht */}
+              <View className="flex-row gap-2">
+                <View className="flex-1 bg-surface rounded-xl border border-border p-3 items-center">
+                  <Text className="text-lg font-bold text-success">{formatCurrency(filteredIncome)}</Text>
+                  <Text className="text-[10px] font-semibold text-muted uppercase">Einnahmen</Text>
+                </View>
+                <View className="flex-1 bg-surface rounded-xl border border-border p-3 items-center">
+                  <Text className="text-lg font-bold text-error">{formatCurrency(filteredExpense)}</Text>
+                  <Text className="text-[10px] font-semibold text-muted uppercase">Ausgaben</Text>
+                </View>
+                <View className="flex-1 bg-surface rounded-xl border border-border p-3 items-center">
+                  <Text className="text-lg font-bold" style={{ color: filteredSaldo >= 0 ? "#22C55E" : "#EF4444" }}>
+                    {formatCurrency(filteredSaldo)}
+                  </Text>
+                  <Text className="text-[10px] font-semibold text-muted uppercase">Saldo</Text>
+                </View>
               </View>
 
-              {renderYearSelector()}
+              {/* Suche */}
+              <View className="flex-row items-center bg-surface border border-border rounded-xl px-3 py-2.5 gap-2">
+                <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
+                <TextInput
+                  value={expenseSearchQuery}
+                  onChangeText={setExpenseSearchQuery}
+                  placeholder="Beschreibung oder Lieferant suchen..."
+                  placeholderTextColor={colors.muted}
+                  style={{ flex: 1, color: colors.foreground, fontSize: 14 }}
+                />
+                {expenseSearchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setExpenseSearchQuery("")}>
+                    <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
+                  </TouchableOpacity>
+                )}
+              </View>
 
-              {/* Modern Filters */}
-              <View className="bg-surface rounded-xl p-4 border border-border mb-3">
-                <Text className="text-xs font-semibold text-muted mb-3 uppercase tracking-wider">Filter & Suche</Text>
-                
-                <View className="mb-4 bg-background border border-border rounded-lg px-3 py-2 flex-row items-center">
-                  <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
-                  <TextInput
-                    value={expenseSearchQuery}
-                    onChangeText={setExpenseSearchQuery}
-                    placeholder="Suchen (Beschreibung, Lieferant...)"
-                    placeholderTextColor={colors.muted}
-                    style={{ flex: 1, color: colors.foreground, marginLeft: 8, fontSize: 14 }}
-                  />
-                  {expenseSearchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setExpenseSearchQuery("")}>
-                      <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
+              {/* Kategorie-Filter */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: "center", paddingRight: 16 }}>
+                <IconSymbol name="tag.fill" size={13} color={colors.muted} />
+                {[{ value: "all", label: "Alle" }, ...allExpenseCategories].map((cat) => {
+                  const active = expenseCategoryFilter === cat.value;
+                  return (
+                    <TouchableOpacity
+                      key={cat.value}
+                      onPress={() => setExpenseCategoryFilter(cat.value)}
+                      activeOpacity={0.8}
+                      className="px-3 py-1.5 rounded-full border"
+                      style={{
+                        backgroundColor: active ? colors.primary : colors.surface,
+                        borderColor: active ? colors.primary : colors.border,
+                      }}
+                    >
+                      <Text className="text-xs font-semibold" style={{ color: active ? "#fff" : colors.foreground }}>{cat.label}</Text>
                     </TouchableOpacity>
-                  )}
-                </View>
+                  );
+                })}
+              </ScrollView>
 
-                {/* Filter Panel */}
-                <View className="bg-surface rounded-xl border border-border overflow-hidden mb-1">
-                  {/* Kategorie */}
-                  <View className="px-3 pt-3 pb-2">
-                    <View className="flex-row items-center justify-between mb-2">
-                      <View className="flex-row items-center gap-1.5">
-                        <IconSymbol name="tag.fill" size={13} color={colors.primary} />
-                        <Text className="text-xs font-bold text-muted uppercase" style={{ letterSpacing: 0.8 }}>Kategorie</Text>
-                      </View>
-                      {expenseCategoryFilter !== "all" && (
-                        <TouchableOpacity onPress={() => setExpenseCategoryFilter("all")} activeOpacity={0.7}>
-                          <Text className="text-xs text-primary font-semibold">Zurücksetzen</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+              {/* Mitarbeiter-Filter */}
+              {(employees?.length || 0) > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: "center", paddingRight: 16 }}>
+                  <IconSymbol name="person.2.fill" size={13} color={colors.muted} />
+                  {[{ id: "all", name: "Alle" }, ...(employees || [])].map((emp: any) => {
+                    const active = expenseEmployeeFilter === emp.id;
+                    return (
                       <TouchableOpacity
-                        onPress={() => setExpenseCategoryFilter("all")}
-                        activeOpacity={0.7}
+                        key={emp.id}
+                        onPress={() => setExpenseEmployeeFilter(emp.id)}
+                        activeOpacity={0.8}
+                        className="px-3 py-1.5 rounded-full border"
                         style={{
-                          paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-                          backgroundColor: expenseCategoryFilter === "all" ? colors.primary : colors.background,
-                          borderWidth: 1,
-                          borderColor: expenseCategoryFilter === "all" ? colors.primary : colors.border,
+                          backgroundColor: active ? colors.primary : colors.surface,
+                          borderColor: active ? colors.primary : colors.border,
                         }}
                       >
-                        <Text style={{ fontSize: 13, fontWeight: "600", color: expenseCategoryFilter === "all" ? "#fff" : colors.foreground }}>Alle</Text>
+                        <Text className="text-xs font-semibold" style={{ color: active ? "#fff" : colors.foreground }}>{emp.name || emp.email}</Text>
                       </TouchableOpacity>
-                      {allExpenseCategories.map((cat) => (
-                        <TouchableOpacity
-                          key={cat.value}
-                          onPress={() => setExpenseCategoryFilter(cat.value)}
-                          activeOpacity={0.7}
-                          style={{
-                            paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-                            backgroundColor: expenseCategoryFilter === cat.value ? colors.primary : colors.background,
-                            borderWidth: 1,
-                            borderColor: expenseCategoryFilter === cat.value ? colors.primary : colors.border,
-                          }}
-                        >
-                          <Text style={{ fontSize: 13, fontWeight: "600", color: expenseCategoryFilter === cat.value ? "#fff" : colors.foreground }}>{cat.label}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
+                    );
+                  })}
+                </ScrollView>
+              )}
 
-                  {/* Divider */}
-                  <View className="h-px bg-border mx-3" />
-
-                  {/* Mitarbeiter */}
-                  <View className="px-3 pt-2.5 pb-3">
-                    <View className="flex-row items-center justify-between mb-2">
-                      <View className="flex-row items-center gap-1.5">
-                        <IconSymbol name="person.2.fill" size={13} color={colors.primary} />
-                        <Text className="text-xs font-bold text-muted uppercase" style={{ letterSpacing: 0.8 }}>Mitarbeiter</Text>
-                      </View>
-                      {expenseEmployeeFilter !== "all" && (
-                        <TouchableOpacity onPress={() => setExpenseEmployeeFilter("all")} activeOpacity={0.7}>
-                          <Text className="text-xs text-primary font-semibold">Zurücksetzen</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-                      <TouchableOpacity
-                        onPress={() => setExpenseEmployeeFilter("all")}
-                        activeOpacity={0.7}
-                        style={{
-                          paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-                          backgroundColor: expenseEmployeeFilter === "all" ? colors.primary : colors.background,
-                          borderWidth: 1,
-                          borderColor: expenseEmployeeFilter === "all" ? colors.primary : colors.border,
-                        }}
-                      >
-                        <Text style={{ fontSize: 13, fontWeight: "600", color: expenseEmployeeFilter === "all" ? "#fff" : colors.foreground }}>Alle</Text>
-                      </TouchableOpacity>
-                      {employees?.map((emp: any) => (
-                        <TouchableOpacity
-                          key={emp.id}
-                          onPress={() => setExpenseEmployeeFilter(emp.id)}
-                          activeOpacity={0.7}
-                          style={{
-                            paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-                            backgroundColor: expenseEmployeeFilter === emp.id ? colors.primary : colors.background,
-                            borderWidth: 1,
-                            borderColor: expenseEmployeeFilter === emp.id ? colors.primary : colors.border,
-                          }}
-                        >
-                          <Text style={{ fontSize: 13, fontWeight: "600", color: expenseEmployeeFilter === emp.id ? "#fff" : colors.foreground }}>{emp.name || emp.email}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
+              {processedExpenses.length === 0 && (
+                <View className="items-center py-10">
+                  <IconSymbol name="cart.fill" size={40} color={colors.muted} />
+                  <Text className="text-base font-semibold text-foreground mt-3">Keine Buchungen gefunden</Text>
+                  <Text className="text-sm text-muted mt-1">Suche oder Filter anpassen.</Text>
                 </View>
-              </View>
+              )}
 
               {processedExpenses.map((expense: any) => (
                 <TouchableOpacity
@@ -1215,7 +1251,7 @@ export default function AccountingScreen() {
                           )}
                         </View>
                         <Text className="text-xs text-muted">
-                          {Data.EXPENSE_CATEGORIES.find(
+                          {allExpenseCategories.find(
                             (c) => c.value === expense.category,
                           )?.label || expense.category}
                           {expense.supplier ? ` · ${expense.supplier}` : ""}
@@ -1245,18 +1281,19 @@ export default function AccountingScreen() {
           ) : (
             <View className="items-center justify-center py-12">
               <IconSymbol name="cart.fill" size={48} color={colors.muted} />
-              <Text className="text-lg text-muted mt-4 mb-2">
-                Keine Ein-/Ausgaben
+              <Text className="text-base font-semibold text-foreground mt-4">
+                Noch keine Ein-/Ausgaben
               </Text>
-              <Text className="text-sm text-muted text-center mb-4">
-                Erfassen Sie Geschäftsausgaben und Einnahmen für die Steuerabrechnung
+              <Text className="text-sm text-muted text-center mt-1">
+                Erfasse Geschäftsausgaben und Einnahmen für die Steuerabrechnung.
               </Text>
             </View>
           )}
         </View>
       )}
     </View>
-  );
+    );
+  };
 
   const renderVat = () => (
     <View className="gap-4">
@@ -2454,6 +2491,7 @@ function BudgetTab({
   const profitBudget = budgets.find(b => b.category === "profit")?.budget_amount || 0;
   const [editingProfit, setEditingProfit] = useState(false);
   const [profitInput, setProfitInput] = useState("");
+  const [showAllCats, setShowAllCats] = useState(false);
 
   const handleSave = async (cat: string, val: string) => {
     setSaving(true);
@@ -2504,7 +2542,7 @@ function BudgetTab({
         </View>
       </View>
 
-      {/* Income target */}
+      {/* Ziele: Umsatz + Reingewinn in einer Karte */}
       <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
           <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>🎯 Umsatzziel</Text>
@@ -2548,11 +2586,9 @@ function BudgetTab({
             )}
           </View>
         )}
-      </View>
 
-      {/* Profit target */}
-      <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        {/* Trennlinie zwischen den beiden Zielen */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border }}>
           <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>💰 Reingewinnziel</Text>
           <TouchableOpacity onPress={() => { setProfitInput(profitBudget > 0 ? profitBudget.toString() : ""); setEditingProfit(true); }} activeOpacity={0.7}>
             <IconSymbol name="pencil" size={14} color={colors.primary} />
@@ -2596,13 +2632,25 @@ function BudgetTab({
         )}
       </View>
 
-      {/* Per-category expense budgets */}
+      {/* Per-category expense budgets – aktive Kategorien zuerst, Rest einklappbar */}
+      {(() => {
+        const activeCats = allCategories
+          .filter((c) => getBudget(c.value) > 0 || getActual(c.value) > 0)
+          .sort((a, b) => getActual(b.value) - getActual(a.value));
+        const inactiveCats = allCategories.filter((c) => getBudget(c.value) === 0 && getActual(c.value) === 0);
+        const visibleCats = showAllCats ? [...activeCats, ...inactiveCats] : activeCats;
+        return (
       <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
         <View style={{ padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
           <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>💸 Ausgaben-Budget pro Kategorie</Text>
           <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>Tippen Sie auf eine Zeile zum Bearbeiten</Text>
         </View>
-        {allCategories.map((cat, idx) => {
+        {visibleCats.length === 0 && (
+          <Text style={{ fontSize: 12, color: colors.muted, padding: 14 }}>
+            Noch keine Budgets oder Ausgaben – unten alle Kategorien einblenden.
+          </Text>
+        )}
+        {visibleCats.map((cat, idx) => {
           const budget = getBudget(cat.value);
           const actual = getActual(cat.value);
           const pct    = budget > 0 ? Math.min(100, Math.round((actual / budget) * 100)) : 0;
@@ -2610,7 +2658,7 @@ function BudgetTab({
           const isEditingThis = editing?.category === cat.value;
 
           return (
-            <View key={cat.value} style={{ borderBottomWidth: idx < allCategories.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
+            <View key={cat.value} style={{ borderBottomWidth: idx < visibleCats.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
               {isEditingThis ? (
                 <View style={{ padding: 12, gap: 8, backgroundColor: colors.primary + "08" }}>
                   <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary }}>{cat.label}</Text>
@@ -2653,7 +2701,22 @@ function BudgetTab({
             </View>
           );
         })}
+        {inactiveCats.length > 0 && (
+          <TouchableOpacity
+            style={{ padding: 12, alignItems: "center", borderTopWidth: visibleCats.length > 0 ? 1 : 0, borderTopColor: colors.border }}
+            onPress={() => setShowAllCats(!showAllCats)}
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary }}>
+              {showAllCats
+                ? "Weniger anzeigen"
+                : `${inactiveCats.length} weitere Kategorien ohne Budget anzeigen`}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
+        );
+      })()}
     </View>
   );
 }
