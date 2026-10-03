@@ -20,7 +20,7 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
       const endOfToday = new Date(new Date().setHours(23, 59, 59, 999)).toISOString();
       const result: LinkedRecord[] = [];
 
-      const [tickets, invoices, reminders, contracts, quotes] = await Promise.all([
+      const [tickets, invoices, reminders, contracts, quotes, noticeContracts] = await Promise.all([
         allowed("tickets")
           ? supabase.from("tickets").select("id, title, due_date, status").neq("status", "closed").lte("due_date", today).limit(5)
           : Promise.resolve({ data: [] } as any),
@@ -35,6 +35,9 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
           : Promise.resolve({ data: [] } as any),
         allowed("quotes")
           ? supabase.from("quotes").select("id, quote_number, valid_until, total").in("status", ["sent", "opened"]).gte("valid_until", today).lte("valid_until", in3Days).limit(5)
+          : Promise.resolve({ data: [] } as any),
+        allowed("contracts")
+          ? supabase.from("contracts").select("id, title, end_date, notice_period_months").eq("status", "active").is("cancellation_date", null).not("end_date", "is", null).limit(50)
           : Promise.resolve({ data: [] } as any),
       ]);
 
@@ -92,6 +95,26 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
           subtitle: `Angebot läuft am ${formatDate(q.valid_until)} ab · ${formatCurrency(q.total || 0)}`,
           route: `/quote/${q.id}`,
         });
+      }
+
+      // Kündigungsfristen: Stichtag = Vertragsende minus Frist, Warnung ab 30 Tagen
+      const todayMs = new Date(today).getTime();
+      for (const c of noticeContracts.data || []) {
+        const months = c.notice_period_months || 0;
+        if (months <= 0) continue;
+        const deadline = new Date(c.end_date);
+        deadline.setMonth(deadline.getMonth() - months);
+        const daysUntil = Math.round((deadline.getTime() - todayMs) / 86400000);
+        if (daysUntil >= 0 && daysUntil <= 30) {
+          result.push({
+            key: `notice-${c.id}`,
+            icon: "exclamationmark.triangle.fill",
+            color: daysUntil <= 7 ? "#EF4444" : "#F59E0B",
+            title: c.title,
+            subtitle: `Kündigungsfrist endet in ${daysUntil} Tag(en) – ${formatDate(deadline.toISOString().split("T")[0])}`,
+            route: "/contracts",
+          });
+        }
       }
 
       return result;

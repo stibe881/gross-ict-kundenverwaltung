@@ -15,9 +15,15 @@ function fmtDate(dateString: string): string {
   return `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()}`;
 }
 
-function buildInvoiceEmailHTML(invoice: any, trackingUrl?: string, bank?: { accountHolder?: string; bankName?: string; iban?: string }): string {
+function buildInvoiceEmailHTML(invoice: any, trackingUrl?: string, bank?: { accountHolder?: string; bankName?: string; iban?: string }, payUrl?: string): string {
   const trackingPixel = trackingUrl
     ? `<img src="${trackingUrl}" width="1" height="1" style="display:none" alt="" />`
+    : "";
+  const payButton = payUrl
+    ? `<div style="text-align: center; margin: 20px 0;">
+        <a href="${payUrl}" style="display: inline-block; background: #635BFF; color: #ffffff; text-decoration: none; font-weight: bold; padding: 13px 28px; border-radius: 8px; font-size: 15px;">Jetzt online bezahlen</a>
+        <p style="margin: 8px 0 0; font-size: 12px; color: #888;">Sichere Zahlung per Karte über Stripe – oder klassisch per Überweisung (QR-Rechnung im Anhang).</p>
+      </div>`
     : "";
 
   return `
@@ -43,6 +49,7 @@ function buildInvoiceEmailHTML(invoice: any, trackingUrl?: string, bank?: { acco
             <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; color: #1a1a2e;">CHF ${fmtCHF(invoice.total)}</td>
           </tr>
         </table>
+        ${payButton}
         <p>Bitte überweisen Sie den Betrag bis zum <strong>${fmtDate(invoice.due_date)}</strong> auf folgendes Konto:</p>
         <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
           <p style="margin: 0 0 4px;"><strong>Zahlungsempfänger:</strong> ${bank?.accountHolder || "Gross ICT"}</p>
@@ -157,7 +164,7 @@ Deno.serve(async (req) => {
       from: "Gross ICT <info@gross-ict.ch>",
       to: [invoice.customer.email],
       subject: `Rechnung ${invoice.invoice_number} - Gross ICT`,
-      html: buildInvoiceEmailHTML(invoice, trackingUrl, bank),
+      html: buildInvoiceEmailHTML(invoice, trackingUrl, bank, `${supabaseUrl}/functions/v1/invoice-payment?id=${id}`),
     };
 
     if (finalPdfBase64) {

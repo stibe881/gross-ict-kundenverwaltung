@@ -468,3 +468,21 @@ enabled = true
 # Wird vom Cron aufgerufen; optionaler Schutz über Secret AUTOMATION_SECRET
 verify_jwt = false
 entrypoint = "./functions/process-automations/index.ts"
+
+[functions.invoice-payment]
+enabled = true
+# Öffentlich: Zahlungslink aus der Rechnungs-E-Mail
+verify_jwt = false
+entrypoint = "./functions/invoice-payment/index.ts"
+
+[functions.stripe-webhook]
+enabled = true
+# Öffentlich: Stripe ruft den Webhook auf, Absicherung über Signaturprüfung
+verify_jwt = false
+entrypoint = "./functions/stripe-webhook/index.ts"
+
+[functions.inbound-email]
+enabled = true
+# Öffentlich: E-Mail-Dienst ruft den Webhook auf, Absicherung über ?secret=
+verify_jwt = false
+entrypoint = "./functions/inbound-email/index.ts"

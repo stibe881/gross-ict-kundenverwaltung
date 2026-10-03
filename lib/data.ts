@@ -1022,6 +1022,105 @@ export async function convertQuoteToInvoice(quoteId: string, includeOptions: boo
     return invoice;
 }
 
+// ─── Dokumentenablage pro Kunde (Storage-Bucket customer-documents) ─────────
+
+export async function listCustomerDocuments(customerId: string) {
+    const { data, error } = await supabase.storage
+        .from("customer-documents")
+        .list(customerId, { sortBy: { column: "created_at", order: "desc" }, limit: 100 });
+    if (error) throw new Error(error.message);
+    return (data || []).filter((f: any) => f.name && !f.name.startsWith("."));
+}
+
+export async function uploadCustomerDocument(customerId: string, uri: string, filename: string) {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const safeName = filename.replace(/[^a-zA-Z0-9äöüÄÖÜ._\- ]/g, "_");
+    const path = `${customerId}/${Date.now()}_${safeName}`;
+    const { error } = await supabase.storage
+        .from("customer-documents")
+        .upload(path, blob, { contentType: blob.type || "application/octet-stream", upsert: false });
+    if (error) throw new Error(error.message);
+    return path;
+}
+
+export async function getCustomerDocumentUrl(customerId: string, name: string): Promise<string> {
+    const { data, error } = await supabase.storage
+        .from("customer-documents")
+        .createSignedUrl(`${customerId}/${name}`, 3600);
+    if (error || !data?.signedUrl) throw new Error(error?.message || "Link konnte nicht erstellt werden");
+    return data.signedUrl;
+}
+
+export async function deleteCustomerDocument(customerId: string, name: string) {
+    const { error } = await supabase.storage
+        .from("customer-documents")
+        .remove([`${customerId}/${name}`]);
+    if (error) throw new Error(error.message);
+}
+
+// ─── Kunden-Profitabilität ───────────────────────────────────────────────────
+// Umsatz = Zahlungseingänge aus Rechnungen des Jahres
+// Kosten = interne Kosten aktiver Verträge + im Vertrag abgedeckte Ticket-Aufwände
+export async function getCustomerProfitability(year: number) {
+    const start = `${year}-01-01`;
+    const end = `${year}-12-31`;
+
+    const [invoicesRes, contractsRes, ticketsRes] = await Promise.all([
+        supabase.from("invoices")
+            .select("customer_id, total, paid_amount, status, invoice_date")
+            .gte("invoice_date", start).lte("invoice_date", end)
+            .not("customer_id", "is", null),
+        supabase.from("contracts")
+            .select("customer_id, internal_costs")
+            .eq("status", "active")
+            .not("customer_id", "is", null),
+        supabase.from("tickets")
+            .select("customer_id, created_at, items:ticket_items(quantity, unit_price)")
+            .eq("covered_by_contract", true)
+            .gte("created_at", start)
+            .not("customer_id", "is", null),
+    ]);
+
+    const map: Record<string, { revenue: number; internalCosts: number; coveredEffort: number }> = {};
+    const entry = (id: string) => (map[id] = map[id] || { revenue: 0, internalCosts: 0, coveredEffort: 0 });
+
+    for (const inv of invoicesRes.data || []) {
+        const e = entry(inv.customer_id as string);
+        if (inv.paid_amount && inv.paid_amount > 0) e.revenue += inv.paid_amount;
+        else if (inv.status === "paid") e.revenue += inv.total || 0;
+    }
+    for (const c of contractsRes.data || []) {
+        entry(c.customer_id as string).internalCosts += c.internal_costs || 0;
+    }
+    for (const t of ticketsRes.data || []) {
+        const e = entry((t as any).customer_id as string);
+        e.coveredEffort += ((t as any).items || []).reduce(
+            (s: number, i: any) => s + (i.quantity || 0) * (i.unit_price || 0), 0,
+        );
+    }
+
+    const ids = Object.keys(map);
+    if (ids.length === 0) return [];
+    const { data: customers } = await supabase
+        .from("customers")
+        .select("id, company_name, first_name, last_name")
+        .in("id", ids);
+    const nameFor = (id: string) => {
+        const c = (customers || []).find((x: any) => x.id === id);
+        return c?.company_name || `${c?.first_name || ""} ${c?.last_name || ""}`.trim() || "Unbekannt";
+    };
+
+    return ids
+        .map((id) => {
+            const e = map[id];
+            const costs = e.internalCosts + e.coveredEffort;
+            return { customerId: id, name: nameFor(id), revenue: e.revenue, costs, coveredEffort: e.coveredEffort, internalCosts: e.internalCosts, margin: e.revenue - costs };
+        })
+        .filter((r) => r.revenue > 0 || r.costs > 0)
+        .sort((a, b) => b.margin - a.margin);
+}
+
 // ─── Modul-Verknüpfungen (Angebot ↔ Projekt ↔ Rechnung) ─────────────────────
 
 export async function getProjectForQuote(quoteId: string) {
@@ -1489,27 +1588,6 @@ export async function uploadDocument(customerId: string, uri: string, filename: 
     } catch (err: any) {
         throw new Error(err.message || "Fehler beim Hochladen des Dokuments");
     }
-}
-
-export async function deleteCustomerDocument(fileUrl: string) {
-    // Determine the path from the URL
-    // e.g. .../storage/v1/object/public/customer_documents/c43fb3f5/12345_test.pdf
-    try {
-        const urlObj = new URL(fileUrl);
-        const pathParts = urlObj.pathname.split("customer_documents/");
-        if (pathParts.length === 2) {
-            const filePath = decodeURIComponent(pathParts[1]);
-            const { error } = await supabase.storage.from("customer_documents").remove([filePath]);
-            if (error) console.error("Storage delete fail:", error);
-        }
-    } catch(e) { console.error("Could not parse Document URL for deletion:", e); }
-
-    const { error } = await supabase
-        .from("customer_documents")
-        .delete()
-        .eq("file_url", fileUrl);
-    if (error) throw new Error(error.message);
-    return { success: true };
 }
 
 export async function uploadCancellationDocument(contractId: string, uri: string, filename: string): Promise<string> {

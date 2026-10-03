@@ -1,5 +1,6 @@
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
 import { LOGO_BASE64 } from "../contract-page/logo.ts";
+import { drawSwissQRBill } from "./swiss-qr.ts";
 
 export interface InvoiceItem {
   description: string;
@@ -367,6 +368,23 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.text(data.bankName || "Luzerner Kantonalbank AG", col2X, fy + 15);
 
   doc.text(data.iban || "CH32 0077 8229 1386 9200 1", col3X, fy + 15);
+
+  // Schweizer QR-Zahlteil auf eigener Seite – nur für zahlbare Dokumente
+  const openAmount = (data.total || 0) - (data.paidAmount || 0);
+  if (docType !== "Quittung" && openAmount > 0.05) {
+    const addrLines = (data.customerAddress || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    drawSwissQRBill(doc, {
+      iban: data.iban || "CH32 0077 8229 1386 9200 1",
+      creditorName: data.accountHolder || "Gross ICT",
+      creditorStreet: "Neuhushof 3",
+      creditorCity: "6144 Zell",
+      amount: openAmount,
+      debtorName: data.customerName || undefined,
+      debtorStreet: addrLines.length >= 2 ? addrLines[0] : undefined,
+      debtorCity: addrLines.length >= 1 ? addrLines[addrLines.length - 1] : undefined,
+      message: `${docType} ${data.invoiceNumber}`,
+    });
+  }
 
   // Buffer and Base64 return
   const dataUri = doc.output("datauristring");

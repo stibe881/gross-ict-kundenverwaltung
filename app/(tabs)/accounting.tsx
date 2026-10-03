@@ -18,6 +18,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
+import { BankReconciliationModal } from "@/components/bank-reconciliation-modal";
 import { ExpenseFormModal } from "@/components/expense-form-modal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
@@ -60,6 +61,7 @@ export default function AccountingScreen() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showBankModal, setShowBankModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any>(null);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
@@ -864,6 +866,9 @@ export default function AccountingScreen() {
           ))}
         </View>
       )}
+
+      {/* Kunden-Profitabilität */}
+      <CustomerProfitabilityCard selectedYear={selectedYear} colors={colors} />
     </View>
   );
 
@@ -913,6 +918,18 @@ export default function AccountingScreen() {
               <Text className="text-background font-semibold text-sm">Neue Rechnung</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Bankabgleich */}
+          <TouchableOpacity
+            className="flex-row items-center justify-center gap-2 bg-surface border border-border py-2.5 rounded-xl"
+            activeOpacity={0.7}
+            onPress={() => setShowBankModal(true)}
+          >
+            <IconSymbol name="building.columns.fill" size={15} color={colors.primary} />
+            <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+              Bankabgleich (Kontoauszug einlesen)
+            </Text>
+          </TouchableOpacity>
 
           {/* Suche */}
           <View className="flex-row items-center bg-surface border border-border rounded-xl px-3 py-2.5 gap-2">
@@ -1990,6 +2007,11 @@ export default function AccountingScreen() {
         onClose={() => setShowInvoiceModal(false)}
         onSuccess={() => refetchInvoices()}
       />
+      <BankReconciliationModal
+        visible={showBankModal}
+        onClose={() => { setShowBankModal(false); refetchInvoices(); }}
+        unpaidInvoices={yearInvoices.filter((i: any) => i.status !== "paid" && i.status !== "cancelled" && i.status !== "draft")}
+      />
       <ExpenseFormModal
         visible={showExpenseModal}
         onClose={() => {
@@ -2721,6 +2743,65 @@ function BudgetTab({
       </View>
         );
       })()}
+    </View>
+  );
+}
+
+// ─── Kunden-Profitabilität ────────────────────────────────────────────────────
+function CustomerProfitabilityCard({ selectedYear, colors }: { selectedYear: number; colors: any }) {
+  const [expanded, setExpanded] = useState(false);
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ["customerProfitability", selectedYear],
+    queryFn: () => Data.getCustomerProfitability(selectedYear),
+  });
+
+  if (!isLoading && rows.length === 0) return null;
+  const visible = expanded ? rows : rows.slice(0, 5);
+
+  return (
+    <View className="bg-surface rounded-xl border border-border overflow-hidden">
+      <View className="p-4 border-b border-border">
+        <Text className="text-base font-bold text-foreground">Kunden-Profitabilität {selectedYear}</Text>
+        <Text className="text-xs text-muted mt-1">
+          Umsatz abzüglich interner Vertragskosten und im Vertrag abgedeckter Ticket-Aufwände
+        </Text>
+      </View>
+      {isLoading ? (
+        <View className="items-center py-6"><ActivityIndicator color={colors.primary} /></View>
+      ) : (
+        <>
+          {visible.map((r: any, idx: number) => (
+            <View
+              key={r.customerId}
+              className="flex-row items-center px-4 py-3"
+              style={{ borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: colors.border }}
+            >
+              <Text className="text-xs font-bold text-muted" style={{ width: 22 }}>{idx + 1}.</Text>
+              <View className="flex-1 mr-2">
+                <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{r.name}</Text>
+                <Text className="text-[11px] text-muted" numberOfLines={1}>
+                  Umsatz {formatCurrency(r.revenue)} · Kosten {formatCurrency(r.costs)}
+                  {r.coveredEffort > 0 ? ` (davon Aufwände ${formatCurrency(r.coveredEffort)})` : ""}
+                </Text>
+              </View>
+              <Text className="text-sm font-bold" style={{ color: r.margin >= 0 ? "#22C55E" : "#EF4444" }}>
+                {formatCurrency(r.margin)}
+              </Text>
+            </View>
+          ))}
+          {rows.length > 5 && (
+            <TouchableOpacity
+              className="items-center py-3 border-t border-border"
+              onPress={() => setExpanded(!expanded)}
+              activeOpacity={0.7}
+            >
+              <Text className="text-xs font-bold" style={{ color: colors.primary }}>
+                {expanded ? "Weniger anzeigen" : `Alle ${rows.length} Kunden anzeigen`}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </>
+      )}
     </View>
   );
 }

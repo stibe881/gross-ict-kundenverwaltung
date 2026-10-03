@@ -23,13 +23,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { formatDate, formatCurrency, getInvoiceTotal } from "@/lib/format";
 import { CustomerPortalManagement } from "@/components/customer-portal-management";
+import { CustomerDocuments } from "@/components/customer-documents";
 import { ContractFormModal } from "@/components/contract-form-modal";
 import { CustomerFormModal } from "@/components/customer-form-modal";
 import { QuoteFormModal } from "@/components/quote-form-modal";
 import { TicketFormModal } from "@/components/ticket-form-modal";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 
-type Tab = "tickets" | "rechnungen" | "vertraege" | "angebote" | "links" | "kontakte" | "uberwachung";
+type Tab = "tickets" | "rechnungen" | "vertraege" | "angebote" | "links" | "kontakte" | "uberwachung" | "dokumente";
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -100,6 +101,12 @@ export default function CustomerDetailScreen() {
     queryFn: Data.getMonitoringUrls,
   });
   const customerUrls = useMemo(() => monitoringUrls.filter((u: any) => u.customer_id === id), [monitoringUrls, id]);
+
+  const { data: customerDocs = [] } = useQuery({
+    queryKey: ["customerDocuments", id],
+    queryFn: () => Data.listCustomerDocuments(id as string),
+    enabled: !!id,
+  });
 
   // ── Mutations ──
   const deleteCustomer = useMutation({
@@ -231,6 +238,7 @@ export default function CustomerDetailScreen() {
     { key: "links", label: "Links", icon: "link", count: customerLinks.length + quotes.length },
     { key: "kontakte", label: "Kontakte", icon: "person.2.fill", count: (customerContacts.length || 0) + (contactPerson ? 1 : 0) },
     { key: "uberwachung", label: "Überwachung", icon: "globe", count: customerUrls.length },
+    { key: "dokumente", label: "Dokumente", icon: "folder.fill", count: customerDocs.length },
   ];
 
   // ── Status / Priority Labels ──
@@ -305,6 +313,9 @@ export default function CustomerDetailScreen() {
 
   // ── Tab Content ──
   const renderTabContent = () => {
+    if (activeTab === "dokumente") {
+      return <CustomerDocuments customerId={id as string} />;
+    }
     switch (activeTab) {
       case "tickets":
         if (tickets.length === 0) return renderEmpty("Keine Tickets", "ticket.fill");

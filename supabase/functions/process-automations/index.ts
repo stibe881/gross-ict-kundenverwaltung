@@ -53,7 +53,12 @@ serve(async (req) => {
   );
 
   const today = new Date().toISOString().split("T")[0];
-  const summary = { createdInvoices: [] as string[], expiringQuotes: [] as string[], errors: [] as string[] };
+  const summary = {
+    createdInvoices: [] as string[],
+    expiringQuotes: [] as string[],
+    noticeDeadlines: [] as string[],
+    errors: [] as string[],
+  };
 
   // ── 1. Fällige Vertragsrechnungen ──────────────────────────────────────────
   try {
@@ -175,6 +180,36 @@ serve(async (req) => {
     summary.errors.push("Angebots-Check: " + e.message);
   }
 
+  // ── 3. Kündigungsfristen-Wächter ───────────────────────────────────────────
+  // Stichtag = Vertragsende minus Kündigungsfrist. Gemeldet wird exakt bei
+  // 30/14/7/1 Tagen Vorlauf (dadurch keine täglichen Wiederholungen).
+  try {
+    const { data: endingContracts } = await supabase
+      .from("contracts")
+      .select("id, title, contract_number, end_date, notice_period_months, customer:customers(company_name, first_name, last_name)")
+      .eq("status", "active")
+      .is("cancellation_date", null)
+      .not("end_date", "is", null);
+
+    const todayMs = new Date(today).getTime();
+    for (const c of endingContracts || []) {
+      const months = c.notice_period_months || 0;
+      if (months <= 0) continue;
+      const deadline = new Date(c.end_date);
+      deadline.setMonth(deadline.getMonth() - months);
+      const daysUntil = Math.round((deadline.getTime() - todayMs) / 86400000);
+      if ([30, 14, 7, 1].includes(daysUntil)) {
+        const name = (c.customer as any)?.company_name ||
+          `${(c.customer as any)?.first_name || ""} ${(c.customer as any)?.last_name || ""}`.trim() || "";
+        summary.noticeDeadlines.push(
+          `${c.title}${name ? ` (${name})` : ""}: Kündigungsfrist endet in ${daysUntil} Tag(en) am ${deadline.toLocaleDateString("de-CH")}`,
+        );
+      }
+    }
+  } catch (e: any) {
+    summary.errors.push("Kündigungsfristen-Check: " + e.message);
+  }
+
   // ── Push an Admins über die bestehende send-push-Funktion ──────────────────
   const pushUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push`;
   const pushAuth = { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`, "Content-Type": "application/json" };
@@ -205,6 +240,20 @@ serve(async (req) => {
         }),
       });
     } catch (e) { console.error("[automations] Push (Angebote) fehlgeschlagen:", e); }
+  }
+
+  if (summary.noticeDeadlines.length > 0) {
+    try {
+      await fetch(pushUrl, {
+        method: "POST", headers: pushAuth,
+        body: JSON.stringify({
+          recipients: "all_admins", recipientType: "admin",
+          title: "Kündigungsfrist läuft ab",
+          body: summary.noticeDeadlines.join(" · "),
+          data: { url: "/contracts", category: "auto_invoices" },
+        }),
+      });
+    } catch (e) { console.error("[automations] Push (Kündigungsfristen) fehlgeschlagen:", e); }
   }
 
   return new Response(JSON.stringify({ success: true, ...summary }), {
