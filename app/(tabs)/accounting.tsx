@@ -407,16 +407,20 @@ export default function AccountingScreen() {
   const grossNetIncomeBeforeSS = grossNetIncome + paidSocialSecurity;
   
   // AHV-Gesamtschuld berechnen auf Gewinn VOR AHV-Akonto
+  // (10.6% ≈ 10% Selbständigen-Satz AHV/IV/EO + Verwaltungskosten der Ausgleichskasse)
   const ownerAhvIvEoTotal = grossNetIncomeBeforeSS > 0 ? grossNetIncomeBeforeSS * 0.106 : 0;
   // Netto-AHV-Effekt: positiv = noch geschuldet, negativ = Überzahlung (Rückerstattung)
   const ahvNetEffect = ownerAhvIvEoTotal - paidSocialSecurity;
   const ownerAhvIvEoRemaining = Math.max(0, ahvNetEffect);
   const ahvOverpayment = Math.max(0, -ahvNetEffect); // Zu viel bezahlt → kommt zurück
-  
-  // FAK und Steuern werden auf dem bereinigten Gewinn berechnet
-  // (AHV-Akonto sind bereits in grossNetIncome als Ausgabe berücksichtigt)
-  const ownerFak = grossNetIncome > 0 ? grossNetIncome * 0.014 : 0;
-  const ownerEinkommenssteuer = grossNetIncome > 0 ? grossNetIncome * 0.15 : 0;
+
+  // FAK wird wie die AHV auf dem Einkommen VOR Sozialversicherungsaufwand
+  // berechnet – sonst hängt die Schätzung davon ab, wie viel Akonto schon bezahlt ist
+  const ownerFak = grossNetIncomeBeforeSS > 0 ? grossNetIncomeBeforeSS * 0.014 : 0;
+  // Steuerbares Einkommen ≈ Gewinn vor Sozialabgaben abzüglich gesamter AHV und FAK
+  // (beide sind abzugsfähig – unabhängig davon, ob schon per Akonto bezahlt)
+  const taxableIncome = Math.max(0, grossNetIncomeBeforeSS - ownerAhvIvEoTotal - ownerFak);
+  const ownerEinkommenssteuer = taxableIncome * 0.15;
   
   // Gesamtabzüge = noch ausstehende AHV + FAK + Steuern
   const ownerTotalAbzuege = ownerAhvIvEoRemaining + ownerFak + ownerEinkommenssteuer;

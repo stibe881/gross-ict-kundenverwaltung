@@ -255,16 +255,7 @@ export default function DashboardScreen() {
           color: colors.success,
           route: "/accounting",
         },
-        {
-          // Apple-Vorgaben: voller Funktionsname "Tap to Pay auf dem iPhone",
-          // Symbol wave.3.right ist von Apple für Tap to Pay vorgegeben
-          id: "tap-to-pay",
-          title: "Kassieren",
-          subtitle: "Tap to Pay auf dem iPhone",
-          icon: "wave.3.right",
-          color: "#635BFF",
-          route: "/tap-to-pay",
-        },
+        // "Kassieren" (Tap to Pay) ist über die Tab-Leiste erreichbar
         {
           id: "quotes",
           title: "Angebote",

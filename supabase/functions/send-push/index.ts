@@ -49,19 +49,11 @@ serve(async (req) => {
         });
       }
 
-      // Parse existing tokens (could be single token or comma-separated)
-      let tokens: string[] = [];
-      if (existing.push_token) {
-        tokens = existing.push_token.split(',').map((t: string) => t.trim()).filter(Boolean);
-      }
-
-      // Add new token if not already present, keep max 5 most recent
-      if (!tokens.includes(pushToken)) {
-        tokens.push(pushToken);
-        if (tokens.length > 5) tokens = tokens.slice(-5);
-      }
-
-      const newValue = tokens.join(',');
+      // Nur den aktuellsten Token speichern. Das Sammeln mehrerer Tokens
+      // (Dev-Build, TestFlight, Neuinstallationen) führte dazu, dass jede
+      // Push mehrfach auf demselben Gerät ankam.
+      const tokens = [pushToken];
+      const newValue = pushToken;
       console.log("[send-push] Storing tokens for user", existing.id, ":", newValue);
 
       const { error } = await supabaseAdmin.from(table).update({ push_token: newValue }).eq("id", existing.id);
