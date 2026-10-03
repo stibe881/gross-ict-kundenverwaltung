@@ -24,6 +24,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { QuoteFormModal } from "@/components/quote-form-modal";
 import { ProjectFormModal } from "@/components/project-form-modal";
 import { TapToPayAwareness } from "@/components/tap-to-pay-awareness";
+import { TodayFeed } from "@/components/today-feed";
 import { useQuery } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 
@@ -593,6 +594,9 @@ export default function DashboardScreen() {
               ))}
             </View>
           )}
+
+          {/* Heute-Feed: was jetzt Aufmerksamkeit braucht */}
+          <TodayFeed allowed={tileAllowed} isWide={isWide} rolesKey={(userProfile?.roles || []).join(",")} />
 
           {/* Quick Actions Bar - nur Web/Desktop, mobil hat FAB */}
           {isWeb && <ScrollView

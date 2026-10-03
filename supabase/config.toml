@@ -462,3 +462,9 @@ entrypoint = "./functions/trigger-app-update/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/send-receipt-email/index.ts"
+
+[functions.process-automations]
+enabled = true
+# Wird vom Cron aufgerufen; optionaler Schutz über Secret AUTOMATION_SECRET
+verify_jwt = false
+entrypoint = "./functions/process-automations/index.ts"

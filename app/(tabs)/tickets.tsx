@@ -772,6 +772,27 @@ function TicketDetailsModal({
   const [currentPriority, setCurrentPriority] = useState<TicketPriority>(ticket.priority || "medium");
   const [assignedTo, setAssignedTo] = useState<string | null>(ticket.assigned_to || null);
   const [dueDate, setDueDate] = useState<string | null>(ticket.due_date || null);
+  const [linkedProjectId, setLinkedProjectId] = useState<string | null>((ticket as any).project_id || null);
+
+  // Laufende Projekte des Kunden (für die Zuordnung der Aufwände)
+  const { data: customerProjects = [] } = useQuery({
+    queryKey: ["customerProjects", ticket.customer_id],
+    queryFn: () => Data.getCustomerProjects(ticket.customer_id as string),
+    enabled: !!ticket.customer_id,
+  });
+
+  const handleProjectChange = async (projectId: string | null) => {
+    const prev = linkedProjectId;
+    setLinkedProjectId(projectId);
+    try {
+      await Data.updateTicket(ticket.id, { project_id: projectId } as any);
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      showToast(projectId ? "Ticket dem Projekt zugeordnet" : "Projekt-Zuordnung entfernt");
+    } catch (e: any) {
+      setLinkedProjectId(prev);
+      showAlert("Fehler", "Zuordnung konnte nicht gespeichert werden: " + e.message);
+    }
+  };
   const dueDateOverdue = !!dueDate && currentStatus !== "closed" &&
     new Date(dueDate) < new Date(new Date().setHours(0, 0, 0, 0));
 
@@ -954,10 +975,16 @@ function TicketDetailsModal({
 
   const handleCustomerChange = async (customerId: string | null) => {
     try {
-      await Data.updateTicket(ticket.id, { customer_id: customerId });
+      // Automatik: Kunde mit aktivem Vertrag → Abdeckung direkt mitsetzen
+      let covered = false;
+      if (customerId) {
+        covered = await Data.customerHasActiveContract(customerId).catch(() => false);
+      }
+      await Data.updateTicket(ticket.id, { customer_id: customerId, covered_by_contract: covered });
+      setCoveredByContract(covered);
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       setShowCustomerPicker(false);
-      showToast("Kunde erfolgreich geändert");
+      showToast(covered ? "Kunde geändert – aktiver Vertrag erkannt, als abgedeckt markiert" : "Kunde erfolgreich geändert");
     } catch (err: any) {
       showAlert("Fehler", err.message);
     }
@@ -1356,6 +1383,45 @@ function TicketDetailsModal({
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Projekt-Zuordnung: Aufwände erscheinen im Projekt */}
+          {customerProjects.length > 0 && (
+            <>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, textTransform: "uppercase", marginTop: 14, marginBottom: 6 }}>Projekt</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                <TouchableOpacity
+                  onPress={() => handleProjectChange(null)}
+                  activeOpacity={0.7}
+                  style={{
+                    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1,
+                    borderColor: !linkedProjectId ? colors.primary : colors.border,
+                    backgroundColor: !linkedProjectId ? colors.primary + "15" : colors.background,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: !linkedProjectId ? colors.primary : colors.foreground }}>Kein Projekt</Text>
+                </TouchableOpacity>
+                {customerProjects.map((p: any) => {
+                  const active = linkedProjectId === p.id;
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      onPress={() => handleProjectChange(p.id)}
+                      activeOpacity={0.7}
+                      style={{
+                        paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1,
+                        borderColor: active ? "#14B8A6" : colors.border,
+                        backgroundColor: active ? "#14B8A615" : colors.background,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: "600", color: active ? "#14B8A6" : colors.foreground }} numberOfLines={1}>
+                        {p.project_number} · {p.title}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
         </View>
       </View>
 

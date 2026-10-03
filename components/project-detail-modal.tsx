@@ -16,6 +16,7 @@ import * as Data from "@/lib/data";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { ProjectFormModal } from "./project-form-modal";
+import { LinkedRecords } from "./linked-records";
 
 interface Props {
     visible: boolean;
@@ -78,6 +79,36 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
     useEffect(() => {
         if (project) setProjectData(project);
     }, [project]);
+
+    // Verknüpfungen: Quell-Angebot, Rechnungen, zugeordnete Tickets
+    const [srcQuote, setSrcQuote] = useState<any>(null);
+    const [srcInvoices, setSrcInvoices] = useState<any[]>([]);
+    const [srcTickets, setSrcTickets] = useState<any[]>([]);
+
+    const loadLinks = async () => {
+        try {
+            const quoteId = projectData?.quote_id;
+            const [quote, byProject, byQuote, tickets] = await Promise.all([
+                quoteId ? Data.getQuoteBasic(quoteId) : Promise.resolve(null),
+                Data.getInvoicesForProject(projectData.id),
+                quoteId ? Data.getInvoicesForQuote(quoteId) : Promise.resolve([]),
+                Data.getProjectTickets(projectData.id),
+            ]);
+            const seen = new Set<string>();
+            const invoices = [...byProject, ...byQuote].filter((i: any) => {
+                if (seen.has(i.id)) return false;
+                seen.add(i.id);
+                return true;
+            });
+            setSrcQuote(quote);
+            setSrcInvoices(invoices);
+            setSrcTickets(tickets);
+        } catch (_) { /* Verknüpfungen sind optional */ }
+    };
+
+    useEffect(() => {
+        if (visible && projectData?.id) loadLinks();
+    }, [visible, projectData?.id]);
 
     // Milestones
     const [milestones, setMilestones] = useState<any[]>([]);
@@ -567,6 +598,25 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                                             await Data.addProjectActivity(projectData.id, "status_change", `Status geändert: ${STATUS_LABELS[key]}`);
                                             setProjectData({ ...projectData, status: key });
                                             onUpdate();
+
+                                            // Automatik: Projekt abgeschlossen + Quell-Angebot ohne Rechnung → Vorschlag
+                                            if (key === "completed" && projectData.quote_id && srcInvoices.length === 0) {
+                                                showConfirm(
+                                                    "Rechnung erstellen?",
+                                                    "Das Projekt ist abgeschlossen und aus dem zugrunde liegenden Angebot wurde noch keine Rechnung erstellt. Jetzt Rechnung aus dem Angebot erstellen?",
+                                                    async () => {
+                                                        try {
+                                                            const quote = await Data.getQuoteById(projectData.quote_id);
+                                                            const includeOptions = (quote as any)?.accepted_with_options === true;
+                                                            const invoice = await Data.convertQuoteToInvoice(projectData.quote_id, includeOptions);
+                                                            showAlert("Erfolg", `Rechnung ${invoice.invoice_number} wurde als Entwurf erstellt.`);
+                                                            loadLinks();
+                                                            onUpdate();
+                                                        } catch (e: any) { showAlert("Fehler", e.message); }
+                                                    },
+                                                    "Rechnung erstellen"
+                                                );
+                                            }
                                         } catch (e: any) { showAlert("Fehler", e.message); }
                                     }}
                                     style={{
@@ -647,6 +697,48 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                         />
                     ))}
                 </View>
+
+                {/* Verknüpft mit (Angebot + Rechnungen) */}
+                {(srcQuote || srcInvoices.length > 0) && (
+                    <LinkedRecords
+                        records={[
+                            ...(srcQuote ? [{
+                                key: `qt-${srcQuote.id}`,
+                                icon: "doc.on.doc.fill",
+                                color: "#EC4899",
+                                title: srcQuote.quote_number,
+                                subtitle: `Angebot · ${formatCurrency(srcQuote.total || 0)}`,
+                                route: `/quote/${srcQuote.id}`,
+                                onPress: onClose,
+                            }] : []),
+                            ...srcInvoices.map((inv: any) => ({
+                                key: `inv-${inv.id}`,
+                                icon: "doc.text.fill",
+                                color: "#22C55E",
+                                title: inv.invoice_number,
+                                subtitle: `Rechnung · ${formatCurrency(inv.total || 0)}`,
+                                route: `/invoice/${inv.id}`,
+                                onPress: onClose,
+                            })),
+                        ]}
+                    />
+                )}
+
+                {/* Zugeordnete Tickets mit Aufwandssumme */}
+                {srcTickets.length > 0 && (
+                    <LinkedRecords
+                        title="Tickets & Aufwände"
+                        records={srcTickets.map((t: any) => ({
+                            key: `tkt-${t.id}`,
+                            icon: "ticket.fill",
+                            color: "#F59E0B",
+                            title: t.title,
+                            subtitle: `${t.status === "closed" ? "Geschlossen" : "Offen"}${t.itemsTotal > 0 ? ` · Aufwand ${formatCurrency(t.itemsTotal)}` : ""}`,
+                            route: `/tickets?ticketId=${t.id}`,
+                            onPress: onClose,
+                        }))}
+                    />
+                )}
 
                 {/* Notizen */}
                 {project.notes ? (

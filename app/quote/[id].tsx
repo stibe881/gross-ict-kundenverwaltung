@@ -17,6 +17,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { showAlert, showConfirm, showConfirm2 } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
 import { QuoteFormModal } from "@/components/quote-form-modal";
+import { LinkedRecords } from "@/components/linked-records";
 import { downloadQuotePDF } from "@/lib/pdf-utils";
 import { Platform, Linking } from "react-native";
 import { supabase } from "@/lib/supabase";
@@ -48,6 +49,18 @@ export default function QuoteDetailScreen() {
     const { data: activities = [] } = useQuery({
         queryKey: ["quote_activities", id],
         queryFn: () => Data.getQuoteActivities(id as string),
+        enabled: !!id,
+    });
+
+    // Verknüpfungen: Projekt und Rechnungen aus diesem Angebot
+    const { data: linkedProject = null } = useQuery({
+        queryKey: ["quoteLinkedProject", id],
+        queryFn: () => Data.getProjectForQuote(id as string),
+        enabled: !!id,
+    });
+    const { data: linkedInvoices = [] } = useQuery({
+        queryKey: ["quoteLinkedInvoices", id],
+        queryFn: () => Data.getInvoicesForQuote(id as string),
         enabled: !!id,
     });
 
@@ -411,6 +424,32 @@ export default function QuoteDetailScreen() {
                     <View className="bg-surface rounded-xl p-4 border border-border mt-4">
                         <Text className="text-sm font-semibold text-foreground mb-1">Notizen</Text>
                         <Text className="text-sm text-muted">{quote.notes}</Text>
+                    </View>
+                )}
+
+                {/* Verknüpft mit (Projekt + Rechnungen) */}
+                {(linkedProject || linkedInvoices.length > 0) && (
+                    <View className="mt-4">
+                        <LinkedRecords
+                            records={[
+                                ...(linkedProject ? [{
+                                    key: `prj-${linkedProject.id}`,
+                                    icon: "folder.fill",
+                                    color: "#14B8A6",
+                                    title: `${linkedProject.project_number} · ${linkedProject.title}`,
+                                    subtitle: "Projekt",
+                                    route: "/projects",
+                                }] : []),
+                                ...linkedInvoices.map((inv: any) => ({
+                                    key: `inv-${inv.id}`,
+                                    icon: "doc.text.fill",
+                                    color: "#22C55E",
+                                    title: inv.invoice_number,
+                                    subtitle: `Rechnung · ${formatCurrency(inv.total || 0)}`,
+                                    route: `/invoice/${inv.id}`,
+                                })),
+                            ]}
+                        />
                     </View>
                 )}
 

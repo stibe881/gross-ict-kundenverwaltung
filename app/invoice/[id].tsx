@@ -21,6 +21,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
+import { LinkedRecords } from "@/components/linked-records";
 import { downloadInvoicePDF, generateInvoicePDFBase64 } from "@/lib/pdf-utils";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
@@ -46,6 +47,18 @@ export default function InvoiceDetailScreen() {
     const { data: invoiceSettings } = useQuery({
         queryKey: ["invoiceSettings"],
         queryFn: Data.getInvoiceSettings,
+    });
+
+    // Verknüpfungen: Quell-Angebot und Projekt
+    const { data: linkedQuote = null } = useQuery({
+        queryKey: ["invoiceLinkedQuote", (invoice as any)?.quote_id],
+        queryFn: () => Data.getQuoteBasic((invoice as any).quote_id),
+        enabled: !!(invoice as any)?.quote_id,
+    });
+    const { data: linkedProject = null } = useQuery({
+        queryKey: ["invoiceLinkedProject", (invoice as any)?.project_id],
+        queryFn: () => Data.getProjectBasic((invoice as any).project_id),
+        enabled: !!(invoice as any)?.project_id,
     });
     const [showEditModal, setShowEditModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -497,6 +510,32 @@ export default function InvoiceDetailScreen() {
                             <View className="bg-surface rounded-xl border border-border p-4 mb-4">
                                 <Text className="text-lg font-bold text-foreground mb-2">Notizen</Text>
                                 <Text className="text-sm text-foreground">{invoice.notes}</Text>
+                            </View>
+                        )}
+
+                        {/* Verknüpft mit (Angebot + Projekt) */}
+                        {(linkedQuote || linkedProject) && (
+                            <View className="mb-4">
+                                <LinkedRecords
+                                    records={[
+                                        ...(linkedQuote ? [{
+                                            key: `qt-${linkedQuote.id}`,
+                                            icon: "doc.on.doc.fill",
+                                            color: "#EC4899",
+                                            title: linkedQuote.quote_number,
+                                            subtitle: `Angebot · ${formatCurrency(linkedQuote.total || 0)}`,
+                                            route: `/quote/${linkedQuote.id}`,
+                                        }] : []),
+                                        ...(linkedProject ? [{
+                                            key: `prj-${linkedProject.id}`,
+                                            icon: "folder.fill",
+                                            color: "#14B8A6",
+                                            title: `${linkedProject.project_number} · ${linkedProject.title}`,
+                                            subtitle: "Projekt",
+                                            route: "/projects",
+                                        }] : []),
+                                    ]}
+                                />
                             </View>
                         )}
 

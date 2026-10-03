@@ -229,7 +229,7 @@ function TapToPayInner() {
       currentIntentRef.current = null;
       if (params.invoiceId) {
         try {
-          await Data.addPayment(String(params.invoiceId), chf);
+          await Data.addPayment(String(params.invoiceId), chf, "Tap to Pay");
           queryClient.invalidateQueries({ queryKey: ["invoices"] });
           queryClient.invalidateQueries({ queryKey: ["invoice", params.invoiceId] });
         } catch (bookErr: any) {

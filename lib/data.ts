@@ -565,7 +565,7 @@ export async function deleteInvoice(id: string) {
     return { success: true };
 }
 
-export async function addPayment(invoiceId: string, amount: number) {
+export async function addPayment(invoiceId: string, amount: number, method?: string) {
     const { data: invoice, error: fetchError } = await supabase
         .from("invoices")
         .select("total, paid_amount")
@@ -585,7 +585,7 @@ export async function addPayment(invoiceId: string, amount: number) {
     if (error) throw new Error(error.message);
 
     try {
-        await addInvoiceActivity(invoiceId, "payment_added", `Zahlung von CHF ${amount.toFixed(2)} erfasst. ${newStatus === "paid" ? "Rechnung vollständig bezahlt." : ""}`);
+        await addInvoiceActivity(invoiceId, "payment_added", `Zahlung von CHF ${amount.toFixed(2)}${method ? ` via ${method}` : ""} erfasst. ${newStatus === "paid" ? "Rechnung vollständig bezahlt." : ""}`);
     } catch (_) { /* ignore */ }
 
     return data;
@@ -686,7 +686,28 @@ export async function getCustomerTickets(customerId: string) {
     return data || [];
 }
 
+// Prüft, ob ein Kunde einen aktiven (nicht gekündigten) Vertrag hat
+export async function customerHasActiveContract(customerId: string): Promise<boolean> {
+    if (!customerId) return false;
+    const { count, error } = await supabase
+        .from("contracts")
+        .select("*", { count: "exact", head: true })
+        .eq("customer_id", customerId)
+        .eq("status", "active")
+        .is("cancellation_date", null);
+    if (error) return false;
+    return (count || 0) > 0;
+}
+
 export async function createTicket(ticket: any) {
+    // Automatik: Kunde mit aktivem Vertrag → Ticket als "im Vertrag abgedeckt" markieren
+    // (manuell übersteuerbar; explizit gesetzter Wert wird nicht überschrieben)
+    if (ticket.customer_id && ticket.covered_by_contract === undefined) {
+        try {
+            ticket = { ...ticket, covered_by_contract: await customerHasActiveContract(ticket.customer_id) };
+        } catch (_) { /* Automatik ist optional */ }
+    }
+
     const { data, error } = await supabase
         .from("tickets")
         .insert([ticket])
@@ -956,6 +977,9 @@ export async function convertQuoteToInvoice(quoteId: string, includeOptions: boo
         });
     }
 
+    // Verknüpfung: Quell-Angebot und (falls vorhanden) zugehöriges Projekt
+    const linkedProject = await getProjectForQuote(quoteId).catch(() => null);
+
     const invoice = await createInvoice(
         {
             customer_id: quote.customer_id,
@@ -966,6 +990,8 @@ export async function convertQuoteToInvoice(quoteId: string, includeOptions: boo
             vat_amount: (quote.tax || 0) + optionalTax,
             total: (quote.total || 0) + optionalTotal + optionalTax,
             status: "draft",
+            quote_id: quoteId,
+            project_id: linkedProject?.id || null,
         },
         invoiceItems.map((item: any) => ({
             description: item.description,
@@ -994,6 +1020,78 @@ export async function convertQuoteToInvoice(quoteId: string, includeOptions: boo
     }
 
     return invoice;
+}
+
+// ─── Modul-Verknüpfungen (Angebot ↔ Projekt ↔ Rechnung) ─────────────────────
+
+export async function getProjectForQuote(quoteId: string) {
+    const { data } = await supabase
+        .from("projects")
+        .select("id, project_number, title, status")
+        .eq("quote_id", quoteId)
+        .limit(1)
+        .maybeSingle();
+    return data || null;
+}
+
+export async function getInvoicesForQuote(quoteId: string) {
+    const { data } = await supabase
+        .from("invoices")
+        .select("id, invoice_number, status, total")
+        .eq("quote_id", quoteId as any)
+        .order("created_at", { ascending: false });
+    return data || [];
+}
+
+export async function getInvoicesForProject(projectId: string) {
+    const { data } = await supabase
+        .from("invoices")
+        .select("id, invoice_number, status, total")
+        .eq("project_id", projectId as any)
+        .order("created_at", { ascending: false });
+    return data || [];
+}
+
+export async function getQuoteBasic(quoteId: string) {
+    const { data } = await supabase
+        .from("quotes")
+        .select("id, quote_number, status, total")
+        .eq("id", quoteId)
+        .maybeSingle();
+    return data || null;
+}
+
+// Tickets eines Projekts inkl. Aufwandssumme (aus ticket_items)
+export async function getProjectTickets(projectId: string) {
+    const { data } = await supabase
+        .from("tickets")
+        .select("id, title, status, created_at, items:ticket_items(quantity, unit_price)")
+        .eq("project_id" as any, projectId)
+        .order("created_at", { ascending: false });
+    return (data || []).map((t: any) => ({
+        ...t,
+        itemsTotal: (t.items || []).reduce((s: number, i: any) => s + (i.quantity || 0) * (i.unit_price || 0), 0),
+    }));
+}
+
+// Laufende Projekte eines Kunden (für die Zuordnung im Ticket)
+export async function getCustomerProjects(customerId: string) {
+    const { data } = await supabase
+        .from("projects")
+        .select("id, project_number, title, status")
+        .eq("customer_id", customerId)
+        .in("status", ["planning", "in_progress", "on_hold"])
+        .order("created_at", { ascending: false });
+    return data || [];
+}
+
+export async function getProjectBasic(projectId: string) {
+    const { data } = await supabase
+        .from("projects")
+        .select("id, project_number, title, status")
+        .eq("id", projectId)
+        .maybeSingle();
+    return data || null;
 }
 
 export async function updateQuoteStatus(quoteId: string, status: string) {
