@@ -37,6 +37,7 @@ const MAPPING = {
   "sun.max.fill": "wb-sunny",
   "moon.fill": "nightlight-round",
   "arrow.down.doc.fill": "download",
+  "creditcard.fill": "credit-card",
   "arrow.up.arrow.down": "swap-vert",
   "wave.3.right": "contactless",
   "wave.3.right.circle.fill": "contactless",

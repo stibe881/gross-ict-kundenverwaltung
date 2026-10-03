@@ -93,6 +93,9 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
     const [showCustomerPicker, setShowCustomerPicker] = useState(false);
     const [customerSearch, setCustomerSearch] = useState("");
     const [dismissedAutocomplete, setDismissedAutocomplete] = useState<Set<string>>(new Set());
+    const [showTemplates, setShowTemplates] = useState(false);
+    const [templateName, setTemplateName] = useState("");
+    const [savingTemplate, setSavingTemplate] = useState(false);
 
     const { data: quoteNumber } = useQuery({
         queryKey: ["nextQuoteNumber"],
@@ -109,6 +112,12 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
     const { data: products } = useQuery({
         queryKey: ["products"],
         queryFn: Data.getAllProducts,
+        enabled: visible,
+    });
+
+    const { data: quoteTemplates } = useQuery({
+        queryKey: ["quoteTemplates"],
+        queryFn: Data.getQuoteTemplates,
         enabled: visible,
     });
 
@@ -275,6 +284,82 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
         }, 0);
     };
 
+    // ── Vorlagen: anwenden, speichern, löschen ──
+    const applyTemplate = (tpl: any) => {
+        const loaded: LineItem[] = (tpl.items || []).map((item: any, idx: number) => ({
+            id: String(idx + 1),
+            name: item.name || "",
+            description: item.description || "",
+            quantity: String(item.quantity ?? 1),
+            unit: item.unit || "Stk.",
+            unitPrice: item.unit_price != null ? String(item.unit_price) : "",
+            vatRate: String(item.vat_rate ?? 8.1),
+            optional: item.optional || false,
+        }));
+        if (loaded.length) {
+            setItems(loaded);
+            setDismissedAutocomplete(new Set(loaded.map((i) => i.id)));
+        }
+        if (tpl.notes) setNotes(tpl.notes);
+        if (tpl.special_discount && parseFloat(String(tpl.special_discount)) > 0) {
+            setSpecialDiscount(String(tpl.special_discount));
+            setSpecialDiscountType(tpl.special_discount_type === "percentage" ? "percentage" : "amount");
+        }
+        setShowTemplates(false);
+    };
+
+    const handleSaveTemplate = async () => {
+        const name = templateName.trim();
+        if (!name) {
+            showAlert("Fehler", "Bitte einen Namen für die Vorlage eingeben.");
+            return;
+        }
+        const tplItems = items
+            .filter((i) => i.name)
+            .map((i) => {
+                const parsed = parseFloat(i.vatRate);
+                return {
+                    name: i.name,
+                    description: i.description || "",
+                    quantity: parseFloat(i.quantity) || 1,
+                    unit: i.unit || "Stk.",
+                    unit_price: parseFloat(i.unitPrice) || 0,
+                    vat_rate: isNaN(parsed) ? 8.1 : parsed,
+                    optional: i.optional || false,
+                };
+            });
+        if (!tplItems.length) {
+            showAlert("Fehler", "Keine Positionen zum Speichern vorhanden.");
+            return;
+        }
+        setSavingTemplate(true);
+        try {
+            await Data.createQuoteTemplate({
+                name,
+                notes: notes || null,
+                special_discount: parseFloat(specialDiscount) || 0,
+                special_discount_type: specialDiscountType,
+                items: tplItems,
+            });
+            queryClient.invalidateQueries({ queryKey: ["quoteTemplates"] });
+            setTemplateName("");
+            showAlert("Erfolg", "Vorlage gespeichert");
+        } catch (error: any) {
+            showAlert("Fehler", error.message || "Vorlage konnte nicht gespeichert werden.");
+        } finally {
+            setSavingTemplate(false);
+        }
+    };
+
+    const handleDeleteTemplate = async (id: string) => {
+        try {
+            await Data.deleteQuoteTemplate(id);
+            queryClient.invalidateQueries({ queryKey: ["quoteTemplates"] });
+        } catch (error: any) {
+            showAlert("Fehler", error.message || "Vorlage konnte nicht gelöscht werden.");
+        }
+    };
+
     const handleSubmit = async () => {
         if (!customerId) {
             showAlert("Fehler", "Bitte einen Kunden auswählen.");
@@ -387,6 +472,78 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
                                 <Text className="text-base text-muted">
                                     {editQuote?.quote_number || quoteNumber || "Wird generiert..."}
                                 </Text>
+                            </View>
+
+                            {/* Vorlagen */}
+                            <View>
+                                <TouchableOpacity
+                                    className="flex-row items-center justify-between"
+                                    onPress={() => setShowTemplates(!showTemplates)}
+                                    activeOpacity={0.7}
+                                >
+                                    <View className="flex-row items-center gap-2">
+                                        <IconSymbol name="doc.on.doc.fill" size={14} color={colors.primary} />
+                                        <Text className="text-sm font-semibold text-foreground">Vorlagen</Text>
+                                        {quoteTemplates?.length ? (
+                                            <Text className="text-xs text-muted">({quoteTemplates.length})</Text>
+                                        ) : null}
+                                    </View>
+                                    <IconSymbol name={showTemplates ? "chevron.up" : "chevron.down"} size={14} color={colors.muted} />
+                                </TouchableOpacity>
+                                {showTemplates ? (
+                                    <View className="mt-2 bg-surface border border-border rounded-lg p-3">
+                                        {quoteTemplates && quoteTemplates.length > 0 ? (
+                                            quoteTemplates.map((tpl: any) => (
+                                                <View
+                                                    key={tpl.id}
+                                                    className="flex-row items-center gap-2 py-2 border-b border-border"
+                                                >
+                                                    <TouchableOpacity
+                                                        className="flex-1"
+                                                        onPress={() => applyTemplate(tpl)}
+                                                        activeOpacity={0.7}
+                                                    >
+                                                        <Text className="text-sm font-semibold text-foreground">{tpl.name}</Text>
+                                                        <Text className="text-xs text-muted">
+                                                            {(tpl.items || []).length} Position{(tpl.items || []).length === 1 ? "" : "en"} – tippen zum Übernehmen
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity onPress={() => handleDeleteTemplate(tpl.id)} activeOpacity={0.7} className="p-1">
+                                                        <IconSymbol name="trash.fill" size={16} color={colors.error} />
+                                                    </TouchableOpacity>
+                                                </View>
+                                            ))
+                                        ) : (
+                                            <Text className="text-xs text-muted">
+                                                Noch keine Vorlagen vorhanden. Positionen erfassen und unten als Vorlage speichern.
+                                            </Text>
+                                        )}
+                                        <View className="flex-row items-center gap-2 mt-3">
+                                            <TextInput
+                                                value={templateName}
+                                                onChangeText={setTemplateName}
+                                                placeholder="Name der neuen Vorlage"
+                                                placeholderTextColor={colors.muted}
+                                                className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground text-sm"
+                                            />
+                                            <TouchableOpacity
+                                                className="bg-primary px-3 py-2 rounded-lg"
+                                                onPress={handleSaveTemplate}
+                                                disabled={savingTemplate}
+                                                activeOpacity={0.8}
+                                            >
+                                                {savingTemplate ? (
+                                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                                ) : (
+                                                    <Text className="text-background text-xs font-semibold">Speichern</Text>
+                                                )}
+                                            </TouchableOpacity>
+                                        </View>
+                                        <Text className="text-xs text-muted mt-1">
+                                            Speichert die aktuellen Positionen, Notizen und den Rabatt als Vorlage.
+                                        </Text>
+                                    </View>
+                                ) : null}
                             </View>
 
                             {/* Kunde */}

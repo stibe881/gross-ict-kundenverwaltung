@@ -9,7 +9,13 @@ import { Platform } from "react-native";
 import { supabase } from "@/lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import "@/lib/_core/nativewind-pressable";
-import { ThemeProvider } from "@/lib/theme-context";
+import { ThemeProvider, useTheme } from "@/lib/theme-context";
+
+// Statusbar folgt dem gewählten Design (dunkles Design → helle Symbole)
+function ThemedStatusBar() {
+  const { resolvedTheme } = useTheme();
+  return <StatusBar style={resolvedTheme === "dark" ? "light" : "dark"} />;
+}
 import { ToastProvider } from "@/components/toast-provider";
 import { RouteGuard } from "@/components/route-guard";
 import {
@@ -408,7 +414,7 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="oauth/callback" />
             </Stack>
-            <StatusBar style="auto" />
+            <ThemedStatusBar />
           </ToastProvider>
         </RouteGuard>
       </QueryClientProvider>

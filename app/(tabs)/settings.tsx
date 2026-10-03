@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { LogoutButton } from "@/components/logout-button";
 import { AppReleaseCard } from "@/components/app-release-card";
+import { useTheme } from "@/lib/theme-context";
 
 interface SettingsRow {
   id: string;
@@ -23,6 +24,7 @@ interface SettingsRow {
 export default function SettingsScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { themeMode, setThemeMode } = useTheme();
   const { containerStyle, contentPadding } = useResponsiveLayout();
 
   const { data: sessionData } = useQuery({
@@ -216,6 +218,77 @@ export default function SettingsScreen() {
                   </Text>
                 )}
               </View>
+            </View>
+
+            {/* Darstellung: Dunkles Design umschalten */}
+            <View style={{ marginBottom: 18 }}>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: colors.muted,
+                  textTransform: "uppercase",
+                  letterSpacing: 1.5,
+                  marginBottom: 10,
+                }}
+              >
+                Darstellung
+              </Text>
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                  backgroundColor: colors.surface,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                }}
+                activeOpacity={0.7}
+                onPress={() => setThemeMode(themeMode === "dark" ? "light" : "dark")}
+              >
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#8B5CF618",
+                  }}
+                >
+                  <IconSymbol name={themeMode === "dark" ? "moon.fill" : "sun.max.fill"} size={18} color="#8B5CF6" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: "600", color: colors.foreground }}>Dunkles Design</Text>
+                  <Text style={{ fontSize: 12, color: colors.muted, marginTop: 1 }}>
+                    {themeMode === "dark" ? "Aktiviert" : "Deaktiviert – helles Design aktiv"}
+                  </Text>
+                </View>
+                {/* Schalter */}
+                <View
+                  style={{
+                    width: 46,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: themeMode === "dark" ? "#22C55E" : colors.border,
+                    justifyContent: "center",
+                    paddingHorizontal: 2,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: "#FFFFFF",
+                      alignSelf: themeMode === "dark" ? "flex-end" : "flex-start",
+                    }}
+                  />
+                </View>
+              </TouchableOpacity>
             </View>
 
             {renderSection("Persönlich", personalRows)}

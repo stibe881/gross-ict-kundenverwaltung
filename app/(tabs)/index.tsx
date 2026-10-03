@@ -183,6 +183,34 @@ export default function DashboardScreen() {
           route: `/quote/${qa.id}`,
         })));
       }
+      // Projekte
+      const { data: projects } = await supabase
+        .from("projects")
+        .select("id, project_number, title, status")
+        .or(`title.ilike.${q},project_number.ilike.${q}`)
+        .limit(5);
+      if (projects) {
+        results.push(...projects.map((p: any) => ({
+          id: p.id, type: "project", icon: "folder.fill", color: "#14B8A6",
+          title: `${p.project_number} · ${p.title}`,
+          subtitle: `Projekt · ${p.status === "in_progress" ? "Aktiv" : p.status === "completed" ? "Abgeschlossen" : p.status === "on_hold" ? "Pausiert" : "Planung"}`,
+          route: "/projects",
+        })));
+      }
+      // Verträge
+      const { data: contracts } = await supabase
+        .from("contracts")
+        .select("id, contract_number, title, status")
+        .or(`title.ilike.${q},contract_number.ilike.${q}`)
+        .limit(5);
+      if (contracts) {
+        results.push(...contracts.map((c: any) => ({
+          id: c.id, type: "contract", icon: "doc.on.doc.fill", color: "#6366F1",
+          title: `${c.contract_number ? c.contract_number + " · " : ""}${c.title}`,
+          subtitle: `Vertrag · ${c.status === "active" ? "Aktiv" : c.status === "cancelled" ? "Gekündigt" : "Abgelaufen"}`,
+          route: "/contracts",
+        })));
+      }
     } catch (e) {
       console.warn("[Search] Error:", e);
     }

@@ -486,3 +486,9 @@ enabled = true
 # Öffentlich: E-Mail-Dienst ruft den Webhook auf, Absicherung über ?secret=
 verify_jwt = false
 entrypoint = "./functions/inbound-email/index.ts"
+
+[functions.suggest-reply]
+enabled = true
+# Nur aus der App mit gültigem Login aufrufbar
+verify_jwt = true
+entrypoint = "./functions/suggest-reply/index.ts"

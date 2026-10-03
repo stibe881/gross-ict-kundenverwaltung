@@ -30,7 +30,7 @@ import { QuoteFormModal } from "@/components/quote-form-modal";
 import { TicketFormModal } from "@/components/ticket-form-modal";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 
-type Tab = "tickets" | "rechnungen" | "vertraege" | "angebote" | "links" | "kontakte" | "uberwachung" | "dokumente";
+type Tab = "tickets" | "rechnungen" | "vertraege" | "angebote" | "links" | "kontakte" | "uberwachung" | "dokumente" | "timeline";
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -105,6 +105,12 @@ export default function CustomerDetailScreen() {
   const { data: customerDocs = [] } = useQuery({
     queryKey: ["customerDocuments", id],
     queryFn: () => Data.listCustomerDocuments(id as string),
+    enabled: !!id,
+  });
+
+  const { data: timeline = [] } = useQuery({
+    queryKey: ["customerTimeline", id],
+    queryFn: () => Data.getCustomerTimeline(id as string),
     enabled: !!id,
   });
 
@@ -239,6 +245,7 @@ export default function CustomerDetailScreen() {
     { key: "kontakte", label: "Kontakte", icon: "person.2.fill", count: (customerContacts.length || 0) + (contactPerson ? 1 : 0) },
     { key: "uberwachung", label: "Überwachung", icon: "globe", count: customerUrls.length },
     { key: "dokumente", label: "Dokumente", icon: "folder.fill", count: customerDocs.length },
+    { key: "timeline", label: "Timeline", icon: "clock.fill", count: timeline.length },
   ];
 
   // ── Status / Priority Labels ──
@@ -315,6 +322,53 @@ export default function CustomerDetailScreen() {
   const renderTabContent = () => {
     if (activeTab === "dokumente") {
       return <CustomerDocuments customerId={id as string} />;
+    }
+    if (activeTab === "timeline") {
+      if (timeline.length === 0) return renderEmpty("Noch keine Aktivitäten", "clock.fill");
+      const categoryColor = (c: string) =>
+        c === "invoice" ? "#EF4444" : c === "contract" ? "#6366F1" : c === "quote" ? "#F59E0B" : c === "ticket" ? "#0EA5E9" : "#14B8A6";
+      const categoryLabel = (c: string) =>
+        c === "invoice" ? "Rechnung" : c === "contract" ? "Vertrag" : c === "quote" ? "Angebot" : c === "ticket" ? "Ticket" : "Projekt";
+      return (
+        <View>
+          {timeline.map((ev: Data.TimelineEvent, idx: number) => (
+            <View key={ev.id} className="flex-row" style={{ minHeight: 56 }}>
+              {/* Zeitstrahl: Punkt + Linie */}
+              <View style={{ width: 24, alignItems: "center" }}>
+                <View
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: categoryColor(ev.category),
+                    marginTop: 5,
+                  }}
+                />
+                {idx < timeline.length - 1 ? (
+                  <View style={{ flex: 1, width: 2, backgroundColor: colors.border, marginTop: 2 }} />
+                ) : null}
+              </View>
+              <View className="flex-1 pb-4 pl-1">
+                <View className="flex-row items-center gap-2">
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: categoryColor(ev.category), textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    {categoryLabel(ev.category)}
+                  </Text>
+                  <Text className="text-xs text-muted">
+                    {formatDate(ev.date)}
+                    {ev.user_name ? ` · ${ev.user_name}` : ""}
+                  </Text>
+                </View>
+                <Text className="text-sm font-semibold text-foreground mt-0.5">{ev.title}</Text>
+                {ev.subtitle ? (
+                  <Text className="text-xs text-muted mt-0.5" numberOfLines={2}>
+                    {ev.subtitle}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          ))}
+        </View>
+      );
     }
     switch (activeTab) {
       case "tickets":

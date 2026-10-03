@@ -17,6 +17,20 @@
 }
 
 
+/* ── Dark Mode ── */
+.dark {
+  --color-primary: #C19A6B;
+  --color-background: #1C1D27;
+  --color-surface: #252636;
+  --color-foreground: #EDE8DF;
+  --color-muted: #8A8498;
+  --color-border: #3A3748;
+  --color-success: #4ADE80;
+  --color-warning: #FB923C;
+  --color-error: #F87171;
+  --color-info: #22D3EE;
+}
+
 /* ── Light theme explicit ── */
 .light {
   --color-primary: #C19A6B;

@@ -877,6 +877,108 @@ export async function getCustomerQuotes(customerId: string) {
     return data || [];
 }
 
+// ── Kunden-Timeline: alle Aktivitäten eines Kunden chronologisch ──
+export interface TimelineEvent {
+    id: string;
+    date: string;
+    category: "invoice" | "contract" | "quote" | "ticket" | "project";
+    title: string;
+    subtitle?: string;
+    user_name?: string;
+}
+
+export async function getCustomerTimeline(customerId: string): Promise<TimelineEvent[]> {
+    const [invoicesRes, contractsRes, quotesRes, ticketsRes, projectsRes] = await Promise.all([
+        supabase.from("invoices").select("id, invoice_number").eq("customer_id", customerId),
+        supabase.from("contracts").select("id, contract_number, title").eq("customer_id", customerId),
+        supabase.from("quotes").select("id, quote_number").eq("customer_id", customerId),
+        supabase.from("tickets").select("id, title, status, created_at").eq("customer_id", customerId),
+        supabase.from("projects").select("id, project_number, title, status, created_at").eq("customer_id", customerId),
+    ]);
+
+    const invoices = invoicesRes.data || [];
+    const contracts = contractsRes.data || [];
+    const quotes = quotesRes.data || [];
+    const tickets = ticketsRes.data || [];
+    const projects = projectsRes.data || [];
+
+    const invoiceIds = invoices.map((i: any) => i.id);
+    const contractIds = contracts.map((c: any) => c.id);
+    const quoteIds = quotes.map((q: any) => q.id);
+
+    const [invActsRes, conActsRes, quoActsRes] = await Promise.all([
+        invoiceIds.length
+            ? supabase.from("invoice_activities").select("id, invoice_id, description, user_name, created_at").in("invoice_id", invoiceIds)
+            : Promise.resolve({ data: [] as any[] }),
+        contractIds.length
+            ? supabase.from("contract_activities").select("id, contract_id, description, user_name, created_at").in("contract_id", contractIds)
+            : Promise.resolve({ data: [] as any[] }),
+        quoteIds.length
+            ? supabase.from("quote_activities").select("id, quote_id, description, user_name, created_at").in("quote_id", quoteIds)
+            : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    const invoiceNumberById = new Map(invoices.map((i: any) => [i.id, i.invoice_number]));
+    const contractLabelById = new Map(contracts.map((c: any) => [c.id, c.contract_number || c.title]));
+    const quoteNumberById = new Map(quotes.map((q: any) => [q.id, q.quote_number]));
+
+    const events: TimelineEvent[] = [];
+
+    for (const a of invActsRes.data || []) {
+        events.push({
+            id: `inv-${a.id}`,
+            date: a.created_at,
+            category: "invoice",
+            title: `Rechnung ${invoiceNumberById.get(a.invoice_id) || ""}`.trim(),
+            subtitle: a.description,
+            user_name: a.user_name,
+        });
+    }
+    for (const a of conActsRes.data || []) {
+        events.push({
+            id: `con-${a.id}`,
+            date: a.created_at,
+            category: "contract",
+            title: `Vertrag ${contractLabelById.get(a.contract_id) || ""}`.trim(),
+            subtitle: a.description,
+            user_name: a.user_name,
+        });
+    }
+    for (const a of quoActsRes.data || []) {
+        events.push({
+            id: `quo-${a.id}`,
+            date: a.created_at,
+            category: "quote",
+            title: `Angebot ${quoteNumberById.get(a.quote_id) || ""}`.trim(),
+            subtitle: a.description,
+            user_name: a.user_name,
+        });
+    }
+    for (const t of tickets) {
+        if (!t.created_at) continue;
+        events.push({
+            id: `tic-${t.id}`,
+            date: t.created_at,
+            category: "ticket",
+            title: "Ticket erstellt",
+            subtitle: t.title,
+        });
+    }
+    for (const p of projects) {
+        if (!p.created_at) continue;
+        events.push({
+            id: `pro-${p.id}`,
+            date: p.created_at,
+            category: "project",
+            title: `Projekt ${p.project_number || ""} erstellt`.replace("  ", " "),
+            subtitle: p.title,
+        });
+    }
+
+    events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return events.slice(0, 100);
+}
+
 export async function getQuoteById(id: string) {
     const { data, error } = await supabase
         .from("quotes")
@@ -886,6 +988,41 @@ export async function getQuoteById(id: string) {
 
     if (error) throw new Error(error.message);
     return data;
+}
+
+// ── Angebots-Vorlagen ──
+export async function getQuoteTemplates() {
+    // quote_templates ist noch nicht in den generierten DB-Typen enthalten
+    const { data, error } = await (supabase as any)
+        .from("quote_templates")
+        .select("*")
+        .order("name", { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createQuoteTemplate(template: {
+    name: string;
+    notes?: string | null;
+    special_discount?: number;
+    special_discount_type?: string;
+    items: any[];
+}) {
+    const { data, error } = await (supabase as any)
+        .from("quote_templates")
+        .insert([template])
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteQuoteTemplate(id: string) {
+    const { error } = await (supabase as any).from("quote_templates").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    return { success: true };
 }
 
 export async function createQuote(quote: any, items: any[]) {

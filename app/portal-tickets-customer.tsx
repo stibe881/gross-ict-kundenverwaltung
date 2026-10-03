@@ -8,11 +8,12 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime, formatCurrency, getInvoiceTotal } from "@/lib/format";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -39,10 +40,13 @@ interface TicketComment {
   is_system: boolean;
 }
 
+type PortalSection = "tickets" | "invoices" | "contracts";
+
 export default function PortalTicketsScreen() {
   const colors = useColors();
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [filter, setFilter] = useState<"all" | TicketStatus>("all");
+  const [section, setSection] = useState<PortalSection>("tickets");
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [portalUserId, setPortalUserId] = useState<string | null>(null);
   const { ticketId } = useLocalSearchParams();
@@ -72,6 +76,23 @@ export default function PortalTicketsScreen() {
       }
     }
   }, [ticketId, tickets]);
+
+  const { data: invoices = [] } = useQuery({
+    queryKey: ["portalInvoices", customerId],
+    queryFn: () => Data.getCustomerInvoices(customerId!),
+    enabled: !!customerId,
+  });
+
+  const { data: contracts = [] } = useQuery({
+    queryKey: ["portalContracts", customerId],
+    queryFn: () => Data.getCustomerContracts(customerId!),
+    enabled: !!customerId,
+  });
+
+  // Entwürfe und stornierte Rechnungen gehören nicht ins Kundenportal
+  const visibleInvoices = invoices.filter(
+    (inv: any) => inv.status !== "draft" && inv.status !== "cancelled"
+  );
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ["unreadPortalNotifications", portalUserId],
@@ -171,6 +192,101 @@ export default function PortalTicketsScreen() {
     </TouchableOpacity>
   );
 
+  // ── Rechnungen ──
+  const invoiceStatusLabel = (s: string) =>
+    s === "open" ? "Offen" : s === "sent" ? "Versendet" : s === "paid" ? "Bezahlt" : s === "overdue" ? "Überfällig" : s;
+  const invoiceStatusColor = (s: string) =>
+    s === "paid" ? colors.success : s === "overdue" ? colors.error : s === "sent" ? "#06b6d4" : colors.primary;
+
+  const handlePayInvoice = (invoiceId: string) => {
+    const baseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
+    if (!baseUrl) return;
+    Linking.openURL(`${baseUrl}/functions/v1/invoice-payment?id=${invoiceId}`);
+  };
+
+  const renderInvoiceItem = ({ item }: { item: any }) => {
+    const total = getInvoiceTotal(item);
+    const payable = item.status === "open" || item.status === "sent" || item.status === "overdue";
+    return (
+      <View className="bg-surface p-4 rounded-lg border border-border mb-3">
+        <View className="flex-row items-center justify-between mb-2">
+          <Text className="text-base font-semibold text-foreground flex-1">
+            Rechnung {item.invoice_number}
+          </Text>
+          <View
+            style={{ backgroundColor: invoiceStatusColor(item.status) + "20" }}
+            className="px-3 py-1 rounded-full ml-2"
+          >
+            <Text
+              style={{ color: invoiceStatusColor(item.status) }}
+              className="text-xs font-semibold"
+            >
+              {invoiceStatusLabel(item.status)}
+            </Text>
+          </View>
+        </View>
+        <View className="flex-row items-center justify-between">
+          <Text className="text-sm text-muted">
+            {formatDate(item.invoice_date)}
+            {item.due_date ? ` · fällig ${formatDate(item.due_date)}` : ""}
+          </Text>
+          <Text className="text-base font-bold text-foreground">{formatCurrency(total)}</Text>
+        </View>
+        {payable ? (
+          <TouchableOpacity
+            className="bg-primary py-2.5 rounded-lg mt-3 flex-row items-center justify-center gap-2"
+            onPress={() => handlePayInvoice(item.id)}
+            activeOpacity={0.8}
+          >
+            <IconSymbol name="creditcard.fill" size={16} color={colors.background} />
+            <Text className="text-background font-semibold">Online bezahlen</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    );
+  };
+
+  // ── Verträge ──
+  const contractStatusLabel = (s: string) =>
+    s === "active" ? "Aktiv" : s === "cancelled" ? "Gekündigt" : "Abgelaufen";
+  const contractStatusColor = (s: string) =>
+    s === "active" ? colors.success : s === "cancelled" ? colors.error : colors.warning;
+
+  const renderContractItem = ({ item }: { item: any }) => (
+    <View className="bg-surface p-4 rounded-lg border border-border mb-3">
+      <View className="flex-row items-center justify-between mb-2">
+        <Text className="text-base font-semibold text-foreground flex-1">
+          {item.title || item.contract_number || "Vertrag"}
+        </Text>
+        <View
+          style={{ backgroundColor: contractStatusColor(item.status) + "20" }}
+          className="px-3 py-1 rounded-full ml-2"
+        >
+          <Text
+            style={{ color: contractStatusColor(item.status) }}
+            className="text-xs font-semibold"
+          >
+            {contractStatusLabel(item.status)}
+          </Text>
+        </View>
+      </View>
+      {item.contract_number && item.title ? (
+        <Text className="text-xs text-muted mb-1">{item.contract_number}</Text>
+      ) : null}
+      <View className="flex-row items-center justify-between">
+        <Text className="text-sm text-muted">
+          {item.start_date ? `Seit ${formatDate(item.start_date)}` : ""}
+          {item.end_date ? ` · bis ${formatDate(item.end_date)}` : ""}
+        </Text>
+        {item.annual_amount || item.amount ? (
+          <Text className="text-base font-bold text-foreground">
+            {formatCurrency(Number(item.annual_amount || item.amount))} / Jahr
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+
   const handleLogout = async () => {
     await Data.supabase.auth.signOut();
     await AsyncStorage.removeItem("isCustomerLoggedIn");
@@ -194,7 +310,7 @@ export default function PortalTicketsScreen() {
         <View className="p-4 border-b border-border">
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-2xl font-bold text-foreground">
-              Meine Tickets
+              Kundenportal
             </Text>
             <View className="flex-row items-center gap-4">
               <TouchableOpacity
@@ -223,7 +339,37 @@ export default function PortalTicketsScreen() {
             </View>
           </View>
 
-          {/* Filter */}
+          {/* Bereichswahl: Tickets / Rechnungen / Verträge */}
+          <View className="flex-row bg-surface border border-border rounded-xl overflow-hidden mb-3">
+            {([
+              { key: "tickets", label: "Tickets", icon: "ticket.fill" },
+              { key: "invoices", label: "Rechnungen", icon: "doc.text.fill" },
+              { key: "contracts", label: "Verträge", icon: "doc.badge.clock.fill" },
+            ] as { key: PortalSection; label: string; icon: any }[]).map((s) => (
+              <TouchableOpacity
+                key={s.key}
+                className="flex-1 flex-row items-center justify-center gap-1.5 py-2.5"
+                style={{ backgroundColor: section === s.key ? colors.primary : "transparent" }}
+                onPress={() => setSection(s.key)}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  name={s.icon}
+                  size={14}
+                  color={section === s.key ? colors.background : colors.muted}
+                />
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: section === s.key ? colors.background : colors.foreground }}
+                >
+                  {s.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Filter (nur für Tickets) */}
+          {section === "tickets" ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -254,25 +400,60 @@ export default function PortalTicketsScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+          ) : null}
         </View>
 
-        {/* Ticket-Liste */}
+        {/* Inhalt je Bereich */}
         <View className="flex-1 p-4">
-          {filteredTickets.length > 0 ? (
+          {section === "tickets" ? (
+            filteredTickets.length > 0 ? (
+              <FlatList
+                data={filteredTickets}
+                renderItem={renderTicketItem}
+                keyExtractor={(item) => item.id.toString()}
+                showsVerticalScrollIndicator={false}
+              />
+            ) : (
+              <View className="flex-1 items-center justify-center">
+                <IconSymbol name="ticket.fill" size={48} color={colors.muted} />
+                <Text className="text-lg text-muted mt-4">Keine Tickets</Text>
+                <Text className="text-sm text-muted text-center mt-2">
+                  {filter === "all"
+                    ? "Sie haben noch keine Tickets"
+                    : `Keine Tickets mit Status "${getStatusLabel(filter as TicketStatus)}"`}
+                </Text>
+              </View>
+            )
+          ) : section === "invoices" ? (
+            visibleInvoices.length > 0 ? (
+              <FlatList
+                data={visibleInvoices}
+                renderItem={renderInvoiceItem}
+                keyExtractor={(item: any) => String(item.id)}
+                showsVerticalScrollIndicator={false}
+              />
+            ) : (
+              <View className="flex-1 items-center justify-center">
+                <IconSymbol name="doc.text.fill" size={48} color={colors.muted} />
+                <Text className="text-lg text-muted mt-4">Keine Rechnungen</Text>
+                <Text className="text-sm text-muted text-center mt-2">
+                  Es sind noch keine Rechnungen vorhanden.
+                </Text>
+              </View>
+            )
+          ) : contracts.length > 0 ? (
             <FlatList
-              data={filteredTickets}
-              renderItem={renderTicketItem}
-              keyExtractor={(item) => item.id.toString()}
+              data={contracts}
+              renderItem={renderContractItem}
+              keyExtractor={(item: any) => String(item.id)}
               showsVerticalScrollIndicator={false}
             />
           ) : (
             <View className="flex-1 items-center justify-center">
-              <IconSymbol name="ticket.fill" size={48} color={colors.muted} />
-              <Text className="text-lg text-muted mt-4">Keine Tickets</Text>
+              <IconSymbol name="doc.badge.clock.fill" size={48} color={colors.muted} />
+              <Text className="text-lg text-muted mt-4">Keine Verträge</Text>
               <Text className="text-sm text-muted text-center mt-2">
-                {filter === "all"
-                  ? "Sie haben noch keine Tickets"
-                  : `Keine Tickets mit Status "${getStatusLabel(filter as TicketStatus)}"`}
+                Es sind noch keine Verträge vorhanden.
               </Text>
             </View>
           )}

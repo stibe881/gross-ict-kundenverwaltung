@@ -810,6 +810,44 @@ function TicketDetailsModal({
   const [newComment, setNewComment] = useState("");
   const [addingComment, setAddingComment] = useState(false);
   const [isInternalComment, setIsInternalComment] = useState(true);
+
+  // Textbausteine (zentral im App-Einstellungs-Store) + KI-Antwortvorschlag
+  const [showSnippets, setShowSnippets] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const { data: appSettings = {} } = useQuery({
+    queryKey: ["marketingSettings"],
+    queryFn: Data.getMarketingSettings,
+  });
+  const snippets: string[] = React.useMemo(() => {
+    try { return JSON.parse((appSettings as any).ticket_snippets || "[]"); } catch { return []; }
+  }, [appSettings]);
+  const saveSnippets = async (list: string[]) => {
+    try {
+      await Data.setMarketingSetting("ticket_snippets", JSON.stringify(list));
+      queryClient.invalidateQueries({ queryKey: ["marketingSettings"] });
+    } catch (e: any) {
+      showAlert("Fehler", "Baustein konnte nicht gespeichert werden: " + e.message);
+    }
+  };
+
+  const handleSuggestReply = async () => {
+    setSuggesting(true);
+    try {
+      const { data, error } = await Data.supabase.functions.invoke("suggest-reply", {
+        body: { ticket_id: ticket.id },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      if (data?.reply) {
+        setNewComment(data.reply);
+        setIsInternalComment(false); // Vorschlag ist als Kundenantwort formuliert
+      }
+    } catch (e: any) {
+      showAlert("Fehler", "KI-Vorschlag fehlgeschlagen: " + e.message);
+    } finally {
+      setSuggesting(false);
+    }
+  };
   const [showAssignPicker, setShowAssignPicker] = useState(false);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showPriorityPicker, setShowPriorityPicker] = useState(false);
@@ -1554,6 +1592,70 @@ function TicketDetailsModal({
             </TouchableOpacity>
             <Text style={{ fontSize: 11, color: colors.muted }}>Tippen um zu wechseln</Text>
           </View>
+
+          {/* Textbausteine + KI-Vorschlag */}
+          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+            <TouchableOpacity
+              style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: showSnippets ? colors.primary : colors.border, backgroundColor: showSnippets ? colors.primary + "12" : colors.surface }}
+              onPress={() => setShowSnippets(!showSnippets)}
+              activeOpacity={0.7}
+            >
+              <IconSymbol name="note.text" size={12} color={colors.primary} />
+              <Text style={{ fontSize: 12, fontWeight: "600", color: colors.primary }}>Textbausteine</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, opacity: suggesting ? 0.6 : 1 }}
+              onPress={handleSuggestReply}
+              disabled={suggesting}
+              activeOpacity={0.7}
+            >
+              {suggesting ? (
+                <ActivityIndicator size="small" color="#8B5CF6" />
+              ) : (
+                <IconSymbol name="lightbulb.fill" size={12} color="#8B5CF6" />
+              )}
+              <Text style={{ fontSize: 12, fontWeight: "600", color: "#8B5CF6" }}>
+                {suggesting ? "KI schreibt…" : "KI-Antwort vorschlagen"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Baustein-Liste */}
+          {showSnippets && (
+            <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+              {snippets.length === 0 && (
+                <Text style={{ fontSize: 12, color: colors.muted, padding: 12 }}>
+                  Noch keine Bausteine. Text ins Kommentarfeld schreiben und unten speichern.
+                </Text>
+              )}
+              {snippets.map((s, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={{ paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: colors.border }}
+                  onPress={() => { setNewComment(newComment ? newComment + "\n" + s : s); setShowSnippets(false); }}
+                  onLongPress={() => {
+                    showConfirm("Baustein löschen", `"${s.substring(0, 60)}…" entfernen?`, () => {
+                      saveSnippets(snippets.filter((_, i) => i !== idx));
+                    }, "Löschen");
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 13, color: colors.foreground }} numberOfLines={2}>{s}</Text>
+                </TouchableOpacity>
+              ))}
+              {newComment.trim().length > 0 && !snippets.includes(newComment.trim()) && (
+                <TouchableOpacity
+                  style={{ paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: snippets.length > 0 ? 1 : 0, borderTopColor: colors.border }}
+                  onPress={() => saveSnippets([...snippets, newComment.trim()])}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary }}>
+                    + Aktuellen Text als Baustein speichern
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           <View style={{ flexDirection: "row", gap: 8 }}>
             <TextInput
