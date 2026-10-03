@@ -980,14 +980,16 @@ export async function convertQuoteToInvoice(quoteId: string, includeOptions: boo
     // 4. Mark quote as accepted
     await supabase.from("quotes").update({ status: "accepted" }).eq("id", quoteId);
 
+    // Neutrale Meldung: Die Umwandlung wurde intern ausgelöst – "Angebot
+    // angenommen" meldet bereits die Online-Annahme durch den Kunden
     if (quote.quote_number) {
         triggerPushNotification(
             "all_admins",
             "admin",
-            "Angebot angenommen",
-            `Das Angebot ${quote.quote_number} wurde angenommen und in eine Rechnung umgewandelt!`,
-            { url: `/quotes?quoteId=${quote.id}` },
-            "quotes"
+            "Rechnung erstellt",
+            `Aus Angebot ${quote.quote_number} wurde die Rechnung ${invoice.invoice_number} erstellt.`,
+            { url: `/invoice/${invoice.id}` },
+            "invoices"
         );
     }
 
