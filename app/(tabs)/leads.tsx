@@ -376,8 +376,9 @@ export default function LeadsScreen() {
               <View style={isWide ? { flexDirection: 'row', flexWrap: 'wrap', gap: 16 } : { gap: 16 }}>
                 {(Object.keys(groupedLeads) as Array<keyof typeof groupedLeads>).map((stage) => (
                   <View key={stage} className="bg-surface rounded-xl p-4 border border-border" style={isWide ? { flex: 1, minWidth: '45%' } : undefined}>
-                    <TouchableOpacity 
-                      className="flex-row items-center justify-between mb-3"
+                    <TouchableOpacity
+                      className="flex-row items-center justify-between"
+                      style={{ marginBottom: isWide || expandedStages[stage] ? 12 : 0 }}
                       activeOpacity={isWide ? 1 : 0.7}
                       onPress={() => {
                         if (!isWide) {
@@ -524,8 +525,9 @@ export default function LeadsScreen() {
               <View className={isWide ? "flex-row gap-3 mt-4" : "flex-col gap-3 mt-4"}>
                 {/* Gewonnen Box */}
                 <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <TouchableOpacity 
-                    className="flex-row items-center justify-between mb-4"
+                  <TouchableOpacity
+                    className="flex-row items-center justify-between"
+                    style={{ marginBottom: isWide || expandedStages["won"] ? 16 : 0 }}
                     activeOpacity={isWide ? 1 : 0.7}
                     onPress={() => {
                       if (!isWide) {
@@ -578,8 +580,9 @@ export default function LeadsScreen() {
 
                 {/* Verloren Box */}
                 <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <TouchableOpacity 
-                    className="flex-row items-center justify-between mb-4"
+                  <TouchableOpacity
+                    className="flex-row items-center justify-between"
+                    style={{ marginBottom: isWide || expandedStages["lost"] ? 16 : 0 }}
                     activeOpacity={isWide ? 1 : 0.7}
                     onPress={() => {
                       if (!isWide) {
