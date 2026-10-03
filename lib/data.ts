@@ -931,7 +931,7 @@ export async function deleteQuote(id: string) {
     return { success: true };
 }
 
-export async function convertQuoteToInvoice(quoteId: string) {
+export async function convertQuoteToInvoice(quoteId: string, includeOptions: boolean = false) {
     // 1. Fetch the quote with items
     const quote = await getQuoteById(quoteId);
     if (!quote) throw new Error("Angebot nicht gefunden");
@@ -943,18 +943,31 @@ export async function convertQuoteToInvoice(quoteId: string) {
     const today = new Date().toISOString().split("T")[0];
     const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
+    // Optionale Positionen nur übernehmen, wenn gewünscht;
+    // quote.subtotal/tax/total sind immer OHNE Optionen gerechnet
+    const allItems = (quote.items || []) as any[];
+    const invoiceItems = allItems.filter((it: any) => !it.optional || includeOptions);
+    let optionalTotal = 0;
+    let optionalTax = 0;
+    if (includeOptions) {
+        allItems.filter((it: any) => !!it.optional).forEach((it: any) => {
+            optionalTotal += it.total || 0;
+            optionalTax += (it.total || 0) * ((it.vat_rate ?? 8.1) / 100);
+        });
+    }
+
     const invoice = await createInvoice(
         {
             customer_id: quote.customer_id,
             invoice_number: invoiceNumber,
             invoice_date: today,
             due_date: dueDate,
-            subtotal: quote.subtotal,
-            vat_amount: quote.tax,
-            total: quote.total,
+            subtotal: (quote.subtotal || 0) + optionalTotal,
+            vat_amount: (quote.tax || 0) + optionalTax,
+            total: (quote.total || 0) + optionalTotal + optionalTax,
             status: "draft",
         },
-        (quote.items || []).map((item: any) => ({
+        invoiceItems.map((item: any) => ({
             description: item.description,
             quantity: item.quantity,
             unit_price: item.unit_price,
@@ -1872,22 +1885,33 @@ export async function getProjectInvoices(projectId: string) {
     return data || [];
 }
 
-export async function convertQuoteToProject(quoteId: string) {
+export async function convertQuoteToProject(quoteId: string, includeOptions: boolean = false) {
     const quote = await getQuoteById(quoteId);
     if (!quote) throw new Error("Angebot nicht gefunden");
+
+    // Optionale Positionen nur übernehmen, wenn gewünscht
+    const allItems = (quote.items || []) as any[];
+    const items = allItems.filter((it: any) => !it.optional || includeOptions);
+    let optionalTotal = 0;
+    let optionalTax = 0;
+    if (includeOptions) {
+        allItems.filter((it: any) => !!it.optional).forEach((it: any) => {
+            optionalTotal += it.total || 0;
+            optionalTax += (it.total || 0) * ((it.vat_rate ?? 8.1) / 100);
+        });
+    }
 
     const project = await createProject({
         title: `Projekt aus ${quote.quote_number}`,
         description: quote.notes || "",
         customer_id: quote.customer_id,
         quote_id: quoteId,
-        budget: quote.total || 0,
+        budget: (quote.total || 0) + optionalTotal + optionalTax,
         status: "planning",
         priority: "medium",
     });
 
     // Create milestones from quote items
-    const items = quote.items || [];
     for (let i = 0; i < items.length; i++) {
         await createMilestone({
             project_id: project.id,

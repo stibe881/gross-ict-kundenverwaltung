@@ -58,7 +58,7 @@ export default function ProjectsScreen() {
     const [selectedProject, setSelectedProject] = useState<any>(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>("list");
-    const [filter, setFilter] = useState("all");
+    const [filter, setFilter] = useState("in_progress");
     const [search, setSearch] = useState("");
     const { refreshing, onRefresh } = useGlobalRefresh();
 

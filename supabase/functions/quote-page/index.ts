@@ -689,9 +689,23 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
       <button class="modal-close" id="modal-close">&times;</button>
       <h3>Angebot annehmen</h3>
       <p>Mit Ihrer Bestätigung wird das Angebot verbindlich angenommen.</p>
+      ${hasOptional ? `
+      <div style="margin:16px 0;text-align:left;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Möchten Sie die optionalen Leistungen dazubestellen?</div>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border,#333);border-radius:10px;cursor:pointer;margin-bottom:8px;">
+          <input type="radio" name="optchoice" value="0" checked>
+          <span style="flex:1;">Ohne optionale Leistungen</span>
+          <strong>CHF ${fmtCHF(totalExcl)}</strong>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border,#333);border-radius:10px;cursor:pointer;">
+          <input type="radio" name="optchoice" value="1">
+          <span style="flex:1;">Mit optionalen Leistungen</span>
+          <strong>CHF ${fmtCHF(totalIncl)}</strong>
+        </label>
+      </div>` : ``}
       <div class="modal-amount">
-        <div class="label">${hasOptional ? 'Gesamtbetrag inkl. Optionen' : 'Gesamtbetrag'}</div>
-        <div class="value">CHF ${fmtCHF(hasOptional ? totalIncl : totalExcl)}</div>
+        <div class="label" id="modal-amount-label">Gesamtbetrag</div>
+        <div class="value" id="modal-amount-value">CHF ${fmtCHF(totalExcl)}</div>
       </div>
       <div class="modal-check" id="modal-check-area">
         <input type="checkbox" id="agree">
@@ -908,6 +922,20 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
     document.addEventListener('keydown', (e) => { if(e.key==='Escape') closeModal(); });
 
     checkbox?.addEventListener('change', () => { confirmBtn.disabled = !checkbox.checked; });
+
+    // Auswahl optionale Leistungen: Betrag im Modal aktualisieren
+    const optRadios = document.querySelectorAll('input[name="optchoice"]');
+    function selectedWithOptions() {
+      const checked = document.querySelector('input[name="optchoice"]:checked');
+      return checked ? checked.value === '1' : null;
+    }
+    optRadios.forEach((r) => r.addEventListener('change', () => {
+      const withOpts = selectedWithOptions();
+      const valueEl = document.getElementById('modal-amount-value');
+      const labelEl = document.getElementById('modal-amount-label');
+      if (valueEl) valueEl.textContent = withOpts ? 'CHF ${fmtCHF(totalIncl)}' : 'CHF ${fmtCHF(totalExcl)}';
+      if (labelEl) labelEl.textContent = withOpts ? 'Gesamtbetrag inkl. optionale Leistungen' : 'Gesamtbetrag';
+    }));
     document.getElementById('modal-check-area')?.addEventListener('click', (e) => {
       if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') {
         checkbox.checked = !checkbox.checked;
@@ -921,7 +949,9 @@ function renderPage(quote: any, supabaseUrl: string, project?: any, anonKey?: st
       confirmBtn.innerHTML = 'Wird verarbeitet…';
 
       try {
-        const res = await fetch('${acceptUrl}', { method: 'POST' });
+        const withOpts = selectedWithOptions();
+        const acceptFetchUrl = '${acceptUrl}' + (withOpts === null ? '' : ('&options=' + (withOpts ? '1' : '0')));
+        const res = await fetch(acceptFetchUrl, { method: 'POST' });
         const data = await res.json();
         if (data.success) {
           confirmBtn.innerHTML = '&#x2713; Angenommen!';

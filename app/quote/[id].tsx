@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { showAlert, showConfirm } from "@/lib/alert";
+import { showAlert, showConfirm, showConfirm2 } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
 import { QuoteFormModal } from "@/components/quote-form-modal";
 import { downloadQuotePDF } from "@/lib/pdf-utils";
@@ -64,7 +64,8 @@ export default function QuoteDetailScreen() {
     });
 
     const convertMutation = useMutation({
-        mutationFn: (quoteId: string) => Data.convertQuoteToInvoice(quoteId),
+        mutationFn: ({ quoteId, includeOptions }: { quoteId: string; includeOptions: boolean }) =>
+            Data.convertQuoteToInvoice(quoteId, includeOptions),
         onSuccess: (invoice) => {
             queryClient.invalidateQueries({ queryKey: ["quotes"] });
             queryClient.invalidateQueries({ queryKey: ["invoices"] });
@@ -77,7 +78,8 @@ export default function QuoteDetailScreen() {
     });
 
     const projectMutation = useMutation({
-        mutationFn: (quoteId: string) => Data.convertQuoteToProject(quoteId),
+        mutationFn: ({ quoteId, includeOptions }: { quoteId: string; includeOptions: boolean }) =>
+            Data.convertQuoteToProject(quoteId, includeOptions),
         onSuccess: (project) => {
             queryClient.invalidateQueries({ queryKey: ["quotes"] });
             queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -100,7 +102,9 @@ export default function QuoteDetailScreen() {
                 showConfirm(
                     "Projekt erstellen?",
                     "Möchten Sie aus diesem Angebot ein Projekt erstellen?",
-                    () => projectMutation.mutate(id as string),
+                    () => resolveIncludeOptions((includeOptions) =>
+                        projectMutation.mutate({ quoteId: id as string, includeOptions })
+                    ),
                     "Projekt erstellen"
                 );
             }
@@ -133,6 +137,27 @@ export default function QuoteDetailScreen() {
         }
     }, [quote]);
 
+    // Klärt, ob optionale Leistungen übernommen werden sollen:
+    // 1. keine Optionen im Angebot -> nein, ohne Nachfrage
+    // 2. Kunde hat online entschieden (accepted_with_options) -> dessen Wahl
+    // 3. sonst nachfragen
+    const resolveIncludeOptions = (then: (includeOptions: boolean) => void) => {
+        const hasOptional = (quote?.items || []).some((it: any) => !!it.optional);
+        if (!hasOptional) return then(false);
+        const customerChoice = (quote as any)?.accepted_with_options;
+        if (customerChoice === true || customerChoice === false) {
+            return then(customerChoice);
+        }
+        showConfirm2(
+            "Optionale Leistungen",
+            "Dieses Angebot enthält optionale Leistungen. Sollen sie übernommen werden?",
+            "Mit Optionen",
+            () => then(true),
+            "Ohne Optionen",
+            () => then(false)
+        );
+    };
+
     const handleDelete = () => {
         showConfirm(
             "Angebot löschen",
@@ -150,7 +175,9 @@ export default function QuoteDetailScreen() {
         showConfirm(
             "In Rechnung umwandeln",
             message,
-            () => convertMutation.mutate(id as string),
+            () => resolveIncludeOptions((includeOptions) =>
+                convertMutation.mutate({ quoteId: id as string, includeOptions })
+            ),
             "Umwandeln"
         );
     };
@@ -507,7 +534,9 @@ export default function QuoteDetailScreen() {
                                 showConfirm(
                                     "Projekt erstellen",
                                     `Aus Angebot ${quote.quote_number} ein neues Projekt erstellen?`,
-                                    () => projectMutation.mutate(id as string),
+                                    () => resolveIncludeOptions((includeOptions) =>
+                                        projectMutation.mutate({ quoteId: id as string, includeOptions })
+                                    ),
                                     "Erstellen"
                                 )
                             }

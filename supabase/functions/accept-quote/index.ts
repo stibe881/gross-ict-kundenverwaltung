@@ -12,6 +12,9 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const id = url.searchParams.get("id");
+  // Entscheidung des Kunden zu optionalen Leistungen ("1" = mit, "0" = ohne, fehlt = keine Optionen)
+  const optionsParam = url.searchParams.get("options");
+  const withOptions = optionsParam === "1";
 
   if (!id) {
     return new Response(
@@ -62,6 +65,7 @@ Deno.serve(async (req) => {
       .update({
         status: "accepted",
         accepted_at: new Date().toISOString(),
+        ...(optionsParam !== null ? { accepted_with_options: withOptions } : {}),
       })
       .eq("id", id)
       .neq("status", "accepted")
@@ -108,6 +112,18 @@ Deno.serve(async (req) => {
         .single();
 
       if (fullQuote) {
+        // Optionale Positionen nur übernehmen, wenn der Kunde sie dazubestellt hat
+        const allItems = fullQuote.items || [];
+        const includedItems = allItems.filter((it: any) => !it.optional || withOptions);
+        const optionalItems = allItems.filter((it: any) => !!it.optional);
+        let optionalTotal = 0;
+        let optionalTax = 0;
+        optionalItems.forEach((it: any) => {
+          optionalTotal += it.total || 0;
+          optionalTax += (it.total || 0) * ((it.vat_rate ?? 8.1) / 100);
+        });
+        const budget = (fullQuote.total || 0) + (withOptions ? optionalTotal + optionalTax : 0);
+
         // Generate project number
         const year = new Date().getFullYear();
         const prefix = `PRJ-${year}-`;
@@ -134,15 +150,15 @@ Deno.serve(async (req) => {
             description: fullQuote.notes || "",
             customer_id: fullQuote.customer_id,
             quote_id: id,
-            budget: fullQuote.total || 0,
+            budget,
             status: "planning",
           })
           .select()
           .single();
 
-        // Create milestones from quote items
-        if (project && fullQuote.items) {
-          const milestones = fullQuote.items.map((item: any, i: number) => ({
+        // Create milestones from quote items (ohne abgewählte Optionen)
+        if (project && includedItems.length > 0) {
+          const milestones = includedItems.map((item: any, i: number) => ({
             project_id: project.id,
             title: (item.description || `Position ${i + 1}`).split("\n")[0],
             status: "pending",
@@ -161,6 +177,7 @@ Deno.serve(async (req) => {
     // Optional: E-Mail-Benachrichtigung an Gross ICT
     const customerName = (quote.customer as any)?.company_name ||
       `${(quote.customer as any)?.first_name || ""} ${(quote.customer as any)?.last_name || ""}`.trim() || "Kunde";
+    const optionsInfo = optionsParam === null ? "" : withOptions ? " – MIT optionalen Leistungen" : " – ohne optionale Leistungen";
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (resendApiKey) {
@@ -175,7 +192,7 @@ Deno.serve(async (req) => {
             html: `
               <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
                 <h2 style="color:#22c55e;">Angebot angenommen! 🎉</h2>
-                <p><strong>${customerName}</strong> hat das Angebot <strong>${quote.quote_number}</strong> soeben online angenommen.</p>
+                <p><strong>${customerName}</strong> hat das Angebot <strong>${quote.quote_number}</strong> soeben online angenommen${optionsInfo ? `<strong>${optionsInfo}</strong>` : ""}.</p>
                 <p style="color:#666;margin-top:16px;">Zeitpunkt: ${new Date().toLocaleString("de-CH")}</p>
               </div>
             `,
@@ -205,7 +222,7 @@ Deno.serve(async (req) => {
                 to: token,
                 sound: "default",
                 title: "Angebot angenommen! 🎉",
-                body: `${customerName} hat das Angebot ${quote.quote_number} angenommen.`,
+                body: `${customerName} hat das Angebot ${quote.quote_number} angenommen${optionsInfo}.`,
                 data: { url: "/quotes" },
               });
             }
