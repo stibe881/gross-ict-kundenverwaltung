@@ -140,7 +140,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="projects"
         options={{
-          href: showProjects ? undefined : null,
+          // Mobil nicht in der Tab-Leiste (erreichbar über das Dashboard), auf Web sichtbar
+          href: Platform.OS === "web" ? (showProjects ? undefined : null) : null,
           title: "Projekte",
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="folder.fill" color={color} />,
         }}
@@ -178,6 +179,13 @@ export default function TabLayout() {
           href: Platform.OS === "web" ? null : showAccounting ? undefined : null,
           // Apple-Vorgabe: Kontaktlos-Symbol nur im Bezahl-Screen selbst verwenden
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="banknote" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Einstellungen",
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gear" color={color} />,
         }}
       />
       {/* Hidden Screens inside Tabs (so they get the bottom menu) */}

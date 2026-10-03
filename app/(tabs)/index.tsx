@@ -341,43 +341,7 @@ export default function DashboardScreen() {
         },
       ],
     },
-    {
-      label: "Konfiguration",
-      tiles: [
-        {
-          id: "products",
-          title: "Produkte",
-          subtitle: "Leistungskatalog",
-          icon: "cube.box.fill",
-          color: "#F97316",
-          route: "/products",
-        },
-        {
-          id: "dunning",
-          title: "Rechnungen",
-          subtitle: "Mahnwesen & Einstellungen",
-          icon: "doc.text.fill",
-          color: "#DC2626",
-          route: "/dunning-settings",
-        },
-        {
-          id: "business-card",
-          title: "Visitenkarte",
-          subtitle: "Apple Wallet",
-          icon: "person.crop.rectangle.fill",
-          color: "#0EA5E9",
-          route: "/business-card",
-        },
-        {
-          id: "users",
-          title: "Mitarbeitende",
-          subtitle: "Benutzer & Rollen",
-          icon: "person.2.fill",
-          color: "#6366F1",
-          route: "/users",
-        },
-      ],
-    },
+    // Konfiguration ist in den neuen Einstellungen-Tab umgezogen
   ];
 
   const allowedTileIds = Data.getAllowedTileIds(
