@@ -31,7 +31,7 @@ async function generatePassBuffer(name: string, position: string, phone: string,
       serialNumber: `pass-${Buffer.from(name + email).toString('base64').replace(/[^a-zA-Z0-9]/g, '')}`,
       organizationName: "Gross ICT",
       description: "Gross ICT Visitenkarte",
-      logoText: "Gross ICT",
+      // kein logoText – das Logo oben links ist das volle "Gross ICT"-Wordmark
       foregroundColor: "rgb(255, 255, 255)",
       backgroundColor: "rgb(17, 17, 17)",
       labelColor: "rgb(212, 164, 50)",
