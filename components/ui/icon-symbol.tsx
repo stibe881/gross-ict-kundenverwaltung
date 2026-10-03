@@ -91,6 +91,7 @@ const MAPPING = {
   "xmark.octagon.fill": "block",
   "flag.fill": "flag",
   "envelope.open.fill": "drafts",
+  "note.text": "sticky-note-2",
   "play.fill": "play-arrow",
   "pause.fill": "pause",
   "doc.text": "description",

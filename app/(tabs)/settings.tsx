@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { LogoutButton } from "@/components/logout-button";
+import { AppReleaseCard } from "@/components/app-release-card";
 
 interface SettingsRow {
   id: string;
@@ -57,10 +58,10 @@ export default function SettingsScreen() {
     {
       id: "notifications",
       title: "Benachrichtigungen",
-      subtitle: "Mitteilungen ansehen",
+      subtitle: "Push-Benachrichtigungen ein-/ausschalten",
       icon: "bell.fill",
       color: "#F59E0B",
-      route: "/admin-notifications",
+      route: "/notification-settings",
     },
     {
       id: "business-card",
@@ -93,7 +94,7 @@ export default function SettingsScreen() {
     {
       id: "users",
       title: "Mitarbeitende",
-      subtitle: "Benutzer, Rollen & App-Update",
+      subtitle: "Benutzer & Rollen",
       icon: "person.2.fill",
       color: "#6366F1",
       route: "/users",
@@ -221,6 +222,25 @@ export default function SettingsScreen() {
 
             {/* Nur Admins sehen und verwalten die Administration */}
             {isAdmin && renderSection("Administration", adminRows)}
+
+            {/* App-Update direkt in den Einstellungen (nur Admins) */}
+            {isAdmin && (
+              <View style={{ marginBottom: 18 }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "700",
+                    color: colors.muted,
+                    textTransform: "uppercase",
+                    letterSpacing: 1.5,
+                    marginBottom: 10,
+                  }}
+                >
+                  App-Update
+                </Text>
+                <AppReleaseCard />
+              </View>
+            )}
 
             {/* Abmelden */}
             <View style={{ alignItems: "center", marginTop: 6 }}>

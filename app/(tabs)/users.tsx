@@ -22,7 +22,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
-import { AppReleaseCard } from "@/components/app-release-card";
 
 export default function UsersScreen() {
   const colors = useColors();
@@ -740,9 +739,6 @@ export default function UsersScreen() {
               ))}
             </View>
           </View>
-
-          {/* App-Update (nur Admins) */}
-          <AppReleaseCard />
 
           {/* Info hint */}
           <View style={{ backgroundColor: "#0078D4" + "10", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#0078D4" + "25", marginBottom: 16, flexDirection: "row", alignItems: "center", gap: 10 }}>

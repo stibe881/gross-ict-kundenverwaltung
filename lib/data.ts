@@ -2097,6 +2097,15 @@ export async function getUserProfile(id: string) {
     return data;
 }
 
+// Eigene Push-Einstellungen speichern (RLS: Benutzer darf nur die eigene Zeile ändern)
+export async function updateOwnPushPreferences(userId: string, prefs: Record<string, boolean>) {
+    const { error } = await supabase
+        .from("users")
+        .update({ push_preferences: prefs } as any)
+        .eq("id", userId);
+    if (error) throw new Error(error.message);
+}
+
 // ── Role Definitions ──
 export const ROLE_DEFINITIONS = [
     { key: "admin", label: "Admin", color: "#EF4444", description: "Vollzugriff, inkl. Konfiguration (Produkte, Benutzer etc.)" },

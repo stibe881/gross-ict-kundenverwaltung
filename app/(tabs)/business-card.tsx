@@ -218,7 +218,7 @@ export default function BusinessCardScreen() {
             {/* Header */}
             <View className="flex-row items-center justify-between p-4 border-b border-border bg-surface">
                 <View className="flex-row items-center gap-3">
-                    <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} className="p-2 -ml-2">
+                    <TouchableOpacity onPress={() => router.push("/settings" as any)} activeOpacity={0.7} className="p-2 -ml-2">
                         <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
                     </TouchableOpacity>
                     <Text className="text-2xl font-bold text-foreground">Digitale Visitenkarte</Text>
