@@ -389,7 +389,8 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.vcard]
 enabled = true
-verify_jwt = true
+# Öffentlich: wird vom QR-Code auf dem Wallet-Pass und vom Teilen-Link aufgerufen
+verify_jwt = false
 import_map = "./functions/vcard/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
