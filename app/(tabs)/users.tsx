@@ -689,7 +689,7 @@ export default function UsersScreen() {
           {/* Header */}
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+              <TouchableOpacity onPress={() => router.push("/settings" as any)} activeOpacity={0.7}>
                 <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
               </TouchableOpacity>
               <View>

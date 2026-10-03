@@ -374,7 +374,7 @@ export default function DunningSettingsScreen() {
                     {/* Header */}
                     <View className="flex-row items-center justify-between mb-4">
                         <View className="flex-row items-center gap-3">
-                            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+                            <TouchableOpacity onPress={() => router.push("/settings" as any)} activeOpacity={0.7}>
                                 <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
                             </TouchableOpacity>
                             <View>

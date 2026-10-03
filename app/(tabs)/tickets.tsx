@@ -39,6 +39,8 @@ export default function TicketsScreen() {
   const { refreshing, onRefresh } = useGlobalRefresh();
   const [filter, setFilter] = useState<"all" | TicketStatus>("open");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<"all" | TicketPriority>("all");
+  const [onlyMine, setOnlyMine] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAssigneeFilterPicker, setShowAssigneeFilterPicker] = useState(false);
@@ -160,6 +162,25 @@ export default function TicketsScreen() {
     return user?.name || null;
   };
 
+  // Fälligkeit / Alter
+  const isTicketOverdue = (t: any) =>
+    t.status !== "closed" && !!(t as any).due_date &&
+    new Date((t as any).due_date) < new Date(new Date().setHours(0, 0, 0, 0));
+
+  const ticketAgeDays = (t: any) =>
+    Math.floor((Date.now() - new Date(t.created_at).getTime()) / 86400000);
+
+  const claimTicket = async (t: any) => {
+    if (!currentUserId) return;
+    try {
+      await Data.updateTicket(t.id, { assigned_to: currentUserId });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      showToast("Ticket übernommen");
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    }
+  };
+
   const filteredTickets = tickets
     .filter((t) => filter === "all" || t.status === filter)
     .filter((t) => {
@@ -167,6 +188,8 @@ export default function TicketsScreen() {
       if (assigneeFilter === "unassigned") return !t.assigned_to;
       return t.assigned_to === assigneeFilter;
     })
+    .filter((t) => (onlyMine ? t.assigned_to === currentUserId : true))
+    .filter((t) => (priorityFilter === "all" ? true : (t.priority || "medium") === priorityFilter))
     .filter((t) => {
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
@@ -211,6 +234,11 @@ export default function TicketsScreen() {
         case "datum":
           valA = new Date(a.created_at).getTime();
           valB = new Date(b.created_at).getTime();
+          break;
+        case "faellig":
+          // Tickets ohne Fälligkeit ans Ende
+          valA = (a as any).due_date ? new Date((a as any).due_date).getTime() : Number.MAX_SAFE_INTEGER;
+          valB = (b as any).due_date ? new Date((b as any).due_date).getTime() : Number.MAX_SAFE_INTEGER;
           break;
       }
 
@@ -258,6 +286,9 @@ export default function TicketsScreen() {
     const priorityColor = getPriorityColor(item.priority);
     const statusColor = getStatusColor(item.status);
     const assignee = getAssigneeName(item);
+    const overdue = isTicketOverdue(item);
+    const age = ticketAgeDays(item);
+    const isOpenish = item.status !== "closed";
 
     return (
       <TouchableOpacity
@@ -270,15 +301,18 @@ export default function TicketsScreen() {
           borderWidth: 1,
           borderColor: colors.border,
           borderLeftWidth: 4,
-          borderLeftColor: priorityColor,
+          borderLeftColor: overdue ? colors.error : priorityColor,
           overflow: "hidden",
         }}
       >
         <View style={{ padding: 14 }}>
-          {/* Top row: title + priority badge */}
+          {/* Kopfzeile: Titel + Chips */}
           <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
-            <View style={{ flex: 1, marginRight: 10 }}>
-              <Text style={{ fontSize: 15, fontWeight: "700", color: colors.foreground }} numberOfLines={1}>{item.title}</Text>
+            <View style={{ flex: 1, marginRight: 10, flexDirection: "row", alignItems: "center", gap: 6 }}>
+              {item.covered_by_contract && (
+                <IconSymbol name="checkmark.seal.fill" size={14} color={colors.success} />
+              )}
+              <Text style={{ fontSize: 15, fontWeight: "700", color: colors.foreground, flex: 1 }} numberOfLines={1}>{item.title}</Text>
             </View>
             <View style={{ flexDirection: "row", gap: 6 }}>
               <View style={{ backgroundColor: priorityColor + "18", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
@@ -290,27 +324,58 @@ export default function TicketsScreen() {
             </View>
           </View>
 
-          {/* Description preview */}
+          {/* Beschreibung */}
           {item.description ? (
             <Text style={{ fontSize: 13, color: colors.muted, marginBottom: 8 }} numberOfLines={1}>{item.description}</Text>
           ) : null}
 
-          {/* Bottom row: customer, assignee, date */}
+          {/* Kunde + Zuweisung */}
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                 <IconSymbol name="person.2.fill" size={12} color={colors.muted} />
                 <Text style={{ fontSize: 12, color: colors.muted }} numberOfLines={1}>{getCustomerName(item)}</Text>
               </View>
-              {assignee && (
+              {assignee ? (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                   <IconSymbol name="person.fill.badge.plus" size={12} color={colors.primary} />
                   <Text style={{ fontSize: 12, color: colors.primary, fontWeight: "500" }} numberOfLines={1}>{assignee}</Text>
                 </View>
-              )}
+              ) : isOpenish ? (
+                <TouchableOpacity
+                  onPress={(e) => { e.stopPropagation(); claimTicket(item); }}
+                  activeOpacity={0.7}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.primary + "15", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}
+                >
+                  <IconSymbol name="person.fill.badge.plus" size={12} color={colors.primary} />
+                  <Text style={{ fontSize: 11, color: colors.primary, fontWeight: "700" }}>Übernehmen</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
             <Text style={{ fontSize: 11, color: colors.muted }}>{formatDate(item.created_at)}</Text>
           </View>
+
+          {/* Fälligkeit + Alter */}
+          {(item.due_date || (isOpenish && age >= 3)) && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
+              {item.due_date && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <IconSymbol name={overdue ? "exclamationmark.triangle.fill" : "calendar"} size={12} color={overdue ? colors.error : colors.muted} />
+                  <Text style={{ fontSize: 11, color: overdue ? colors.error : colors.muted, fontWeight: overdue ? "700" : "400" }}>
+                    {overdue ? `Überfällig seit ${formatDate(item.due_date)}` : `Fällig ${formatDate(item.due_date)}`}
+                  </Text>
+                </View>
+              )}
+              {isOpenish && age >= 3 && (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <IconSymbol name="clock" size={12} color={age >= 7 ? colors.warning : colors.muted} />
+                  <Text style={{ fontSize: 11, color: age >= 7 ? colors.warning : colors.muted, fontWeight: age >= 7 ? "700" : "400" }}>
+                    Offen seit {age} Tagen
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -474,6 +539,77 @@ export default function TicketsScreen() {
             </View>
           </View>
 
+          {/* Schnellfilter + Sortierung */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 12 }} contentContainerStyle={{ gap: 8, alignItems: "center", paddingRight: 16 }}>
+            <TouchableOpacity
+              onPress={() => setOnlyMine(!onlyMine)}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 4,
+                paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1,
+                backgroundColor: onlyMine ? colors.primary : colors.surface,
+                borderColor: onlyMine ? colors.primary : colors.border,
+              }}
+            >
+              <IconSymbol name="person.fill" size={12} color={onlyMine ? "#fff" : colors.primary} />
+              <Text style={{ fontSize: 12, fontWeight: "700", color: onlyMine ? "#fff" : colors.foreground }}>Meine Tickets</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setAssigneeFilter(assigneeFilter === "unassigned" ? "all" : "unassigned")}
+              activeOpacity={0.8}
+              style={{
+                paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1,
+                backgroundColor: assigneeFilter === "unassigned" ? colors.warning : colors.surface,
+                borderColor: assigneeFilter === "unassigned" ? colors.warning : colors.border,
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: "700", color: assigneeFilter === "unassigned" ? "#fff" : colors.foreground }}>Nicht zugewiesen</Text>
+            </TouchableOpacity>
+            <View style={{ width: 1, height: 18, backgroundColor: colors.border }} />
+            {([["high", "Hoch"], ["medium", "Mittel"], ["low", "Niedrig"]] as const).map(([key, label]) => {
+              const active = priorityFilter === key;
+              const pColor = getPriorityColor(key as TicketPriority);
+              return (
+                <TouchableOpacity
+                  key={key}
+                  onPress={() => setPriorityFilter(active ? "all" : (key as TicketPriority))}
+                  activeOpacity={0.8}
+                  style={{
+                    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1,
+                    backgroundColor: active ? pColor : colors.surface,
+                    borderColor: active ? pColor : colors.border,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: active ? "#fff" : colors.foreground }}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+            <View style={{ width: 1, height: 18, backgroundColor: colors.border }} />
+            <IconSymbol name="arrow.up.arrow.down" size={13} color={colors.muted} />
+            {([
+              ["standard", "Standard", null],
+              ["datum", "Neueste", { key: "datum", direction: "desc" }],
+              ["prio", "Priorität", { key: "prio", direction: "desc" }],
+              ["faellig", "Fälligkeit", { key: "faellig", direction: "asc" }],
+            ] as const).map(([key, label, config]) => {
+              const active = config === null ? sortConfig === null : sortConfig?.key === key;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  onPress={() => setSortConfig(config as any)}
+                  activeOpacity={0.8}
+                  style={{
+                    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1,
+                    backgroundColor: active ? colors.primary + "15" : colors.surface,
+                    borderColor: active ? colors.primary : colors.border,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: active ? colors.primary : colors.foreground }}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
           {/* Stat Cards – dienen gleichzeitig als Status-Filter */}
           <View style={{ flexDirection: "row", gap: 8, marginBottom: 14 }}>
             {statCards.map((stat) => (
@@ -635,6 +771,21 @@ function TicketDetailsModal({
   const [currentStatus, setCurrentStatus] = useState<TicketStatus>(ticket.status || "open");
   const [currentPriority, setCurrentPriority] = useState<TicketPriority>(ticket.priority || "medium");
   const [assignedTo, setAssignedTo] = useState<string | null>(ticket.assigned_to || null);
+  const [dueDate, setDueDate] = useState<string | null>(ticket.due_date || null);
+  const dueDateOverdue = !!dueDate && currentStatus !== "closed" &&
+    new Date(dueDate) < new Date(new Date().setHours(0, 0, 0, 0));
+
+  const handleDueDateChange = async (newDate: string | null) => {
+    const prev = dueDate;
+    setDueDate(newDate);
+    try {
+      await Data.updateTicket(ticket.id, { due_date: newDate } as any);
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    } catch (e: any) {
+      setDueDate(prev);
+      showAlert("Fehler", "Fälligkeit konnte nicht gespeichert werden: " + e.message);
+    }
+  };
   const [newComment, setNewComment] = useState("");
   const [addingComment, setAddingComment] = useState(false);
   const [isInternalComment, setIsInternalComment] = useState(true);
@@ -1173,6 +1324,38 @@ function TicketDetailsModal({
               ))}
             </View>
           )}
+
+          {/* Fälligkeit */}
+          <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, textTransform: "uppercase", marginTop: 14, marginBottom: 6 }}>Fälligkeit</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+            {dueDate ? (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: (dueDateOverdue ? colors.error : colors.primary) + "15", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 }}>
+                <IconSymbol name={dueDateOverdue ? "exclamationmark.triangle.fill" : "calendar"} size={12} color={dueDateOverdue ? colors.error : colors.primary} />
+                <Text style={{ fontSize: 12, fontWeight: "700", color: dueDateOverdue ? colors.error : colors.primary }}>
+                  {formatDate(dueDate)}
+                </Text>
+                <TouchableOpacity onPress={() => handleDueDateChange(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <IconSymbol name="xmark.circle.fill" size={14} color={colors.muted} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={{ fontSize: 12, color: colors.muted, marginRight: 4 }}>Keine –</Text>
+            )}
+            {([["Heute", 0], ["Morgen", 1], ["+1 Woche", 7]] as const).map(([label, days]) => (
+              <TouchableOpacity
+                key={label}
+                onPress={() => {
+                  const d = new Date();
+                  d.setDate(d.getDate() + days);
+                  handleDueDateChange(d.toISOString().split("T")[0]);
+                }}
+                activeOpacity={0.7}
+                style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: "600", color: colors.foreground }}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       </View>
 
