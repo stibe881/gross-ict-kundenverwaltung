@@ -52,6 +52,7 @@ export default function DashboardScreen() {
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
   const [showAskCrm, setShowAskCrm] = useState(false);
+  const [showNewMenu, setShowNewMenu] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const searchTimer = useRef<any>(null);
@@ -130,21 +131,34 @@ export default function DashboardScreen() {
     return () => clearInterval(timer);
   }, [user]);
 
-  // Live-Kennzahlen für die KPI-Zeile (reine Zähl-Abfragen, günstig)
+  // Live-Kennzahlen für die KPI-Zeile
   const { data: stats } = useQuery({
     queryKey: ["dashboardStats"],
     queryFn: async () => {
-      const [tickets, invoices, projects, customers] = await Promise.all([
-        supabase.from("tickets").select("*", { count: "exact", head: true }).eq("status", "open"),
-        supabase.from("invoices").select("*", { count: "exact", head: true }).not("status", "in", "(paid,cancelled)"),
-        supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "in_progress"),
-        supabase.from("customers").select("*", { count: "exact", head: true }).eq("status", "active"),
+      const today = new Date().toISOString().split("T")[0];
+      const in7 = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      const [ticketsRes, openInvRes, paidInvRes, projectsRes] = await Promise.all([
+        supabase.from("tickets").select("due_date").in("status", ["open", "in_progress", "waiting"]),
+        supabase.from("invoices").select("total, paid_amount, due_date").in("status", ["open", "sent", "overdue"]),
+        // Umsatz: im laufenden Monat bezahlte Rechnungen (Zahlzeitpunkt ≈ updated_at)
+        supabase.from("invoices").select("total").eq("status", "paid").gte("updated_at", monthStart),
+        supabase.from("projects").select("end_date").eq("status", "in_progress"),
       ]);
+      const tickets = ticketsRes.data || [];
+      const openInv = openInvRes.data || [];
+      const paidInv = paidInvRes.data || [];
+      const projects = projectsRes.data || [];
       return {
-        openTickets: tickets.count || 0,
-        unpaidInvoices: invoices.count || 0,
-        activeProjects: projects.count || 0,
-        activeCustomers: customers.count || 0,
+        openTickets: tickets.length,
+        overdueTickets: tickets.filter((t: any) => t.due_date && t.due_date < today).length,
+        openInvoiceSum: openInv.reduce((sum: number, i: any) => sum + Math.max(0, (i.total || 0) - (i.paid_amount || 0)), 0),
+        openInvoiceCount: openInv.length,
+        overdueInvoiceCount: openInv.filter((i: any) => i.due_date && i.due_date < today).length,
+        monthRevenue: paidInv.reduce((sum: number, i: any) => sum + (i.total || 0), 0),
+        monthPaidCount: paidInv.length,
+        activeProjects: projects.length,
+        projectsEndingSoon: projects.filter((pr: any) => pr.end_date && pr.end_date >= today && pr.end_date <= in7).length,
       };
     },
     enabled: !!user,
@@ -516,17 +530,209 @@ export default function DashboardScreen() {
     .filter((cat) => cat.tiles.length > 0);
 
   // KPI-Kacheln: nur anzeigen, was die Rolle sehen darf
+  const monthName = new Date().toLocaleDateString("de-CH", { month: "long" });
+  const fmtChf = (v?: number) => `CHF ${Math.round(v || 0).toLocaleString("de-CH")}`;
   const kpiCards = [
-    { id: "tickets", label: "Offene Tickets", value: stats?.openTickets, color: "#F59E0B", icon: "ticket.fill", route: "/tickets" },
-    { id: "accounting", label: "Offene Rechnungen", value: stats?.unpaidInvoices, color: "#EF4444", icon: "doc.text.fill", route: "/accounting" },
-    { id: "projects", label: "Aktive Projekte", value: stats?.activeProjects, color: "#14B8A6", icon: "folder.fill", route: "/projects" },
-    { id: "customers", label: "Aktive Kunden", value: stats?.activeCustomers, color: colors.primary, icon: "person.2.fill", route: "/customers" },
+    { id: "tickets", label: "Offene Tickets", value: stats ? String(stats.openTickets) : "–", sub: `${stats?.overdueTickets || 0} überfällig`, color: "#FB923C", route: "/tickets" },
+    { id: "accounting", label: "Offene Rechnungen", value: stats ? fmtChf(stats.openInvoiceSum) : "–", sub: `${stats?.openInvoiceCount || 0} Rechnungen · ${stats?.overdueInvoiceCount || 0} überfällig`, color: "#F87171", route: "/accounting" },
+    { id: "accounting", label: `Umsatz ${monthName}`, value: stats ? fmtChf(stats.monthRevenue) : "–", sub: `${stats?.monthPaidCount || 0} Zahlungen eingegangen`, color: "#4ADE80", route: "/accounting" },
+    { id: "projects", label: "Aktive Projekte", value: stats ? String(stats.activeProjects) : "–", sub: `${stats?.projectsEndingSoon || 0} enden diese Woche`, color: "#22D3EE", route: "/projects" },
   ].filter((k) => tileAllowed(k.id));
 
   // Tile column count based on screen width
   const tileColumns = isWide ? 4 : isMedium ? 3 : 2;
   const tileGap = isWide ? 16 : 12;
   const useGrid = isWide || isMedium;
+
+  // ── Desktop-Web: Dashboard im Mockup-Layout (Topbar, KPI-Zeile, zwei Spalten) ──
+  if (isWide) {
+    const newMenuItems = [
+      { id: "tickets", label: "Neues Ticket", icon: "ticket.fill", open: () => setShowTicketModal(true) },
+      { id: "accounting", label: "Neue Rechnung", icon: "doc.text.fill", open: () => setShowInvoiceModal(true) },
+      { id: "quotes", label: "Neues Angebot", icon: "doc.on.doc.fill", open: () => setShowQuoteModal(true) },
+      { id: "customers", label: "Neuer Kunde", icon: "person.2.fill", open: () => setShowCustomerModal(true) },
+      { id: "projects", label: "Neues Projekt", icon: "folder.fill", open: () => setShowProjectModal(true) },
+    ].filter((m) => tileAllowed(m.id));
+
+    return (
+      <ScreenContainer>
+        {/* Topbar */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 28, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, zIndex: 100 }}>
+          <View style={{ flex: 1, position: "relative" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: globalSearch ? colors.primary + "60" : colors.border, borderRadius: 11, paddingHorizontal: 14, paddingVertical: 9 }}>
+              <IconSymbol name="magnifyingglass" size={15} color={colors.muted} />
+              <TextInput
+                style={{ flex: 1, fontSize: 13.5, color: colors.foreground }}
+                placeholder="Suchen… (status:offen · kunde:müller · >1000)"
+                placeholderTextColor={colors.muted}
+                value={globalSearch}
+                onChangeText={handleSearchChange}
+              />
+              {globalSearch.length > 0 && (
+                <TouchableOpacity onPress={() => { setGlobalSearch(""); setSearchResults([]); }}>
+                  <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
+                </TouchableOpacity>
+              )}
+            </View>
+            {(searchResults.length > 0 || (searching && globalSearch.length >= 2)) && (
+              <View style={{
+                position: "absolute", top: 44, left: 0, right: 0,
+                backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+                overflow: "hidden", maxHeight: 350,
+                ...(Platform.OS === "web" ? { boxShadow: "0 8px 32px rgba(0,0,0,0.25)" } as any : {}),
+              }}>
+                {searching ? (
+                  <View style={{ padding: 18, alignItems: "center" }}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                ) : (
+                  <ScrollView style={{ maxHeight: 340 }} nestedScrollEnabled>
+                    {searchResults.map((result, idx) => (
+                      <TouchableOpacity
+                        key={`${result.type}-${result.id}`}
+                        style={{ flexDirection: "row", alignItems: "center", padding: 12, gap: 11, borderBottomWidth: idx < searchResults.length - 1 ? 1 : 0, borderBottomColor: colors.border + "60" }}
+                        activeOpacity={0.7}
+                        onPress={() => { setGlobalSearch(""); setSearchResults([]); router.push(result.route as any); }}
+                      >
+                        <View style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: result.color + "18", alignItems: "center", justifyContent: "center" }}>
+                          <IconSymbol name={result.icon} size={15} color={result.color} />
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{result.title}</Text>
+                          <Text style={{ fontSize: 11.5, color: colors.muted }} numberOfLines={1}>{result.subtitle}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={{ flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "#8B5CF61A", borderWidth: 1, borderColor: "#8B5CF645", paddingHorizontal: 14, paddingVertical: 9, borderRadius: 11 }}
+            onPress={() => setShowAskCrm(true)}
+            activeOpacity={0.8}
+          >
+            <IconSymbol name="sparkles" size={14} color="#B99CFF" />
+            <Text style={{ fontSize: 13, fontWeight: "600", color: "#B99CFF" }}>Frag dein CRM</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{ position: "relative", width: 38, height: 38, borderRadius: 11, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" }}
+            onPress={() => router.push("/admin-notifications")}
+            activeOpacity={0.7}
+          >
+            <IconSymbol name="bell.fill" size={16} color={colors.foreground} />
+            {unreadCount > 0 && (
+              <View style={{ position: "absolute", top: -5, right: -5, backgroundColor: colors.error, borderRadius: 99, minWidth: 17, height: 17, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 }}>
+                <Text style={{ fontSize: 10, fontWeight: "700", color: "#FFF" }}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <View style={{ position: "relative" }}>
+            <TouchableOpacity
+              style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 11 }}
+              onPress={() => setShowNewMenu(!showNewMenu)}
+              activeOpacity={0.8}
+            >
+              <IconSymbol name="plus" size={14} color={colors.background} />
+              <Text style={{ fontSize: 13, fontWeight: "700", color: colors.background }}>Neu</Text>
+            </TouchableOpacity>
+            {showNewMenu && (
+              <View style={{
+                position: "absolute", top: 44, right: 0, width: 200,
+                backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: "hidden",
+                ...(Platform.OS === "web" ? { boxShadow: "0 8px 32px rgba(0,0,0,0.25)" } as any : {}),
+              }}>
+                {newMenuItems.map((m, idx) => (
+                  <TouchableOpacity
+                    key={m.label}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: idx < newMenuItems.length - 1 ? 1 : 0, borderBottomColor: colors.border + "60" }}
+                    onPress={() => { setShowNewMenu(false); m.open(); }}
+                    activeOpacity={0.7}
+                  >
+                    <IconSymbol name={m.icon as any} size={14} color={colors.primary} />
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground }}>{m.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Inhalt */}
+        <ScrollView
+          contentContainerStyle={{ padding: 28, paddingBottom: 60 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          <View style={{ maxWidth: 1200, alignSelf: "center", width: "100%" }}>
+            <Text style={{ fontSize: 22, fontWeight: "700", color: colors.foreground }}>
+              {greeting}, {userName}
+            </Text>
+            <Text style={{ fontSize: 13, color: colors.muted, marginTop: 3 }}>{todayLabel}</Text>
+
+            {/* KPI-Zeile im Mockup-Design */}
+            {kpiCards.length > 0 && (
+              <View style={{ flexDirection: "row", gap: 14, marginTop: 22, marginBottom: 22 }}>
+                {kpiCards.map((kpi) => (
+                  <TouchableOpacity
+                    key={kpi.label}
+                    style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingVertical: 16, paddingHorizontal: 18 }}
+                    activeOpacity={0.7}
+                    onPress={() => router.push(kpi.route as any)}
+                  >
+                    <Text style={{ fontSize: 12, color: colors.muted, fontWeight: "600" }}>{kpi.label}</Text>
+                    <Text style={{ fontSize: 26, fontWeight: "700", color: kpi.color, marginTop: 4 }} numberOfLines={1}>
+                      {kpi.value}
+                    </Text>
+                    <Text style={{ fontSize: 11.5, color: colors.muted, marginTop: 2 }} numberOfLines={1}>{kpi.sub}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Zwei Spalten: Heute wichtig | Meine Woche + Schnellaktionen */}
+            <View style={{ flexDirection: "row", gap: 16, alignItems: "flex-start" }}>
+              <View style={{ flex: 3, minWidth: 0 }}>
+                <TodayFeed allowed={tileAllowed} isWide={isWide} rolesKey={(userProfile?.roles || []).join(",")} />
+              </View>
+              <View style={{ flex: 2, minWidth: 0 }}>
+                {user?.id ? <MyWeekCard userId={(user as any).id} colors={colors} isWide={isWide} /> : null}
+                <View style={{ backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 18 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, marginBottom: 12 }}>Schnellaktionen</Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                    {newMenuItems.map((m) => (
+                      <TouchableOpacity
+                        key={`qa-${m.label}`}
+                        style={{ flexBasis: "47%", flexGrow: 1, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11 }}
+                        onPress={m.open}
+                        activeOpacity={0.7}
+                      >
+                        <IconSymbol name="plus" size={12} color={colors.primary} />
+                        <Text style={{ fontSize: 12.5, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>
+                          {m.label.replace("Neues ", "").replace("Neuer ", "").replace("Neue ", "")}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* Modals */}
+        <CustomerFormModal visible={showCustomerModal} onClose={() => setShowCustomerModal(false)} onSuccess={() => { }} />
+        <TicketFormModal visible={showTicketModal} onClose={() => setShowTicketModal(false)} onSuccess={() => { }} />
+        <InvoiceFormModal visible={showInvoiceModal} onClose={() => setShowInvoiceModal(false)} onSuccess={() => { }} />
+        <QuoteFormModal visible={showQuoteModal} onClose={() => setShowQuoteModal(false)} onSuccess={() => { }} />
+        <ProjectFormModal visible={showProjectModal} onClose={() => setShowProjectModal(false)} onSuccess={() => { }} />
+        <AskCrmModal visible={showAskCrm} onClose={() => setShowAskCrm(false)} colors={colors} />
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer>
@@ -742,28 +948,25 @@ export default function DashboardScreen() {
             <View style={{ flexDirection: "row", gap: 8, marginBottom: isWide ? 24 : 18 }}>
               {kpiCards.map((kpi) => (
                 <TouchableOpacity
-                  key={kpi.id}
+                  key={kpi.label}
                   style={{
                     flex: 1,
                     backgroundColor: colors.surface,
                     borderRadius: 14,
                     borderWidth: 1,
                     borderColor: colors.border,
-                    paddingVertical: isWide ? 14 : 10,
+                    paddingVertical: 10,
                     paddingHorizontal: 8,
                     alignItems: "center",
                   }}
                   activeOpacity={0.7}
                   onPress={() => router.push(kpi.route as any)}
                 >
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 2 }}>
-                    <IconSymbol name={kpi.icon as any} size={13} color={kpi.color} />
-                    <Text style={{ fontSize: isWide ? 22 : 18, fontWeight: "800", color: kpi.color }}>
-                      {kpi.value ?? "–"}
-                    </Text>
-                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: "800", color: kpi.color }} numberOfLines={1}>
+                    {kpi.value}
+                  </Text>
                   <Text
-                    style={{ fontSize: isWide ? 11 : 9, color: colors.muted, fontWeight: "600", textAlign: "center" }}
+                    style={{ fontSize: 9, color: colors.muted, fontWeight: "600", textAlign: "center", marginTop: 2 }}
                     numberOfLines={1}
                   >
                     {kpi.label}

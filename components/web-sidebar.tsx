@@ -15,6 +15,7 @@ interface NavItem {
     icon: any;
     badge?: number;
     badgeColor?: string;
+    neverActive?: boolean;
 }
 
 interface NavSection {
@@ -48,6 +49,21 @@ export function WebSidebar() {
     const showTickets = isAdmin || roles.includes("technik");
     const showProjects = isAdmin || roles.includes("administration") || roles.includes("technik") || roles.includes("finanzen");
 
+    // Badge: Heute-Punkte (fällige Tickets + überfällige Rechnungen + fällige Follow-ups)
+    const { data: todayCount = 0 } = useQuery({
+        queryKey: ["sidebarTodayCount"],
+        queryFn: async () => {
+            const today = new Date().toISOString().split("T")[0];
+            const [t, i, l] = await Promise.all([
+                supabase.from("tickets").select("*", { count: "exact", head: true }).neq("status", "closed").lte("due_date", today),
+                supabase.from("invoices").select("*", { count: "exact", head: true }).in("status", ["open", "sent", "overdue"]).lt("due_date", today),
+                (supabase as any).from("leads").select("*", { count: "exact", head: true }).not("next_action", "is", null).lte("next_action_date", today).not("status", "in", '("won","lost")'),
+            ]);
+            return (t.count || 0) + (i.count || 0) + (l.count || 0);
+        },
+        refetchInterval: 120000,
+    });
+
     // Badge: offene Tickets
     const { data: openTickets = 0 } = useQuery({
         queryKey: ["sidebarOpenTickets"],
@@ -71,7 +87,10 @@ export function WebSidebar() {
     const sections: NavSection[] = [
         {
             label: "Überblick",
-            items: [{ route: "/", label: "Dashboard", icon: "house.fill" }],
+            items: [
+                { route: "/", label: "Dashboard", icon: "house.fill" },
+                { route: "/", label: "Heute", icon: "clock.fill", badge: todayCount, badgeColor: "#F87171", neverActive: true },
+            ],
         },
         {
             label: "CRM",
@@ -148,10 +167,10 @@ export function WebSidebar() {
                                 {section.label}
                             </Text>
                             {section.items.map((item) => {
-                                const active = isActive(item.route);
+                                const active = !item.neverActive && isActive(item.route);
                                 return (
                                     <TouchableOpacity
-                                        key={item.route}
+                                        key={item.label}
                                         style={{
                                             flexDirection: "row",
                                             alignItems: "center",

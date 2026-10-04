@@ -1,15 +1,18 @@
-import { View, Text } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
+import { useRouter } from "expo-router";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import * as Data from "@/lib/data";
 import { useColors } from "@/hooks/use-colors";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { LinkedRecords, LinkedRecord } from "@/components/linked-records";
+import { LinkedRecord } from "@/components/linked-records";
 
 // "Heute"-Feed: was jetzt Aufmerksamkeit braucht – über alle Module hinweg.
 // allowed() filtert nach Rolle (gleiche IDs wie die Dashboard-Kacheln).
 export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: string) => boolean; isWide: boolean; rolesKey: string }) {
   const colors = useColors();
+  const router = useRouter();
 
   const { data: items = [] } = useQuery({
     // rolesKey sorgt dafür, dass der Feed neu lädt, sobald die Rollen geladen sind
@@ -171,13 +174,90 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
     refetchInterval: 120000,
   });
 
-  if (items.length === 0) return null;
-
   return (
-    <View style={{ marginBottom: isWide ? 24 : 18 }}>
-      <LinkedRecords title={`Heute (${items.length})`} records={items.slice(0, 10)} />
+    <View
+      style={{
+        marginBottom: isWide ? 24 : 18,
+        backgroundColor: colors.surface,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: colors.border,
+        overflow: "hidden",
+      }}
+    >
+      {/* Kopfzeile */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: 18,
+          paddingVertical: 14,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border + "80",
+        }}
+      >
+        <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground }}>Heute wichtig</Text>
+        <View
+          style={{
+            backgroundColor: items.length > 0 ? "#F8717118" : "#4ADE8018",
+            paddingHorizontal: 9,
+            paddingVertical: 2,
+            borderRadius: 99,
+          }}
+        >
+          <Text style={{ fontSize: 11, fontWeight: "700", color: items.length > 0 ? "#F87171" : "#4ADE80" }}>
+            {items.length > 0 ? `${items.length} PUNKTE` : "ALLES ERLEDIGT"}
+          </Text>
+        </View>
+      </View>
+
+      {items.length === 0 ? (
+        <Text style={{ fontSize: 13, color: colors.muted, paddingHorizontal: 18, paddingVertical: 16 }}>
+          Aktuell braucht nichts Ihre Aufmerksamkeit.
+        </Text>
+      ) : (
+        items.slice(0, 10).map((item, idx) => (
+          <TouchableOpacity
+            key={item.key}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+              paddingHorizontal: 18,
+              paddingVertical: 12,
+              borderBottomWidth: idx < Math.min(items.length, 10) - 1 ? 1 : 0,
+              borderBottomColor: colors.border + "50",
+            }}
+            onPress={() => item.route && router.push(item.route as any)}
+            activeOpacity={0.7}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 9,
+                backgroundColor: item.color + "20",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <IconSymbol name={item.icon as any} size={15} color={item.color} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>
+                {item.title}
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.muted }} numberOfLines={1}>
+                {item.subtitle}
+              </Text>
+            </View>
+            <IconSymbol name="chevron.right" size={13} color={colors.muted} />
+          </TouchableOpacity>
+        ))
+      )}
       {items.length > 10 && (
-        <Text style={{ fontSize: 11, color: colors.muted, marginTop: 6, textAlign: "center" }}>
+        <Text style={{ fontSize: 11, color: colors.muted, textAlign: "center", paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.border + "80" }}>
           +{items.length - 10} weitere Einträge
         </Text>
       )}
