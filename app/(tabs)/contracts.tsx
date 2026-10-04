@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   ScrollView,
   Text,
@@ -14,7 +14,7 @@ import {
   RefreshControl,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -49,6 +49,14 @@ export default function ContractsScreen() {
     queryKey: ["contracts"],
     queryFn: Data.getContracts,
   });
+
+  // Deep-Link aus Heute-Feed/Push: /contracts?contractId=... öffnet den Vertrag direkt
+  const { contractId } = useLocalSearchParams();
+  useEffect(() => {
+    if (!contractId || !contracts.length) return;
+    const found = (contracts as any[]).find((c: any) => String(c.id) === String(contractId));
+    if (found) setSelectedContract(found);
+  }, [contractId, contracts]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);

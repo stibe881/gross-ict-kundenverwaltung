@@ -79,7 +79,7 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
           color: "#0EA5E9",
           title: lead?.company || lead?.name || "Lead",
           subtitle: `Follow-up fällig${r.note ? ` · ${r.note}` : ""}`,
-          route: "/leads",
+          route: lead?.id ? `/leads?leadId=${lead.id}` : "/leads",
         });
       }
       for (const c of contracts.data || []) {
@@ -89,7 +89,7 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
           color: "#6366F1",
           title: c.title,
           subtitle: `Vertragsrechnung fällig am ${formatDate(c.next_invoice_date)}`,
-          route: "/contracts",
+          route: `/contracts?contractId=${c.id}`,
         });
       }
       for (const q of quotes.data || []) {
@@ -110,7 +110,7 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
           color: "#EF4444",
           title: l.company || l.name || "Lead",
           subtitle: `Nächste Aktion überfällig: ${l.next_action}`,
-          route: "/leads",
+          route: `/leads?leadId=${l.id}`,
         });
       }
       for (const cr of changeRequests.data || []) {
@@ -141,7 +141,7 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
             color: daysUntil <= 7 ? "#EF4444" : "#F59E0B",
             title: c.title,
             subtitle: `Kündigungsfrist endet in ${daysUntil} Tag(en) – ${formatDate(deadline.toISOString().split("T")[0])}`,
-            route: "/contracts",
+            route: `/contracts?contractId=${c.id}`,
           });
         }
       }

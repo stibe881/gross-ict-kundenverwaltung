@@ -13,7 +13,7 @@ import {
   Linking,
   RefreshControl,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -47,6 +47,14 @@ export default function LeadsScreen() {
     queryFn: Data.getLeads,
     refetchInterval: 5000, // Automatischer Refresh alle 5 Sekunden
   });
+
+  // Deep-Link aus Heute-Feed/Push: /leads?leadId=... öffnet den Lead direkt
+  const { leadId } = useLocalSearchParams();
+  useEffect(() => {
+    if (!leadId || !leads.length) return;
+    const found = (leads as any[]).find((l: any) => String(l.id) === String(leadId));
+    if (found) setSelectedLead(found);
+  }, [leadId, leads]);
 
   const deleteLead = useMutation({
     mutationFn: (id: string) => Data.deleteLead(id),
