@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, ActivityIndicator, useWindowDimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { WebSidebar } from "@/components/web-sidebar";
+import { WebTopbar } from "@/components/web-topbar";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -114,6 +115,7 @@ export default function TabLayout() {
     <View style={{ flex: 1, flexDirection: "row", backgroundColor: colors.background }}>
       {isDesktopWeb && <WebSidebar />}
       <View style={{ flex: 1, minWidth: 0 }}>
+        {isDesktopWeb && <WebTopbar />}
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
