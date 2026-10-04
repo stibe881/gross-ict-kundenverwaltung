@@ -57,6 +57,7 @@ serve(async (req) => {
     createdInvoices: [] as string[],
     expiringQuotes: [] as string[],
     noticeDeadlines: [] as string[],
+    renewedContracts: [] as string[],
     recurringExpenses: [] as string[],
     installmentReminders: [] as string[],
     slaWarnings: [] as string[],
@@ -216,6 +217,61 @@ serve(async (req) => {
     }
   } catch (e: any) {
     summary.errors.push("Kündigungsfristen-Check: " + e.message);
+  }
+
+  // ── 3b. Automatische Vertragsverlängerung ──────────────────────────────────
+  // Aktive, nicht gekündigte Verträge mit "Automatisch verlängern", deren
+  // Enddatum erreicht ist, werden um die ursprüngliche Laufzeit verlängert.
+  try {
+    const { data: renewals } = await supabase
+      .from("contracts")
+      .select("id, title, contract_number, start_date, end_date, customer:customers(company_name, first_name, last_name)")
+      .eq("status", "active")
+      .eq("auto_renewal", true)
+      .is("cancellation_date", null)
+      .not("end_date", "is", null)
+      .lte("end_date", today);
+
+    for (const c of renewals || []) {
+      try {
+        const start = c.start_date ? new Date(c.start_date) : null;
+        const end = new Date(c.end_date);
+        // Laufzeit in Monaten bestimmen (Fallback: 12 Monate)
+        let termMonths = 12;
+        if (start && end > start) {
+          termMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+          if (termMonths <= 0) termMonths = 12;
+        }
+        // Enddatum so lange verlängern, bis es in der Zukunft liegt
+        const newEnd = new Date(end);
+        let guard = 0;
+        while (newEnd.toISOString().split("T")[0] <= today && guard < 24) {
+          newEnd.setMonth(newEnd.getMonth() + termMonths);
+          guard++;
+        }
+        const newEndStr = newEnd.toISOString().split("T")[0];
+
+        await supabase.from("contracts").update({
+          end_date: newEndStr,
+          updated_at: new Date().toISOString(),
+        }).eq("id", c.id);
+
+        await supabase.from("contract_activities").insert({
+          contract_id: c.id,
+          type: "renewed",
+          description: `Vertrag automatisch um ${termMonths} Monat(e) verlängert – neues Ende: ${newEnd.toLocaleDateString("de-CH")}.`,
+          user_name: "System",
+        });
+
+        const name = (c.customer as any)?.company_name ||
+          `${(c.customer as any)?.first_name || ""} ${(c.customer as any)?.last_name || ""}`.trim() || "";
+        summary.renewedContracts.push(`${c.title}${name ? ` (${name})` : ""} → ${newEnd.toLocaleDateString("de-CH")}`);
+      } catch (e: any) {
+        summary.errors.push(`Verlängerung ${c.contract_number || c.id}: ${e.message}`);
+      }
+    }
+  } catch (e: any) {
+    summary.errors.push("Vertragsverlängerung: " + e.message);
   }
 
   // ── 4. Wiederkehrende Ausgaben verbuchen ───────────────────────────────────
@@ -477,6 +533,20 @@ serve(async (req) => {
         }),
       });
     } catch (e) { console.error("[automations] Push (Kündigungsfristen) fehlgeschlagen:", e); }
+  }
+
+  if (summary.renewedContracts.length > 0) {
+    try {
+      await fetch(pushUrl, {
+        method: "POST", headers: pushAuth,
+        body: JSON.stringify({
+          recipients: "all_admins", recipientType: "admin",
+          title: "Verträge automatisch verlängert",
+          body: summary.renewedContracts.join(" · "),
+          data: { url: "/contracts", category: "auto_invoices" },
+        }),
+      });
+    } catch (e) { console.error("[automations] Push (Verlängerungen) fehlgeschlagen:", e); }
   }
 
   if (summary.installmentReminders.length > 0) {
