@@ -136,15 +136,17 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          # Hetzner Webhosting (konsoleH) nutzt Port 222 statt 22
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
         run: |
           if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ] || [ -z "$DEPLOY_SSH_KEY" ]; then
-            echo "::error::Web-Deploy braucht die Secrets DEPLOY_HOST, DEPLOY_USER und DEPLOY_SSH_KEY (optional DEPLOY_PATH, Standard: public_html/portal)."
+            echo "::error::Web-Deploy braucht die Secrets DEPLOY_HOST, DEPLOY_USER und DEPLOY_SSH_KEY (optional DEPLOY_PATH, Standard: public_html/portal; optional DEPLOY_PORT, Standard: 22 – Hetzner Webhosting: 222)."
             exit 1
           fi
           mkdir -p ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
+            -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT:-22} -o StrictHostKeyChecking=accept-new" \
             dist/ "$DEPLOY_USER@$DEPLOY_HOST:${DEPLOY_PATH:-public_html/portal}/"
           echo "Web-Portal aktualisiert."
