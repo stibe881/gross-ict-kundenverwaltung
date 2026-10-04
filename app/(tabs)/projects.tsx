@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
     View,
     Text,
@@ -8,7 +8,7 @@ import {
     RefreshControl,
     TextInput,
 } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect , useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { BackButton } from "@/components/back-button";
@@ -63,6 +63,16 @@ export default function ProjectsScreen() {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>("list");
     const [filter, setFilter] = useState("in_progress");
+
+    // Deep-Link von der Dashboard-Kachel: /projects?filter=in_progress
+    const params = useLocalSearchParams();
+    useEffect(() => {
+        const f = Array.isArray(params.filter) ? params.filter[0] : params.filter;
+        if (f) {
+            setFilter(f as string);
+            router.setParams({ filter: undefined } as any);
+        }
+    }, [params.filter]);
     const [search, setSearch] = useState("");
     const { refreshing, onRefresh } = useGlobalRefresh();
 

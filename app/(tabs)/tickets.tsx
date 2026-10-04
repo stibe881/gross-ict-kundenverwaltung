@@ -78,6 +78,16 @@ export default function TicketsScreen() {
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
   const { ticketId } = useLocalSearchParams();
+
+  // Deep-Link von der Dashboard-Kachel: /tickets?filter=open
+  const deepLinkParams = useLocalSearchParams();
+  useEffect(() => {
+    const f = Array.isArray(deepLinkParams.filter) ? deepLinkParams.filter[0] : deepLinkParams.filter;
+    if (f) {
+      setFilter(f as any);
+      router.setParams({ filter: undefined } as any);
+    }
+  }, [deepLinkParams.filter]);
   const [currentUserName, setCurrentUserName] = useState("Admin");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const hasInitializedFilter = React.useRef(false);
