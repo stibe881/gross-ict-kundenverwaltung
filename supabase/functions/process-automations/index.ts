@@ -63,6 +63,8 @@ serve(async (req) => {
     slaWarnings: [] as string[],
     quoteFollowups: [] as string[],
     assetExpiries: [] as string[],
+    recurringTickets: [] as string[],
+    escalatedTickets: [] as string[],
     errors: [] as string[],
   };
 
@@ -479,6 +481,91 @@ serve(async (req) => {
     }
   } catch (e: any) {
     summary.errors.push("Inventar-Check: " + e.message);
+  }
+
+  // ── 10. Wiederkehrende Tickets (Wartungsplan) ──────────────────────────────
+  const pushUrlEarly = `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push`;
+  const pushAuthEarly = { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`, "Content-Type": "application/json" };
+  try {
+    const { data: recTickets } = await supabase
+      .from("recurring_tickets")
+      .select("*")
+      .eq("active", true)
+      .lte("next_date", today);
+
+    for (const rt of recTickets || []) {
+      try {
+        let nextDate = rt.next_date as string;
+        const months = rt.interval === "yearly" ? 12 : rt.interval === "quarterly" ? 3 : 1;
+        // Nur EIN Ticket erzeugen, auch wenn der Cron Tage verpasst hat
+        const { data: ticket, error: tErr } = await supabase
+          .from("tickets")
+          .insert({
+            title: rt.title,
+            description: `${rt.description || ""}\n\n—\nAutomatisch erstellt (Wartungsplan).`.trim(),
+            status: "open",
+            priority: rt.priority || "medium",
+            customer_id: rt.customer_id,
+          })
+          .select()
+          .single();
+        if (tErr) throw tErr;
+
+        // next_date fortschreiben, bis es in der Zukunft liegt
+        let guard = 0;
+        const d = new Date(nextDate);
+        while (d.toISOString().split("T")[0] <= today && guard < 24) {
+          d.setMonth(d.getMonth() + months);
+          guard++;
+        }
+        await supabase.from("recurring_tickets").update({ next_date: d.toISOString().split("T")[0] }).eq("id", rt.id);
+        summary.recurringTickets.push(rt.title);
+
+        await fetch(pushUrlEarly, {
+          method: "POST", headers: pushAuthEarly,
+          body: JSON.stringify({
+            recipients: "all_admins", recipientType: "admin",
+            title: "Wartungsticket erstellt",
+            body: rt.title,
+            data: { url: `/tickets?ticketId=${ticket.id}`, category: "tickets" },
+          }),
+        }).catch(() => {});
+      } catch (e: any) {
+        summary.errors.push(`Wartungsticket ${rt.title}: ${e.message}`);
+      }
+    }
+  } catch (e: any) {
+    summary.errors.push("Wartungsplan: " + e.message);
+  }
+
+  // ── 11. Eskalation: offene Tickets ohne Aktivität seit 3 Tagen ─────────────
+  try {
+    const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
+    const { data: staleTickets } = await supabase
+      .from("tickets")
+      .select("id, title, priority, updated_at")
+      .in("status", ["open", "in_progress"])
+      .eq("escalated", false)
+      .lt("updated_at", threeDaysAgo);
+
+    for (const t of staleTickets || []) {
+      const newPriority = t.priority === "low" ? "medium" : t.priority === "medium" ? "high" : t.priority || "high";
+      await supabase.from("tickets").update({ escalated: true, priority: newPriority }).eq("id", t.id);
+      summary.escalatedTickets.push(t.title);
+    }
+    if (summary.escalatedTickets.length > 0) {
+      await fetch(pushUrlEarly, {
+        method: "POST", headers: pushAuthEarly,
+        body: JSON.stringify({
+          recipients: "all_admins", recipientType: "admin",
+          title: "Tickets eskaliert (3 Tage ohne Aktivität)",
+          body: summary.escalatedTickets.join(" · "),
+          data: { url: "/tickets", category: "tickets" },
+        }),
+      }).catch(() => {});
+    }
+  } catch (e: any) {
+    summary.errors.push("Eskalation: " + e.message);
   }
 
   // ── 9. Papierkorb aufräumen (älter als 30 Tage) ────────────────────────────

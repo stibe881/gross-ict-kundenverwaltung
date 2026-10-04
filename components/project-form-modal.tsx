@@ -14,7 +14,7 @@ import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useQuery } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
-import { showAlert } from "@/lib/alert";
+import { showAlert, showConfirm } from "@/lib/alert";
 
 // Date format helpers: display DD.MM.YYYY <-> storage YYYY-MM-DD
 const isoToDisplay = (iso: string) => {
@@ -87,6 +87,7 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
     const colors = useColors();
     const [saving, setSaving] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+    const [selectedDbTemplateId, setSelectedDbTemplateId] = useState<string | null>(null);
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [customerId, setCustomerId] = useState("");
@@ -102,6 +103,13 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
     const { data: customers } = useQuery({
         queryKey: ["customers"],
         queryFn: Data.getCustomersWithCounts,
+    });
+
+    // Eigene, gespeicherte Projekt-Vorlagen (aus Projekt-Detail "Als Vorlage speichern")
+    const { data: dbTemplates = [], refetch: refetchDbTemplates } = useQuery({
+        queryKey: ["projectTemplates"],
+        queryFn: Data.getProjectTemplates,
+        enabled: visible && !project,
     });
 
     const getCustomerName = (c: any) =>
@@ -132,6 +140,7 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
             if (cust) setCustomerSearch(getCustomerName(cust));
         } else {
             setSelectedTemplate(null);
+            setSelectedDbTemplateId(null);
             setTitle("");
             setDescription("");
             setCustomerId("");
@@ -175,6 +184,12 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
                 await Data.updateProject(project.id, data);
             } else {
                 const newProject = await Data.createProject(data);
+
+                // Eigene gespeicherte Vorlage anwenden (Aufgaben + Meilensteine)
+                const dbTmpl = (dbTemplates as any[]).find((t: any) => t.id === selectedDbTemplateId);
+                if (dbTmpl && newProject?.id) {
+                    await Data.applyProjectTemplate(newProject.id, dbTmpl);
+                }
 
                 // Meilensteine aus Vorlage erstellen
                 const tmpl = PROJECT_TEMPLATES.find((t) => t.key === selectedTemplate);
@@ -299,6 +314,49 @@ export function ProjectFormModal({ visible, project, onClose, onSuccess }: Props
                                     );
                                 })}
                             </View>
+                            {/* Eigene, gespeicherte Vorlagen (aus "Als Projekt-Vorlage speichern") */}
+                            {(dbTemplates as any[]).length > 0 && (
+                                <View className="mt-3">
+                                    <Text className="text-xs font-semibold text-muted mb-2">Eigene Vorlagen (lange drücken zum Löschen)</Text>
+                                    <View className="flex-row flex-wrap gap-2">
+                                        {(dbTemplates as any[]).map((t: any) => {
+                                            const isActive = selectedDbTemplateId === t.id;
+                                            const nTasks = (t.tasks || []).length;
+                                            const nMs = (t.milestones || []).length;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={t.id}
+                                                    className="px-3 py-2 rounded-lg border"
+                                                    style={{
+                                                        backgroundColor: isActive ? colors.primary + '15' : colors.surface,
+                                                        borderColor: isActive ? colors.primary : colors.border,
+                                                    }}
+                                                    activeOpacity={0.7}
+                                                    onPress={() => {
+                                                        if (isActive) { setSelectedDbTemplateId(null); return; }
+                                                        setSelectedDbTemplateId(t.id);
+                                                        if (!title.trim()) setTitle(t.name);
+                                                    }}
+                                                    onLongPress={() =>
+                                                        showConfirm("Vorlage löschen", `"${t.name}" entfernen?`, async () => {
+                                                            await Data.deleteProjectTemplate(t.id);
+                                                            if (selectedDbTemplateId === t.id) setSelectedDbTemplateId(null);
+                                                            refetchDbTemplates();
+                                                        }, "Löschen")
+                                                    }
+                                                >
+                                                    <Text className="text-sm font-semibold" style={{ color: isActive ? colors.primary : colors.foreground }}>
+                                                        {t.name}
+                                                    </Text>
+                                                    <Text className="text-xs" style={{ color: colors.muted }}>
+                                                        {nTasks} Aufgaben · {nMs} Meilensteine
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
+                            )}
                             {selectedTemplate && (
                                 <View className="mt-3 rounded-lg p-3" style={{ backgroundColor: colors.primary + '08', borderWidth: 1, borderColor: colors.primary + '20' }}>
                                     <Text className="text-xs font-semibold mb-1" style={{ color: colors.primary }}>Timeline-Vorschau</Text>

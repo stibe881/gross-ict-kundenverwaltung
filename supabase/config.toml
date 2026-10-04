@@ -498,3 +498,15 @@ enabled = true
 # Nur aus der App mit gültigem Login aufrufbar
 verify_jwt = true
 entrypoint = "./functions/send-ticket-email/index.ts"
+
+[functions.help-page]
+enabled = true
+# Öffentlich: Hilfe-Seite für Kunden (zeigt nur als öffentlich markierte Artikel)
+verify_jwt = false
+entrypoint = "./functions/help-page/index.ts"
+
+[functions.ask-crm]
+enabled = true
+# Nur aus der App mit gültigem Login aufrufbar
+verify_jwt = true
+entrypoint = "./functions/ask-crm/index.ts"

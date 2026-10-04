@@ -138,6 +138,14 @@ export default function LeadsScreen() {
 
   const totalValue = filteredLeads.reduce((sum: number, lead: any) => sum + (lead.value || 0), 0);
 
+  // Gewichtete Pipeline: Wert × Abschlusswahrscheinlichkeit aus der Einstufung
+  // (🔥 heiss 70%, 🌤 warm 40%, ❄️ kalt 15%, ohne Einstufung 30%)
+  const RATING_WEIGHTS: Record<string, number> = { hot: 0.7, warm: 0.4, cold: 0.15 };
+  const weightedValue = filteredLeads.reduce((sum: number, lead: any) => {
+    const w = RATING_WEIGHTS[lead.rating || ""] ?? 0.3;
+    return sum + (lead.value || 0) * w;
+  }, 0);
+
   const getPriorityLabel = (p: string) => ({ low: "Tief", medium: "Mittel", high: "Hoch" }[p] || "Mittel");
   const getPriorityColor = (p: string) => ({ low: "#6B7280", medium: "#F59E0B", high: "#EF4444" }[p] || "#F59E0B");
 
@@ -161,6 +169,9 @@ export default function LeadsScreen() {
                 <Text className="text-2xl font-bold text-foreground">Akquise</Text>
                 <Text className="text-xs text-muted">
                   {totalCounts.new + totalCounts.contacted + totalCounts.qualified + totalCounts.proposal} in der Pipeline · CHF {totalValue.toLocaleString("de-CH")}
+                </Text>
+                <Text className="text-xs font-semibold" style={{ color: "#22C55E" }}>
+                  Gewichtete Prognose: CHF {Math.round(weightedValue).toLocaleString("de-CH")}
                 </Text>
               </View>
             </View>

@@ -17,7 +17,9 @@ import { formatDate, formatDateTime, formatCurrency, getInvoiceTotal } from "@/l
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as DocumentPicker from "expo-document-picker";
 import * as Data from "@/lib/data";
+import { downloadInvoicePDF } from "@/lib/pdf-utils";
 
 type TicketStatus = "open" | "in_progress" | "waiting" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
@@ -129,6 +131,13 @@ export default function PortalTicketsScreen() {
   const { data: customerData } = useQuery({
     queryKey: ["portalCustomer", customerId],
     queryFn: () => Data.getCustomerById(customerId!),
+    enabled: !!customerId,
+  });
+
+  // Ansprechpartner-Karte (Visitenkarte aus den Einstellungen)
+  const { data: contactCard } = useQuery({
+    queryKey: ["portalContactCard"],
+    queryFn: Data.getPortalContactCard,
     enabled: !!customerId,
   });
 
@@ -270,6 +279,22 @@ export default function PortalTicketsScreen() {
           </Text>
           <Text className="text-base font-bold text-foreground">{formatCurrency(total)}</Text>
         </View>
+        {/* Zahlungshistorie (Teilzahlungen) */}
+        {(item.installments || []).filter((p: any) => p.paid_at).length > 0 ? (
+          <View className="mt-2 pt-2 border-t border-border">
+            <Text className="text-xs font-semibold text-muted mb-1">Zahlungen</Text>
+            {(item.installments as any[])
+              .filter((p: any) => p.paid_at)
+              .map((p: any) => (
+                <View key={p.id} className="flex-row justify-between py-0.5">
+                  <Text className="text-xs text-muted">{formatDate(p.paid_at)}</Text>
+                  <Text className="text-xs font-semibold" style={{ color: colors.success }}>
+                    {formatCurrency(Number(p.amount) || 0)}
+                  </Text>
+                </View>
+              ))}
+          </View>
+        ) : null}
         {payable ? (
           <TouchableOpacity
             className="bg-primary py-2.5 rounded-lg mt-3 flex-row items-center justify-center gap-2"
@@ -278,6 +303,17 @@ export default function PortalTicketsScreen() {
           >
             <IconSymbol name="creditcard.fill" size={16} color={colors.background} />
             <Text className="text-background font-semibold">Online bezahlen</Text>
+          </TouchableOpacity>
+        ) : null}
+        {item.status === "paid" ? (
+          <TouchableOpacity
+            className="py-2.5 rounded-lg mt-3 flex-row items-center justify-center gap-2 border"
+            style={{ borderColor: colors.success, backgroundColor: colors.success + "10" }}
+            onPress={() => downloadInvoicePDF(item)}
+            activeOpacity={0.8}
+          >
+            <IconSymbol name="arrow.down.doc.fill" size={16} color={colors.success} />
+            <Text className="font-semibold" style={{ color: colors.success }}>Beleg herunterladen (PDF)</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -514,7 +550,50 @@ export default function PortalTicketsScreen() {
         {/* Inhalt je Bereich */}
         <View className="flex-1 p-4">
           {section === "tickets" ? (
-            filteredTickets.length > 0 ? (
+            <>
+            {/* Begrüssung & Übersicht */}
+            <View className="bg-surface rounded-xl border border-border p-4 mb-3">
+              <Text className="text-base font-bold text-foreground">Willkommen, {portalUserName}</Text>
+              {(() => {
+                const openTickets = (tickets as any[]).filter((t: any) => t.status !== "closed").length;
+                const openInvoices = (visibleInvoices as any[]).filter((i: any) => i.status === "open" || i.status === "sent" || i.status === "overdue").length;
+                const openQuotes = (visibleQuotes as any[]).filter((q: any) => q.status === "sent" || q.status === "opened").length;
+                const parts: string[] = [];
+                if (openTickets) parts.push(`${openTickets} offene${openTickets === 1 ? "s" : ""} Ticket${openTickets === 1 ? "" : "s"}`);
+                if (openInvoices) parts.push(`${openInvoices} offene Rechnung${openInvoices === 1 ? "" : "en"}`);
+                if (openQuotes) parts.push(`${openQuotes} offene${openQuotes === 1 ? "s" : ""} Angebot${openQuotes === 1 ? "" : "e"}`);
+                return (
+                  <Text className="text-sm text-muted mt-1">
+                    {parts.length ? `Offene Punkte: ${parts.join(" · ")}` : "Aktuell sind keine offenen Punkte vorhanden."}
+                  </Text>
+                );
+              })()}
+              {contactCard ? (
+                <View className="flex-row items-center gap-3 mt-3 pt-3 border-t border-border">
+                  <View className="w-10 h-10 rounded-full items-center justify-center" style={{ backgroundColor: colors.primary + "18" }}>
+                    <IconSymbol name="person.fill" size={18} color={colors.primary} />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-foreground">
+                      Ihr Ansprechpartner: {(contactCard as any).name || "Gross ICT"}
+                    </Text>
+                    <View className="flex-row gap-4 mt-0.5">
+                      {(contactCard as any).phone ? (
+                        <TouchableOpacity onPress={() => Linking.openURL(`tel:${(contactCard as any).phone}`)}>
+                          <Text className="text-xs font-semibold" style={{ color: colors.primary }}>{(contactCard as any).phone}</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                      {(contactCard as any).email ? (
+                        <TouchableOpacity onPress={() => Linking.openURL(`mailto:${(contactCard as any).email}`)}>
+                          <Text className="text-xs font-semibold" style={{ color: colors.primary }}>{(contactCard as any).email}</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+            {filteredTickets.length > 0 ? (
               <FlatList
                 data={filteredTickets as any[]}
                 renderItem={renderTicketItem as any}
@@ -531,7 +610,8 @@ export default function PortalTicketsScreen() {
                     : `Keine Tickets mit Status "${getStatusLabel(filter as TicketStatus)}"`}
                 </Text>
               </View>
-            )
+            )}
+            </>
           ) : section === "invoices" ? (
             visibleInvoices.length > 0 ? (
               <FlatList
@@ -677,6 +757,40 @@ function TicketDetailsModal({
     }
   });
 
+  // Datei-Anhänge: anzeigen + hochladen
+  const { data: attachments = [] } = useQuery({
+    queryKey: ["portalTicketAttachments", ticket.id],
+    queryFn: () => Data.getTicketAttachments(ticket.id),
+  });
+  const [uploading, setUploading] = useState(false);
+  const handlePickAttachment = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
+      if (result.canceled || !result.assets?.length) return;
+      const asset = result.assets[0];
+      setUploading(true);
+      await Data.uploadTicketAttachment(ticket.id, {
+        name: asset.name,
+        uri: asset.uri,
+        mimeType: asset.mimeType,
+        file: (asset as any).file, // Web: natives File-Objekt
+      });
+      queryClient.invalidateQueries({ queryKey: ["portalTicketAttachments", ticket.id] });
+    } catch (e: any) {
+      console.error("Anhang-Upload fehlgeschlagen:", e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+  const handleOpenAttachment = async (a: any) => {
+    try {
+      const url = await Data.getTicketAttachmentUrl(a.file_path);
+      Linking.openURL(url);
+    } catch (e: any) {
+      console.error("Anhang konnte nicht geöffnet werden:", e.message);
+    }
+  };
+
   const handleAddComment = () => {
     if (!newComment.trim()) return;
     addCommentMutation.mutate();
@@ -781,6 +895,41 @@ function TicketDetailsModal({
               <View>
                 <Text className="text-sm text-muted mb-1">Erstellt am</Text>
                 <Text className="text-base text-foreground">{formatDate(ticket.created_at)}</Text>
+              </View>
+
+              {/* Anhänge */}
+              <View>
+                <Text className="text-sm text-muted mb-1">Anhänge</Text>
+                {(attachments as any[]).map((a: any) => (
+                  <TouchableOpacity
+                    key={a.id}
+                    className="flex-row items-center gap-2 bg-surface border border-border rounded-lg px-3 py-2.5 mb-2"
+                    onPress={() => handleOpenAttachment(a)}
+                    activeOpacity={0.7}
+                  >
+                    <IconSymbol name="paperclip" size={15} color={colors.primary} />
+                    <Text className="text-sm text-foreground flex-1" numberOfLines={1}>{a.file_name}</Text>
+                    <IconSymbol name="square.and.arrow.up" size={14} color={colors.muted} />
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  className="flex-row items-center justify-center gap-2 border border-border rounded-lg py-2.5"
+                  style={{ borderStyle: "dashed" }}
+                  onPress={handlePickAttachment}
+                  disabled={uploading}
+                  activeOpacity={0.7}
+                >
+                  {uploading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <>
+                      <IconSymbol name="paperclip" size={15} color={colors.primary} />
+                      <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+                        Datei anhängen (Screenshot, Foto, PDF)
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
 

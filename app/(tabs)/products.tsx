@@ -284,6 +284,7 @@ function ProductFormModal({
     name: product?.name || "",
     description: product?.description || "",
     unitPrice: product?.price ? String(product.price) : "",
+    purchasePrice: product?.purchase_price != null ? String(product.purchase_price) : "",
     unit: product?.unit || "Stück",
     vatRate: product?.vat_rate != null ? Number(product.vat_rate).toFixed(2) : "8.10",
     category: product?.category || "",
@@ -297,6 +298,7 @@ function ProductFormModal({
         name: product?.name || "",
         description: product?.description || "",
         unitPrice: product?.price ? String(product.price) : "",
+        purchasePrice: product?.purchase_price != null ? String(product.purchase_price) : "",
         unit: product?.unit || "Stück",
         vatRate: product?.vat_rate != null ? Number(product.vat_rate).toFixed(2) : "8.10",
         category: product?.category || "",
@@ -317,6 +319,7 @@ function ProductFormModal({
       name: data.name,
       description: data.description,
       price: data.price,
+      purchase_price: data.purchase_price,
       vat_rate: data.vatRate,
       unit: data.unit,
       type: data.type,
@@ -347,6 +350,7 @@ function ProductFormModal({
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.unitPrice) || 0,
+        purchase_price: formData.purchasePrice !== "" ? parseFloat(formData.purchasePrice) || 0 : null,
         vatRate: isNaN(parseFloat(formData.vatRate)) ? 8.1 : parseFloat(formData.vatRate),
         unit: formData.unit,
         type: formData.type as "product" | "service",
@@ -358,6 +362,7 @@ function ProductFormModal({
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.unitPrice) || 0,
+        purchase_price: formData.purchasePrice !== "" ? parseFloat(formData.purchasePrice) || 0 : null,
         vatRate: isNaN(parseFloat(formData.vatRate)) ? 8.1 : parseFloat(formData.vatRate),
         unit: formData.unit,
         type: formData.type as "product" | "service",
@@ -529,6 +534,31 @@ function ProductFormModal({
                     }
                   />
                 </View>
+              </View>
+
+              {/* Einkaufspreis (für Margen-Anzeige) */}
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  Einkaufspreis (CHF, optional)
+                </Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="z.B. 60.00 – für die interne Margen-Anzeige"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="decimal-pad"
+                  value={formData.purchasePrice}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, purchasePrice: text })
+                  }
+                />
+                {formData.purchasePrice && formData.unitPrice ? (
+                  <Text className="text-xs text-muted mt-1">
+                    Marge: {formatCurrency((parseFloat(formData.unitPrice) || 0) - (parseFloat(formData.purchasePrice) || 0))}
+                    {parseFloat(formData.unitPrice) > 0
+                      ? ` (${Math.round((((parseFloat(formData.unitPrice) || 0) - (parseFloat(formData.purchasePrice) || 0)) / parseFloat(formData.unitPrice)) * 100)}%)`
+                      : ""}
+                  </Text>
+                ) : null}
               </View>
 
               {/* MwSt-Satz */}

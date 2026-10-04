@@ -36,6 +36,7 @@ export default function UsersScreen() {
   const [editCity, setEditCity] = useState("");
   const [editIban, setEditIban] = useState("");
   const [editPushPrefs, setEditPushPrefs] = useState<Record<string, boolean>>({});
+  const [editReadOnly, setEditReadOnly] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
@@ -88,8 +89,8 @@ export default function UsersScreen() {
   });
 
   const updateRolesMutation = useMutation({
-    mutationFn: ({ userId, roles, address, postal_code, city, iban, push_preferences }: { userId: string; roles: string[]; address: string; postal_code: string; city: string; iban: string; push_preferences?: Record<string, boolean> }) =>
-      Data.updateUserProfileAndRoles(userId, { roles, address, postal_code, city, iban, push_preferences }),
+    mutationFn: ({ userId, roles, address, postal_code, city, iban, push_preferences, read_only }: { userId: string; roles: string[]; address: string; postal_code: string; city: string; iban: string; push_preferences?: Record<string, boolean>; read_only?: boolean }) =>
+      Data.updateUserProfileAndRoles(userId, { roles, address, postal_code, city, iban, push_preferences, read_only }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setEditingUserId(null);
@@ -119,6 +120,7 @@ export default function UsersScreen() {
     setEditCity(user.city || "");
     setEditIban(user.iban || "");
     setEditPushPrefs(user.push_preferences || {});
+    setEditReadOnly(user.read_only === true);
   };
 
   const toggleRole = (roleKey: string) => {
@@ -132,13 +134,17 @@ export default function UsersScreen() {
   const handleSaveRoles = async () => {
     if (!editingUserId) return;
     try {
-      updateRolesMutation.mutate({ userId: editingUserId, roles: editRoles, address: editStreet, postal_code: editPostalCode, city: editCity, iban: editIban, push_preferences: editPushPrefs });
+      updateRolesMutation.mutate({ userId: editingUserId, roles: editRoles, address: editStreet, postal_code: editPostalCode, city: editCity, iban: editIban, push_preferences: editPushPrefs, read_only: editReadOnly });
     } catch (err: any) {
       showAlert("Fehler", err.message || "Fehler beim Speichern der Benutzerdaten");
     }
   };
 
   const getUserRoles = (user: any): string[] => user.roles || [];
+
+  // Grüner Punkt: in den letzten 10 Minuten aktiv gewesen
+  const isOnline = (user: any) =>
+    !!user.last_seen_at && Date.now() - new Date(user.last_seen_at).getTime() < 10 * 60 * 1000;
 
   const getInitials = (name: string) => {
     const parts = name.split(" ").filter(Boolean);
@@ -400,6 +406,47 @@ export default function UsersScreen() {
         })}
       </View>
 
+      <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, marginTop: 24, marginBottom: 8 }}>
+        Zugriff
+      </Text>
+      <TouchableOpacity
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          padding: 12,
+          borderRadius: 10,
+          backgroundColor: editReadOnly ? "#F59E0B10" : colors.surface,
+          borderWidth: 1,
+          borderColor: editReadOnly ? "#F59E0B40" : colors.border,
+        }}
+        activeOpacity={0.7}
+        onPress={() => setEditReadOnly(!editReadOnly)}
+      >
+        <View
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            borderWidth: 2,
+            borderColor: editReadOnly ? "#F59E0B" : colors.muted,
+            backgroundColor: editReadOnly ? "#F59E0B" : "transparent",
+            alignItems: "center",
+            justifyContent: "center",
+            marginRight: 12,
+          }}
+        >
+          {editReadOnly && <IconSymbol name="checkmark" size={12} color="#FFF" />}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: "600", color: editReadOnly ? "#F59E0B" : colors.foreground }}>
+            Nur-Lesen-Modus
+          </Text>
+          <Text style={{ fontSize: 12, color: colors.muted, marginTop: 1 }}>
+            Benutzer sieht alles, kann aber nichts erstellen oder löschen (z.B. Treuhänder, Praktikant)
+          </Text>
+        </View>
+      </TouchableOpacity>
+
       <View style={{ flexDirection: "row", gap: 10, marginTop: 24 }}>
         <TouchableOpacity
           style={{
@@ -453,20 +500,24 @@ export default function UsersScreen() {
       >
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           {/* Avatar */}
-          <View
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: user.is_active !== false ? colors.primary : colors.muted,
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 14,
-            }}
-          >
-            <Text style={{ color: "#FFF", fontSize: 16, fontWeight: "700" }}>
-              {getInitials(user.name || user.email || "?")}
-            </Text>
+          <View style={{ marginRight: 14 }}>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: user.is_active !== false ? colors.primary : colors.muted,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: "#FFF", fontSize: 16, fontWeight: "700" }}>
+                {getInitials(user.name || user.email || "?")}
+              </Text>
+            </View>
+            {isOnline(user) && (
+              <View style={{ position: "absolute", right: -1, bottom: -1, width: 13, height: 13, borderRadius: 7, backgroundColor: "#22C55E", borderWidth: 2, borderColor: colors.surface }} />
+            )}
           </View>
 
           {/* Info */}
@@ -490,6 +541,14 @@ export default function UsersScreen() {
                 <View style={{ backgroundColor: colors.error + "20", paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
                   <Text style={{ fontSize: 10, fontWeight: "600", color: colors.error }}>INAKTIV</Text>
                 </View>
+              )}
+              {user.read_only === true && (
+                <View style={{ backgroundColor: "#F59E0B20", paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                  <Text style={{ fontSize: 10, fontWeight: "600", color: "#F59E0B" }}>NUR LESEN</Text>
+                </View>
+              )}
+              {isOnline(user) && (
+                <Text style={{ fontSize: 10, fontWeight: "700", color: "#22C55E" }}>● online</Text>
               )}
             </View>
             <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2 }} numberOfLines={1}>
@@ -575,14 +634,19 @@ export default function UsersScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
               {/* User info */}
               <View style={{ width: 240, flexDirection: "row", alignItems: "center", gap: 12 }}>
-                <View style={{
-                  width: 36, height: 36, borderRadius: 18,
-                  backgroundColor: user.is_active !== false ? colors.primary : colors.muted,
-                  alignItems: "center", justifyContent: "center",
-                }}>
-                  <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "700" }}>
-                    {getInitials(user.name || user.email || "?")}
-                  </Text>
+                <View>
+                  <View style={{
+                    width: 36, height: 36, borderRadius: 18,
+                    backgroundColor: user.is_active !== false ? colors.primary : colors.muted,
+                    alignItems: "center", justifyContent: "center",
+                  }}>
+                    <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "700" }}>
+                      {getInitials(user.name || user.email || "?")}
+                    </Text>
+                  </View>
+                  {isOnline(user) && (
+                    <View style={{ position: "absolute", right: -1, bottom: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: "#22C55E", borderWidth: 2, borderColor: colors.surface }} />
+                  )}
                 </View>
                 <View>
                   <Text style={{ fontSize: 14, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>

@@ -110,6 +110,14 @@ export default function SettingsScreen() {
       route: "/maintenance-windows",
     },
     {
+      id: "recurring-tickets",
+      title: "Wartungsplan",
+      subtitle: "Wiederkehrende Tickets automatisch erstellen",
+      icon: "arrow.triangle.2.circlepath",
+      color: "#F97316",
+      route: "/recurring-tickets",
+    },
+    {
       id: "activity-log",
       title: "Aktivitäten & Papierkorb",
       subtitle: "Änderungsprotokoll, Gelöschtes wiederherstellen",

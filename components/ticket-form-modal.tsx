@@ -48,6 +48,47 @@ export function TicketFormModal({
   const [isDragActive, setIsDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedContract, setSelectedContract] = useState<any>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [appliedChecklist, setAppliedChecklist] = useState<string[]>([]);
+  const [appliedItems, setAppliedItems] = useState<any[]>([]);
+
+  const { data: ticketTemplates = [] } = useQuery({
+    queryKey: ["ticketTemplates"],
+    queryFn: Data.getTicketTemplates,
+    enabled: visible && !ticket,
+  });
+
+  const applyTemplate = (tpl: any) => {
+    const checklist: string[] = Array.isArray(tpl.checklist) ? tpl.checklist : [];
+    const checklistText = checklist.length ? "\n\nCheckliste:\n" + checklist.map((c: string) => `☐ ${c}`).join("\n") : "";
+    setFormData((prev) => ({
+      ...prev,
+      title: tpl.title || tpl.name,
+      description: (tpl.description || "") + checklistText,
+      priority: tpl.priority || "medium",
+    }));
+    setAppliedChecklist(checklist);
+    setAppliedItems(Array.isArray(tpl.items) ? tpl.items : []);
+    setShowTemplates(false);
+  };
+
+  const handleSaveAsTemplate = async () => {
+    if (!formData.title) { alert("Bitte zuerst Titel/Beschreibung ausfüllen."); return; }
+    try {
+      await Data.createTicketTemplate({
+        name: formData.title,
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        checklist: [],
+        items: [],
+      });
+      queryClient.invalidateQueries({ queryKey: ["ticketTemplates"] });
+      alert("Als Vorlage gespeichert");
+    } catch (e: any) {
+      alert("Fehler: " + e.message);
+    }
+  };
 
   const { data: customerContracts = [], isLoading: isLoadingContracts } = useQuery({
     queryKey: ["customerContracts", formData.customerId],
@@ -195,6 +236,17 @@ export function TicketFormModal({
         await Data.updateTicket(ticket.id, ticketData);
       } else {
         newTicket = await Data.createTicket(ticketData);
+        // Standard-Aufwände aus der gewählten Vorlage übernehmen
+        for (const it of appliedItems) {
+          try {
+            await Data.addTicketItem({
+              ticket_id: newTicket.id,
+              description: it.description || "Aufwand",
+              quantity: Number(it.quantity) || 1,
+              unit_price: Number(it.unit_price) || 0,
+            });
+          } catch (_) { /* optional */ }
+        }
       }
 
       // Upload pending files
@@ -252,6 +304,63 @@ export function TicketFormModal({
           {/* Form */}
           <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
             <View className="gap-4">
+              {/* Vorlagen (nur bei Neuanlage) */}
+              {!ticket ? (
+                <View>
+                  <View className="flex-row gap-2">
+                    <TouchableOpacity
+                      className="flex-1 flex-row items-center justify-center gap-1.5 bg-surface border border-border py-2 rounded-lg"
+                      onPress={() => setShowTemplates(!showTemplates)}
+                      activeOpacity={0.7}
+                    >
+                      <IconSymbol name="doc.on.doc.fill" size={13} color={colors.primary} />
+                      <Text className="text-xs font-semibold" style={{ color: colors.primary }}>
+                        Aus Vorlage ({(ticketTemplates as any[]).length})
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="flex-1 flex-row items-center justify-center gap-1.5 bg-surface border border-border py-2 rounded-lg"
+                      onPress={handleSaveAsTemplate}
+                      activeOpacity={0.7}
+                    >
+                      <IconSymbol name="plus" size={13} color={colors.muted} />
+                      <Text className="text-xs font-semibold text-muted">Als Vorlage speichern</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {showTemplates ? (
+                    <View className="bg-surface border border-border rounded-lg mt-2 overflow-hidden">
+                      {(ticketTemplates as any[]).length === 0 ? (
+                        <Text className="text-xs text-muted p-3">
+                          Noch keine Vorlagen. Formular ausfüllen und «Als Vorlage speichern» tippen.
+                        </Text>
+                      ) : (
+                        (ticketTemplates as any[]).map((tpl, idx) => (
+                          <TouchableOpacity
+                            key={tpl.id}
+                            className="flex-row items-center px-3 py-2.5"
+                            style={{ borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: colors.border }}
+                            onPress={() => applyTemplate(tpl)}
+                            onLongPress={() => {
+                              Data.deleteTicketTemplate(tpl.id).then(() =>
+                                queryClient.invalidateQueries({ queryKey: ["ticketTemplates"] })
+                              );
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <View className="flex-1">
+                              <Text className="text-sm font-semibold text-foreground">{tpl.name}</Text>
+                              <Text className="text-xs text-muted">
+                                {(tpl.checklist || []).length} Checklisten-Punkte · {(tpl.items || []).length} Standard-Aufwände · lange drücken = löschen
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
               {/* Titel */}
               <View>
                 <Text className="text-sm font-semibold text-foreground mb-2">

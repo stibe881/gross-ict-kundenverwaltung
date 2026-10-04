@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useIsReadOnly } from "@/hooks/use-is-read-only";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
@@ -26,6 +27,7 @@ import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 export default function CustomersScreen() {
   const router = useRouter();
   const colors = useColors();
+    const isReadOnly = useIsReadOnly();
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -226,6 +228,7 @@ export default function CustomersScreen() {
               >
                 <IconSymbol name="square.and.arrow.up" size={20} color={colors.primary} />
               </TouchableOpacity>
+              {!isReadOnly && (
               <TouchableOpacity
                 className="bg-primary w-12 h-12 rounded-full items-center justify-center"
                 activeOpacity={0.8}
@@ -233,6 +236,7 @@ export default function CustomersScreen() {
               >
                 <IconSymbol name="plus.circle.fill" size={24} color={colors.background} />
               </TouchableOpacity>
+              )}
             </View>
           </View>
 

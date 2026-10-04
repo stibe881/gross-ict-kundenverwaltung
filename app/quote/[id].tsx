@@ -323,8 +323,16 @@ export default function QuoteDetailScreen() {
                         <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
                     </TouchableOpacity>
                     <View className="flex-1">
-                        <Text className="text-2xl font-bold text-foreground">{quote.quote_number}</Text>
+                        <View className="flex-row items-center gap-2">
+                            <Text className="text-2xl font-bold text-foreground">{quote.quote_number}</Text>
+                            {((quote as any).version || 1) > 1 || (quote as any).parent_quote_id ? (
+                                <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: "#8B5CF620" }}>
+                                    <Text className="text-xs font-bold" style={{ color: "#8B5CF6" }}>V{(quote as any).version || 1}</Text>
+                                </View>
+                            ) : null}
+                        </View>
                         <Text className="text-sm text-muted mt-1">{customerName}</Text>
+                        <QuoteVersionChips quote={quote} currentId={id as string} />
                     </View>
                     <TouchableOpacity
                         onPress={() => setShowStatusModal(true)}
@@ -595,6 +603,62 @@ export default function QuoteDetailScreen() {
                         </TouchableOpacity>
                     )}
 
+                    {/* Anzahlungsrechnung */}
+                    {quote.status === "accepted" && (
+                        <TouchableOpacity
+                            onPress={() =>
+                                showConfirm(
+                                    "Anzahlungsrechnung",
+                                    `30% Anzahlung (${formatCurrency(Math.round((quote.total || 0) * 30) / 100)}) zu Angebot ${quote.quote_number} als Rechnungsentwurf erstellen?`,
+                                    async () => {
+                                        try {
+                                            const inv = await Data.createDepositInvoiceFromQuote(id as string, 30);
+                                            queryClient.invalidateQueries({ queryKey: ["invoices"] });
+                                            showToast(`Anzahlungsrechnung ${inv.invoice_number} erstellt`);
+                                            router.push(`/invoice/${inv.id}`);
+                                        } catch (e: any) {
+                                            showAlert("Fehler", e.message);
+                                        }
+                                    },
+                                    "Erstellen"
+                                )
+                            }
+                            style={{ backgroundColor: "#F59E0B" }}
+                            className="p-4 rounded-lg flex-row items-center justify-center flex-1 min-w-[200px]"
+                            activeOpacity={0.8}
+                        >
+                            <IconSymbol name="banknote" size={20} color="#fff" />
+                            <Text className="text-background font-semibold ml-2">Anzahlung 30%</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {/* Neue Version */}
+                    <TouchableOpacity
+                        onPress={() =>
+                            showConfirm(
+                                "Neue Version",
+                                `Von Angebot ${quote.quote_number} eine neue, bearbeitbare Version (V${((quote as any).version || 1) + 1}) erstellen? Die bisherige Version bleibt erhalten.`,
+                                async () => {
+                                    try {
+                                        const nq = await Data.createQuoteNewVersion(id as string);
+                                        queryClient.invalidateQueries({ queryKey: ["quotes"] });
+                                        showToast(`Version V${nq.version} erstellt`);
+                                        router.push(`/quote/${nq.id}`);
+                                    } catch (e: any) {
+                                        showAlert("Fehler", e.message);
+                                    }
+                                },
+                                "Erstellen"
+                            )
+                        }
+                        style={{ backgroundColor: "#8B5CF6" }}
+                        className="p-4 rounded-lg flex-row items-center justify-center flex-1 min-w-[200px]"
+                        activeOpacity={0.8}
+                    >
+                        <IconSymbol name="doc.on.doc.fill" size={20} color="#fff" />
+                        <Text className="text-background font-semibold ml-2">Neue Version</Text>
+                    </TouchableOpacity>
+
                     {/* Bearbeiten */}
                     <TouchableOpacity
                         onPress={() => setShowEditModal(true)}
@@ -690,5 +754,36 @@ export default function QuoteDetailScreen() {
                 </View>
             </Modal>
         </ScreenContainer>
+    );
+}
+
+// ── Versions-Chips: alle Versionen desselben Angebots ──
+function QuoteVersionChips({ quote, currentId }: { quote: any; currentId: string }) {
+    const colors = useColors();
+    const router = useRouter();
+    const { data: versions = [] } = useQuery({
+        queryKey: ["quoteVersions", quote.parent_quote_id || quote.id],
+        queryFn: () => Data.getQuoteVersions(quote),
+    });
+    if ((versions as any[]).length <= 1) return null;
+    return (
+        <View className="flex-row flex-wrap gap-1.5 mt-2">
+            {(versions as any[]).map((v) => (
+                <TouchableOpacity
+                    key={v.id}
+                    className="px-2 py-1 rounded-lg border"
+                    style={{
+                        borderColor: v.id === currentId ? "#8B5CF6" : colors.border,
+                        backgroundColor: v.id === currentId ? "#8B5CF615" : colors.surface,
+                    }}
+                    onPress={() => v.id !== currentId && router.push(`/quote/${v.id}`)}
+                    activeOpacity={0.7}
+                >
+                    <Text className="text-xs font-semibold" style={{ color: v.id === currentId ? "#8B5CF6" : colors.foreground }}>
+                        V{v.version || 1}{v.status === "accepted" ? " ✓" : ""}
+                    </Text>
+                </TouchableOpacity>
+            ))}
+        </View>
     );
 }

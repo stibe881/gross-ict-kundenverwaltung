@@ -97,6 +97,33 @@ Deno.serve(async (req) => {
       description: `Zahlung von CHF ${amount.toFixed(2)} via Online-Zahlung (Stripe) erfasst. ${newStatus === "paid" ? "Rechnung vollständig bezahlt." : ""} ${marker}`,
     });
 
+    // Stripe-Gebühr als Ausgabe "Zahlungsgebühren" verbuchen
+    try {
+      const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+      const paymentIntentId = session?.payment_intent;
+      if (stripeKey && paymentIntentId) {
+        const piRes = await fetch(
+          `https://api.stripe.com/v1/payment_intents/${paymentIntentId}?expand[]=latest_charge.balance_transaction`,
+          { headers: { Authorization: `Bearer ${stripeKey}` } },
+        );
+        if (piRes.ok) {
+          const pi = await piRes.json();
+          const feeRaw = pi?.latest_charge?.balance_transaction?.fee;
+          if (typeof feeRaw === "number" && feeRaw > 0) {
+            const fee = feeRaw / 100;
+            await supabase.from("expenses").insert({
+              description: `Stripe-Gebühr Online-Zahlung ${invoice.invoice_number}`,
+              category: "accounting",
+              amount: fee,
+              tax_rate: 0,
+              tax_amount: 0,
+              expense_date: new Date().toISOString().split("T")[0],
+            });
+          }
+        }
+      }
+    } catch (e) { console.error("[stripe-webhook] Gebühren-Verbuchung fehlgeschlagen:", e); }
+
     // Push an Admins
     try {
       await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push`, {

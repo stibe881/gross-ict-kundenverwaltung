@@ -11,11 +11,13 @@ import {
   Linking,
   Switch,
   TextInput,
+  Modal,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useIsReadOnly } from "@/hooks/use-is-read-only";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { BankReconciliationModal } from "@/components/bank-reconciliation-modal";
@@ -30,6 +32,7 @@ import { showToast } from "@/components/toast-provider";
 import { downloadAnnualReportPDF } from "@/lib/pdf-annual-report";
 import { exportAnnualZIP } from "@/lib/export-annual-report";
 import { exportCsv } from "@/lib/export";
+import { generateInvoicePDFBase64 } from "@/lib/pdf-utils";
 import { generateQuittungBase64 } from "@/lib/pdf-quittung";
 import { ScenarioBookingModal } from "@/components/scenario-booking-modal";
 import * as FileSystem from "expo-file-system/legacy";
@@ -59,11 +62,14 @@ export default function AccountingScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const colors = useColors();
+  const isReadOnly = useIsReadOnly();
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
+  const [showDunningCenter, setShowDunningCenter] = useState(false);
+  const { data: invoiceSettings } = useQuery({ queryKey: ["invoiceSettings"], queryFn: Data.getInvoiceSettings });
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any>(null);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
@@ -874,6 +880,9 @@ export default function AccountingScreen() {
 
       {/* Liquiditätsvorschau 90 Tage */}
       <LiquidityCard colors={colors} />
+
+      {/* Debitoren: Zahlungsmoral */}
+      <DebtorCard colors={colors} />
     </View>
   );
 
@@ -908,6 +917,7 @@ export default function AccountingScreen() {
               </Text>
               <Text className="text-xs text-muted">{formatCurrency(filteredTotal)} in dieser Ansicht</Text>
             </View>
+            {!isReadOnly && (
             <TouchableOpacity
               className={`flex-row items-center gap-1.5 px-4 py-2.5 rounded-xl ${isYearClosed ? "bg-muted" : "bg-primary"}`}
               activeOpacity={0.8}
@@ -922,6 +932,7 @@ export default function AccountingScreen() {
               <IconSymbol name="plus" size={16} color="#FFFFFF" />
               <Text className="text-background font-semibold text-sm">Neue Rechnung</Text>
             </TouchableOpacity>
+            )}
           </View>
 
           {/* Bankabgleich + Export */}
@@ -935,6 +946,14 @@ export default function AccountingScreen() {
               <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
                 Bankabgleich
               </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-row items-center justify-center gap-2 bg-surface border border-border py-2.5 px-3 rounded-xl"
+              activeOpacity={0.7}
+              onPress={() => setShowDunningCenter(true)}
+            >
+              <IconSymbol name="bell.fill" size={15} color="#EF4444" />
+              <Text className="text-sm font-semibold" style={{ color: "#EF4444" }}>Mahnen</Text>
             </TouchableOpacity>
             <TouchableOpacity
               className="flex-row items-center justify-center gap-2 bg-surface border border-border py-2.5 px-4 rounded-xl"
@@ -2038,6 +2057,13 @@ export default function AccountingScreen() {
         onClose={() => setShowInvoiceModal(false)}
         onSuccess={() => refetchInvoices()}
       />
+      <DunningCenterModal
+        visible={showDunningCenter}
+        onClose={() => setShowDunningCenter(false)}
+        invoiceSettings={invoiceSettings}
+        colors={colors}
+        onDone={() => { queryClient.invalidateQueries({ queryKey: ["invoices"] }); }}
+      />
       <BankReconciliationModal
         visible={showBankModal}
         onClose={() => { setShowBankModal(false); refetchInvoices(); }}
@@ -3094,5 +3120,201 @@ function RecurringExpensesCard({ colors }: { colors: any }) {
         </View>
       ) : null}
     </View>
+  );
+}
+
+// ── Debitoren: Zahlungsmoral pro Kunde ──
+function DebtorCard({ colors }: { colors: any }) {
+  const [expanded, setExpanded] = useState(false);
+  const { data: debtors = [] } = useQuery({ queryKey: ["debtorStats"], queryFn: Data.getDebtorStats });
+
+  const relevant = (debtors as any[]).filter((d) => d.openAmount > 0 || d.paidCount > 0);
+  if (!relevant.length) return null;
+  const shown = expanded ? relevant : relevant.slice(0, 5);
+  const totalOpen = relevant.reduce((s, d) => s + d.openAmount, 0);
+
+  return (
+    <View className="bg-surface rounded-2xl border border-border p-4 mt-3">
+      <View className="flex-row items-center gap-2 mb-1">
+        <IconSymbol name="person.2.fill" size={16} color={colors.primary} />
+        <Text className="text-base font-bold text-foreground">Debitoren & Zahlungsmoral</Text>
+      </View>
+      <Text className="text-xs text-muted mb-3">
+        Offen gesamt: {formatCurrency(totalOpen)} · Zahlungsdauer = Rechnungsdatum bis Zahlungseingang
+      </Text>
+      {shown.map((d: any) => (
+        <View key={d.customerId} className="flex-row items-center py-2 border-t border-border">
+          <View className="flex-1 mr-2">
+            <View className="flex-row items-center gap-2">
+              <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{d.name}</Text>
+              {d.latePct !== null && d.latePct >= 50 && d.paidCount >= 2 ? (
+                <View className="px-1.5 py-0.5 rounded" style={{ backgroundColor: "#EF444420" }}>
+                  <Text className="text-[9px] font-bold" style={{ color: "#EF4444" }}>ZAHLT SPÄT</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text className="text-xs text-muted">
+              {d.avgDays !== null ? `Ø ${d.avgDays} Tage` : "noch keine Zahlung"}
+              {d.latePct !== null ? ` · ${d.latePct}% zu spät` : ""}
+              {d.overdueCount > 0 ? ` · ${d.overdueCount} überfällig` : ""}
+            </Text>
+          </View>
+          <Text className="text-sm font-bold" style={{ color: d.openAmount > 0 ? colors.warning : colors.success }}>
+            {formatCurrency(d.openAmount)}
+          </Text>
+        </View>
+      ))}
+      {relevant.length > 5 ? (
+        <TouchableOpacity className="pt-2" onPress={() => setExpanded(!expanded)} activeOpacity={0.7}>
+          <Text className="text-xs font-bold text-center" style={{ color: colors.primary }}>
+            {expanded ? "Weniger anzeigen" : `Alle ${relevant.length} Kunden anzeigen`}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
+
+// ── Mahn-Center: fällige Mahnungen gesammelt versenden ──
+function DunningCenterModal({
+  visible, onClose, invoiceSettings, colors, onDone,
+}: { visible: boolean; onClose: () => void; invoiceSettings: any; colors: any; onDone: () => void }) {
+  const queryClient = useQueryClient();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sending, setSending] = useState(false);
+  const [progress, setProgress] = useState("");
+
+  const { data: dunnable = [], refetch } = useQuery({
+    queryKey: ["dunnableInvoices"],
+    queryFn: Data.getDunnableInvoices,
+    enabled: visible,
+  });
+
+  useEffect(() => {
+    if (visible) {
+      // Standard: alle fälligen vorausgewählt
+      setSelected(new Set((dunnable as any[]).filter((i) => i.dunningDue && i.customer?.email).map((i) => i.id)));
+    }
+  }, [visible, dunnable]);
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const levelLabel = (l: number) =>
+    l === 0 ? "Erinnerung" : l === 1 ? "1. Mahnung" : l === 2 ? "2. Mahnung" : "3. Mahnung";
+
+  const handleSend = async () => {
+    const toSend = (dunnable as any[]).filter((i) => selected.has(i.id));
+    if (!toSend.length) return;
+    setSending(true);
+    let ok = 0, failed = 0;
+    for (let idx = 0; idx < toSend.length; idx++) {
+      const inv = toSend[idx];
+      setProgress(`${idx + 1}/${toSend.length}: ${inv.invoice_number}…`);
+      try {
+        const level = inv.recommendedLevel;
+        const pdfBase64 = await generateInvoicePDFBase64({ ...inv, dunning_level: level, is_dunning_document: true } as any, invoiceSettings);
+        const { data, error } = await Data.supabase.functions.invoke("send-reminder-email", {
+          body: { id: inv.id, pdfBase64, level },
+        });
+        if (error || data?.error) throw new Error(data?.error || error?.message);
+        ok++;
+      } catch (e) {
+        console.error("[Mahn-Center]", inv.invoice_number, e);
+        failed++;
+      }
+    }
+    setSending(false);
+    setProgress("");
+    refetch();
+    onDone();
+    queryClient.invalidateQueries({ queryKey: ["dunnableInvoices"] });
+    showAlert("Mahnlauf abgeschlossen", `${ok} Mahnung(en) versendet${failed ? `, ${failed} fehlgeschlagen` : ""}.`);
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View className="flex-1 bg-black/50 justify-end">
+        <View className="bg-background rounded-t-3xl" style={{ maxHeight: "90%" }}>
+          <View className="flex-row items-center justify-between p-4 border-b border-border">
+            <Text className="text-xl font-bold text-foreground">Mahn-Center</Text>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+              <IconSymbol name="xmark.circle.fill" size={26} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
+            {(dunnable as any[]).length === 0 ? (
+              <View className="items-center py-10">
+                <IconSymbol name="checkmark.circle.fill" size={40} color={colors.success} />
+                <Text className="text-base font-semibold text-foreground mt-3">Nichts zu mahnen</Text>
+                <Text className="text-sm text-muted mt-1">Keine überfälligen Rechnungen vorhanden.</Text>
+              </View>
+            ) : (
+              (dunnable as any[]).map((inv) => {
+                const name = inv.customer?.company_name || `${inv.customer?.first_name || ""} ${inv.customer?.last_name || ""}`.trim();
+                const rest = Math.max(0, (inv.total || 0) - (inv.paid_amount || 0));
+                const noEmail = !inv.customer?.email;
+                return (
+                  <TouchableOpacity
+                    key={inv.id}
+                    className="flex-row items-center gap-3 py-2.5 border-b border-border"
+                    onPress={() => !noEmail && toggle(inv.id)}
+                    activeOpacity={0.7}
+                    style={{ opacity: noEmail ? 0.5 : 1 }}
+                  >
+                    <View
+                      style={{
+                        width: 20, height: 20, borderRadius: 6, borderWidth: 2,
+                        borderColor: selected.has(inv.id) ? colors.primary : colors.border,
+                        backgroundColor: selected.has(inv.id) ? colors.primary : "transparent",
+                        alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      {selected.has(inv.id) ? <Text style={{ color: colors.background, fontSize: 11, fontWeight: "700" }}>✓</Text> : null}
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-sm font-semibold text-foreground">{inv.invoice_number} · {name}</Text>
+                      <Text className="text-xs text-muted">
+                        fällig {formatDate(inv.due_date)} · offen {formatCurrency(rest)} · bisher: {inv.dunning_level ? levelLabel(inv.dunning_level - 0) + " gesendet" : "noch nie gemahnt"}
+                        {noEmail ? " · keine E-Mail!" : ""}
+                      </Text>
+                      <Text className="text-xs font-semibold" style={{ color: inv.dunningDue ? "#EF4444" : colors.muted }}>
+                        Empfehlung: {levelLabel(inv.recommendedLevel)}{!inv.dunningDue ? ` (erst ${inv.daysSinceLastAction} Tage seit letzter Aktion)` : ""}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )}
+            <View style={{ height: 12 }} />
+          </ScrollView>
+          <View className="p-4 border-t border-border">
+            {sending ? (
+              <View className="flex-row items-center justify-center gap-2 py-3">
+                <ActivityIndicator color={colors.primary} />
+                <Text className="text-sm text-foreground">{progress}</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                className="bg-primary py-3 rounded-xl"
+                onPress={handleSend}
+                disabled={selected.size === 0}
+                style={{ opacity: selected.size === 0 ? 0.5 : 1 }}
+                activeOpacity={0.8}
+              >
+                <Text className="text-background font-semibold text-center">
+                  {selected.size} Mahnung(en) mit empfohlener Stufe senden
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }

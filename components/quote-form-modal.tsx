@@ -70,6 +70,7 @@ interface LineItem {
     unitPrice: string;
     vatRate: string;
     optional: boolean;
+    purchasePrice?: string;
 }
 
 export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initialCustomerId }: QuoteFormModalProps) {
@@ -122,6 +123,16 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
     });
 
     const selectedCustomer = customers?.find((c: any) => c.id === customerId);
+
+    // Kundenspezifischer Standardrabatt: beim Kundenwechsel vorschlagen (nur Neuanlage)
+    useEffect(() => {
+        if (editQuote) return;
+        const disc = Number((selectedCustomer as any)?.discount_percent) || 0;
+        if (disc > 0 && !specialDiscount) {
+            setSpecialDiscount(String(disc));
+            setSpecialDiscountType("percentage");
+        }
+    }, [customerId]);
 
     useEffect(() => {
         if (editQuote) {
@@ -228,6 +239,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
                             unit: product.unit || "Stk.",
                             unitPrice: String(product.price),
                             vatRate: String(product.vat_rate ?? 8.1),
+                            purchasePrice: (product as any).purchase_price != null ? String((product as any).purchase_price) : undefined,
                         }
                         : item
                 )
@@ -843,6 +855,14 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
                                                             (1 + (parseFloat(item.vatRate) || 0) / 100)
                                                         )}
                                                     </Text>
+                                                    {item.purchasePrice ? (
+                                                        <Text className="text-xs text-right" style={{ color: "#22C55E" }}>
+                                                            Marge (intern): {formatCurrency(
+                                                                (parseFloat(item.quantity) || 0) *
+                                                                ((parseFloat(item.unitPrice) || 0) - (parseFloat(item.purchasePrice) || 0))
+                                                            )}
+                                                        </Text>
+                                                    ) : null}
                                                 </View>
                                             ) : null}
                                         </View>

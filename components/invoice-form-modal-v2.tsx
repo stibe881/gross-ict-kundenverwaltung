@@ -49,6 +49,16 @@ export function InvoiceFormModal({
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(initialCustomerId || null);
   const [specialDiscount, setSpecialDiscount] = useState("");
   const [specialDiscountType, setSpecialDiscountType] = useState<"amount" | "percentage">("amount");
+  const [currency, setCurrency] = useState<"CHF" | "EUR">("CHF");
+  const [isCreditNote, setIsCreditNote] = useState(false);
+  const [creditNoteNumber, setCreditNoteNumber] = useState("");
+
+  // Gutschrifts-Nummernkreis (GS-JJJJ-NNN) laden, sobald der Schalter aktiv ist
+  useEffect(() => {
+    if (visible && isCreditNote && !editInvoice && !creditNoteNumber) {
+      Data.getNextCreditNoteNumber().then(setCreditNoteNumber).catch(() => {});
+    }
+  }, [visible, isCreditNote, editInvoice, creditNoteNumber]);
 
   // Nächste Rechnungsnummer laden
   const { data: nextNumber } = useQuery({
@@ -67,6 +77,8 @@ export function InvoiceFormModal({
       setSelectedCustomerId(editInvoice.customer_id || null);
       setSpecialDiscount(editInvoice.special_discount ? String(editInvoice.special_discount) : "");
       setSpecialDiscountType(editInvoice.special_discount_type || "amount");
+      setCurrency(editInvoice.currency === "EUR" ? "EUR" : "CHF");
+      setIsCreditNote(!!editInvoice.is_credit_note);
       if (editInvoice.items && editInvoice.items.length > 0) {
         setItems(
           editInvoice.items.map((item: any, index: number) => ({
@@ -232,7 +244,9 @@ export function InvoiceFormModal({
       const { items: payloadItems, ...invoiceData } = payload;
       return Data.createInvoice({
         customer_id: invoiceData.customerId,
-        invoice_number: invoiceData.invoiceNumber,
+        invoice_number: isCreditNote && creditNoteNumber ? creditNoteNumber : invoiceData.invoiceNumber,
+        currency,
+        is_credit_note: isCreditNote,
         invoice_date: invoiceData.invoiceDate,
         due_date: invoiceData.dueDate,
         subtotal: invoiceData.subtotal,
@@ -270,6 +284,8 @@ export function InvoiceFormModal({
       return Data.updateInvoice(id, {
         customer_id: invoiceData.customerId,
         invoice_number: invoiceData.invoiceNumber,
+        currency,
+        is_credit_note: isCreditNote,
         invoice_date: invoiceData.invoiceDate,
         due_date: invoiceData.dueDate,
         subtotal: invoiceData.subtotal,
@@ -746,6 +762,51 @@ export function InvoiceFormModal({
                     + Position
                   </Text>
                 </TouchableOpacity>
+              </View>
+
+              {/* Währung & Belegtyp */}
+              <View className="flex-row gap-3">
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-foreground mb-2">Währung</Text>
+                  <View className="flex-row bg-surface border border-border rounded-lg overflow-hidden">
+                    {(["CHF", "EUR"] as const).map((c) => (
+                      <TouchableOpacity
+                        key={c}
+                        className={`flex-1 py-2.5 ${currency === c ? "bg-primary" : ""}`}
+                        onPress={() => setCurrency(c)}
+                        activeOpacity={0.7}
+                      >
+                        <Text className={`text-center text-sm font-semibold ${currency === c ? "text-background" : "text-foreground"}`}>{c}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+                {!isEditMode ? (
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-foreground mb-2">Belegtyp</Text>
+                    <TouchableOpacity
+                      className="flex-row items-center gap-2 bg-surface border border-border rounded-lg px-3 py-2.5"
+                      onPress={() => setIsCreditNote(!isCreditNote)}
+                      activeOpacity={0.7}
+                      style={isCreditNote ? { borderColor: "#8B5CF6", backgroundColor: "#8B5CF610" } : undefined}
+                    >
+                      <View
+                        style={{
+                          width: 18, height: 18, borderRadius: 5, borderWidth: 2,
+                          borderColor: isCreditNote ? "#8B5CF6" : colors.border,
+                          backgroundColor: isCreditNote ? "#8B5CF6" : "transparent",
+                          alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        {isCreditNote ? <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>✓</Text> : null}
+                      </View>
+                      <Text className="text-sm font-semibold text-foreground">Gutschrift</Text>
+                    </TouchableOpacity>
+                    {isCreditNote ? (
+                      <Text className="text-xs text-muted mt-1">Nummer: {creditNoteNumber || "wird generiert…"}</Text>
+                    ) : null}
+                  </View>
+                ) : null}
               </View>
 
               {/* Spezialrabatt */}

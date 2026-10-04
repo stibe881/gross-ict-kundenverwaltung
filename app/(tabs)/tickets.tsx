@@ -19,6 +19,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useIsReadOnly } from "@/hooks/use-is-read-only";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { TicketFormModal } from "@/components/ticket-form-modal";
 import { ContractFormModal } from "@/components/contract-form-modal";
@@ -35,6 +36,7 @@ type TicketPriority = "low" | "medium" | "high";
 export default function TicketsScreen() {
   const router = useRouter();
   const colors = useColors();
+    const isReadOnly = useIsReadOnly();
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const queryClient = useQueryClient();
   const { refreshing, onRefresh } = useGlobalRefresh();
@@ -46,6 +48,32 @@ export default function TicketsScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAssigneeFilterPicker, setShowAssigneeFilterPicker] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+
+  // Sammel-Aktionen: Auswahl-Modus
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const exitSelectMode = () => { setSelectMode(false); setSelectedIds(new Set()); };
+  const bulkUpdate = async (updates: any, label: string) => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    try {
+      for (const tid of ids) {
+        await Data.updateTicket(tid, updates);
+      }
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      showToast(`${ids.length} Ticket(s): ${label}`);
+      exitSelectMode();
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    }
+  };
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
   const { ticketId } = useLocalSearchParams();
@@ -294,13 +322,14 @@ export default function TicketsScreen() {
     return (
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={() => setSelectedTicket(item)}
+        onPress={() => (selectMode ? toggleSelected(item.id) : setSelectedTicket(item))}
+        onLongPress={() => { if (!selectMode) { setSelectMode(true); toggleSelected(item.id); } }}
         style={{
-          backgroundColor: colors.surface,
+          backgroundColor: selectMode && selectedIds.has(item.id) ? colors.primary + "18" : colors.surface,
           borderRadius: 14,
           marginBottom: 10,
           borderWidth: 1,
-          borderColor: colors.border,
+          borderColor: selectMode && selectedIds.has(item.id) ? colors.primary : colors.border,
           borderLeftWidth: 4,
           borderLeftColor: overdue ? colors.error : priorityColor,
           overflow: "hidden",
@@ -433,9 +462,10 @@ export default function TicketsScreen() {
         return (
           <TouchableOpacity
             key={item.id}
-            style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}
+            style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: selectMode && selectedIds.has(item.id) ? colors.primary + "18" : "transparent" }}
             activeOpacity={0.7}
-            onPress={() => setSelectedTicket(item)}
+            onPress={() => (selectMode ? toggleSelected(item.id) : setSelectedTicket(item))}
+            onLongPress={() => { if (!selectMode) { setSelectMode(true); toggleSelected(item.id); } }}
           >
             {/* Priority dot */}
             <View style={{ width: 50, flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -508,6 +538,7 @@ export default function TicketsScreen() {
               >
                 <IconSymbol name="square.and.arrow.up" size={18} color={colors.primary} />
               </TouchableOpacity>
+              {!isReadOnly && (
               <TouchableOpacity
                 className={isDesktop ? "bg-primary px-4 py-2.5 rounded-xl flex-row items-center gap-2" : "bg-primary w-10 h-10 rounded-full items-center justify-center"}
                 activeOpacity={0.8}
@@ -516,6 +547,7 @@ export default function TicketsScreen() {
                 <IconSymbol name="plus" size={isDesktop ? 16 : 22} color={colors.background} />
                 {isDesktop && <Text style={{ color: colors.background, fontWeight: "700", fontSize: 14 }}>Neues Ticket</Text>}
               </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -699,6 +731,49 @@ export default function TicketsScreen() {
           )}
         </View>
       </View>
+
+      {/* Sammel-Aktionen-Leiste */}
+      {selectMode && (
+        <View
+          style={{
+            position: "absolute", left: 12, right: 12, bottom: 16,
+            backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border,
+            padding: 10, flexDirection: "row", alignItems: "center", gap: 8,
+            shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 10, elevation: 8,
+          }}
+        >
+          <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground, marginRight: 4 }}>
+            {selectedIds.size} gewählt
+          </Text>
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: "#22C55E", paddingVertical: 9, borderRadius: 10 }}
+            onPress={() => bulkUpdate({ status: "closed" }, "geschlossen")}
+            disabled={selectedIds.size === 0}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700", textAlign: "center" }}>Schliessen</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: "#EF4444", paddingVertical: 9, borderRadius: 10 }}
+            onPress={() => bulkUpdate({ priority: "high" }, "Priorität hoch")}
+            disabled={selectedIds.size === 0}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700", textAlign: "center" }}>Prio hoch</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: colors.primary, paddingVertical: 9, borderRadius: 10 }}
+            onPress={() => currentUserId && bulkUpdate({ assigned_to: currentUserId }, "mir zugewiesen")}
+            disabled={selectedIds.size === 0 || !currentUserId}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: colors.background, fontSize: 12, fontWeight: "700", textAlign: "center" }}>Mir zuweisen</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={exitSelectMode} activeOpacity={0.7} style={{ padding: 6 }}>
+            <IconSymbol name="xmark.circle.fill" size={22} color={colors.muted} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Ticket-Formular Modal */}
       <TicketFormModal

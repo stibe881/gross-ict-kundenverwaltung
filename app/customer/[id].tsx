@@ -108,6 +108,12 @@ export default function CustomerDetailScreen() {
     enabled: !!id,
   });
 
+  const { data: onboardingSteps = [] } = useQuery({
+    queryKey: ["customerOnboarding", id],
+    queryFn: () => Data.getOnboardingSteps(id as string),
+    enabled: !!id,
+  });
+
   const { data: timeline = [] } = useQuery({
     queryKey: ["customerTimeline", id],
     queryFn: () => Data.getCustomerTimeline(id as string),
@@ -1529,6 +1535,47 @@ export default function CustomerDetailScreen() {
                   </View>
                 </View>
               ))}
+
+              {/* ── Onboarding-Checkliste (nur solange Schritte offen sind) ── */}
+              {(onboardingSteps as any[]).some((s: any) => !s.done) ? (
+                <View className="bg-surface rounded-xl border border-border p-4 mb-4">
+                  <View className="flex-row items-center gap-2 mb-2">
+                    <IconSymbol name="checklist" size={16} color={colors.primary} />
+                    <Text className="text-base font-bold text-foreground">Onboarding</Text>
+                    <Text className="text-xs text-muted">
+                      {(onboardingSteps as any[]).filter((s: any) => s.done).length}/{(onboardingSteps as any[]).length} erledigt
+                    </Text>
+                  </View>
+                  {(onboardingSteps as any[]).map((s: any) => (
+                    <TouchableOpacity
+                      key={s.id}
+                      className="flex-row items-center gap-2.5 py-1.5"
+                      onPress={async () => {
+                        try {
+                          await Data.toggleOnboardingStep(s.id, !s.done);
+                          queryClient.invalidateQueries({ queryKey: ["customerOnboarding", id] });
+                        } catch (e: any) { showAlert("Fehler", e.message); }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <IconSymbol
+                        name={s.done ? "checkmark.circle.fill" : "circle"}
+                        size={18}
+                        color={s.done ? colors.success : colors.muted}
+                      />
+                      <Text
+                        className="text-sm flex-1"
+                        style={{
+                          color: s.done ? colors.muted : colors.foreground,
+                          textDecorationLine: s.done ? "line-through" : "none",
+                        }}
+                      >
+                        {s.step}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
 
               {/* ── Tab Navigation ── */}
               <ScrollView horizontal={!isWide} showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} className="mb-4 border-b border-border pb-2">

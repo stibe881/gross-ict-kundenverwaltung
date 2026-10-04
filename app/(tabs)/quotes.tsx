@@ -13,6 +13,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useIsReadOnly } from "@/hooks/use-is-read-only";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +32,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: string
 
 export default function QuotesScreen() {
     const colors = useColors();
+    const isReadOnly = useIsReadOnly();
     const { containerStyle, contentPadding } = useResponsiveLayout();
     const router = useRouter();
     const queryClient = useQueryClient();
@@ -184,6 +186,7 @@ export default function QuotesScreen() {
                                 </Text>
                             </View>
                         </View>
+                        {!isReadOnly && (
                         <TouchableOpacity
                             onPress={() => setShowCreateModal(true)}
                             style={{ backgroundColor: colors.primary }}
@@ -192,6 +195,7 @@ export default function QuotesScreen() {
                         >
                             <IconSymbol name="plus" size={22} color={colors.background} />
                         </TouchableOpacity>
+                        )}
                     </View>
 
                     {/* ── Suche ── */}

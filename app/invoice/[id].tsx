@@ -284,6 +284,16 @@ export default function InvoiceDetailScreen() {
                             <Text className="text-primary font-semibold ml-1">Zurück</Text>
                         </TouchableOpacity>
                         <View className="flex-row items-center gap-3">
+                            {(invoice as any).is_credit_note ? (
+                                <View className="px-2 py-1 rounded-full" style={{ backgroundColor: "#8B5CF620" }}>
+                                    <Text className="text-xs font-bold" style={{ color: "#8B5CF6" }}>GUTSCHRIFT</Text>
+                                </View>
+                            ) : null}
+                            {(invoice as any).currency === "EUR" ? (
+                                <View className="px-2 py-1 rounded-full" style={{ backgroundColor: colors.primary + "20" }}>
+                                    <Text className="text-xs font-bold" style={{ color: colors.primary }}>EUR</Text>
+                                </View>
+                            ) : null}
                             <TouchableOpacity
                                 onPress={() => setShowEditModal(true)}
                                 activeOpacity={0.7}
@@ -538,6 +548,15 @@ export default function InvoiceDetailScreen() {
                                 />
                             </View>
                         )}
+
+                        {/* Gutschrift: mit offener Rechnung verrechnen */}
+                        {(invoice as any).is_credit_note && invoice.status !== "paid" ? (
+                            <CreditNoteSettleCard
+                                creditNote={invoice}
+                                colors={colors}
+                                onDone={() => { refetch(); queryClient.invalidateQueries({ queryKey: ["invoices"] }); }}
+                            />
+                        ) : null}
 
                         {/* Zahlungsplan (Teilzahlungen) */}
                         {invoice.status !== "draft" && invoice.status !== "cancelled" ? (
@@ -953,6 +972,75 @@ function InstallmentPlanCard({
                         Rate antippen = als bezahlt verbuchen (erfasst automatisch eine Teilzahlung). Fällige, unbezahlte Raten lösen eine Push-Erinnerung aus.
                     </Text>
                 </View>
+            ) : null}
+        </View>
+    );
+}
+
+// ── Gutschrift mit einer offenen Rechnung des Kunden verrechnen ──
+function CreditNoteSettleCard({ creditNote, colors, onDone }: { creditNote: any; colors: any; onDone: () => void }) {
+    const [expanded, setExpanded] = useState(false);
+    const [working, setWorking] = useState(false);
+
+    const { data: openInvoices = [] } = useQuery({
+        queryKey: ["openInvoicesForSettle", creditNote.customer_id],
+        queryFn: () => Data.getCustomerInvoices(creditNote.customer_id),
+        enabled: !!creditNote.customer_id && expanded,
+        select: (list: any[]) => list.filter((i) => !i.is_credit_note && ["open", "sent", "overdue"].includes(i.status)),
+    });
+
+    const handleSettle = (target: any) => {
+        showConfirm(
+            "Gutschrift verrechnen",
+            `${creditNote.invoice_number} (${formatCurrency(getInvoiceTotal(creditNote))}) mit Rechnung ${target.invoice_number} verrechnen?`,
+            async () => {
+                setWorking(true);
+                try {
+                    await Data.settleCreditNote(creditNote.id, target.id);
+                    showToast("Gutschrift verrechnet");
+                    onDone();
+                } catch (e: any) {
+                    showAlert("Fehler", e.message);
+                } finally {
+                    setWorking(false);
+                }
+            },
+            "Verrechnen"
+        );
+    };
+
+    return (
+        <View className="bg-surface rounded-xl border p-4 mb-4" style={{ borderColor: "#8B5CF650" }}>
+            <TouchableOpacity className="flex-row items-center justify-between" onPress={() => setExpanded(!expanded)} activeOpacity={0.7}>
+                <View className="flex-row items-center gap-2">
+                    <IconSymbol name="arrow.up.arrow.down" size={16} color="#8B5CF6" />
+                    <Text className="text-lg font-bold text-foreground">Mit Rechnung verrechnen</Text>
+                </View>
+                <IconSymbol name={expanded ? "chevron.up" : "chevron.down"} size={14} color={colors.muted} />
+            </TouchableOpacity>
+            {expanded ? (
+                working ? (
+                    <ActivityIndicator color={colors.primary} style={{ marginTop: 12 }} />
+                ) : (openInvoices as any[]).length === 0 ? (
+                    <Text className="text-sm text-muted mt-3">Keine offenen Rechnungen dieses Kunden vorhanden.</Text>
+                ) : (
+                    <View className="mt-2">
+                        {(openInvoices as any[]).map((inv) => (
+                            <TouchableOpacity
+                                key={inv.id}
+                                className="flex-row items-center justify-between py-2.5 border-t border-border"
+                                onPress={() => handleSettle(inv)}
+                                activeOpacity={0.7}
+                            >
+                                <Text className="text-sm font-semibold text-foreground">{inv.invoice_number}</Text>
+                                <Text className="text-sm text-muted">offen {formatCurrency(Math.max(0, getInvoiceTotal(inv) - (inv.paid_amount || 0)))}</Text>
+                            </TouchableOpacity>
+                        ))}
+                        <Text className="text-xs text-muted mt-2">
+                            Die Verrechnung bucht eine Zahlung in Höhe der Gutschrift auf die gewählte Rechnung und schliesst die Gutschrift.
+                        </Text>
+                    </View>
+                )
             ) : null}
         </View>
     );

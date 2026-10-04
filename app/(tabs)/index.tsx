@@ -10,6 +10,7 @@ import {
   Image,
   TextInput,
   RefreshControl,
+  Modal,
 } from "react-native";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useRouter } from "expo-router";
@@ -50,6 +51,7 @@ export default function DashboardScreen() {
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
+  const [showAskCrm, setShowAskCrm] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const searchTimer = useRef<any>(null);
@@ -95,6 +97,39 @@ export default function DashboardScreen() {
     enabled: !!user?.id,
   });
 
+  // Browser-Benachrichtigungen (nur Web): neue ungelesene Meldungen als Desktop-Notification
+  useEffect(() => {
+    if (Platform.OS !== "web" || !user) return;
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    const WebNotification = (window as any).Notification;
+    if (WebNotification.permission === "default") {
+      try { WebNotification.requestPermission(); } catch (_) { /* Safari u.ä. */ }
+    }
+    const check = async () => {
+      if (WebNotification.permission !== "granted") return;
+      try {
+        const lastSeen = window.localStorage.getItem("webNotifLastSeen") || "";
+        const { data } = await supabase
+          .from("notifications")
+          .select("id, title, message, created_at")
+          .eq("user_id", (user as any).id)
+          .eq("is_read", false)
+          .order("created_at", { ascending: false })
+          .limit(5);
+        const fresh = (data || []).filter((n: any) => !lastSeen || n.created_at > lastSeen);
+        for (const n of fresh.slice(0, 3)) {
+          new WebNotification(n.title || "Gross ICT CRM", { body: n.message || "", tag: n.id });
+        }
+        if (data && data.length > 0) {
+          window.localStorage.setItem("webNotifLastSeen", data[0].created_at || "");
+        }
+      } catch (_) { /* Benachrichtigungen sind optional */ }
+    };
+    check();
+    const timer = setInterval(check, 30000);
+    return () => clearInterval(timer);
+  }, [user]);
+
   // Live-Kennzahlen für die KPI-Zeile (reine Zähl-Abfragen, günstig)
   const { data: stats } = useQuery({
     queryKey: ["dashboardStats"],
@@ -117,6 +152,7 @@ export default function DashboardScreen() {
   });
 
   // Global search with debounce
+  // Such-Syntax: "status:offen", "kunde:müller", ">1000" / "<500" (Betrag), kombinierbar mit Freitext
   const performSearch = useCallback(async (query: string) => {
     if (!query || query.length < 2) {
       setSearchResults([]);
@@ -125,6 +161,104 @@ export default function DashboardScreen() {
     }
     setSearching(true);
     const results: any[] = [];
+
+    // Filter-Tokens aus der Eingabe ziehen
+    const STATUS_MAP: Record<string, string> = {
+      offen: "open", open: "open", bezahlt: "paid", paid: "paid", versendet: "sent", sent: "sent",
+      überfällig: "overdue", ueberfaellig: "overdue", overdue: "overdue", entwurf: "draft", draft: "draft",
+      geschlossen: "closed", closed: "closed", aktiv: "active", active: "active",
+      "in_arbeit": "in_progress", in_progress: "in_progress", abgeschlossen: "completed", completed: "completed",
+      angenommen: "accepted", accepted: "accepted", abgelehnt: "declined", declined: "declined",
+      gekündigt: "cancelled", cancelled: "cancelled", wartend: "waiting", waiting: "waiting",
+    };
+    let statusFilter: string | null = null;
+    let customerFilter: string | null = null;
+    let amountGt: number | null = null;
+    let amountLt: number | null = null;
+    const freeParts: string[] = [];
+    for (const token of query.trim().split(/\s+/)) {
+      const lower = token.toLowerCase();
+      if (lower.startsWith("status:")) {
+        const v = lower.slice(7);
+        statusFilter = STATUS_MAP[v] || v;
+      } else if (lower.startsWith("kunde:")) {
+        customerFilter = token.slice(6);
+      } else if (/^>\d+(\.\d+)?$/.test(lower)) {
+        amountGt = parseFloat(lower.slice(1));
+      } else if (/^<\d+(\.\d+)?$/.test(lower)) {
+        amountLt = parseFloat(lower.slice(1));
+      } else {
+        freeParts.push(token);
+      }
+    }
+    const hasFilters = !!(statusFilter || customerFilter || amountGt !== null || amountLt !== null);
+    const freeText = freeParts.join(" ");
+
+    // kunde:-Filter → passende Kunden-IDs ermitteln
+    let customerIds: string[] | null = null;
+    if (customerFilter) {
+      const cq = `%${customerFilter}%`;
+      const { data: matched } = await supabase
+        .from("customers")
+        .select("id")
+        .or(`company_name.ilike.${cq},first_name.ilike.${cq},last_name.ilike.${cq}`)
+        .limit(20);
+      customerIds = (matched || []).map((c: any) => c.id);
+      if (customerIds.length === 0) { setSearchResults([]); setSearching(false); return; }
+    }
+
+    // Gefilterte Suche: Rechnungen/Angebote/Tickets nach Status/Kunde/Betrag
+    if (hasFilters) {
+      try {
+        let invQ = supabase.from("invoices").select("id, invoice_number, status, total").limit(8);
+        if (statusFilter) invQ = invQ.eq("status", statusFilter);
+        if (customerIds) invQ = invQ.in("customer_id", customerIds);
+        if (amountGt !== null) invQ = invQ.gt("total", amountGt);
+        if (amountLt !== null) invQ = invQ.lt("total", amountLt);
+        if (freeText) invQ = invQ.ilike("invoice_number", `%${freeText}%`);
+        const { data: fInvoices } = await invQ;
+        results.push(...(fInvoices || []).map((inv: any) => ({
+          id: inv.id, type: "invoice", icon: "doc.text.fill", color: colors.success,
+          title: inv.invoice_number,
+          subtitle: `Rechnung · CHF ${(inv.total || 0).toFixed(2)} · ${inv.status}`,
+          route: `/invoice/${inv.id}`,
+        })));
+
+        let qQ = supabase.from("quotes").select("id, quote_number, status, total").limit(8);
+        if (statusFilter) qQ = qQ.eq("status", statusFilter);
+        if (customerIds) qQ = qQ.in("customer_id", customerIds);
+        if (amountGt !== null) qQ = qQ.gt("total", amountGt);
+        if (amountLt !== null) qQ = qQ.lt("total", amountLt);
+        if (freeText) qQ = qQ.ilike("quote_number", `%${freeText}%`);
+        const { data: fQuotes } = await qQ;
+        results.push(...(fQuotes || []).map((qa: any) => ({
+          id: qa.id, type: "quote", icon: "doc.text.fill", color: "#EC4899",
+          title: qa.quote_number,
+          subtitle: `Angebot · CHF ${(qa.total || 0).toFixed(2)} · ${qa.status}`,
+          route: `/quote/${qa.id}`,
+        })));
+
+        if (amountGt === null && amountLt === null) {
+          let tQ = supabase.from("tickets").select("id, title, status").limit(8);
+          if (statusFilter) tQ = tQ.eq("status", statusFilter);
+          if (customerIds) tQ = tQ.in("customer_id", customerIds);
+          if (freeText) tQ = tQ.ilike("title", `%${freeText}%`);
+          const { data: fTickets } = await tQ;
+          results.push(...(fTickets || []).map((t: any) => ({
+            id: t.id, type: "ticket", icon: "ticket.fill", color: colors.warning,
+            title: t.title,
+            subtitle: `Ticket · ${t.status}`,
+            route: "/tickets",
+          })));
+        }
+      } catch (e) {
+        console.warn("[Search] Filter-Fehler:", e);
+      }
+      setSearchResults(results);
+      setSearching(false);
+      return;
+    }
+
     const q = `%${query}%`;
     try {
       // Customers
@@ -585,6 +719,22 @@ export default function DashboardScreen() {
                 )}
               </View>
             )}
+
+            {/* Frag dein CRM */}
+            <TouchableOpacity
+              style={{
+                flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+                marginTop: 8, paddingVertical: 8, borderRadius: 12,
+                backgroundColor: "#8B5CF612", borderWidth: 1, borderColor: "#8B5CF630",
+              }}
+              activeOpacity={0.7}
+              onPress={() => setShowAskCrm(true)}
+            >
+              <IconSymbol name="sparkles" size={14} color="#8B5CF6" />
+              <Text style={{ fontSize: 13, fontWeight: "600", color: "#8B5CF6" }}>
+                Frag dein CRM – z.B. «Welche Kunden haben offene Rechnungen über 500 Franken?»
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* KPI-Zeile: Live-Kennzahlen, tippen öffnet den Bereich */}
@@ -995,7 +1145,94 @@ export default function DashboardScreen() {
         onClose={() => setShowProjectModal(false)}
         onSuccess={() => { }}
       />
+      <AskCrmModal visible={showAskCrm} onClose={() => setShowAskCrm(false)} colors={colors} />
     </ScreenContainer>
+  );
+}
+
+// ── Frag dein CRM: Frage in natürlicher Sprache, KI antwortet auf Basis der CRM-Daten ──
+function AskCrmModal({ visible, onClose, colors }: { visible: boolean; onClose: () => void; colors: any }) {
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [asking, setAsking] = useState(false);
+
+  const handleAsk = async () => {
+    if (!question.trim() || asking) return;
+    setAsking(true);
+    setAnswer("");
+    try {
+      const { data, error } = await supabase.functions.invoke("ask-crm", {
+        body: { question: question.trim() },
+      });
+      if (error) throw new Error(error.message);
+      setAnswer(data?.answer || "Keine Antwort erhalten.");
+    } catch (e: any) {
+      setAnswer(`Fehler: ${e.message || "Die Anfrage konnte nicht verarbeitet werden."}`);
+    } finally {
+      setAsking(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+        <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "85%" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 18, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <IconSymbol name="sparkles" size={18} color="#8B5CF6" />
+              <Text style={{ fontSize: 18, fontWeight: "800", color: colors.foreground }}>Frag dein CRM</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+              <IconSymbol name="xmark.circle.fill" size={26} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ padding: 18 }} keyboardShouldPersistTaps="handled">
+            <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 8 }}>
+              Beispiele: «Welche Kunden haben offene Rechnungen über 500 Franken?» · «Wie viele Tickets kamen diesen Monat rein?» · «Welche Verträge laufen bald ab?»
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+                borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+                color: colors.foreground, fontSize: 15, minHeight: 60, textAlignVertical: "top",
+              }}
+              placeholder="Ihre Frage an das CRM..."
+              placeholderTextColor={colors.muted}
+              value={question}
+              onChangeText={setQuestion}
+              multiline
+              editable={!asking}
+            />
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#8B5CF6", paddingVertical: 12, borderRadius: 12,
+                alignItems: "center", marginTop: 10, opacity: question.trim() && !asking ? 1 : 0.5,
+              }}
+              onPress={handleAsk}
+              disabled={!question.trim() || asking}
+              activeOpacity={0.8}
+            >
+              {asking ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <Text style={{ fontWeight: "700", color: "#FFF", fontSize: 15 }}>Antwort erhalten</Text>
+              )}
+            </TouchableOpacity>
+            {asking ? (
+              <Text style={{ fontSize: 12, color: colors.muted, textAlign: "center", marginTop: 10 }}>
+                Die KI analysiert Ihre CRM-Daten – das dauert einige Sekunden...
+              </Text>
+            ) : null}
+            {answer ? (
+              <View style={{ backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 14, marginTop: 14 }}>
+                <Text style={{ fontSize: 14, color: colors.foreground, lineHeight: 21 }}>{answer}</Text>
+              </View>
+            ) : null}
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 

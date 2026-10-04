@@ -18,6 +18,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useIsReadOnly } from "@/hooks/use-is-read-only";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { formatDate, formatCurrency } from "@/lib/format";
 import { ContractFormModal } from "@/components/contract-form-modal";
@@ -36,6 +37,7 @@ const getBillingCycleLabel = (cycle: string | null | undefined) =>
 
 export default function ContractsScreen() {
   const colors = useColors();
+    const isReadOnly = useIsReadOnly();
   const { containerStyle, contentPadding } = useResponsiveLayout();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -358,6 +360,7 @@ export default function ContractsScreen() {
             </Text>
           </View>
         </View>
+        {!isReadOnly && (
         <TouchableOpacity
           className="bg-primary w-10 h-10 rounded-full items-center justify-center"
           activeOpacity={0.8}
@@ -365,6 +368,7 @@ export default function ContractsScreen() {
         >
           <IconSymbol name="plus" size={22} color={colors.background} />
         </TouchableOpacity>
+        )}
       </View>
 
       {/* Tab Switcher */}

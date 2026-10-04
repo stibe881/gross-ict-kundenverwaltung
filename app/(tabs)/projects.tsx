@@ -12,6 +12,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useIsReadOnly } from "@/hooks/use-is-read-only";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -45,12 +46,13 @@ const FILTERS: { key: string; label: string; color?: string }[] = [
     { key: "completed", label: "Abgeschlossen" },
 ];
 
-type ViewMode = "board" | "list";
+type ViewMode = "board" | "list" | "timeline";
 
 const KANBAN_COLUMNS = ["in_progress", "planning", "on_hold", "completed"];
 
 export default function ProjectsScreen() {
     const colors = useColors();
+    const isReadOnly = useIsReadOnly();
     const { containerStyle, contentPadding, isWide } = useResponsiveLayout();
     const router = useRouter();
     const queryClient = useQueryClient();
@@ -295,7 +297,7 @@ export default function ProjectsScreen() {
                             <View className="flex-row items-center gap-2">
                                 {isWide && (
                                     <View className="flex-row bg-surface border border-border rounded-lg overflow-hidden">
-                                        {([["list", "list.bullet", "Liste"], ["board", "square.grid.2x2.fill", "Board"]] as const).map(([mode, icon, label]) => (
+                                        {([["list", "list.bullet", "Liste"], ["board", "square.grid.2x2.fill", "Board"], ["timeline", "calendar", "Zeitachse"]] as const).map(([mode, icon, label]) => (
                                             <TouchableOpacity
                                                 key={mode}
                                                 className="flex-row items-center gap-1 px-3 py-2"
@@ -325,6 +327,7 @@ export default function ProjectsScreen() {
                                 >
                                     <IconSymbol name="square.and.arrow.up" size={18} color={colors.primary} />
                                 </TouchableOpacity>
+                                {!isReadOnly && (
                                 <TouchableOpacity
                                     className="w-10 h-10 rounded-full items-center justify-center"
                                     style={{ backgroundColor: colors.primary }}
@@ -333,6 +336,7 @@ export default function ProjectsScreen() {
                                 >
                                     <IconSymbol name="plus" size={22} color={colors.background} />
                                 </TouchableOpacity>
+                                )}
                             </View>
                         </View>
 
@@ -394,6 +398,8 @@ export default function ProjectsScreen() {
                             <View className="flex-row gap-3">
                                 {KANBAN_COLUMNS.map(renderKanbanColumn)}
                             </View>
+                        ) : viewMode === "timeline" ? (
+                            <ProjectTimeline projects={filteredProjects} colors={colors} onOpen={(p: any) => setSelectedProject(p)} />
                         ) : filteredProjects.length > 0 ? (
                             isWide ? (
                                 /* Desktop-Liste: zweispaltig */
@@ -466,5 +472,93 @@ export default function ProjectsScreen() {
                 />
             )}
         </ScreenContainer>
+    );
+}
+
+// ── Zeitachse: Projekte als Balken über die Monate ──
+function ProjectTimeline({ projects, colors, onOpen }: { projects: any[]; colors: any; onOpen: (p: any) => void }) {
+    const withDates = projects.map((p) => {
+        const start = p.start_date ? new Date(p.start_date) : (p.created_at ? new Date(p.created_at) : new Date());
+        const end = p.end_date ? new Date(p.end_date) : new Date(start.getFullYear(), start.getMonth() + 2, start.getDate());
+        return { ...p, _start: start, _end: end < start ? start : end };
+    });
+    if (!withDates.length) {
+        return (
+            <View className="items-center py-12">
+                <IconSymbol name="calendar" size={40} color={colors.muted} />
+                <Text className="text-sm text-muted mt-3">Keine Projekte in dieser Ansicht</Text>
+            </View>
+        );
+    }
+
+    const minStart = new Date(Math.min(...withDates.map((p) => p._start.getTime())));
+    const maxEnd = new Date(Math.max(...withDates.map((p) => p._end.getTime())));
+    const axisStart = new Date(minStart.getFullYear(), minStart.getMonth(), 1);
+    const months: Date[] = [];
+    const cursor = new Date(axisStart);
+    let guard = 0;
+    while (cursor <= maxEnd && guard < 18) {
+        months.push(new Date(cursor));
+        cursor.setMonth(cursor.getMonth() + 1);
+        guard++;
+    }
+    const MONTH_W = 90;
+    const totalW = months.length * MONTH_W;
+    const axisEnd = new Date(axisStart.getFullYear(), axisStart.getMonth() + months.length, 1);
+    const span = axisEnd.getTime() - axisStart.getTime();
+    const x = (d: Date) => Math.max(0, Math.min(totalW, ((d.getTime() - axisStart.getTime()) / span) * totalW));
+    const now = new Date();
+
+    const statusColor = (st: string) =>
+        st === "completed" ? "#10B981" : st === "in_progress" ? "#3B82F6" : st === "on_hold" ? "#F59E0B" : colors.primary;
+
+    return (
+        <ScrollView horizontal showsHorizontalScrollIndicator>
+            <View style={{ width: totalW + 140 }}>
+                {/* Monats-Kopf */}
+                <View style={{ flexDirection: "row", marginLeft: 140, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                    {months.map((m, i) => (
+                        <View key={i} style={{ width: MONTH_W, paddingVertical: 6, borderLeftWidth: 1, borderLeftColor: colors.border + "60" }}>
+                            <Text style={{ fontSize: 11, fontWeight: "600", color: colors.muted, textAlign: "center" }}>
+                                {m.toLocaleDateString("de-CH", { month: "short", year: "2-digit" })}
+                            </Text>
+                        </View>
+                    ))}
+                </View>
+                {/* Zeilen */}
+                {withDates.map((p) => {
+                    const left = x(p._start);
+                    const width = Math.max(14, x(p._end) - left);
+                    return (
+                        <TouchableOpacity
+                            key={p.id}
+                            style={{ flexDirection: "row", alignItems: "center", paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: colors.border + "50" }}
+                            onPress={() => onOpen(p)}
+                            activeOpacity={0.7}
+                        >
+                            <View style={{ width: 140, paddingRight: 8 }}>
+                                <Text style={{ fontSize: 12, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{p.title}</Text>
+                                <Text style={{ fontSize: 10, color: colors.muted }} numberOfLines={1}>{p.project_number}</Text>
+                            </View>
+                            <View style={{ width: totalW, height: 18, justifyContent: "center" }}>
+                                <View
+                                    style={{
+                                        position: "absolute", left, width, height: 14, borderRadius: 7,
+                                        backgroundColor: statusColor(p.status) + (p.status === "completed" ? "70" : "B0"),
+                                    }}
+                                />
+                            </View>
+                        </TouchableOpacity>
+                    );
+                })}
+                {/* Heute-Linie */}
+                {now >= axisStart && now <= axisEnd ? (
+                    <View style={{ position: "absolute", top: 28, bottom: 0, left: 140 + x(now), width: 2, backgroundColor: "#EF4444" }} />
+                ) : null}
+                <Text style={{ fontSize: 10, color: colors.muted, marginLeft: 140, marginTop: 8 }}>
+                    Balken = Projektlaufzeit (Start- bis Enddatum, ohne Enddatum: +2 Monate) · rote Linie = heute · tippen öffnet das Projekt
+                </Text>
+            </View>
+        </ScrollView>
     );
 }

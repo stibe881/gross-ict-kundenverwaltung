@@ -110,6 +110,40 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
         if (visible && projectData?.id) loadLinks();
     }, [visible, projectData?.id]);
 
+    // Nachkalkulation: verrechnete/offene Aufwände vs. Budget
+    const [costing, setCosting] = useState<{ billed: number; unbilled: number; total: number } | null>(null);
+    useEffect(() => {
+        if (visible && projectData?.id) {
+            Data.getProjectCosting(projectData.id).then(setCosting).catch(() => setCosting(null));
+        }
+    }, [visible, projectData?.id]);
+
+    // Projekt als Vorlage speichern (Aufgaben + Meilensteine)
+    const [savingTemplate, setSavingTemplate] = useState(false);
+    const handleSaveAsTemplate = async () => {
+        setSavingTemplate(true);
+        try {
+            const [tpl_tasks, tpl_milestones] = await Promise.all([
+                Data.getProjectTasks(projectData.id),
+                Data.getProjectMilestones(projectData.id),
+            ]);
+            if (!tpl_tasks.length && !tpl_milestones.length) {
+                showAlert("Hinweis", "Dieses Projekt hat keine Aufgaben oder Meilensteine, die als Vorlage gespeichert werden könnten.");
+                return;
+            }
+            await Data.createProjectTemplate({
+                name: projectData.title,
+                tasks: tpl_tasks.map((t: any) => ({ title: t.title })),
+                milestones: tpl_milestones.map((m: any) => ({ title: m.title, percent: m.percent || 0 })),
+            });
+            showAlert("Gespeichert", `"${projectData.title}" wurde als Projekt-Vorlage gespeichert (${tpl_tasks.length} Aufgaben, ${tpl_milestones.length} Meilensteine). Bei der nächsten Projekt-Erstellung wählbar.`);
+        } catch (e: any) {
+            showAlert("Fehler", e.message);
+        } finally {
+            setSavingTemplate(false);
+        }
+    };
+
     // Milestones
     const [milestones, setMilestones] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -788,6 +822,55 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                         }))}
                     />
                 )}
+
+                {/* Nachkalkulation: Aufwand vs. Budget */}
+                {costing && costing.total > 0 ? (
+                    <View className="bg-surface rounded-xl p-5 border border-border">
+                        <Text className="text-base font-bold text-foreground mb-3">
+                            <IconSymbol name="chart.pie.fill" size={15} color={colors.foreground} />  Nachkalkulation
+                        </Text>
+                        <View className="flex-row justify-between py-1.5">
+                            <Text className="text-sm text-muted">Verrechnete Aufwände</Text>
+                            <Text className="text-sm font-semibold" style={{ color: "#10B981" }}>{formatCurrency(costing.billed)}</Text>
+                        </View>
+                        <View className="flex-row justify-between py-1.5">
+                            <Text className="text-sm text-muted">Offene (unverrechnete) Aufwände</Text>
+                            <Text className="text-sm font-semibold" style={{ color: "#F59E0B" }}>{formatCurrency(costing.unbilled)}</Text>
+                        </View>
+                        <View className="flex-row justify-between py-1.5 border-t mt-1 pt-2" style={{ borderTopColor: colors.border }}>
+                            <Text className="text-sm font-bold text-foreground">Aufwand gesamt</Text>
+                            <Text className="text-sm font-bold text-foreground">{formatCurrency(costing.total)}</Text>
+                        </View>
+                        {Number(projectData.budget) > 0 ? (
+                            <View className="flex-row justify-between py-1.5">
+                                <Text className="text-sm text-muted">Verbleibend vom Budget ({formatCurrency(projectData.budget)})</Text>
+                                <Text className="text-sm font-bold" style={{ color: projectData.budget - costing.total >= 0 ? "#10B981" : "#EF4444" }}>
+                                    {formatCurrency(projectData.budget - costing.total)}
+                                </Text>
+                            </View>
+                        ) : null}
+                        <Text className="text-xs text-muted mt-2">Basis: Aufwandspositionen der zugeordneten Tickets</Text>
+                    </View>
+                ) : null}
+
+                {/* Als Vorlage speichern */}
+                <TouchableOpacity
+                    className="flex-row items-center justify-center gap-2 py-3 rounded-xl border border-border bg-surface"
+                    onPress={handleSaveAsTemplate}
+                    disabled={savingTemplate}
+                    activeOpacity={0.7}
+                >
+                    {savingTemplate ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                        <>
+                            <IconSymbol name="square.on.square" size={15} color={colors.primary} />
+                            <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
+                                Als Projekt-Vorlage speichern (Aufgaben & Meilensteine)
+                            </Text>
+                        </>
+                    )}
+                </TouchableOpacity>
 
                 {/* Notizen */}
                 {project.notes ? (

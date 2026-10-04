@@ -5,7 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
-import { Platform } from "react-native";
+import { Platform, AppState } from "react-native";
 import { supabase } from "@/lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import "@/lib/_core/nativewind-pressable";
@@ -29,6 +29,7 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 import { initializePushNotifications } from "@/lib/push-notifications";
+import * as Data from "@/lib/data";
 import { registerForPushNotificationsAsync } from "@/lib/notifications";
 import * as Notifications from 'expo-notifications';
 import * as QuickActions from 'expo-quick-actions';
@@ -60,6 +61,15 @@ export default function RootLayout() {
     initializePushNotifications().catch((error) => {
       console.error("[Push] Initialization failed:", error);
     });
+  }, []);
+
+  // Team-Präsenz: beim Start und bei App-Fokus "zuletzt online" aktualisieren
+  useEffect(() => {
+    Data.pingPresence();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") Data.pingPresence();
+    });
+    return () => sub.remove();
   }, []);
 
   // Track segments in a ref to avoid re-subscribing on every navigation

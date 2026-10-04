@@ -75,6 +75,7 @@ export function CustomerFormModal({
     postalCode: editCustomer?.postal_code || "",
     country: editCustomer?.country || "Schweiz",
     website: editCustomer?.website || "",
+    discountPercent: editCustomer?.discount_percent ? String(editCustomer.discount_percent) : "",
   });
   const [monitorWebsite, setMonitorWebsite] = useState(false);
   const [logoUri, setLogoUri] = useState<string | null>(editCustomer?.logo_url || null);
@@ -98,6 +99,7 @@ export function CustomerFormModal({
         postalCode: editCustomer.postal_code || "",
         country: editCustomer.country || "Schweiz",
         website: editCustomer.website || "",
+        discountPercent: editCustomer.discount_percent ? String(editCustomer.discount_percent) : "",
       });
       setMonitorWebsite(false); // Reset monitoring toggle when opening edit
       setLogoUri(editCustomer.logo_url || null);
@@ -120,6 +122,7 @@ export function CustomerFormModal({
         postal_code: data.postalCode,
         country: data.country,
         website: data.website,
+        discount_percent: parseFloat(data.discountPercent) || 0,
       };
 
       let result;
@@ -207,6 +210,7 @@ export function CustomerFormModal({
       postalCode: "",
       country: "Schweiz",
       website: "",
+      discountPercent: "",
     });
     setMonitorWebsite(false);
     setLogoUri(null);
@@ -470,6 +474,12 @@ export function CustomerFormModal({
               {renderInput("Land", formData.country,
                 (text) => setFormData({ ...formData, country: text }),
                 { placeholder: "Schweiz" }
+              )}
+
+              {/* Standardrabatt */}
+              {renderInput("Standardrabatt in % (optional)", formData.discountPercent,
+                (text) => setFormData({ ...formData, discountPercent: text }),
+                { placeholder: "z.B. 10 – wird in neuen Angeboten vorgeschlagen", keyboard: "decimal-pad" }
               )}
 
               {/* Webseite */}

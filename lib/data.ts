@@ -90,6 +90,18 @@ export async function getBusinessCard(email: string): Promise<any | null> {
     return (data as any)?.business_card || null;
 }
 
+// Portal: Ansprechpartner-Karte (erste hinterlegte Visitenkarte eines Mitarbeiters)
+export async function getPortalContactCard(): Promise<any | null> {
+    const { data, error } = await supabase
+        .from("users")
+        .select("business_card")
+        .not("business_card", "is", null)
+        .limit(1)
+        .maybeSingle();
+    if (error) return null;
+    return (data as any)?.business_card || null;
+}
+
 export async function saveBusinessCard(email: string, card: any): Promise<boolean> {
     const { data, error } = await supabase
         .from("users")
@@ -167,6 +179,8 @@ export async function createCustomer(customer: any) {
 
     if (error) throw new Error(error.message);
     logActivity("customer", data.id, "created", `Kunde "${data.company_name || `${data.first_name || ""} ${data.last_name || ""}`.trim()}" erstellt`);
+    // Onboarding-Checkliste für den neuen Kunden anlegen
+    try { await createOnboardingSteps(data.id); } catch (_) { /* optional */ }
     return data;
 }
 
@@ -365,6 +379,7 @@ export async function createProduct(product: any) {
             unit: product.unit,
             type: product.type,
             category: product.category || null,
+            purchase_price: product.purchase_price ?? null,
         }])
         .select()
         .single();
@@ -458,7 +473,7 @@ export async function getInvoiceById(id: string) {
 export async function getCustomerInvoices(customerId: string) {
     const { data, error } = await supabase
         .from("invoices")
-        .select(`*, items:invoice_items(*)`)
+        .select(`*, items:invoice_items(*), installments:invoice_installments(*)`)
         .eq("customer_id", customerId)
         .order("invoice_date", { ascending: false });
 
@@ -2516,10 +2531,10 @@ export async function updateUserRoles(userId: string, roles: string[]) {
     if (error) throw new Error(error.message);
 }
 
-export async function updateUserProfileAndRoles(userId: string, updates: { roles: string[]; address?: string; postal_code?: string; city?: string; iban: string; push_preferences?: Record<string, boolean> }) {
+export async function updateUserProfileAndRoles(userId: string, updates: { roles: string[]; address?: string; postal_code?: string; city?: string; iban: string; push_preferences?: Record<string, boolean>; read_only?: boolean }) {
     const { data, error } = await supabase
         .from("users")
-        .update(updates)
+        .update(updates as any)
         .eq("id", userId)
         .select()
         .single();
@@ -3938,6 +3953,14 @@ export async function uploadTicketAttachment(ticketId: string, file: any) {
     return dbData;
 }
 
+export async function getTicketAttachmentUrl(filePath: string) {
+    const { data, error } = await supabase.storage
+        .from('ticket_attachments' as any)
+        .createSignedUrl(filePath, 3600);
+    if (error) throw new Error(error.message);
+    return data.signedUrl;
+}
+
 export async function deleteTicketAttachment(attachmentId: string, filePath: string) {
     // Delete from Storage first
     const { error: storageError } = await supabase.storage
@@ -4616,4 +4639,328 @@ export async function getPortalMaintenanceWindows(customerId: string) {
     return (data || []).filter(
         (w: any) => !w.customer_ids || w.customer_ids.length === 0 || w.customer_ids.includes(customerId)
     );
+}
+
+// ============================================================
+// Runde 5: Debitoren, Mahn-Center, Gutschriften, Anzahlungen,
+// Versionen, Vorlagen, Onboarding, Präsenz
+// ============================================================
+
+// ── Debitoren: Zahlungsmoral pro Kunde ──
+export async function getDebtorStats() {
+    const { data: invoices } = await supabase
+        .from("invoices")
+        .select("id, customer_id, invoice_date, due_date, status, total, paid_amount, updated_at, customer:customers(company_name, first_name, last_name)")
+        .neq("status", "draft")
+        .neq("status", "cancelled");
+
+    const today = new Date().toISOString().split("T")[0];
+    const byCustomer = new Map<string, any>();
+    for (const inv of (invoices as any[]) || []) {
+        if (!inv.customer_id) continue;
+        let e = byCustomer.get(inv.customer_id);
+        if (!e) {
+            const name = inv.customer?.company_name ||
+                `${inv.customer?.first_name || ""} ${inv.customer?.last_name || ""}`.trim() || "Kunde";
+            e = { customerId: inv.customer_id, name, paidCount: 0, paidDaysSum: 0, lateCount: 0, openAmount: 0, overdueCount: 0 };
+            byCustomer.set(inv.customer_id, e);
+        }
+        if (inv.status === "paid") {
+            // Näherung: Zahlungsdatum = letzte Änderung der Rechnung
+            const days = Math.max(0, Math.round((new Date(inv.updated_at || inv.invoice_date).getTime() - new Date(inv.invoice_date).getTime()) / 86400000));
+            e.paidCount++;
+            e.paidDaysSum += days;
+            if (inv.due_date && (inv.updated_at || "").split("T")[0] > inv.due_date) e.lateCount++;
+        } else {
+            const rest = Math.max(0, (inv.total || 0) - (inv.paid_amount || 0));
+            e.openAmount += rest;
+            if (inv.due_date && inv.due_date < today) e.overdueCount++;
+        }
+    }
+    const list = [...byCustomer.values()].map((e) => ({
+        ...e,
+        avgDays: e.paidCount ? Math.round(e.paidDaysSum / e.paidCount) : null,
+        latePct: e.paidCount ? Math.round((e.lateCount / e.paidCount) * 100) : null,
+    }));
+    list.sort((a, b) => (b.openAmount + b.overdueCount * 1000) - (a.openAmount + a.overdueCount * 1000));
+    return list;
+}
+
+// ── Mahn-Center: mahnfähige Rechnungen mit Stufen-Empfehlung ──
+export async function getDunnableInvoices() {
+    const today = new Date().toISOString().split("T")[0];
+    const { data } = await supabase
+        .from("invoices")
+        .select("*, customer:customers(company_name, first_name, last_name, email), items:invoice_items(*)")
+        .in("status", ["open", "sent", "overdue"])
+        .eq("dunning_stopped", false)
+        .lt("due_date", today);
+
+    let daysBetween = 10;
+    try {
+        const settings: any = await getDunningSettings();
+        if (settings?.days_between_levels) daysBetween = settings.days_between_levels;
+    } catch (_) {}
+
+    const todayMs = new Date(today).getTime();
+    return ((data as any[]) || [])
+        .filter((inv) => !inv.is_credit_note)
+        .map((inv) => {
+            const level = inv.dunning_level || 0;
+            const lastAction = inv.last_dunning_at ? inv.last_dunning_at.split("T")[0] : inv.due_date;
+            const daysSince = Math.round((todayMs - new Date(lastAction).getTime()) / 86400000);
+            const nextLevel = Math.min(level + 1, 3);
+            const due = daysSince >= daysBetween || level === 0;
+            return { ...inv, recommendedLevel: nextLevel, daysSinceLastAction: daysSince, dunningDue: due };
+        })
+        .sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""));
+}
+
+// ── Gutschriften ──
+export async function getNextCreditNoteNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `GS-${year}-`;
+    const { data } = await db
+        .from("invoices")
+        .select("invoice_number")
+        .like("invoice_number", `${prefix}%`)
+        .order("invoice_number", { ascending: false })
+        .limit(1);
+    let seq = 0;
+    if (data && data.length > 0) {
+        const n = parseInt(data[0].invoice_number.replace(prefix, ""), 10);
+        if (!isNaN(n)) seq = n;
+    }
+    return `${prefix}${String(seq + 1).padStart(3, "0")}`;
+}
+
+// Gutschrift mit offener Rechnung verrechnen (bucht Zahlung in deren Höhe)
+export async function settleCreditNote(creditNoteId: string, targetInvoiceId: string) {
+    const { data: cn } = await db.from("invoices").select("invoice_number, total").eq("id", creditNoteId).single();
+    if (!cn) throw new Error("Gutschrift nicht gefunden");
+    await addPayment(targetInvoiceId, Number(cn.total) || 0, `Verrechnung Gutschrift ${cn.invoice_number}`);
+    await db.from("invoices").update({ status: "paid", paid_amount: cn.total, credit_note_for: targetInvoiceId }).eq("id", creditNoteId);
+    logActivity("invoice", creditNoteId, "updated", `Gutschrift ${cn.invoice_number} mit Rechnung verrechnet`);
+}
+
+// ── Anzahlungsrechnung aus Angebot ──
+export async function createDepositInvoiceFromQuote(quoteId: string, percent: number) {
+    const quote: any = await getQuoteById(quoteId);
+    if (!quote) throw new Error("Angebot nicht gefunden");
+    const base = Number(quote.total) || 0;
+    const gross = Math.round(base * percent) / 100;
+    // Anteil netto/MwSt aus dem Angebot übernehmen
+    const ratio = base > 0 ? gross / base : 0;
+    const subtotal = Math.round((Number(quote.subtotal) || 0) * ratio * 100) / 100;
+    const vat = Math.round((gross - subtotal) * 100) / 100;
+
+    const invoiceNumber = await getNextInvoiceNumber();
+    const today = new Date().toISOString().split("T")[0];
+    const invoice = await createInvoice(
+        {
+            customer_id: quote.customer_id,
+            invoice_number: invoiceNumber,
+            invoice_date: today,
+            due_date: new Date(Date.now() + 10 * 86400000).toISOString().split("T")[0],
+            subtotal,
+            vat_amount: vat,
+            total: gross,
+            status: "draft",
+            quote_id: quoteId,
+            notes: `Anzahlung ${percent}% zu Angebot ${quote.quote_number}`,
+        },
+        [{
+            description: `Anzahlung ${percent}% gemäss Angebot ${quote.quote_number}`,
+            quantity: 1,
+            unit: "Pauschale",
+            unit_price: subtotal,
+            vat_rate: subtotal > 0 ? Math.round(((gross / subtotal) - 1) * 1000) / 10 : 8.1,
+            total: gross,
+        }]
+    );
+    return invoice;
+}
+
+// ── Angebots-Versionen ──
+export async function createQuoteNewVersion(quoteId: string) {
+    const quote: any = await getQuoteById(quoteId);
+    if (!quote) throw new Error("Angebot nicht gefunden");
+    const rootId = quote.parent_quote_id || quote.id;
+    // Höchste Version der Familie bestimmen
+    const { data: family } = await db
+        .from("quotes")
+        .select("version")
+        .or(`id.eq.${rootId},parent_quote_id.eq.${rootId}`);
+    const maxVersion = Math.max(1, ...((family || []).map((q: any) => q.version || 1)));
+
+    const { customer, items, id, created_at, updated_at, ...rest } = quote;
+    const { data: newQuote, error } = await db
+        .from("quotes")
+        .insert({
+            ...rest,
+            quote_number: quote.quote_number,
+            status: "draft",
+            version: maxVersion + 1,
+            parent_quote_id: rootId,
+            followup_sent_at: null,
+        })
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+
+    const newItems = (items || []).map((i: any) => {
+        const { id: _i, quote_id: _q, created_at: _c, ...itemRest } = i;
+        return { ...itemRest, quote_id: newQuote.id };
+    });
+    if (newItems.length) await db.from("quote_items").insert(newItems);
+    logActivity("quote", newQuote.id, "created", `Angebot ${quote.quote_number} – neue Version V${maxVersion + 1} erstellt`);
+    return newQuote;
+}
+
+export async function getQuoteVersions(quote: any) {
+    const rootId = quote.parent_quote_id || quote.id;
+    const { data } = await db
+        .from("quotes")
+        .select("id, version, status, created_at, total")
+        .or(`id.eq.${rootId},parent_quote_id.eq.${rootId}`)
+        .order("version", { ascending: true });
+    return data || [];
+}
+
+// ── Ticket-Vorlagen ──
+export async function getTicketTemplates() {
+    const { data, error } = await db.from("ticket_templates").select("*").order("name");
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createTicketTemplate(t: any) {
+    const { data, error } = await db.from("ticket_templates").insert([t]).select().single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteTicketTemplate(id: string) {
+    const { error } = await db.from("ticket_templates").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+// ── Wiederkehrende Tickets (Wartungsplan) ──
+export async function getRecurringTickets() {
+    const { data, error } = await db
+        .from("recurring_tickets")
+        .select("*, customer:customers(company_name, first_name, last_name)")
+        .order("next_date");
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createRecurringTicket(t: any) {
+    const { data, error } = await db.from("recurring_tickets").insert([t]).select().single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateRecurringTicket(id: string, updates: any) {
+    const { error } = await db.from("recurring_tickets").update(updates).eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+export async function deleteRecurringTicket(id: string) {
+    const { error } = await db.from("recurring_tickets").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+// ── Projekt-Vorlagen ──
+export async function getProjectTemplates() {
+    const { data, error } = await db.from("project_templates").select("*").order("name");
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createProjectTemplate(t: { name: string; tasks: any[]; milestones: any[] }) {
+    const { data, error } = await db.from("project_templates").insert([t]).select().single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function deleteProjectTemplate(id: string) {
+    const { error } = await db.from("project_templates").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+export async function applyProjectTemplate(projectId: string, template: any) {
+    const tasks = (template.tasks || []).map((t: any, idx: number) => ({
+        project_id: projectId,
+        title: typeof t === "string" ? t : t.title,
+        status: "open",
+        sort_order: idx,
+    }));
+    if (tasks.length) await db.from("project_tasks").insert(tasks);
+    const milestones = (template.milestones || []).map((m: any, idx: number) => ({
+        project_id: projectId,
+        title: typeof m === "string" ? m : m.title,
+        percent: typeof m === "object" ? (m.percent || 0) : 0,
+        status: "pending",
+        sort_order: idx,
+    }));
+    if (milestones.length) await db.from("project_milestones").insert(milestones);
+}
+
+// ── Nachkalkulation: Aufwände eines Projekts ──
+export async function getProjectCosting(projectId: string) {
+    const { data: tickets } = await supabase
+        .from("tickets")
+        .select("id, items:ticket_items(quantity, unit_price, invoice_id)")
+        .eq("project_id" as any, projectId);
+    let billed = 0, unbilled = 0;
+    for (const t of (tickets as any[]) || []) {
+        for (const i of t.items || []) {
+            const v = (Number(i.quantity) || 0) * (Number(i.unit_price) || 0);
+            if (i.invoice_id) billed += v; else unbilled += v;
+        }
+    }
+    return { billed, unbilled, total: billed + unbilled };
+}
+
+// ── Kunden-Onboarding ──
+export const DEFAULT_ONBOARDING_STEPS = [
+    "Vertrag erstellen & unterzeichnen lassen",
+    "Portal-Zugang einrichten",
+    "Geräte & Lizenzen im Inventar erfassen",
+    "Überwachung einrichten (Webseite/Server)",
+    "Willkommens-E-Mail senden",
+];
+
+export async function createOnboardingSteps(customerId: string) {
+    const rows = DEFAULT_ONBOARDING_STEPS.map((step, idx) => ({ customer_id: customerId, step, sort: idx }));
+    await db.from("customer_onboarding").insert(rows);
+}
+
+export async function getOnboardingSteps(customerId: string) {
+    const { data, error } = await db
+        .from("customer_onboarding")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("sort");
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function toggleOnboardingStep(id: string, done: boolean) {
+    const { error } = await db.from("customer_onboarding").update({ done }).eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+// ── Team-Präsenz ──
+let lastPresencePing = 0;
+export async function pingPresence() {
+    if (Date.now() - lastPresencePing < 4 * 60 * 1000) return; // max. alle 4 Minuten
+    lastPresencePing = Date.now();
+    try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData?.session?.user?.id;
+        if (!userId) return;
+        await db.from("users").update({ last_seen_at: new Date().toISOString() }).eq("id", userId);
+    } catch (_) { /* Präsenz ist optional */ }
 }

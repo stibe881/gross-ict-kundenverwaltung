@@ -9,6 +9,7 @@ import {
     ActivityIndicator,
     Modal,
     RefreshControl,
+    Linking,
 } from "react-native";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -168,6 +169,13 @@ export default function KnowledgeBaseScreen() {
                             </View>
                         </View>
                         <View className="flex-row gap-2">
+                            <TouchableOpacity
+                                className="bg-surface border border-border w-10 h-10 rounded-full items-center justify-center"
+                                activeOpacity={0.8}
+                                onPress={() => Linking.openURL(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/help-page`)}
+                            >
+                                <IconSymbol name="globe" size={18} color={colors.success} />
+                            </TouchableOpacity>
                             <TouchableOpacity
                                 className="bg-surface border border-border w-10 h-10 rounded-full items-center justify-center"
                                 activeOpacity={0.8}
