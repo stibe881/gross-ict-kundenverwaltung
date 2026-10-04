@@ -17,6 +17,7 @@ import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BackButton } from "@/components/back-button";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -324,9 +325,7 @@ export default function UeberwachungScreen() {
                     {/* ── Header ─────────────────────────────────────────── */}
                     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 28, marginTop: 4 }}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ padding: 4, marginLeft: -4 }}>
-                                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-                            </TouchableOpacity>
+                            <BackButton />
                             <View>
                                 <Text style={{ fontSize: 24, fontWeight: "bold", color: colors.foreground }}>Überwachung</Text>
                                 <Text style={{ fontSize: 14, color: colors.muted, marginTop: 4 }}>

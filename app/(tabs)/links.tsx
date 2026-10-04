@@ -17,6 +17,7 @@ import { Stack, useRouter } from "expo-router";
 import * as ImagePicker from 'expo-image-picker';
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BackButton } from "@/components/back-button";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -169,9 +170,7 @@ export default function LinksScreen() {
                     
                     <View className="flex-row items-center justify-between mb-8 mt-2">
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={{ padding: 4, marginLeft: -4 }}>
-                                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-                            </TouchableOpacity>
+                            <BackButton />
                             <View>
                                 <Text style={{ fontSize: 24, fontWeight: "bold", color: colors.foreground }}>Nützliche Links</Text>
                                 <Text style={{ fontSize: 14, color: colors.muted, marginTop: 4 }}>Wichtige Firmenressourcen und Werkzeuge</Text>

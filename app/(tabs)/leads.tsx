@@ -16,6 +16,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BackButton } from "@/components/back-button";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { LeadFormModal } from "@/components/lead-form-modal";
@@ -162,9 +163,7 @@ export default function LeadsScreen() {
           {/* Header */}
           <View className="flex-row items-center justify-between mb-4">
             <View className="flex-row items-center gap-3 flex-1">
-              <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-              </TouchableOpacity>
+              <BackButton />
               <View>
                 <Text className="text-2xl font-bold text-foreground">Akquise</Text>
                 <Text className="text-xs text-muted">

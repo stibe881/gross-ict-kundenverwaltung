@@ -16,6 +16,7 @@ import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BackButton } from "@/components/back-button";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -753,9 +754,7 @@ export default function UsersScreen() {
           {/* Header */}
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <TouchableOpacity onPress={() => router.push("/settings" as any)} activeOpacity={0.7}>
-                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-              </TouchableOpacity>
+              <BackButton to="/settings" />
               <View>
                 <Text style={{ fontSize: 24, fontWeight: "800", color: colors.foreground }}>Benutzer & Rollen</Text>
                 <Text style={{ fontSize: 13, color: colors.muted }}>{users.length} Mitarbeitende</Text>

@@ -16,6 +16,7 @@ import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BackButton } from "@/components/back-button";
 import { useColors } from "@/hooks/use-colors";
 import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
@@ -165,9 +166,7 @@ export default function TasksScreen() {
       {/* Header */}
       <View style={{ padding: 20, paddingTop: Platform.OS === "android" ? 40 : 20, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-          <TouchableOpacity onPress={() => router.back()} style={{ padding: 8, marginLeft: -8, backgroundColor: colors.surface, borderRadius: 12 }}>
-            <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-          </TouchableOpacity>
+          <BackButton />
           <Text style={{ fontSize: 24, fontWeight: "800", color: colors.foreground, letterSpacing: -0.5 }}>Aufgaben</Text>
         </View>
         <TouchableOpacity

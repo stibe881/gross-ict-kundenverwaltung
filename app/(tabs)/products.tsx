@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BackButton } from "@/components/back-button";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -133,9 +134,7 @@ export default function ProductsScreen() {
           {/* Header */}
           <View className="flex-row items-center justify-between mb-4">
             <View className="flex-row items-center gap-3">
-              <TouchableOpacity onPress={() => router.push("/settings" as any)} activeOpacity={0.7}>
-                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-              </TouchableOpacity>
+              <BackButton to="/settings" />
               <Text className="text-3xl font-bold text-foreground">Produkte</Text>
             </View>
             <TouchableOpacity

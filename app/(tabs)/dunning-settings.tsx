@@ -13,6 +13,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BackButton } from "@/components/back-button";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -374,9 +375,7 @@ export default function DunningSettingsScreen() {
                     {/* Header */}
                     <View className="flex-row items-center justify-between mb-4">
                         <View className="flex-row items-center gap-3">
-                            <TouchableOpacity onPress={() => router.push("/settings" as any)} activeOpacity={0.7}>
-                                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-                            </TouchableOpacity>
+                            <BackButton to="/settings" />
                             <View>
                                 <Text className="text-2xl font-bold text-foreground">Rechnungen & Mahnwesen</Text>
                                 <Text className="text-sm text-muted">Einstellungen und Konfiguration</Text>

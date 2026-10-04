@@ -16,6 +16,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BackButton } from "@/components/back-button";
 import { useColors } from "@/hooks/use-colors";
 import { useIsReadOnly } from "@/hooks/use-is-read-only";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -1968,16 +1969,7 @@ export default function AccountingScreen() {
           {/* Header */}
           <View className="flex-row items-center justify-between mb-4" style={{ zIndex: 100 }}>
             <View className="flex-row items-center gap-3">
-              <TouchableOpacity
-                onPress={() => router.back()}
-                activeOpacity={0.7}
-              >
-                <IconSymbol
-                  name="chevron.left"
-                  size={24}
-                  color={colors.foreground}
-                />
-              </TouchableOpacity>
+              <BackButton />
               <Text className="text-3xl font-bold text-foreground">
                 Buchhaltung
               </Text>

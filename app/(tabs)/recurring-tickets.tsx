@@ -3,6 +3,7 @@ import { ScrollView, Text, View, TouchableOpacity, TextInput, ActivityIndicator 
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { BackButton } from "@/components/back-button";
 import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -78,9 +79,7 @@ export default function RecurringTicketsScreen() {
         <View style={{ padding: contentPadding }}>
           <View style={containerStyle}>
             <View className="flex-row items-center gap-3 mb-2">
-              <TouchableOpacity onPress={() => router.push("/settings" as any)} activeOpacity={0.7}>
-                <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
-              </TouchableOpacity>
+              <BackButton to="/settings" />
               <Text className="text-2xl font-bold text-foreground">Wartungsplan</Text>
             </View>
             <Text className="text-sm text-muted mb-4">
