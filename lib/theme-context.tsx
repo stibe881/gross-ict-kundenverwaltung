@@ -83,7 +83,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setThemeMode,
       }}
     >
-      <View style={[{ flex: 1 }, themeVariables]}>{children}</View>
+      {/* Hintergrundfarbe auch auf der Wurzel-View setzen, damit bei
+          Seitenübergängen keine hellen Flächen aufblitzen */}
+      <View
+        style={[
+          { flex: 1, backgroundColor: (themeColors as any).background[themeMode] },
+          themeVariables,
+        ]}
+      >
+        {children}
+      </View>
     </ThemeContext.Provider>
   );
 }
