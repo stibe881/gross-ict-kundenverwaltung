@@ -1587,7 +1587,7 @@ function MyWeekCard({ userId, colors, isWide }: { userId: string; colors: any; i
   const tickets = data?.tickets || [];
   const tasks = data?.tasks || [];
   const leads = data?.leads || [];
-  if (tickets.length === 0 && tasks.length === 0 && leads.length === 0) return null;
+  const isEmpty = tickets.length === 0 && tasks.length === 0 && leads.length === 0;
 
   const fmtShort = (d?: string | null) => {
     if (!d) return "";
@@ -1618,6 +1618,11 @@ function MyWeekCard({ userId, colors, isWide }: { userId: string; colors: any; i
         Meine Woche
       </Text>
       <View style={{ backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 6 }}>
+        {isEmpty ? (
+          <Text style={{ fontSize: 13, color: colors.muted, paddingVertical: 10 }}>
+            Ihnen sind aktuell keine Tickets, Aufgaben oder Follow-ups zugewiesen.
+          </Text>
+        ) : null}
         {tickets.map((t: any) => (
           <Row
             key={`t-${t.id}`} icon="ticket.fill" color="#F59E0B"
