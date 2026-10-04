@@ -942,33 +942,33 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* KPI-Zeile: Live-Kennzahlen, tippen öffnet den Bereich */}
+          {/* KPI-Kacheln: gleiche Infos wie die Desktop-Ansicht, als 2x2-Raster */}
           {kpiCards.length > 0 && (
-            <View style={{ flexDirection: "row", gap: 8, marginBottom: isWide ? 24 : 18 }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: isWide ? 24 : 18 }}>
               {kpiCards.map((kpi) => (
                 <TouchableOpacity
                   key={kpi.label}
                   style={{
-                    flex: 1,
+                    flexBasis: "47%",
+                    flexGrow: 1,
                     backgroundColor: colors.surface,
                     borderRadius: 14,
                     borderWidth: 1,
                     borderColor: colors.border,
-                    paddingVertical: 10,
-                    paddingHorizontal: 8,
-                    alignItems: "center",
+                    paddingVertical: 13,
+                    paddingHorizontal: 14,
                   }}
                   activeOpacity={0.7}
                   onPress={() => router.push(kpi.route as any)}
                 >
-                  <Text style={{ fontSize: 15, fontWeight: "800", color: kpi.color }} numberOfLines={1}>
+                  <Text style={{ fontSize: 11, color: colors.muted, fontWeight: "600" }} numberOfLines={1}>
+                    {kpi.label}
+                  </Text>
+                  <Text style={{ fontSize: 21, fontWeight: "700", color: kpi.color, marginTop: 3 }} numberOfLines={1}>
                     {kpi.value}
                   </Text>
-                  <Text
-                    style={{ fontSize: 9, color: colors.muted, fontWeight: "600", textAlign: "center", marginTop: 2 }}
-                    numberOfLines={1}
-                  >
-                    {kpi.label}
+                  <Text style={{ fontSize: 10.5, color: colors.muted, marginTop: 2 }} numberOfLines={1}>
+                    {kpi.sub}
                   </Text>
                 </TouchableOpacity>
               ))}
