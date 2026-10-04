@@ -5217,3 +5217,36 @@ export async function generateQuoteText(keywords: string, customerName?: string)
     if (error) throw new Error(error.message);
     return data as { intro: string; items: { description: string; quantity: number; unit: string; unitPrice: number }[] };
 }
+
+// ── Entra-Profilfoto: nach SSO-Login via Microsoft Graph holen und cachen ──
+// Das Foto ist nicht im Login-Token enthalten; wir laden es mit dem
+// provider_token (nur direkt nach dem Login gültig) und speichern es im
+// Storage-Bucket "avatars" + users.avatar_url. Danach überall verfügbar.
+let avatarSyncDone = false;
+export async function syncEntraAvatar(session: any) {
+    if (avatarSyncDone) return;
+    try {
+        const token = session?.provider_token;
+        const userId = session?.user?.id;
+        if (!token || !userId) return;
+        avatarSyncDone = true;
+
+        const res = await fetch("https://graph.microsoft.com/v1.0/me/photos/96x96/$value", {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return; // kein Foto hinterlegt oder kein Graph-Zugriff
+
+        const blob = await res.blob();
+        const { error: upErr } = await supabase.storage
+            .from("avatars")
+            .upload(`${userId}.jpg`, blob, { upsert: true, contentType: "image/jpeg" });
+        if (upErr) { console.warn("[Avatar] Upload fehlgeschlagen:", upErr.message); return; }
+
+        const { data } = supabase.storage.from("avatars").getPublicUrl(`${userId}.jpg`);
+        // Cache-Buster, damit ein neues Foto sofort sichtbar wird
+        const url = `${data.publicUrl}?v=${Date.now()}`;
+        await db.from("users").update({ avatar_url: url }).eq("id", userId);
+    } catch (e: any) {
+        console.warn("[Avatar] Sync fehlgeschlagen:", e?.message);
+    }
+}

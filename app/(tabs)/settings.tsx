@@ -1,4 +1,4 @@
-import { ScrollView, Text, View, TouchableOpacity } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity, Image } from "react-native";
 import { useRouter } from "expo-router";
 import Constants from "expo-constants";
 import { ScreenContainer } from "@/components/screen-container";
@@ -213,6 +213,12 @@ export default function SettingsScreen() {
                 marginBottom: 18,
               }}
             >
+              {(userProfile as any)?.avatar_url ? (
+                <Image
+                  source={{ uri: (userProfile as any).avatar_url }}
+                  style={{ width: 52, height: 52, borderRadius: 26 }}
+                />
+              ) : (
               <View
                 style={{
                   width: 52,
@@ -227,6 +233,7 @@ export default function SettingsScreen() {
                   {userName.charAt(0).toUpperCase()}
                 </Text>
               </View>
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground }}>
                   {userName}

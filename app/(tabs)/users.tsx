@@ -11,6 +11,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   RefreshControl,
+  Image,
 } from "react-native";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useRouter } from "expo-router";
@@ -502,6 +503,9 @@ export default function UsersScreen() {
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           {/* Avatar */}
           <View style={{ marginRight: 14 }}>
+            {user.avatar_url ? (
+              <Image source={{ uri: user.avatar_url }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+            ) : (
             <View
               style={{
                 width: 44,
@@ -516,6 +520,7 @@ export default function UsersScreen() {
                 {getInitials(user.name || user.email || "?")}
               </Text>
             </View>
+            )}
             {isOnline(user) && (
               <View style={{ position: "absolute", right: -1, bottom: -1, width: 13, height: 13, borderRadius: 7, backgroundColor: "#22C55E", borderWidth: 2, borderColor: colors.surface }} />
             )}
@@ -636,6 +641,9 @@ export default function UsersScreen() {
               {/* User info */}
               <View style={{ width: 240, flexDirection: "row", alignItems: "center", gap: 12 }}>
                 <View>
+                  {user.avatar_url ? (
+                    <Image source={{ uri: user.avatar_url }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+                  ) : (
                   <View style={{
                     width: 36, height: 36, borderRadius: 18,
                     backgroundColor: user.is_active !== false ? colors.primary : colors.muted,
@@ -645,6 +653,7 @@ export default function UsersScreen() {
                       {getInitials(user.name || user.email || "?")}
                     </Text>
                   </View>
+                  )}
                   {isOnline(user) && (
                     <View style={{ position: "absolute", right: -1, bottom: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: "#22C55E", borderWidth: 2, borderColor: colors.surface }} />
                   )}

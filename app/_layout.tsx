@@ -72,6 +72,17 @@ export default function RootLayout() {
     return () => sub.remove();
   }, []);
 
+  // Entra-Profilfoto nach SSO-Login übernehmen (Microsoft Graph)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) Data.syncEntraAvatar(session);
+    });
+    const { data: avatarSub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) Data.syncEntraAvatar(session);
+    });
+    return () => avatarSub.subscription.unsubscribe();
+  }, []);
+
   // Track segments in a ref to avoid re-subscribing on every navigation
   const segmentsRef = useRef(segments);
   useEffect(() => { segmentsRef.current = segments; }, [segments]);

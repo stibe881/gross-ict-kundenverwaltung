@@ -196,11 +196,15 @@ export function WebSidebar() {
                         activeOpacity={0.7}
                     >
                         <View>
+                            {(userProfile as any)?.avatar_url ? (
+                                <Image source={{ uri: (userProfile as any).avatar_url }} style={{ width: 34, height: 34, borderRadius: 17 }} />
+                            ) : (
                             <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
                                 <Text style={{ fontWeight: "700", fontSize: 14, color: colors.background }}>
                                     {userName.charAt(0).toUpperCase()}
                                 </Text>
                             </View>
+                            )}
                             <View style={{ position: "absolute", right: -1, bottom: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: "#4ADE80", borderWidth: 2, borderColor: colors.surface }} />
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
