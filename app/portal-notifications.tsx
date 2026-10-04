@@ -28,7 +28,7 @@ export default function PortalNotificationsScreen() {
             const { data, error } = await supabase
                 .from("notifications")
                 .select("*")
-                .eq("customer_portal_user_id", customerId)
+                .eq("customer_portal_user_id", customerId as string)
                 .order("created_at", { ascending: false });
             if (error) throw new Error(error.message);
             return data || [];

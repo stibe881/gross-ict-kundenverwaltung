@@ -73,7 +73,7 @@ export default function TasksScreen() {
   const typingTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!isStickyLoading) setLocalNotes(dbStickyNotes);
+    if (!isStickyLoading) setLocalNotes(dbStickyNotes as any);
   }, [dbStickyNotes, isStickyLoading]);
 
   const addStickyNote = () => {

@@ -28,7 +28,7 @@ export default function AdminNotificationsScreen() {
             const { data, error } = await supabase
                 .from("notifications")
                 .select("*")
-                .eq("user_id", userId)
+                .eq("user_id", userId as string)
                 .order("created_at", { ascending: false });
             if (error) throw new Error(error.message);
             return data || [];

@@ -1349,13 +1349,13 @@ export default function CustomerDetailScreen() {
                             </Text>
                           </View>
                         </TouchableOpacity>
-                        {customer?.industry && (
+                        {(customer as any)?.industry && (
                           <View
                             className="px-2 py-0.5 rounded"
                             style={{ backgroundColor: colors.primary + "20" }}
                           >
                             <Text className="text-[10px] font-bold" style={{ color: colors.primary }}>
-                              {customer.industry.toUpperCase()}
+                              {(customer as any).industry.toUpperCase()}
                             </Text>
                           </View>
                         )}
@@ -1366,7 +1366,7 @@ export default function CustomerDetailScreen() {
                         {customer?.website && (
                           <TouchableOpacity
                             className="flex-row items-center gap-1"
-                            onPress={() => Linking.openURL(customer.website.startsWith("http") ? customer.website : `https://${customer.website}`)}
+                            onPress={() => { const w = customer.website || ""; Linking.openURL(w.startsWith("http") ? w : `https://${w}`); }}
                             activeOpacity={0.7}
                           >
                             <IconSymbol name="globe" size={12} color={colors.success} />

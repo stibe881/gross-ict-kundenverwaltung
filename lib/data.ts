@@ -240,7 +240,7 @@ export async function deleteCustomer(id: string) {
     await supabase.from("customer_contacts").delete().eq("customer_id", id);
 
     // 9. Kunden-Benutzer löschen
-    await supabase.from("customer_users").delete().eq("customer_id", id);
+    await (supabase as any).from("customer_users").delete().eq("customer_id", id);
 
     // 10. Kunden löschen
     const { error } = await supabase.from("customers").delete().eq("id", id);
@@ -754,8 +754,9 @@ export async function createTicket(ticket: any) {
         let authorName = 'Ein Benutzer';
         if (currentUserId) {
             if (session?.user?.user_metadata?.customer_id) {
-                const { data: cUser } = await supabase.from('customer_portal_users').select('name').eq('id', currentUserId).single();
-                if (cUser?.name) authorName = cUser.name;
+                const { data: cUser } = await supabase.from('customer_portal_users').select('first_name, last_name').eq('id', currentUserId).single();
+                const cName = cUser ? `${cUser.first_name || ""} ${cUser.last_name || ""}`.trim() : "";
+                if (cName) authorName = cName;
             } else {
                 const { data: aUser } = await supabase.from('users').select('name').eq('id', currentUserId).single();
                 if (aUser?.name) authorName = aUser.name;
@@ -1591,7 +1592,7 @@ export async function getNextContractNumber(): Promise<string> {
 
     let maxSeq = 0;
     if (contractData && contractData.length > 0) {
-        const seq = parseInt(contractData[0].contract_number.replace(prefix, ""), 10);
+        const seq = parseInt((contractData[0].contract_number || "").replace(prefix, ""), 10);
         if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
     }
 
@@ -2237,7 +2238,7 @@ export async function getProjectInvoices(projectId: string) {
         .eq("id", projectId)
         .single();
 
-    if (!project) return [];
+    if (!project?.customer_id) return [];
 
     const { data, error } = await supabase
         .from("invoices")
@@ -2344,7 +2345,7 @@ export async function getPortalTickets(customerId: string) {
     return data || [];
 }
 
-export async function getPortalTicketComments(ticketId: number) {
+export async function getPortalTicketComments(ticketId: string) {
     const { data, error } = await supabase
         .from("ticket_comments")
         .select("*")
@@ -2356,7 +2357,7 @@ export async function getPortalTicketComments(ticketId: number) {
     return data || [];
 }
 
-export async function addPortalTicketComment(ticketId: number, comment: string, customerName: string) {
+export async function addPortalTicketComment(ticketId: string, comment: string, customerName: string) {
     const { data, error } = await supabase
         .from("ticket_comments")
         .insert({
@@ -2585,7 +2586,7 @@ export async function createUser(user: { name: string; email: string; roles: str
                 roles: user.roles,
                 provider: "local",
                 is_active: true,
-            }, { onConflict: "id" });
+            } as any, { onConflict: "id" });
         if (error) throw new Error(error.message);
     }
 }
@@ -2725,7 +2726,7 @@ export async function getLeadReminders(leadId: string) {
 }
 
 export async function deleteLeadReminder(id: string) {
-    const { error } = await supabase.from("lead_reminders").delete().eq("id", id);
+    const { error } = await supabase.from("lead_reminders").delete().eq("id", id as any);
     if (error) throw new Error(error.message);
     return { success: true };
 }
@@ -2734,7 +2735,7 @@ export async function updateLeadReminder(id: string, updates: { remind_at: strin
     const { data, error } = await supabase
         .from("lead_reminders")
         .update(updates)
-        .eq("id", id)
+        .eq("id", id as any)
         .select()
         .single();
     if (error) throw new Error(error.message);
@@ -2794,7 +2795,7 @@ export async function convertLeadToCustomer(leadId: string) {
 
     // 5. Lead-Status aktualisieren und Notiz hinzufügen
     await updateLead(leadId, { status: "won" });
-    await supabase.from("leadActivities").insert([{
+    await (supabase as any).from("leadActivities").insert([{
         lead_id: leadId,
         type: "system",
         content: `Lead erfolgreich in Kunde umgewandelt: ${customerData.company_name || lead.name}`,
@@ -3070,7 +3071,7 @@ export async function getDunningSettings() {
 
 export async function updateDunningSettings(settings: any) {
     try {
-        const existing = await getDunningSettings();
+        const existing: any = await getDunningSettings();
         if (existing?.id) {
             const { data, error } = await supabase
                 .from("dunning_settings")
@@ -3164,7 +3165,7 @@ export async function getInvoiceSettings() {
 
 export async function updateInvoiceSettings(settings: any) {
     try {
-        const existing = await getInvoiceSettings();
+        const existing: any = await getInvoiceSettings();
         if (existing?.id) {
             const { data, error } = await supabase
                 .from("invoice_settings")
@@ -3630,7 +3631,8 @@ export async function getUsefulLinks() {
         
         // Role-based visibility
         if (link.visibility === "roles" && link.allowed_roles) {
-            return roles.some((role: string) => link.allowed_roles.includes(role));
+            const allowedRoles: string[] = link.allowed_roles;
+            return roles.some((role: string) => allowedRoles.includes(role));
         }
 
         return false;
@@ -3874,7 +3876,7 @@ export async function getProducts() {
 
 export async function getTicketAttachments(ticketId: string) {
     const { data, error } = await supabase
-        .from('ticket_attachments')
+        .from('ticket_attachments' as any)
         .select('*')
         .eq('ticket_id', ticketId)
         .order('created_at', { ascending: true });
@@ -3895,7 +3897,7 @@ export async function uploadTicketAttachment(ticketId: string, file: any) {
     if (file.file) {
         // Web: use File object directly
         const { data, error } = await supabase.storage
-            .from('ticket_attachments')
+            .from('ticket_attachments' as any)
             .upload(filePath, file.file, {
                 contentType: file.mimeType || file.type || 'application/octet-stream',
             });
@@ -3907,7 +3909,7 @@ export async function uploadTicketAttachment(ticketId: string, file: any) {
         const blob = await response.blob();
         
         const { data, error } = await supabase.storage
-            .from('ticket_attachments')
+            .from('ticket_attachments' as any)
             .upload(filePath, blob, {
                 contentType: file.mimeType || 'application/octet-stream',
             });
@@ -3921,7 +3923,7 @@ export async function uploadTicketAttachment(ticketId: string, file: any) {
 
     // Save attachment metadata to the database
     const { data: dbData, error: dbError } = await supabase
-        .from('ticket_attachments')
+        .from('ticket_attachments' as any)
         .insert([{
             ticket_id: ticketId,
             file_name: file.name,
@@ -3939,7 +3941,7 @@ export async function uploadTicketAttachment(ticketId: string, file: any) {
 export async function deleteTicketAttachment(attachmentId: string, filePath: string) {
     // Delete from Storage first
     const { error: storageError } = await supabase.storage
-        .from('ticket_attachments')
+        .from('ticket_attachments' as any)
         .remove([filePath]);
 
     if (storageError) {
@@ -3950,7 +3952,7 @@ export async function deleteTicketAttachment(attachmentId: string, filePath: str
 
     // Delete Database record
     const { error: dbError } = await supabase
-        .from('ticket_attachments')
+        .from('ticket_attachments' as any)
         .delete()
         .eq('id', attachmentId);
 

@@ -894,6 +894,7 @@ function ConvertLeadModal({
               quantity: 1,
               unit_price: eSub,
               vat_rate: 8.1,
+              product_id: null,
               total: eSub,
             });
           }
@@ -1129,7 +1130,7 @@ function LeadDetailsModal({
       const formatted = reminderDateTime.toLocaleString("de-CH", { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
       // Lokale iOS-Benachrichtigung planen
       const leadName = lead.company || lead.name || 'Lead';
-      await scheduleReminderNotification(newReminder.id, leadName, reminderNote.trim(), reminderDateTime);
+      await scheduleReminderNotification(String(newReminder.id), leadName, reminderNote.trim(), reminderDateTime);
       await Data.addLeadActivity({
         lead_id: lead.id,
         type: "system",

@@ -155,11 +155,11 @@ export function InvoiceFormModal({
     }
   };
 
-  const selectProduct = (itemId: string, productId: number) => {
+  const selectProduct = (itemId: string, productId: string) => {
     const product = products?.find((p: any) => p.id === productId);
     if (product) {
       setItems(
-        items.map((item) =>
+        items.map((item: any) =>
           item.id === itemId
             ? {
               ...item,
@@ -566,7 +566,7 @@ export function InvoiceFormModal({
                             >
                               <Text className="text-sm text-foreground">{product.name}</Text>
                               <Text className="text-xs text-muted">
-                                {formatCurrency(parseFloat(product.price))} | MwSt: {product.vat_rate}%
+                                {formatCurrency(Number(product.price))} | MwSt: {product.vat_rate}%
                               </Text>
                             </TouchableOpacity>
                           ))}
@@ -710,7 +710,7 @@ export function InvoiceFormModal({
                                     {product.name}
                                   </Text>
                                   <Text className="text-xs text-muted">
-                                    {formatCurrency(parseFloat(product.price))} | MwSt: {product.vat_rate}%
+                                    {formatCurrency(Number(product.price))} | MwSt: {product.vat_rate}%
                                   </Text>
                                 </TouchableOpacity>
                               ))

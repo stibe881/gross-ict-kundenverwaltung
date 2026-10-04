@@ -150,7 +150,7 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
             setItems(loadedItems);
             // Autocomplete für alle geladenen Positionen unterdrücken,
             // da die Namen bereits gesetzt sind und keine Vorschläge angezeigt werden sollen
-            setDismissedAutocomplete(new Set(loadedItems.map((i) => i.id)));
+            setDismissedAutocomplete(new Set(loadedItems.map((i: any) => i.id)));
         } else {
             resetForm();
             if (initialCustomerId) setCustomerId(initialCustomerId);

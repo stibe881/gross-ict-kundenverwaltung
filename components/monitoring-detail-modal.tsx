@@ -19,6 +19,7 @@ interface MonitoringDetailModalProps {
   visible: boolean;
   onClose: () => void;
   urlEntry: any;
+  onEdit?: (entry: any) => void;
 }
 
 function StatusBadge({ status }: { status: "up" | "down" | "unknown" }) {

@@ -190,7 +190,7 @@ export default function RootLayout() {
                 provider: authProvider,
                 is_active: true,
                 roles: existingUserByEmail.roles || [], // Copy permissions
-              });
+              } as any);
             }
           } else {
             // Standard update for existing matching user

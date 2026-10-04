@@ -198,7 +198,7 @@ export function TicketFormModal({
       }
 
       // Upload pending files
-      const finalTicketId = ticket?.id || newTicket.id;
+      const finalTicketId = ticket?.id || newTicket?.id;
       if (finalTicketId && pendingFiles.length > 0) {
         for (const file of pendingFiles) {
           await Data.uploadTicketAttachment(finalTicketId, file);

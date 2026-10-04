@@ -59,7 +59,7 @@ export function ThemeToggle() {
                 <TouchableOpacity
                   key={option.key}
                   onPress={() => {
-                    setThemeMode(option.key);
+                    setThemeMode(option.key === "system" ? "dark" : option.key);
                     setShowModal(false);
                   }}
                   className={`flex-row items-center gap-3 p-4 rounded-lg border ${

@@ -210,7 +210,7 @@ export function CustomerPortalManagement({
                       </Text>
                       <View className="flex-row items-center gap-2">
                         <Switch
-                          value={user.is_active}
+                          value={!!user.is_active}
                           onValueChange={(value) =>
                             handleToggleUserActive(user.id, value)
                           }

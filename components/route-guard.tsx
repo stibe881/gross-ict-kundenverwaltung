@@ -24,7 +24,7 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const seg0 = segments[0] as string | undefined;
-    const seg1 = segments[1] as string | undefined;
+    const seg1 = (segments as string[])[1] as string | undefined;
 
     // Wenn der Nutzer auf dem Login oder OAuth Callback ist, ignorieren wir den Guards
     if (seg0 === "login" || seg0 === "oauth") return;

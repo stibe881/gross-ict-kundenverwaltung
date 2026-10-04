@@ -204,7 +204,7 @@ export default function QuoteDetailScreen() {
                 session?.user?.user_metadata?.name ||
                 `${session?.user?.user_metadata?.first_name || ""} ${session?.user?.user_metadata?.last_name || ""}`.trim() ||
                 "Stefan Gross";
-            await downloadQuotePDF({ ...quote, creator_name: userName });
+            await downloadQuotePDF({ ...quote, creator_name: userName } as any);
         } catch (error: any) {
             showAlert("Fehler", "PDF konnte nicht erstellt werden: " + (error.message || ""));
         }
@@ -237,7 +237,7 @@ export default function QuoteDetailScreen() {
                     queryClient.invalidateQueries({ queryKey: ["quote", id] });
                     queryClient.invalidateQueries({ queryKey: ["quotes"] });
                     queryClient.invalidateQueries({ queryKey: ["quote_activities", id] });
-                    showAlert("Erfolg", `Angebot wurde an ${quote.customer.email} gesendet.`);
+                    showAlert("Erfolg", `Angebot wurde an ${quote.customer?.email} gesendet.`);
                 } catch (error: any) {
                     showAlert("Fehler", error.message || "E-Mail konnte nicht gesendet werden");
                 } finally {
@@ -285,7 +285,7 @@ export default function QuoteDetailScreen() {
         );
     }
 
-    const statusConfig = STATUS_CONFIG[quote.status] || STATUS_CONFIG.draft;
+    const statusConfig = STATUS_CONFIG[quote.status || "draft"] || STATUS_CONFIG.draft;
     const customerName =
         quote.customer?.company_name ||
         `${quote.customer?.first_name || ""} ${quote.customer?.last_name || ""}`.trim() ||

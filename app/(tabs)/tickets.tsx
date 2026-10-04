@@ -211,8 +211,8 @@ export default function TicketsScreen() {
         case "prio":
           // map priorities for sorting
           const mapPrio = { low: 1, medium: 2, high: 3 } as any;
-          valA = mapPrio[a.priority] || 0;
-          valB = mapPrio[b.priority] || 0;
+          valA = mapPrio[a.priority || ""] || 0;
+          valB = mapPrio[b.priority || ""] || 0;
           break;
         case "titel":
           valA = a.title?.toLowerCase() || "";
@@ -225,16 +225,16 @@ export default function TicketsScreen() {
         case "status":
           // map status for sorting
           const mapStatus = { open: 1, in_progress: 2, waiting: 3, closed: 4 } as any;
-          valA = mapStatus[a.status] || 0;
-          valB = mapStatus[b.status] || 0;
+          valA = mapStatus[a.status || ""] || 0;
+          valB = mapStatus[b.status || ""] || 0;
           break;
         case "zugewiesen":
           valA = getAssigneeName(a)?.toLowerCase() || "";
           valB = getAssigneeName(b)?.toLowerCase() || "";
           break;
         case "datum":
-          valA = new Date(a.created_at).getTime();
-          valB = new Date(b.created_at).getTime();
+          valA = new Date(a.created_at || 0).getTime();
+          valB = new Date(b.created_at || 0).getTime();
           break;
         case "faellig":
           // Tickets ohne Fälligkeit ans Ende
@@ -251,16 +251,16 @@ export default function TicketsScreen() {
     // Standard-Sortierung: Zuerst nach Status (Offen -> Geschlossen), dann nach Datum (Neueste zuerst)
     filteredTickets.sort((a, b) => {
       const mapStatus = { open: 1, in_progress: 2, waiting: 3, closed: 4 } as any;
-      const statA = mapStatus[a.status] || 0;
-      const statB = mapStatus[b.status] || 0;
+      const statA = mapStatus[a.status || ""] || 0;
+      const statB = mapStatus[b.status || ""] || 0;
 
       if (statA !== statB) {
         return statA - statB; // Aufsteigend nach Status (1=offen, 4=geschlossen)
       }
 
       // Bei gleichem Status nach Datum absteigend (neueste zuerst)
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
+      const dateA = new Date(a.created_at || 0).getTime();
+      const dateB = new Date(b.created_at || 0).getTime();
       return dateB - dateA;
     });
   }

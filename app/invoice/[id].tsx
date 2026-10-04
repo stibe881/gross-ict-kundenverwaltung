@@ -167,7 +167,7 @@ export default function InvoiceDetailScreen() {
                     });
                     if (error) throw new Error(error.message || "E-Mail konnte nicht gesendet werden");
                     if (data?.error) throw new Error(data.error);
-                    showAlert("Erfolg", `Rechnung wurde an ${invoice.customer.email} gesendet.`);
+                    showAlert("Erfolg", `Rechnung wurde an ${invoice.customer?.email} gesendet.`);
                     refetch();
                     queryClient.invalidateQueries({ queryKey: ["invoices"] });
                 } catch (error: any) {
@@ -193,13 +193,13 @@ export default function InvoiceDetailScreen() {
             `${levelLabels[level]} für ${invoice.invoice_number} an ${invoice.customer.email} senden?`,
             async () => {
                 try {
-                    const pdfBase64 = await generateInvoicePDFBase64({ ...invoice, dunning_level: level, is_dunning_document: true }, invoiceSettings);
+                    const pdfBase64 = await generateInvoicePDFBase64({ ...invoice, dunning_level: level, is_dunning_document: true } as any, invoiceSettings);
                     const { data, error } = await supabase.functions.invoke('send-reminder-email', {
                         body: { id: invoice.id, pdfBase64, level },
                     });
                     if (error) throw new Error(error.message || "Mahnung konnte nicht gesendet werden");
                     if (data?.error) throw new Error(data.error);
-                    showAlert("Erfolg", `${levelLabels[level]} wurde an ${invoice.customer.email} gesendet.`);
+                    showAlert("Erfolg", `${levelLabels[level]} wurde an ${invoice.customer?.email} gesendet.`);
                     refetch();
                     queryClient.invalidateQueries({ queryKey: ["invoices"] });
                 } catch (error: any) {
@@ -294,10 +294,10 @@ export default function InvoiceDetailScreen() {
                             <TouchableOpacity
                                 onPress={() => setShowStatusModal(true)}
                                 activeOpacity={0.7}
-                                className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status)}`}
+                                className={`px-3 py-1 rounded-full ${getStatusColor(invoice.status || "")}`}
                             >
                                 <Text className="text-xs font-semibold text-white">
-                                    {getStatusLabel(invoice.status)}
+                                    {getStatusLabel(invoice.status || "")}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -432,11 +432,11 @@ export default function InvoiceDetailScreen() {
                                         {formatCurrency(remainingAmount > 0 ? remainingAmount : 0)}
                                     </Text>
                                 </View>
-                                {invoice.dunning_level > 0 && (
+                                {(invoice.dunning_level || 0) > 0 && (
                                     <View className="flex-row justify-between pt-2 border-t border-border">
                                         <Text className="text-sm text-muted">Mahnstufe</Text>
                                         <Text className="text-sm font-semibold" style={{ color: "#ef4444" }}>
-                                            {["Erinnerung", "1. Mahnung", "2. Mahnung", "Betreibungsandrohung"][invoice.dunning_level] || `Stufe ${invoice.dunning_level}`}
+                                            {["Erinnerung", "1. Mahnung", "2. Mahnung", "Betreibungsandrohung"][invoice.dunning_level || 0] || `Stufe ${invoice.dunning_level}`}
                                         </Text>
                                     </View>
                                 )}
@@ -472,9 +472,9 @@ export default function InvoiceDetailScreen() {
                             {invoice.customer?.phone && (
                                 <Text className="text-sm text-muted mt-1">{invoice.customer.phone}</Text>
                             )}
-                            {(invoice.customer?.street || invoice.customer?.city) && (
+                            {(invoice.customer?.address || invoice.customer?.city) && (
                                 <Text className="text-sm text-muted mt-1">
-                                    {[invoice.customer?.street, `${invoice.customer?.zip || ""} ${invoice.customer?.city || ""}`.trim()]
+                                    {[invoice.customer?.address, `${invoice.customer?.postal_code || ""} ${invoice.customer?.city || ""}`.trim()]
                                         .filter(Boolean)
                                         .join(", ")}
                                 </Text>

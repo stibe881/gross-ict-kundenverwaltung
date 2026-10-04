@@ -71,7 +71,7 @@ export default function AccountingScreen() {
   const [expenseEmployeeFilter, setExpenseEmployeeFilter] = useState<string>("all");
   const [expenseSearchQuery, setExpenseSearchQuery] = useState("");
   const [customExpenseCategories, setCustomExpenseCategories] = useState<{value: string; label: string}[]>([]);
-  const builtinValues = new Set(Data.EXPENSE_CATEGORIES.map((c) => c.value));
+  const builtinValues = new Set<string>(Data.EXPENSE_CATEGORIES.map((c) => c.value));
   const builtinLabels = new Set(Data.EXPENSE_CATEGORIES.map((c) => c.label.toLowerCase()));
   const allExpenseCategories = [
     ...Data.EXPENSE_CATEGORIES,
@@ -290,7 +290,7 @@ export default function AccountingScreen() {
         (i.customer?.company_name && i.customer.company_name.toLowerCase().includes(q)) ||
         (i.customer?.first_name && i.customer.first_name.toLowerCase().includes(q)) ||
         (i.customer?.last_name && i.customer.last_name.toLowerCase().includes(q)) ||
-        (i.description && i.description.toLowerCase().includes(q))
+        ((i as any).description && (i as any).description.toLowerCase().includes(q))
       );
     }
 

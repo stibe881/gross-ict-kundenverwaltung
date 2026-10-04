@@ -23,7 +23,7 @@ type TicketStatus = "open" | "in_progress" | "waiting" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
 
 interface Ticket {
-  id: number;
+  id: string;
   title: string;
   status: TicketStatus;
   priority: TicketPriority;
@@ -32,7 +32,7 @@ interface Ticket {
 }
 
 interface TicketComment {
-  id: number;
+  id: string;
   user_name: string;
   comment: string;
   created_at: string;
@@ -76,9 +76,9 @@ export default function PortalTicketsScreen() {
 
   useEffect(() => {
     if (ticketId && tickets.length > 0) {
-      const foundTicket = tickets.find((t: Ticket) => t.id.toString() === ticketId.toString());
+      const foundTicket = (tickets as any[]).find((t: any) => String(t.id) === String(ticketId));
       if (foundTicket && selectedTicket?.id !== foundTicket.id) {
-        setSelectedTicket(foundTicket);
+        setSelectedTicket(foundTicket as any);
       }
     }
   }, [ticketId, tickets]);
@@ -138,7 +138,7 @@ export default function PortalTicketsScreen() {
       const { count, error } = await Data.supabase
         .from("notifications")
         .select('*', { count: 'exact', head: true })
-        .eq("customer_portal_user_id", portalUserId)
+        .eq("customer_portal_user_id", portalUserId as string)
         .eq("is_read", false);
       if (error) throw new Error(error.message);
       return count || 0;
@@ -188,7 +188,7 @@ export default function PortalTicketsScreen() {
   };
 
   const filteredTickets =
-    filter === "all" ? tickets : tickets.filter((t: Ticket) => t.status === filter);
+    filter === "all" ? tickets : (tickets as any[]).filter((t: any) => t.status === filter);
 
   const renderTicketItem = ({ item }: { item: Ticket }) => (
     <TouchableOpacity
@@ -516,8 +516,8 @@ export default function PortalTicketsScreen() {
           {section === "tickets" ? (
             filteredTickets.length > 0 ? (
               <FlatList
-                data={filteredTickets}
-                renderItem={renderTicketItem}
+                data={filteredTickets as any[]}
+                renderItem={renderTicketItem as any}
                 keyExtractor={(item) => item.id.toString()}
                 showsVerticalScrollIndicator={false}
               />
@@ -792,7 +792,7 @@ function TicketDetailsModal({
                 <ActivityIndicator color={colors.primary} />
               ) : (
                 <ScrollView className="max-h-64 mb-4" showsVerticalScrollIndicator={false}>
-                  {comments.map((comment: TicketComment) => (
+                  {(comments as any[]).map((comment: any) => (
                     <View
                       key={comment.id}
                       className={`mb-3 p-3 rounded-lg ${comment.is_system ? "bg-surface" : "bg-primary/10"

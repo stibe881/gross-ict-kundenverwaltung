@@ -295,7 +295,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
         }
     };
 
-    const builtinCatValues = new Set(Data.EXPENSE_CATEGORIES.map((c) => c.value));
+    const builtinCatValues = new Set<string>(Data.EXPENSE_CATEGORIES.map((c) => c.value));
     const builtinCatLabels = new Set(Data.EXPENSE_CATEGORIES.map((c) => c.label.toLowerCase()));
     const allCategories = [
         ...Data.EXPENSE_CATEGORIES,

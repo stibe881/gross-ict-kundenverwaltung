@@ -36,11 +36,11 @@ interface MonitoringUrl {
     last_response_time: number | null;
     last_status_code: number | null;
     ssl_valid?: boolean;
-    ssl_valid?: boolean;
     ssl_expiry?: string;
     ssl_issuer?: string;
     notes: string | null;
     expected_keyword?: string;
+    last_error?: string | null;
     customer_id?: string;
     domain_expiry?: string;
     muted_until?: string;
