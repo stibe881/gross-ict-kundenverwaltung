@@ -51,6 +51,7 @@ export function ContractFormModal({
     startDate: toDisplay(contract?.start_date || contract?.startDate || ""),
     durationMonths: (contract?.duration_months || contract?.durationMonths)?.toString() || "12",
     noticePeriodMonths: (contract?.notice_period_months || contract?.noticePeriodMonths)?.toString() || "3",
+    slaResponseHours: contract?.sla_response_hours?.toString() || "",
     contactPerson: contract?.contact_person || contract?.contactPerson || "",
     paymentTerms: contract?.payment_terms || contract?.paymentTerms || "",
     scopeOfServices: contract?.scope_of_services || contract?.scopeOfServices || "",
@@ -133,6 +134,7 @@ export function ContractFormModal({
         startDate: toDisplay(contract?.start_date || contract?.startDate || ""),
         durationMonths: (contract?.duration_months || contract?.durationMonths)?.toString() || "12",
         noticePeriodMonths: (contract?.notice_period_months || contract?.noticePeriodMonths)?.toString() || "3",
+    slaResponseHours: contract?.sla_response_hours?.toString() || "",
         contactPerson: contract?.contact_person || contract?.contactPerson || "",
         paymentTerms: contract?.payment_terms || contract?.paymentTerms || "",
         scopeOfServices: contract?.scope_of_services || contract?.scopeOfServices || "",
@@ -323,6 +325,7 @@ export function ContractFormModal({
         end_date: formData.isInternal ? undefined : (endDate || undefined),
         duration_months: formData.isInternal ? undefined : (parseInt(formData.durationMonths) || 12),
         notice_period_months: formData.isInternal ? undefined : (parseInt(formData.noticePeriodMonths) || 3),
+        sla_response_hours: formData.isInternal ? null : (parseInt(formData.slaResponseHours) || null),
         template_id: selectedTemplate?.id || undefined,
         contact_person: formData.contactPerson || undefined,
         payment_terms: formData.isInternal ? undefined : formData.paymentTerms || undefined,
@@ -411,6 +414,7 @@ export function ContractFormModal({
                           amount: "",
                           durationMonths: "12",
                           noticePeriodMonths: "3",
+                          slaResponseHours: "",
                         });
                       }}
                     >
@@ -820,6 +824,28 @@ export function ContractFormModal({
                     setFormData({ ...formData, noticePeriodMonths: text })
                   }
                 />
+              </View>
+              )}
+
+              {/* SLA-Reaktionszeit */}
+              {!formData.isInternal && (
+              <View>
+                <Text className="text-sm font-semibold text-foreground mb-2">
+                  SLA-Reaktionszeit (Stunden, optional)
+                </Text>
+                <TextInput
+                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="z.B. 4 – leer = keine SLA"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="number-pad"
+                  value={formData.slaResponseHours}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, slaResponseHours: text })
+                  }
+                />
+                <Text className="text-xs text-muted mt-1">
+                  Offene Tickets dieses Kunden zeigen dann einen Countdown; bei drohender Verletzung gibt es eine Push-Warnung.
+                </Text>
               </View>
               )}
 
