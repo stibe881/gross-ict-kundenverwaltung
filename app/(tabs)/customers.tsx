@@ -10,6 +10,8 @@ import {
   RefreshControl,
   Image,
   Modal,
+  Platform,
+  useWindowDimensions,
 } from "react-native";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
@@ -32,6 +34,8 @@ export default function CustomersScreen() {
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const [searchQuery, setSearchQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === "web" && width > 900;
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("active");
@@ -338,6 +342,74 @@ export default function CustomersScreen() {
               <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : filteredCustomers && filteredCustomers.length > 0 ? (
+            isDesktop ? (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={{ backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: "hidden", marginBottom: 24 }}>
+                  {/* Kopfzeile */}
+                  <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                    <Text style={{ flex: 3, fontSize: 10.5, fontWeight: "700", letterSpacing: 1, color: colors.muted }}>KUNDE</Text>
+                    <Text style={{ flex: 1.6, fontSize: 10.5, fontWeight: "700", letterSpacing: 1, color: colors.muted }}>TAGS</Text>
+                    <Text style={{ flex: 1.2, fontSize: 10.5, fontWeight: "700", letterSpacing: 1, color: colors.muted }}>ORT</Text>
+                    <Text style={{ flex: 1.6, fontSize: 10.5, fontWeight: "700", letterSpacing: 1, color: colors.muted }}>VERTRÄGE / TICKETS</Text>
+                    <Text style={{ flex: 1.2, fontSize: 10.5, fontWeight: "700", letterSpacing: 1, color: colors.muted }}>OFFEN</Text>
+                    <Text style={{ width: 90, fontSize: 10.5, fontWeight: "700", letterSpacing: 1, color: colors.muted, textAlign: "right" }}>STATUS</Text>
+                  </View>
+                  {filteredCustomers.map((item: any) => {
+                    const name = getDisplayName(item);
+                    const counts = item._counts || {};
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border + "50" }}
+                        onPress={() => router.push(`/customer/${item.id}` as any)}
+                        activeOpacity={0.6}
+                      >
+                        <View style={{ flex: 3, flexDirection: "row", alignItems: "center", gap: 11, minWidth: 0 }}>
+                          {item.logo_url ? (
+                            <Image source={{ uri: item.logo_url }} style={{ width: 34, height: 34, borderRadius: 9 }} resizeMode="contain" />
+                          ) : (
+                            <View style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
+                              <Text style={{ fontWeight: "700", fontSize: 14, color: colors.background }}>{name.charAt(0).toUpperCase()}</Text>
+                            </View>
+                          )}
+                          <View style={{ minWidth: 0, flex: 1 }}>
+                            <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{name}</Text>
+                            {item.email ? <Text style={{ fontSize: 11.5, color: colors.muted }} numberOfLines={1}>{item.email}</Text> : null}
+                          </View>
+                        </View>
+                        <View style={{ flex: 1.6, flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+                          {(item.tags || []).length > 0 ? (item.tags as string[]).slice(0, 3).map((tag) => (
+                            <View key={tag} style={{ backgroundColor: "#8B5CF618", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
+                              <Text style={{ fontSize: 10, fontWeight: "700", color: "#8B5CF6" }}>#{tag}</Text>
+                            </View>
+                          )) : <Text style={{ fontSize: 12, color: colors.muted }}>–</Text>}
+                        </View>
+                        <Text style={{ flex: 1.2, fontSize: 13, color: colors.foreground }} numberOfLines={1}>{item.city || "–"}</Text>
+                        <Text style={{ flex: 1.6, fontSize: 12.5, color: colors.muted }}>
+                          {counts.activeContracts || 0} Verträge · {counts.openTickets || 0} Tickets
+                        </Text>
+                        <View style={{ flex: 1.2 }}>
+                          {counts.openInvoices > 0 ? (
+                            <Text style={{ fontSize: 12.5, fontWeight: "600", color: colors.error }}>
+                              {counts.openInvoices} Rechnung{counts.openInvoices === 1 ? "" : "en"}
+                            </Text>
+                          ) : (
+                            <Text style={{ fontSize: 12.5, color: colors.muted }}>–</Text>
+                          )}
+                        </View>
+                        <View style={{ width: 90, alignItems: "flex-end" }}>
+                          <View style={{ backgroundColor: item.status === "active" ? "#4ADE8020" : colors.muted + "25", paddingHorizontal: 10, paddingVertical: 3, borderRadius: 99 }}>
+                            <Text style={{ fontSize: 11, fontWeight: "700", color: item.status === "active" ? "#22C55E" : colors.muted }}>
+                              {item.status === "active" ? "AKTIV" : "INAKTIV"}
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            ) : (
             <FlatList
               data={filteredCustomers}
               renderItem={renderCustomerItem}
@@ -352,6 +424,7 @@ export default function CustomersScreen() {
                 />
               }
             />
+            )
           ) : (
             <View className="flex-1 items-center justify-center">
               <Text className="text-lg text-muted mb-2">Keine Kunden gefunden</Text>

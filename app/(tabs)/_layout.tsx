@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Tabs, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, useWindowDimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { WebSidebar } from "@/components/web-sidebar";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -15,6 +16,9 @@ import * as Data from "@/lib/data";
 export default function TabLayout() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  // Desktop-Web: Seitenleiste statt Tab-Leiste; mobil im Browser bleiben die Tabs unten
+  const isDesktopWeb = Platform.OS === "web" && width > 900;
   const bottomPadding = Platform.OS === "web" ? 16 : Math.max(insets.bottom, 8);
   const tabBarHeight = Platform.OS === "web" ? 76 : 56 + bottomPadding;
   const router = useRouter();
@@ -107,19 +111,24 @@ export default function TabLayout() {
   }
 
   return (
+    <View style={{ flex: 1, flexDirection: "row", backgroundColor: colors.background }}>
+      {isDesktopWeb && <WebSidebar />}
+      <View style={{ flex: 1, minWidth: 0 }}>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarStyle: {
-          paddingTop: 8,
-          paddingBottom: bottomPadding,
-          height: tabBarHeight,
-          backgroundColor: colors.background,
-          borderTopColor: colors.border,
-          borderTopWidth: 0.5,
-        },
+        tabBarStyle: isDesktopWeb
+          ? { display: "none" }
+          : {
+              paddingTop: 8,
+              paddingBottom: bottomPadding,
+              height: tabBarHeight,
+              backgroundColor: colors.background,
+              borderTopColor: colors.border,
+              borderTopWidth: 0.5,
+            },
       }}
     >
       <Tabs.Screen
@@ -206,5 +215,7 @@ export default function TabLayout() {
       <Tabs.Screen name="users" options={{ href: null, title: "Mitarbeitende" }} />
       <Tabs.Screen name="uberwachung" options={{ href: null, title: "Überwachung" }} />
     </Tabs>
+      </View>
+    </View>
   );
 }
