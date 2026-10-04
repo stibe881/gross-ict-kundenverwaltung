@@ -129,6 +129,13 @@ export function InvoiceFormModal({
 
   const selectedCustomer = customers?.find((c: any) => c.id === selectedCustomerId);
 
+  // Kundenspezifisches Zahlungsziel übernehmen (nur bei Neuanlage)
+  useEffect(() => {
+    if (editInvoice) return;
+    const days = (selectedCustomer as any)?.payment_terms_days;
+    if (days && Number(days) > 0) setPaymentTermsDays(Number(days));
+  }, [selectedCustomerId, customers]);
+
   const addItem = () => {
     setItems([
       ...items,

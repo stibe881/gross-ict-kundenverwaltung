@@ -198,6 +198,45 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
         ]);
     };
 
+    // KI-Angebotstexte: aus Stichworten Einleitung + Positionsvorschläge generieren
+    const [showAiInput, setShowAiInput] = useState(false);
+    const [aiKeywords, setAiKeywords] = useState("");
+    const [aiGenerating, setAiGenerating] = useState(false);
+    const handleGenerateAi = async () => {
+        if (!aiKeywords.trim() || aiGenerating) return;
+        setAiGenerating(true);
+        try {
+            const custName = selectedCustomer
+                ? (selectedCustomer as any).company_name || `${(selectedCustomer as any).first_name || ""} ${(selectedCustomer as any).last_name || ""}`.trim()
+                : undefined;
+            const result = await Data.generateQuoteText(aiKeywords.trim(), custName);
+            if (result.intro) setNotes((prev) => (prev ? prev : result.intro));
+            if (result.items?.length) {
+                const newItems: LineItem[] = result.items.map((i, idx) => ({
+                    id: `ai-${Date.now()}-${idx}`,
+                    name: i.description.split("\n")[0].slice(0, 80),
+                    description: "",
+                    quantity: String(i.quantity || 1),
+                    unit: i.unit || "Stk.",
+                    unitPrice: String(i.unitPrice || 0),
+                    vatRate: "8.1",
+                    optional: false,
+                }));
+                setItems((prev) => {
+                    // Leere Start-Position ersetzen statt anhängen
+                    const nonEmpty = prev.filter((p) => p.name.trim() || p.unitPrice.trim());
+                    return [...nonEmpty, ...newItems];
+                });
+            }
+            setShowAiInput(false);
+            setAiKeywords("");
+        } catch (e: any) {
+            showAlert("KI-Fehler", e.message || "Vorschlag konnte nicht erstellt werden.");
+        } finally {
+            setAiGenerating(false);
+        }
+    };
+
     const removeItem = (id: string) => {
         if (items.length <= 1) return;
         setItems((prev) => prev.filter((i) => i.id !== id));
@@ -906,13 +945,55 @@ export function QuoteFormModal({ visible, onClose, onSuccess, editQuote, initial
 
                                     return <Fragment key={item.id}>{itemContent}</Fragment>;
                                 })}
-                                <TouchableOpacity
-                                    className="bg-primary px-4 py-2 rounded-lg self-start"
-                                    onPress={addItem}
-                                    activeOpacity={0.8}
-                                >
-                                    <Text className="text-background text-sm font-semibold">+ Position</Text>
-                                </TouchableOpacity>
+                                <View className="flex-row gap-2">
+                                    <TouchableOpacity
+                                        className="bg-primary px-4 py-2 rounded-lg"
+                                        onPress={addItem}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text className="text-background text-sm font-semibold">+ Position</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        className="px-4 py-2 rounded-lg flex-row items-center gap-1.5"
+                                        style={{ backgroundColor: "#8B5CF615", borderWidth: 1, borderColor: "#8B5CF640" }}
+                                        onPress={() => setShowAiInput(!showAiInput)}
+                                        activeOpacity={0.8}
+                                    >
+                                        <IconSymbol name="sparkles" size={13} color="#8B5CF6" />
+                                        <Text className="text-sm font-semibold" style={{ color: "#8B5CF6" }}>KI-Vorschlag</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                {showAiInput ? (
+                                    <View className="mt-2 rounded-lg p-3" style={{ backgroundColor: "#8B5CF608", borderWidth: 1, borderColor: "#8B5CF625" }}>
+                                        <Text className="text-xs text-muted mb-2">
+                                            Stichworte eingeben – die KI schlägt Einleitungstext und Positionen vor (Preise aus dem Produktkatalog).
+                                        </Text>
+                                        <TextInput
+                                            value={aiKeywords}
+                                            onChangeText={setAiKeywords}
+                                            placeholder="z.B. Website, 5 Seiten, CMS, Hosting"
+                                            placeholderTextColor={colors.muted}
+                                            className="bg-background border border-border rounded-lg px-3 py-2.5 text-foreground"
+                                            editable={!aiGenerating}
+                                        />
+                                        <TouchableOpacity
+                                            className="py-2.5 rounded-lg mt-2 items-center"
+                                            style={{ backgroundColor: "#8B5CF6", opacity: aiKeywords.trim() && !aiGenerating ? 1 : 0.5 }}
+                                            onPress={handleGenerateAi}
+                                            disabled={!aiKeywords.trim() || aiGenerating}
+                                            activeOpacity={0.8}
+                                        >
+                                            {aiGenerating ? (
+                                                <ActivityIndicator size="small" color="#FFF" />
+                                            ) : (
+                                                <Text className="text-sm font-bold" style={{ color: "#FFF" }}>Vorschlag erstellen</Text>
+                                            )}
+                                        </TouchableOpacity>
+                                        {aiGenerating ? (
+                                            <Text className="text-xs text-muted text-center mt-2">Die KI erstellt den Vorschlag – einen Moment...</Text>
+                                        ) : null}
+                                    </View>
+                                ) : null}
                             </View>
 
                             {/* Notizen */}

@@ -485,6 +485,8 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
         setAddingNote(true);
         try {
             await Data.addProjectActivity(project.id, "note", newNote.trim());
+            // @-Erwähnungen benachrichtigen
+            Data.notifyMentions(newNote.trim(), `Projekt: ${projectData?.title || ""}`);
             setNewNote("");
             await loadActivities();
         } catch (error: any) {

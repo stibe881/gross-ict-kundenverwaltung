@@ -1,6 +1,7 @@
 import { View, Text } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import * as Data from "@/lib/data";
 import { useColors } from "@/hooks/use-colors";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { LinkedRecords, LinkedRecord } from "@/components/linked-records";
@@ -126,6 +127,23 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
           subtitle: `Stammdaten-Änderung aus dem Portal prüfen${cr.requested_by ? ` (${cr.requested_by})` : ""}`,
           route: `/customer/${cr.customer_id}`,
         });
+      }
+
+      // Geburtstage & Kunden-Jubiläen (nächste 14 Tage)
+      if (allowed("customers")) {
+        try {
+          const celebrations = await Data.getUpcomingCelebrations();
+          for (const [idx, cel] of celebrations.slice(0, 5).entries()) {
+            result.push({
+              key: `cel-${idx}-${cel.date}`,
+              icon: cel.type === "birthday" ? "gift.fill" : "star.fill",
+              color: cel.type === "birthday" ? "#EC4899" : "#F59E0B",
+              title: cel.label,
+              subtitle: cel.type === "birthday" ? "Geburtstag" : "Kunden-Jubiläum",
+              route: cel.customerId ? `/customer/${cel.customerId}` : "/customers",
+            });
+          }
+        } catch (_) { /* optional */ }
       }
 
       // Kündigungsfristen: Stichtag = Vertragsende minus Frist, Warnung ab 30 Tagen

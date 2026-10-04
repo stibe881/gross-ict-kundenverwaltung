@@ -887,6 +887,62 @@ function TicketDetailsModal({
       showAlert("Fehler", "Zuordnung konnte nicht gespeichert werden: " + e.message);
     }
   };
+  // Betroffenes Gerät/Lizenz aus dem Kunden-Inventar (Punkt 13)
+  const [linkedAssetId, setLinkedAssetId] = useState<string | null>((ticket as any).asset_id || null);
+  const { data: customerAssets = [] } = useQuery({
+    queryKey: ["customerAssets", ticket.customer_id],
+    queryFn: () => Data.getCustomerAssets(ticket.customer_id as string),
+    enabled: !!ticket.customer_id,
+  });
+  const handleAssetChange = async (assetId: string | null) => {
+    const prev = linkedAssetId;
+    setLinkedAssetId(assetId);
+    try {
+      await Data.updateTicket(ticket.id, { asset_id: assetId } as any);
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      showToast(assetId ? "Gerät/Lizenz verknüpft" : "Verknüpfung entfernt");
+    } catch (e: any) {
+      setLinkedAssetId(prev);
+      showAlert("Fehler", "Verknüpfung konnte nicht gespeichert werden: " + e.message);
+    }
+  };
+
+  // Ticket zusammenführen (Punkt 10)
+  const [showMergeList, setShowMergeList] = useState(false);
+  const { data: mergeCandidates = [] } = useQuery({
+    queryKey: ["mergeCandidates", ticket.id],
+    queryFn: async () => {
+      const { data } = await Data.supabase
+        .from("tickets")
+        .select("id, title, status, customer_id, created_at")
+        .neq("id", ticket.id)
+        .neq("status", "closed")
+        .order("created_at", { ascending: false })
+        .limit(30);
+      const list = (data as any[]) || [];
+      // Tickets des gleichen Kunden zuerst
+      return list.sort((a, b) => Number(b.customer_id === ticket.customer_id) - Number(a.customer_id === ticket.customer_id));
+    },
+    enabled: showMergeList,
+  });
+  const handleMergeInto = (target: any) => {
+    showConfirm(
+      "Tickets zusammenführen",
+      `Dieses Ticket wird in "${target.title}" zusammengeführt: Kommentare, Aufwände und Anhänge wandern mit, dieses Ticket wird geschlossen. Fortfahren?`,
+      async () => {
+        try {
+          await Data.mergeTickets(ticket.id, target.id);
+          queryClient.invalidateQueries({ queryKey: ["tickets"] });
+          showToast("Tickets zusammengeführt");
+          onClose();
+        } catch (e: any) {
+          showAlert("Fehler", e.message);
+        }
+      },
+      "Zusammenführen"
+    );
+  };
+
   const dueDateOverdue = !!dueDate && currentStatus !== "closed" &&
     new Date(dueDate) < new Date(new Date().setHours(0, 0, 0, 0));
 
@@ -1237,6 +1293,8 @@ function TicketDetailsModal({
     const commentText = newComment.trim();
     try {
       await Data.addTicketComment(ticket.id, commentText, currentUserName, isInternalComment);
+      // @-Erwähnungen benachrichtigen (z.B. "@Stefan bitte anschauen")
+      Data.notifyMentions(commentText, `Ticket: ${ticket.title}`, `/tickets?ticketId=${ticket.id}`);
       setNewComment("");
       refetchComments();
 
@@ -1622,6 +1680,84 @@ function TicketDetailsModal({
                   );
                 })}
               </View>
+            </>
+          )}
+
+          {/* Betroffenes Gerät/Lizenz aus dem Inventar */}
+          {(customerAssets as any[]).length > 0 && (
+            <>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, textTransform: "uppercase", marginTop: 14, marginBottom: 6 }}>Betroffenes Gerät / Lizenz</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                <TouchableOpacity
+                  onPress={() => handleAssetChange(null)}
+                  activeOpacity={0.7}
+                  style={{
+                    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1,
+                    borderColor: !linkedAssetId ? colors.primary : colors.border,
+                    backgroundColor: !linkedAssetId ? colors.primary + "15" : colors.background,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: !linkedAssetId ? colors.primary : colors.foreground }}>Keines</Text>
+                </TouchableOpacity>
+                {(customerAssets as any[]).map((a: any) => {
+                  const active = linkedAssetId === a.id;
+                  return (
+                    <TouchableOpacity
+                      key={a.id}
+                      onPress={() => handleAssetChange(a.id)}
+                      activeOpacity={0.7}
+                      style={{
+                        paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1,
+                        borderColor: active ? "#0EA5E9" : colors.border,
+                        backgroundColor: active ? "#0EA5E915" : colors.background,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: "600", color: active ? "#0EA5E9" : colors.foreground }} numberOfLines={1}>
+                        {a.type === "license" ? "🔑" : "💻"} {a.name}{a.serial_number ? ` (${a.serial_number})` : ""}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {/* Ticket zusammenführen */}
+          {currentStatus !== "closed" && (
+            <>
+              <TouchableOpacity
+                style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 14 }}
+                onPress={() => setShowMergeList(!showMergeList)}
+                activeOpacity={0.7}
+              >
+                <IconSymbol name="arrow.triangle.merge" size={14} color={colors.muted} />
+                <Text style={{ fontSize: 12, fontWeight: "700", color: colors.muted, textTransform: "uppercase" }}>
+                  Mit anderem Ticket zusammenführen {showMergeList ? "▴" : "▾"}
+                </Text>
+              </TouchableOpacity>
+              {showMergeList && (
+                <View style={{ marginTop: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 10, maxHeight: 180, overflow: "hidden" }}>
+                  <ScrollView nestedScrollEnabled>
+                    {(mergeCandidates as any[]).length === 0 ? (
+                      <Text style={{ fontSize: 12, color: colors.muted, padding: 10 }}>Keine offenen Tickets zum Zusammenführen</Text>
+                    ) : (
+                      (mergeCandidates as any[]).map((t: any) => (
+                        <TouchableOpacity
+                          key={t.id}
+                          style={{ paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border + "50" }}
+                          onPress={() => handleMergeInto(t)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{t.title}</Text>
+                          <Text style={{ fontSize: 11, color: colors.muted }}>
+                            {t.customer_id === ticket.customer_id ? "Gleicher Kunde · " : ""}{t.status === "open" ? "Offen" : t.status === "in_progress" ? "In Bearbeitung" : "Wartend"}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </ScrollView>
+                </View>
+              )}
             </>
           )}
         </View>

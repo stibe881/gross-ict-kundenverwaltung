@@ -804,6 +804,9 @@ export default function UsersScreen() {
             </View>
           </View>
 
+          {/* Abwesenheiten (Ferien/Krankheit) */}
+          <AbsencesCard colors={colors} users={users} />
+
           {/* Info hint */}
           <View style={{ backgroundColor: "#0078D4" + "10", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: "#0078D4" + "25", marginBottom: 16, flexDirection: "row", alignItems: "center", gap: 10 }}>
             <IconSymbol name="lock.fill" size={16} color="#0078D4" />
@@ -994,5 +997,159 @@ export default function UsersScreen() {
         </KeyboardAvoidingView>
       </Modal>
     </ScreenContainer>
+  );
+}
+
+// ── Abwesenheiten: Ferien & Krankheit verwalten ──
+function AbsencesCard({ colors, users }: { colors: any; users: any[] }) {
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [absUserId, setAbsUserId] = useState<string | null>(null);
+  const [absFrom, setAbsFrom] = useState("");
+  const [absTo, setAbsTo] = useState("");
+  const [absType, setAbsType] = useState("vacation");
+  const [saving, setSaving] = useState(false);
+
+  const { data: absences = [] } = useQuery({
+    queryKey: ["absences"],
+    queryFn: Data.getAbsences,
+  });
+
+  const toIso = (s: string) => {
+    const p = s.trim().split(".");
+    return p.length === 3 ? `${p[2]}-${p[1].padStart(2, "0")}-${p[0].padStart(2, "0")}` : s.trim();
+  };
+  const fmtCh = (iso: string) => {
+    const p = String(iso).split("-");
+    return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : iso;
+  };
+
+  const typeLabel = (t: string) => (t === "vacation" ? "Ferien" : t === "sick" ? "Krank" : "Abwesend");
+  const typeColor = (t: string) => (t === "vacation" ? "#0EA5E9" : t === "sick" ? "#EF4444" : "#6B7280");
+
+  const handleSave = async () => {
+    if (!absUserId || !absFrom.trim() || !absTo.trim()) {
+      showAlert("Fehler", "Bitte Mitarbeiter, Von- und Bis-Datum angeben.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await Data.createAbsence({
+        user_id: absUserId,
+        start_date: toIso(absFrom),
+        end_date: toIso(absTo),
+        type: absType,
+      });
+      setShowForm(false); setAbsUserId(null); setAbsFrom(""); setAbsTo(""); setAbsType("vacation");
+      queryClient.invalidateQueries({ queryKey: ["absences"] });
+      showToast("Abwesenheit erfasst");
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const today = new Date().toISOString().split("T")[0];
+
+  return (
+    <View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 16 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <Text style={{ fontSize: 13, fontWeight: "700", color: colors.foreground }}>Abwesenheiten (Ferien & Krankheit)</Text>
+        <TouchableOpacity
+          style={{ backgroundColor: colors.primary + "15", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
+          onPress={() => setShowForm(!showForm)}
+          activeOpacity={0.7}
+        >
+          <Text style={{ fontSize: 12, fontWeight: "700", color: colors.primary }}>{showForm ? "Schliessen" : "+ Erfassen"}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {showForm && (
+        <View style={{ gap: 8, marginBottom: 12 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+            {users.map((u: any) => (
+              <TouchableOpacity
+                key={u.id}
+                style={{
+                  paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1,
+                  borderColor: absUserId === u.id ? colors.primary : colors.border,
+                  backgroundColor: absUserId === u.id ? colors.primary + "15" : colors.background,
+                }}
+                onPress={() => setAbsUserId(u.id)}
+              >
+                <Text style={{ fontSize: 12, fontWeight: "600", color: absUserId === u.id ? colors.primary : colors.foreground }}>
+                  {u.name || u.email}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <TextInput
+              style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, color: colors.foreground, fontSize: 13 }}
+              placeholder="Von (DD.MM.YYYY)" placeholderTextColor={colors.muted}
+              value={absFrom} onChangeText={setAbsFrom}
+            />
+            <TextInput
+              style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, color: colors.foreground, fontSize: 13 }}
+              placeholder="Bis (DD.MM.YYYY)" placeholderTextColor={colors.muted}
+              value={absTo} onChangeText={setAbsTo}
+            />
+          </View>
+          <View style={{ flexDirection: "row", gap: 6 }}>
+            {[["vacation", "Ferien"], ["sick", "Krank"], ["other", "Anderes"]].map(([key, label]) => (
+              <TouchableOpacity
+                key={key}
+                style={{
+                  flex: 1, paddingVertical: 7, borderRadius: 8, borderWidth: 1, alignItems: "center",
+                  borderColor: absType === key ? typeColor(key) : colors.border,
+                  backgroundColor: absType === key ? typeColor(key) + "15" : colors.background,
+                }}
+                onPress={() => setAbsType(key)}
+              >
+                <Text style={{ fontSize: 12, fontWeight: "600", color: absType === key ? typeColor(key) : colors.foreground }}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity
+            style={{ backgroundColor: colors.primary, paddingVertical: 9, borderRadius: 8, alignItems: "center" }}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            {saving ? <ActivityIndicator size="small" color={colors.background} /> : (
+              <Text style={{ fontSize: 13, fontWeight: "700", color: colors.background }}>Speichern</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {(absences as any[]).length === 0 ? (
+        <Text style={{ fontSize: 12, color: colors.muted }}>Keine Abwesenheiten erfasst.</Text>
+      ) : (
+        (absences as any[]).map((a: any) => {
+          const current = a.start_date <= today && a.end_date >= today;
+          return (
+            <View key={a.id} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 6, gap: 8 }}>
+              <View style={{ backgroundColor: typeColor(a.type) + "18", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                <Text style={{ fontSize: 10, fontWeight: "700", color: typeColor(a.type) }}>{typeLabel(a.type).toUpperCase()}</Text>
+              </View>
+              <Text style={{ flex: 1, fontSize: 13, color: colors.foreground }} numberOfLines={1}>
+                {a.user?.name || a.user?.email || "?"} · {fmtCh(a.start_date)} – {fmtCh(a.end_date)}
+                {current ? "  (aktuell abwesend)" : ""}
+              </Text>
+              <TouchableOpacity
+                onPress={() => showConfirm("Löschen", "Abwesenheit entfernen?", async () => {
+                  await Data.deleteAbsence(a.id);
+                  queryClient.invalidateQueries({ queryKey: ["absences"] });
+                }, "Löschen")}
+                activeOpacity={0.7}
+              >
+                <IconSymbol name="trash.fill" size={14} color={colors.error} />
+              </TouchableOpacity>
+            </View>
+          );
+        })
+      )}
+    </View>
   );
 }

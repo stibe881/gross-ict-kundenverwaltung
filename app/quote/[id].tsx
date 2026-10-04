@@ -332,6 +332,7 @@ export default function QuoteDetailScreen() {
                             ) : null}
                         </View>
                         <Text className="text-sm text-muted mt-1">{customerName}</Text>
+                        <QuoteOpenInfo quoteId={id as string} status={quote.status || ""} colors={colors} />
                         <QuoteVersionChips quote={quote} currentId={id as string} />
                     </View>
                     <TouchableOpacity
@@ -784,6 +785,27 @@ function QuoteVersionChips({ quote, currentId }: { quote: any; currentId: string
                     </Text>
                 </TouchableOpacity>
             ))}
+        </View>
+    );
+}
+
+// ── Lesebestätigung: wie oft und wann zuletzt hat der Kunde das Angebot geöffnet? ──
+function QuoteOpenInfo({ quoteId, status, colors }: { quoteId: string; status: string; colors: any }) {
+    const { data } = useQuery({
+        queryKey: ["quoteOpenStats", quoteId],
+        queryFn: () => Data.getQuoteOpenStats(quoteId),
+        enabled: !!quoteId && status !== "draft",
+    });
+    if (!data || data.count === 0) return null;
+    const last = data.lastOpenedAt
+        ? new Date(data.lastOpenedAt).toLocaleString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+        : "";
+    return (
+        <View className="flex-row items-center gap-1.5 mt-1">
+            <IconSymbol name="eye.fill" size={12} color="#06B6D4" />
+            <Text style={{ fontSize: 12, color: "#06B6D4", fontWeight: "600" }}>
+                {data.count}× vom Kunden geöffnet{last ? ` · zuletzt ${last}` : ""}
+            </Text>
         </View>
     );
 }

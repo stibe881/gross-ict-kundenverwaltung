@@ -510,3 +510,9 @@ enabled = true
 # Nur aus der App mit gültigem Login aufrufbar
 verify_jwt = true
 entrypoint = "./functions/ask-crm/index.ts"
+
+[functions.send-campaign]
+verify_jwt = true
+
+[functions.quote-ai]
+verify_jwt = true

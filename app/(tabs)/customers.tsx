@@ -9,6 +9,7 @@ import {
   FlatList,
   RefreshControl,
   Image,
+  Modal,
 } from "react-native";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
@@ -30,7 +31,9 @@ export default function CustomersScreen() {
     const isReadOnly = useIsReadOnly();
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const [searchQuery, setSearchQuery] = useState("");
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("active");
 
   // Kunden laden
@@ -77,9 +80,15 @@ export default function CustomersScreen() {
         filterStatus === "all" ||
         (filterStatus === "active" && customer.status === "active") ||
         (filterStatus === "inactive" && customer.status !== "active");
-      return matchesSearch && matchesStatus;
+      const matchesTag = !tagFilter || (customer.tags || []).includes(tagFilter);
+      return matchesSearch && matchesStatus && matchesTag;
     })
     .sort((a: any, b: any) => getDisplayName(a).localeCompare(getDisplayName(b), "de"));
+
+  // Alle verwendeten Tags für die Filterzeile
+  const allTags: string[] = Array.from(
+    new Set((customers || []).flatMap((c: any) => c.tags || []))
+  ).sort() as string[];
 
   const renderCustomerItem = ({ item }: { item: any }) => {
     const displayName =
@@ -130,6 +139,15 @@ export default function CustomersScreen() {
               <View className="flex-row items-center mt-1">
                 <IconSymbol name="phone.fill" size={14} color={colors.muted} />
                 <Text className="text-sm text-muted ml-1">{item.phone}</Text>
+              </View>
+            )}
+            {(item.tags || []).length > 0 && (
+              <View className="flex-row flex-wrap gap-1 mt-1.5">
+                {(item.tags as string[]).map((tag) => (
+                  <View key={tag} style={{ backgroundColor: "#8B5CF618", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
+                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#8B5CF6" }}>#{tag}</Text>
+                  </View>
+                ))}
               </View>
             )}
           </View>
@@ -212,6 +230,13 @@ export default function CustomersScreen() {
               <TouchableOpacity
                 className="bg-surface border border-border w-12 h-12 rounded-full items-center justify-center"
                 activeOpacity={0.8}
+                onPress={() => setShowCampaignModal(true)}
+              >
+                <IconSymbol name="megaphone.fill" size={19} color="#8B5CF6" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="bg-surface border border-border w-12 h-12 rounded-full items-center justify-center"
+                activeOpacity={0.8}
                 onPress={() =>
                   exportCsv("Kunden.csv", filteredCustomers || [], [
                     { key: "company_name", label: "Firma" },
@@ -284,6 +309,29 @@ export default function CustomersScreen() {
             ))}
           </View>
 
+          {/* Tag-Filter */}
+          {allTags.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} className="mb-4">
+              <View className="flex-row gap-2">
+                {allTags.map((tag) => (
+                  <TouchableOpacity
+                    key={tag}
+                    onPress={() => setTagFilter(tagFilter === tag ? null : tag)}
+                    style={{
+                      backgroundColor: tagFilter === tag ? "#8B5CF6" : colors.surface,
+                      borderColor: tagFilter === tag ? "#8B5CF6" : colors.border,
+                    }}
+                    className="px-3 py-1.5 rounded-full border"
+                  >
+                    <Text style={{ color: tagFilter === tag ? "#fff" : colors.foreground, fontSize: 12, fontWeight: "600" }}>
+                      #{tag}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          ) : null}
+
           {/* Kundenliste */}
           {isLoading ? (
             <View className="flex-1 items-center justify-center">
@@ -323,7 +371,152 @@ export default function CustomersScreen() {
         onClose={() => setShowAddModal(false)}
         onSuccess={() => refetch()}
       />
+      <CampaignModal visible={showCampaignModal} onClose={() => setShowCampaignModal(false)} colors={colors} />
     </ScreenContainer>
+  );
+}
+
+// ── E-Mail-Kampagne light: Info-Mail an gefilterte Kundengruppe ──
+function CampaignModal({ visible, onClose, colors }: { visible: boolean; onClose: () => void; colors: any }) {
+  const [tag, setTag] = useState<string | null>(null);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [resultMsg, setResultMsg] = useState("");
+
+  const { data: allTags = [] } = useQuery({ queryKey: ["customerTags"], queryFn: Data.getAllCustomerTags, enabled: visible });
+  const { data: recipients = [] } = useQuery({
+    queryKey: ["campaignRecipients", tag],
+    queryFn: () => Data.getCampaignRecipients({ tag: tag || undefined, status: "active" }),
+    enabled: visible,
+  });
+  const { data: pastCampaigns = [] } = useQuery({ queryKey: ["campaigns"], queryFn: Data.getCampaigns, enabled: visible });
+
+  const handleSend = () => {
+    if (!subject.trim() || !body.trim() || recipients.length === 0) {
+      showAlert("Fehler", "Bitte Betreff, Text und mindestens einen Empfänger.");
+      return;
+    }
+    showConfirm(
+      "Kampagne senden",
+      `Diese Info-Mail wird an ${recipients.length} Kunden gesendet (mit Abmelde-Link). Fortfahren?`,
+      async () => {
+        setSending(true);
+        setResultMsg("");
+        try {
+          const res = await Data.sendCampaign(
+            subject.trim(),
+            body.trim(),
+            (recipients as any[]).map((c: any) => ({
+              id: c.id,
+              email: c.email,
+              name: c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim(),
+            }))
+          );
+          setResultMsg(`Gesendet an ${res?.sent ?? 0} Empfänger${res?.failed?.length ? `, ${res.failed.length} fehlgeschlagen` : ""}.`);
+          setSubject(""); setBody("");
+        } catch (e: any) {
+          showAlert("Fehler", e.message);
+        } finally {
+          setSending(false);
+        }
+      },
+      "Senden"
+    );
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+        <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "90%" }}>
+          <View className="flex-row items-center justify-between p-4 border-b border-border">
+            <View className="flex-row items-center gap-2">
+              <IconSymbol name="megaphone.fill" size={18} color="#8B5CF6" />
+              <Text className="text-lg font-bold text-foreground">Info-Mail an Kunden</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+              <IconSymbol name="xmark.circle.fill" size={26} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView className="p-4" keyboardShouldPersistTaps="handled">
+            {(allTags as string[]).length > 0 ? (
+              <>
+                <Text className="text-xs font-semibold text-muted mb-1.5">Empfänger eingrenzen (Tag)</Text>
+                <View className="flex-row flex-wrap gap-2 mb-3">
+                  <TouchableOpacity
+                    onPress={() => setTag(null)}
+                    className="px-3 py-1.5 rounded-full border"
+                    style={{ backgroundColor: !tag ? "#8B5CF6" : colors.surface, borderColor: !tag ? "#8B5CF6" : colors.border }}
+                  >
+                    <Text style={{ color: !tag ? "#fff" : colors.foreground, fontSize: 12, fontWeight: "600" }}>Alle aktiven</Text>
+                  </TouchableOpacity>
+                  {(allTags as string[]).map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      onPress={() => setTag(tag === t ? null : t)}
+                      className="px-3 py-1.5 rounded-full border"
+                      style={{ backgroundColor: tag === t ? "#8B5CF6" : colors.surface, borderColor: tag === t ? "#8B5CF6" : colors.border }}
+                    >
+                      <Text style={{ color: tag === t ? "#fff" : colors.foreground, fontSize: 12, fontWeight: "600" }}>#{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            ) : null}
+
+            <Text className="text-sm font-semibold mb-3" style={{ color: colors.primary }}>
+              {recipients.length} Empfänger (aktive Kunden mit E-Mail, ohne Abgemeldete)
+            </Text>
+
+            <Text className="text-xs font-semibold text-muted mb-1.5">Betreff</Text>
+            <TextInput
+              value={subject} onChangeText={setSubject}
+              placeholder="z.B. Wartungsfenster am Samstag" placeholderTextColor={colors.muted}
+              className="bg-surface border border-border rounded-lg px-3 py-2.5 text-foreground mb-3"
+            />
+            <Text className="text-xs font-semibold text-muted mb-1.5">Nachricht</Text>
+            <TextInput
+              value={body} onChangeText={setBody} multiline
+              placeholder="Ihre Nachricht an die Kunden..." placeholderTextColor={colors.muted}
+              className="bg-surface border border-border rounded-lg px-3 py-2.5 text-foreground mb-3"
+              style={{ minHeight: 120, textAlignVertical: "top" }}
+            />
+            <TouchableOpacity
+              className="py-3 rounded-xl items-center mb-2"
+              style={{ backgroundColor: "#8B5CF6", opacity: sending || !subject.trim() || !body.trim() || recipients.length === 0 ? 0.5 : 1 }}
+              onPress={handleSend}
+              disabled={sending || !subject.trim() || !body.trim() || recipients.length === 0}
+              activeOpacity={0.8}
+            >
+              {sending ? <ActivityIndicator size="small" color="#FFF" /> : (
+                <Text className="font-bold" style={{ color: "#FFF" }}>An {recipients.length} Kunden senden</Text>
+              )}
+            </TouchableOpacity>
+            {sending ? (
+              <Text className="text-xs text-muted text-center mb-2">Versand läuft – bei vielen Empfängern kann das eine Weile dauern...</Text>
+            ) : null}
+            {resultMsg ? (
+              <Text className="text-sm font-semibold text-center mb-2" style={{ color: colors.success }}>{resultMsg}</Text>
+            ) : null}
+
+            {(pastCampaigns as any[]).length > 0 ? (
+              <>
+                <Text className="text-xs font-semibold text-muted mt-3 mb-1.5">Bisherige Kampagnen</Text>
+                {(pastCampaigns as any[]).map((c: any) => (
+                  <View key={c.id} className="bg-surface border border-border rounded-lg px-3 py-2 mb-1.5">
+                    <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{c.subject}</Text>
+                    <Text className="text-xs text-muted">
+                      {new Date(c.created_at).toLocaleDateString("de-CH")} · {c.recipient_count} Empfänger
+                    </Text>
+                  </View>
+                ))}
+              </>
+            ) : null}
+            <View style={{ height: 32 }} />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 

@@ -4964,3 +4964,256 @@ export async function pingPresence() {
         await db.from("users").update({ last_seen_at: new Date().toISOString() }).eq("id", userId);
     } catch (_) { /* Präsenz ist optional */ }
 }
+
+// ════════════════ RUNDE 6 ════════════════
+
+// ── (10) Tickets zusammenführen: Kommentare, Aufwände, Anhänge wandern mit ──
+export async function mergeTickets(sourceId: string, targetId: string) {
+    if (sourceId === targetId) throw new Error("Quelle und Ziel sind identisch.");
+    const { data: source } = await supabase.from("tickets").select("id, title").eq("id", sourceId).single();
+    const { data: target } = await supabase.from("tickets").select("id, title").eq("id", targetId).single();
+    if (!source || !target) throw new Error("Ticket nicht gefunden.");
+
+    await supabase.from("ticket_comments").update({ ticket_id: targetId }).eq("ticket_id", sourceId);
+    await supabase.from("ticket_items").update({ ticket_id: targetId }).eq("ticket_id", sourceId);
+    await db.from("ticket_attachments").update({ ticket_id: targetId }).eq("ticket_id", sourceId);
+
+    await supabase.from("ticket_comments").insert({
+        ticket_id: targetId,
+        comment: `Ticket "${(source as any).title}" wurde in dieses Ticket zusammengeführt.`,
+        user_name: "System",
+        is_internal: true,
+        is_system: true,
+    } as any);
+
+    const { error } = await supabase
+        .from("tickets")
+        .update({ status: "closed", description: `[Zusammengeführt mit Ticket "${(target as any).title}"]` } as any)
+        .eq("id", sourceId);
+    if (error) throw new Error(error.message);
+    logActivity("ticket", targetId, "updated", `Ticket "${(source as any).title}" zusammengeführt`);
+}
+
+// ── (16) Abwesenheiten ──
+export async function getAbsences() {
+    const { data, error } = await db
+        .from("user_absences")
+        .select("*, user:users(id, name, email)")
+        .gte("end_date", new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0])
+        .order("start_date");
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+export async function createAbsence(a: { user_id: string; start_date: string; end_date: string; type?: string; note?: string | null }) {
+    const { error } = await db.from("user_absences").insert([a]);
+    if (error) throw new Error(error.message);
+}
+
+export async function deleteAbsence(id: string) {
+    const { error } = await db.from("user_absences").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+}
+
+// Hilfsfunktion: Welche Benutzer sind heute abwesend? → Map user_id → Typ
+export async function getAbsentToday(): Promise<Record<string, string>> {
+    const today = new Date().toISOString().split("T")[0];
+    const { data } = await db
+        .from("user_absences")
+        .select("user_id, type")
+        .lte("start_date", today)
+        .gte("end_date", today);
+    const map: Record<string, string> = {};
+    for (const a of (data as any[]) || []) map[a.user_id] = a.type;
+    return map;
+}
+
+// ── (17) Meine Woche: mir zugewiesene offene Arbeit ──
+export async function getMyWeek(userId: string) {
+    const in7 = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
+    const [tickets, tasks, leads] = await Promise.all([
+        supabase
+            .from("tickets")
+            .select("id, title, status, priority, due_date")
+            .eq("assigned_to", userId)
+            .in("status", ["open", "in_progress", "waiting"])
+            .order("created_at", { ascending: false })
+            .limit(10),
+        supabase
+            .from("tasks")
+            .select("id, title, status, due_date")
+            .eq("assigned_to", userId)
+            .neq("status", "done")
+            .order("due_date", { ascending: true, nullsFirst: false })
+            .limit(10),
+        supabase
+            .from("leads")
+            .select("id, name, company, next_action, next_action_date")
+            .not("next_action_date", "is", null)
+            .lte("next_action_date", in7)
+            .not("status", "in", "(won,lost)")
+            .order("next_action_date")
+            .limit(10),
+    ]);
+    return {
+        tickets: tickets.data || [],
+        tasks: tasks.data || [],
+        leads: leads.data || [],
+    };
+}
+
+// ── (18) @-Erwähnungen in Kommentaren: Benutzer benachrichtigen ──
+export async function notifyMentions(comment: string, context: string, link?: string) {
+    const mentions = comment.match(/@([A-Za-zÀ-ž]+)/g);
+    if (!mentions || mentions.length === 0) return;
+    try {
+        const { data: users } = await supabase.from("users").select("id, name");
+        const notified = new Set<string>();
+        for (const m of mentions) {
+            const needle = m.slice(1).toLowerCase();
+            const hit = (users || []).find((u: any) => (u.name || "").toLowerCase().includes(needle));
+            if (!hit || notified.has(hit.id)) continue;
+            notified.add(hit.id);
+            await supabase.from("notifications").insert({
+                user_id: hit.id,
+                title: `Sie wurden erwähnt (${context})`,
+                message: comment.slice(0, 200),
+                is_read: false,
+            } as any);
+            triggerPushNotification([hit.id], "admin", `Erwähnung: ${context}`, comment.slice(0, 150), link ? { url: link } : undefined, "tickets");
+        }
+    } catch (_) { /* Erwähnungen sind Komfort, kein Muss */ }
+}
+
+// ── (19) Dublettenwarnung beim Kundenanlegen ──
+export async function findSimilarCustomers(name: string, email?: string, phone?: string) {
+    const checks: any[] = [];
+    if (name && name.length >= 3) {
+        checks.push(
+            supabase.from("customers").select("id, company_name, first_name, last_name, email").ilike("company_name", `%${name}%`).limit(3),
+            supabase.from("customers").select("id, company_name, first_name, last_name, email").ilike("last_name", `%${name}%`).limit(3)
+        );
+    }
+    if (email) checks.push(supabase.from("customers").select("id, company_name, first_name, last_name, email").ilike("email", email).limit(3));
+    if (phone && phone.length >= 7) checks.push(supabase.from("customers").select("id, company_name, first_name, last_name, email").ilike("phone", `%${phone.replace(/\s/g, "")}%`).limit(3));
+    const settled = await Promise.all(checks);
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const r of settled) {
+        for (const c of r.data || []) {
+            if (!seen.has(c.id)) { seen.add(c.id); out.push(c); }
+        }
+    }
+    return out;
+}
+
+// ── (21) Geburtstage & Kunden-Jubiläen (nächste 14 Tage) ──
+export async function getUpcomingCelebrations() {
+    const out: { type: "birthday" | "anniversary"; label: string; date: string; customerId?: string }[] = [];
+    const today = new Date();
+    const inDays = (month: number, day: number) => {
+        const d = new Date(today.getFullYear(), month - 1, day);
+        if (d < new Date(today.getFullYear(), today.getMonth(), today.getDate())) d.setFullYear(d.getFullYear() + 1);
+        return Math.round((d.getTime() - today.getTime()) / 86400000);
+    };
+    try {
+        const { data: contacts } = await db
+            .from("customer_contacts")
+            .select("first_name, last_name, birthday, customer_id, customer:customers(company_name)")
+            .not("birthday", "is", null);
+        for (const c of (contacts as any[]) || []) {
+            const [y, m, d] = String(c.birthday).split("-").map(Number);
+            const diff = inDays(m, d);
+            if (diff <= 14) {
+                const name = `${c.first_name || ""} ${c.last_name || ""}`.trim();
+                const comp = c.customer?.company_name ? ` (${c.customer.company_name})` : "";
+                out.push({
+                    type: "birthday",
+                    label: diff === 0 ? `${name}${comp} hat heute Geburtstag 🎂` : `${name}${comp} hat in ${diff} Tag${diff === 1 ? "" : "en"} Geburtstag`,
+                    date: c.birthday,
+                    customerId: c.customer_id,
+                });
+            }
+        }
+        const { data: customers } = await supabase
+            .from("customers")
+            .select("id, company_name, first_name, last_name, created_at")
+            .eq("status", "active");
+        for (const c of (customers as any[]) || []) {
+            if (!c.created_at) continue;
+            const created = new Date(c.created_at);
+            const years = today.getFullYear() - created.getFullYear();
+            if (years < 1) continue;
+            const diff = inDays(created.getMonth() + 1, created.getDate());
+            if (diff <= 14) {
+                const name = c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim();
+                out.push({
+                    type: "anniversary",
+                    label: diff === 0 ? `${name} ist seit heute ${years} Jahr${years === 1 ? "" : "e"} Kunde 🎉` : `${name} ist in ${diff} Tag${diff === 1 ? "" : "en"} ${years} Jahr${years === 1 ? "" : "e"} Kunde`,
+                    date: c.created_at,
+                    customerId: c.id,
+                });
+            }
+        }
+    } catch (_) { /* optional */ }
+    return out.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+// ── (22) E-Mail-Kampagne light ──
+export async function getCampaignRecipients(filter: { tag?: string; status?: string }) {
+    let q = supabase
+        .from("customers")
+        .select("id, company_name, first_name, last_name, email, tags, newsletter_opt_out" as any)
+        .not("email", "is", null)
+        .neq("email", "");
+    if (filter.status) q = q.eq("status", filter.status);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    let list = (data as any[]) || [];
+    list = list.filter((c) => c.newsletter_opt_out !== true);
+    if (filter.tag) list = list.filter((c) => (c.tags || []).includes(filter.tag));
+    return list;
+}
+
+export async function sendCampaign(subject: string, body: string, recipients: { email: string; name: string; id: string }[]) {
+    const { data, error } = await supabase.functions.invoke("send-campaign", {
+        body: { subject, body, recipients },
+    });
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function getCampaigns() {
+    const { data, error } = await db.from("email_campaigns").select("*").order("created_at", { ascending: false }).limit(20);
+    if (error) throw new Error(error.message);
+    return data || [];
+}
+
+// Alle verwendeten Kunden-Tags (für Filter & Vorschläge)
+export async function getAllCustomerTags(): Promise<string[]> {
+    const { data } = await supabase.from("customers").select("tags" as any);
+    const set = new Set<string>();
+    for (const c of (data as any[]) || []) for (const t of c.tags || []) set.add(t);
+    return Array.from(set).sort();
+}
+
+// ── (24) Angebots-Öffnungen: Anzahl + letzter Zeitpunkt aus dem Aktivitätslog ──
+export async function getQuoteOpenStats(quoteId: string) {
+    const { data } = await supabase
+        .from("quote_activities")
+        .select("created_at, type")
+        .eq("quote_id", quoteId)
+        .eq("user_name", "Kunde")
+        .order("created_at", { ascending: false });
+    const opens = (data || []).filter((a: any) => a.type === "Angebot aufgerufen" || a.type === "Status geändert");
+    return { count: opens.length, lastOpenedAt: opens[0]?.created_at || null };
+}
+
+// ── (27) KI-Angebotstexte ──
+export async function generateQuoteText(keywords: string, customerName?: string) {
+    const { data, error } = await supabase.functions.invoke("quote-ai", {
+        body: { keywords, customerName },
+    });
+    if (error) throw new Error(error.message);
+    return data as { intro: string; items: { description: string; quantity: number; unit: string; unitPrice: number }[] };
+}

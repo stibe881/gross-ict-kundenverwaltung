@@ -776,6 +776,9 @@ export default function DashboardScreen() {
           {/* Heute-Feed: was jetzt Aufmerksamkeit braucht */}
           <TodayFeed allowed={tileAllowed} isWide={isWide} rolesKey={(userProfile?.roles || []).join(",")} />
 
+          {/* Meine Woche: mir zugewiesene offene Arbeit */}
+          {user?.id ? <MyWeekCard userId={(user as any).id} colors={colors} isWide={isWide} /> : null}
+
           {/* Quick Actions Bar - nur Web/Desktop, mobil hat FAB */}
           {isWeb && <ScrollView
             horizontal
@@ -1360,6 +1363,78 @@ function RecentActivities({ userId, colors, isWide }: { userId?: string; colors:
             </View>
           );
         })}
+      </View>
+    </View>
+  );
+}
+
+// ── Meine Woche: dem angemeldeten Benutzer zugewiesene offene Arbeit ──
+function MyWeekCard({ userId, colors, isWide }: { userId: string; colors: any; isWide: boolean }) {
+  const router = useRouter();
+  const { data } = useQuery({
+    queryKey: ["myWeek", userId],
+    queryFn: () => Data.getMyWeek(userId),
+    refetchInterval: 120000,
+  });
+
+  const tickets = data?.tickets || [];
+  const tasks = data?.tasks || [];
+  const leads = data?.leads || [];
+  if (tickets.length === 0 && tasks.length === 0 && leads.length === 0) return null;
+
+  const fmtShort = (d?: string | null) => {
+    if (!d) return "";
+    const p = String(d).split("T")[0].split("-");
+    return p.length === 3 ? ` · ${p[2]}.${p[1]}.` : "";
+  };
+
+  const Row = ({ icon, color, title, subtitle, onPress }: any) => (
+    <TouchableOpacity
+      style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: colors.border + "40" }}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: color + "18", alignItems: "center", justifyContent: "center" }}>
+        <IconSymbol name={icon} size={14} color={color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{title}</Text>
+        <Text style={{ fontSize: 11, color: colors.muted }} numberOfLines={1}>{subtitle}</Text>
+      </View>
+      <IconSymbol name="chevron.right" size={12} color={colors.muted} />
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={{ marginBottom: isWide ? 24 : 18 }}>
+      <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>
+        Meine Woche
+      </Text>
+      <View style={{ backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 6 }}>
+        {tickets.map((t: any) => (
+          <Row
+            key={`t-${t.id}`} icon="ticket.fill" color="#F59E0B"
+            title={t.title}
+            subtitle={`Mir zugewiesen · ${t.status === "open" ? "Offen" : t.status === "in_progress" ? "In Bearbeitung" : "Wartend"}${fmtShort(t.due_date)}`}
+            onPress={() => router.push(`/tickets?ticketId=${t.id}` as any)}
+          />
+        ))}
+        {tasks.map((t: any) => (
+          <Row
+            key={`a-${t.id}`} icon="checklist" color="#8B5CF6"
+            title={t.title}
+            subtitle={`Aufgabe${fmtShort(t.due_date)}`}
+            onPress={() => router.push("/tasks" as any)}
+          />
+        ))}
+        {leads.map((l: any) => (
+          <Row
+            key={`l-${l.id}`} icon="flag.fill" color="#0EA5E9"
+            title={l.company || l.name}
+            subtitle={`Follow-up: ${l.next_action || "fällig"}${fmtShort(l.next_action_date)}`}
+            onPress={() => router.push(`/leads?leadId=${l.id}` as any)}
+          />
+        ))}
       </View>
     </View>
   );

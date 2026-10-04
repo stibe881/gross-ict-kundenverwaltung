@@ -11,7 +11,7 @@ import {
   Platform,
   Image,
 } from "react-native";
-import { showAlert } from "@/lib/alert";
+import { showAlert, showConfirm } from "@/lib/alert";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useMutation } from "@tanstack/react-query";
@@ -76,6 +76,8 @@ export function CustomerFormModal({
     country: editCustomer?.country || "Schweiz",
     website: editCustomer?.website || "",
     discountPercent: editCustomer?.discount_percent ? String(editCustomer.discount_percent) : "",
+    paymentTermsDays: editCustomer?.payment_terms_days ? String(editCustomer.payment_terms_days) : "",
+    tagsText: (editCustomer?.tags || []).join(", "),
   });
   const [monitorWebsite, setMonitorWebsite] = useState(false);
   const [logoUri, setLogoUri] = useState<string | null>(editCustomer?.logo_url || null);
@@ -100,6 +102,8 @@ export function CustomerFormModal({
         country: editCustomer.country || "Schweiz",
         website: editCustomer.website || "",
         discountPercent: editCustomer.discount_percent ? String(editCustomer.discount_percent) : "",
+        paymentTermsDays: editCustomer.payment_terms_days ? String(editCustomer.payment_terms_days) : "",
+        tagsText: (editCustomer.tags || []).join(", "),
       });
       setMonitorWebsite(false); // Reset monitoring toggle when opening edit
       setLogoUri(editCustomer.logo_url || null);
@@ -123,6 +127,8 @@ export function CustomerFormModal({
         country: data.country,
         website: data.website,
         discount_percent: parseFloat(data.discountPercent) || 0,
+        payment_terms_days: parseInt(data.paymentTermsDays) || null,
+        tags: String(data.tagsText || "").split(",").map((t: string) => t.trim()).filter(Boolean),
       };
 
       let result;
@@ -211,6 +217,8 @@ export function CustomerFormModal({
       country: "Schweiz",
       website: "",
       discountPercent: "",
+      paymentTermsDays: "",
+      tagsText: "",
     });
     setMonitorWebsite(false);
     setLogoUri(null);
@@ -245,7 +253,7 @@ export function CustomerFormModal({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (customerType === "business") {
       if (!formData.email || !formData.companyName) {
         showAlert("Fehler", "Bitte füllen Sie mindestens E-Mail und Firmenname aus");
@@ -257,6 +265,28 @@ export function CustomerFormModal({
         return;
       }
     }
+
+    // Dublettenwarnung (nur bei Neuanlage)
+    if (!isEditing) {
+      try {
+        const name = customerType === "business" ? formData.companyName : formData.lastName;
+        const similar = await Data.findSimilarCustomers(name, formData.email, formData.phone);
+        if (similar.length > 0) {
+          const list = similar
+            .slice(0, 3)
+            .map((c: any) => `• ${c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim()}${c.email ? ` (${c.email})` : ""}`)
+            .join("\n");
+          showConfirm(
+            "Mögliche Dublette",
+            `Es gibt bereits ähnliche Kunden:\n${list}\n\nTrotzdem neu anlegen?`,
+            () => createCustomer.mutate(formData),
+            "Trotzdem anlegen"
+          );
+          return;
+        }
+      } catch (_) { /* Prüfung ist optional */ }
+    }
+
     createCustomer.mutate(formData);
   };
 
@@ -477,6 +507,14 @@ export function CustomerFormModal({
               )}
 
               {/* Standardrabatt */}
+              {renderInput("Zahlungsziel in Tagen (optional, Standard 30)", formData.paymentTermsDays,
+                (text) => setFormData({ ...formData, paymentTermsDays: text }),
+                { placeholder: "z.B. 10, 30, 60", keyboard: "number-pad" })}
+
+              {renderInput("Tags (kommagetrennt, z.B. VIP, Cloud)", formData.tagsText,
+                (text) => setFormData({ ...formData, tagsText: text }),
+                { placeholder: "VIP, Cloud, vor Ort" })}
+
               {renderInput("Standardrabatt in % (optional)", formData.discountPercent,
                 (text) => setFormData({ ...formData, discountPercent: text }),
                 { placeholder: "z.B. 10 – wird in neuen Angeboten vorgeschlagen", keyboard: "decimal-pad" }
