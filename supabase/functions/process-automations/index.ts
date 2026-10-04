@@ -189,12 +189,15 @@ serve(async (req) => {
   // Stichtag = Vertragsende minus Kündigungsfrist. Gemeldet wird exakt bei
   // 30/14/7/1 Tagen Vorlauf (dadurch keine täglichen Wiederholungen).
   try {
+    // Nur eigene/interne Verträge überwachen – auslaufende Kundenverträge
+    // sollen keine Kündigungsfrist-Warnung auslösen
     const { data: endingContracts } = await supabase
       .from("contracts")
       .select("id, title, contract_number, end_date, notice_period_months, customer:customers(company_name, first_name, last_name)")
       .eq("status", "active")
       .is("cancellation_date", null)
-      .not("end_date", "is", null);
+      .not("end_date", "is", null)
+      .or("is_internal.eq.true,customer_id.is.null");
 
     const todayMs = new Date(today).getTime();
     for (const c of endingContracts || []) {

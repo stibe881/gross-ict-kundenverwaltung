@@ -36,8 +36,10 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
         allowed("quotes")
           ? supabase.from("quotes").select("id, quote_number, valid_until, total").in("status", ["sent", "opened"]).gte("valid_until", today).lte("valid_until", in3Days).limit(5)
           : Promise.resolve({ data: [] } as any),
+        // Kündigungsfristen: nur eigene/interne Verträge – auslaufende
+        // Kundenverträge gehören nicht in den Heute-Feed
         allowed("contracts")
-          ? supabase.from("contracts").select("id, title, end_date, notice_period_months").eq("status", "active").is("cancellation_date", null).not("end_date", "is", null).limit(50)
+          ? supabase.from("contracts").select("id, title, end_date, notice_period_months").eq("status", "active").is("cancellation_date", null).not("end_date", "is", null).or("is_internal.eq.true,customer_id.is.null").limit(50)
           : Promise.resolve({ data: [] } as any),
         allowed("leads")
           ? (supabase as any).from("leads").select("id, name, company, next_action, next_action_date").not("next_action", "is", null).lte("next_action_date", today).not("status", "in", '("won","lost")').limit(5)
