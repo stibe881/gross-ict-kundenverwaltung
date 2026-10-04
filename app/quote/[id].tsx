@@ -13,6 +13,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
+import { CustomerPickerModal } from "@/components/customer-picker-modal";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { showAlert, showConfirm, showConfirm2 } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
@@ -36,6 +37,7 @@ export default function QuoteDetailScreen() {
     const colors = useColors();
     const router = useRouter();
     const queryClient = useQueryClient();
+    const [showDuplicatePicker, setShowDuplicatePicker] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -660,6 +662,17 @@ export default function QuoteDetailScreen() {
                         <Text className="text-background font-semibold ml-2">Neue Version</Text>
                     </TouchableOpacity>
 
+                    {/* Duplizieren (optional für anderen Kunden) */}
+                    <TouchableOpacity
+                        onPress={() => setShowDuplicatePicker(true)}
+                        style={{ backgroundColor: "#64748B" }}
+                        className="p-4 rounded-lg flex-row items-center justify-center flex-1 min-w-[200px]"
+                        activeOpacity={0.8}
+                    >
+                        <IconSymbol name="square.on.square" size={20} color="#fff" />
+                        <Text className="text-background font-semibold ml-2">Duplizieren</Text>
+                    </TouchableOpacity>
+
                     {/* Bearbeiten */}
                     <TouchableOpacity
                         onPress={() => setShowEditModal(true)}
@@ -754,6 +767,22 @@ export default function QuoteDetailScreen() {
                     </View>
                 </View>
             </Modal>
+            <CustomerPickerModal
+                visible={showDuplicatePicker}
+                title="Angebot duplizieren für…"
+                onClose={() => setShowDuplicatePicker(false)}
+                onSelect={async (custId) => {
+                    setShowDuplicatePicker(false);
+                    try {
+                        const nq = await Data.duplicateQuote(id as string, custId || undefined);
+                        queryClient.invalidateQueries({ queryKey: ["quotes"] });
+                        showToast(`Angebot ${nq.quote_number} als Kopie erstellt`);
+                        router.push(`/quote/${nq.id}`);
+                    } catch (e: any) {
+                        showAlert("Fehler", e.message);
+                    }
+                }}
+            />
         </ScreenContainer>
     );
 }

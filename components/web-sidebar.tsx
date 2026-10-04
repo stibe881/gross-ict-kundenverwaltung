@@ -88,6 +88,7 @@ export function WebSidebar() {
             items: [
                 ...(showTickets ? [{ route: "/tickets", label: "Tickets", icon: "ticket.fill", badge: openTickets, badgeColor: "#FB923C" }] : []),
                 { route: "/contracts", label: "Verträge", icon: "doc.text.fill" },
+                { route: "/einsatzplan", label: "Einsatzplan", icon: "calendar" },
                 { route: "/tasks", label: "Aufgaben", icon: "checklist" },
                 { route: "/uberwachung", label: "Überwachung", icon: "wifi" },
                 { route: "/knowledge-base", label: "Wissensdatenbank", icon: "book.fill" },

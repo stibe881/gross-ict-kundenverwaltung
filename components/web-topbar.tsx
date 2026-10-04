@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     View,
     Text,
@@ -32,6 +32,20 @@ export function WebTopbar() {
     const [searching, setSearching] = useState(false);
     const [results, setResults] = useState<GlobalSearchResult[]>([]);
     const searchTimer = useRef<any>(null);
+    const searchInputRef = useRef<TextInput>(null);
+
+    // Cmd+K / Ctrl+K fokussiert die Suche (nur Web)
+    useEffect(() => {
+        if (Platform.OS !== "web" || typeof window === "undefined") return;
+        const onKey = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, []);
 
     const [showAskCrm, setShowAskCrm] = useState(false);
     const [showNewMenu, setShowNewMenu] = useState(false);
@@ -105,16 +119,21 @@ export function WebTopbar() {
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: search ? colors.primary + "60" : colors.border, borderRadius: 11, paddingHorizontal: 14, paddingVertical: 9 }}>
                         <IconSymbol name="magnifyingglass" size={15} color={colors.muted} />
                         <TextInput
+                            ref={searchInputRef}
                             style={{ flex: 1, fontSize: 13.5, color: colors.foreground }}
                             placeholder="Suchen… (status:offen · kunde:müller · >1000)"
                             placeholderTextColor={colors.muted}
                             value={search}
                             onChangeText={handleSearchChange}
                         />
-                        {search.length > 0 && (
+                        {search.length > 0 ? (
                             <TouchableOpacity onPress={() => { setSearch(""); setResults([]); }}>
                                 <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
                             </TouchableOpacity>
+                        ) : (
+                            <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 }}>
+                                <Text style={{ fontSize: 11, color: colors.muted }}>⌘K</Text>
+                            </View>
                         )}
                     </View>
                     {(results.length > 0 || (searching && search.length >= 2)) && (

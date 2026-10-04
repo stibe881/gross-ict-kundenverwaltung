@@ -516,3 +516,17 @@ verify_jwt = true
 
 [functions.quote-ai]
 verify_jwt = true
+
+[functions.contact-form]
+enabled = true
+# Öffentlich: Kontaktformular der Website
+verify_jwt = false
+entrypoint = "./functions/contact-form/index.ts"
+
+[functions.send-welcome]
+verify_jwt = true
+entrypoint = "./functions/send-welcome/index.ts"
+
+[functions.cross-sell]
+verify_jwt = true
+entrypoint = "./functions/cross-sell/index.ts"

@@ -65,6 +65,7 @@ serve(async (req) => {
     assetExpiries: [] as string[],
     recurringTickets: [] as string[],
     escalatedTickets: [] as string[],
+    reviewRequests: [] as string[],
     errors: [] as string[],
   };
 
@@ -676,6 +677,78 @@ serve(async (req) => {
         }),
       });
     } catch (e) { console.error("[automations] Push (Inventar) fehlgeschlagen:", e); }
+  }
+
+  // ── 12. Google-Bewertungs-Mails: nach geschlossenem Ticket um Review bitten ──
+  // Einstellbar: marketing_settings review_auto_enabled ('true') + review_link.
+  try {
+    const { data: settingsRows } = await supabase.from("marketing_settings").select("key, value");
+    const settings: Record<string, string> = {};
+    for (const r of settingsRows || []) settings[r.key] = r.value;
+
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+    if (settings.review_auto_enabled === "true" && settings.review_link && resendKey) {
+      const dayAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const twoDaysAgo = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+      const { data: closedTickets } = await supabase
+        .from("tickets")
+        .select("id, title, customer_id, customer:customers(id, company_name, first_name, last_name, email)")
+        .eq("status", "closed")
+        .gte("updated_at", twoDaysAgo)
+        .lte("updated_at", dayAgo)
+        .not("customer_id", "is", null)
+        .limit(20);
+
+      const halfYearAgo = new Date(Date.now() - 180 * 86400000).toISOString();
+      for (const t of closedTickets || []) {
+        const cust: any = t.customer;
+        if (!cust?.email) continue;
+        // Höchstens alle 180 Tage pro Kunde
+        const { data: already } = await supabase
+          .from("review_requests")
+          .select("id")
+          .eq("customer_id", cust.id)
+          .gte("created_at", halfYearAgo)
+          .limit(1);
+        if (already && already.length > 0) continue;
+
+        const name = cust.company_name || `${cust.first_name || ""} ${cust.last_name || ""}`.trim();
+        const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1f2937;">
+            <div style="background: #0f172a; padding: 20px 24px; border-radius: 12px 12px 0 0;">
+              <span style="color: #fff; font-size: 18px; font-weight: bold;">Gross ICT</span>
+            </div>
+            <div style="padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+              <p style="font-size: 14px;">Guten Tag ${name}</p>
+              <p style="font-size: 14px; line-height: 1.6;">
+                Ihr Anliegen «${t.title}» konnten wir erledigen – schön, dass wir helfen durften!
+                Wenn Sie mit uns zufrieden waren, würden wir uns riesig über eine kurze
+                Google-Bewertung freuen. Das dauert eine Minute und hilft uns sehr.
+              </p>
+              <p style="text-align: center; margin: 24px 0;">
+                <a href="${settings.review_link}" style="background: #C19A6B; color: #1C1D27; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: bold;">Jetzt bewerten</a>
+              </p>
+              <p style="font-size: 13px; color: #6b7280;">Herzlichen Dank!<br/>Gross ICT</p>
+            </div>
+          </div>`;
+        const res = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "Gross ICT <info@gross-ict.ch>",
+            to: [cust.email],
+            subject: "Waren Sie zufrieden mit uns?",
+            html,
+          }),
+        });
+        if (res.ok) {
+          await supabase.from("review_requests").insert({ customer_id: cust.id, ticket_id: t.id, sent_to: cust.email });
+          summary.reviewRequests.push(name);
+        }
+      }
+    }
+  } catch (e) {
+    summary.errors.push(`Review-Mails: ${(e as Error).message}`);
   }
 
   return new Response(JSON.stringify({ success: true, ...summary }), {

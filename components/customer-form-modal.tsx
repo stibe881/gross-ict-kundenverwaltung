@@ -136,6 +136,10 @@ export function CustomerFormModal({
         result = await Data.updateCustomer(editCustomer.id, customerData);
       } else {
         result = await Data.createCustomer(customerData);
+        // Willkommenspaket (falls in Einstellungen → Kundengewinnung aktiviert)
+        if (result?.id && customerData.email) {
+          Data.sendWelcomePackage(result.id);
+        }
       }
 
       // Upload logo if changed (nur für Firmenkunden)

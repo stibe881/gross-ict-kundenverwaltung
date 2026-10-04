@@ -890,6 +890,9 @@ export default function AccountingScreen() {
       {/* Kunden-Profitabilität */}
       <CustomerProfitabilityCard selectedYear={selectedYear} colors={colors} />
 
+      {/* Umsatz-Forecast 3 Monate */}
+      <ForecastCard colors={colors} />
+
       {/* Liquiditätsvorschau 90 Tage */}
       <LiquidityCard colors={colors} />
 
@@ -3319,5 +3322,55 @@ function DunningCenterModal({
         </View>
       </View>
     </Modal>
+  );
+}
+
+
+// ── Umsatz-Forecast: Verträge + gewichtete Pipeline + offene Angebote, 3 Monate ──
+function ForecastCard({ colors }: { colors: any }) {
+  const { data: forecast = [] } = useQuery({
+    queryKey: ["revenueForecast"],
+    queryFn: Data.getForecast,
+  });
+  if (!(forecast as any[]).length) return null;
+  const max = Math.max(...(forecast as any[]).map((m: any) => m.contract + m.pipeline + m.quotes), 1);
+  const SEGMENTS: { key: "contract" | "pipeline" | "quotes"; label: string; color: string }[] = [
+    { key: "contract", label: "Verträge (sicher)", color: "#4ADE80" },
+    { key: "quotes", label: "Offene Angebote (50%)", color: "#F59E0B" },
+    { key: "pipeline", label: "Pipeline (gewichtet)", color: "#8B5CF6" },
+  ];
+  return (
+    <View className="bg-surface rounded-2xl border border-border p-4 mb-4">
+      <Text className="text-base font-bold text-foreground mb-1">Umsatz-Forecast 3 Monate</Text>
+      <Text className="text-xs text-muted mb-3">
+        Vertragsumsatz (auf Monat normalisiert) + offene Angebote zu 50% + gewichtete Lead-Pipeline, je auf 3 Monate verteilt.
+      </Text>
+      {(forecast as any[]).map((m: any) => {
+        const total = m.contract + m.pipeline + m.quotes;
+        return (
+          <View key={m.label} style={{ marginBottom: 10 }}>
+            <View className="flex-row justify-between mb-1">
+              <Text className="text-sm font-semibold text-foreground">{m.label}</Text>
+              <Text className="text-sm font-bold text-foreground">CHF {total.toLocaleString("de-CH")}</Text>
+            </View>
+            <View style={{ flexDirection: "row", height: 12, borderRadius: 6, overflow: "hidden", backgroundColor: colors.border + "40" }}>
+              {SEGMENTS.map((seg) => (
+                m[seg.key] > 0 ? (
+                  <View key={seg.key} style={{ width: `${(m[seg.key] / max) * 100}%`, backgroundColor: seg.color }} />
+                ) : null
+              ))}
+            </View>
+          </View>
+        );
+      })}
+      <View className="flex-row flex-wrap gap-3 mt-1">
+        {SEGMENTS.map((seg) => (
+          <View key={seg.key} className="flex-row items-center gap-1.5">
+            <View style={{ width: 9, height: 9, borderRadius: 3, backgroundColor: seg.color }} />
+            <Text className="text-xs text-muted">{seg.label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }

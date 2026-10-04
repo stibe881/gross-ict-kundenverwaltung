@@ -35,8 +35,17 @@ export default function CustomersScreen() {
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const [searchQuery, setSearchQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [abcFilter, setAbcFilter] = useState<"A" | "B" | "C" | null>(null);
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === "web" && width > 900;
+
+  // ABC-Klassierung nach Umsatz der letzten 12 Monate
+  const { data: abcClasses = {} } = useQuery({
+    queryKey: ["abcClasses"],
+    queryFn: Data.getAbcClasses,
+  });
+  const abcOf = (id: string): "A" | "B" | "C" | null => (abcClasses as any)[id]?.cls || null;
+  const ABC_COLORS: Record<string, string> = { A: "#FBBF24", B: "#94A3B8", C: "#6B7280" };
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("active");
@@ -86,7 +95,8 @@ export default function CustomersScreen() {
         (filterStatus === "active" && customer.status === "active") ||
         (filterStatus === "inactive" && customer.status !== "active");
       const matchesTag = !tagFilter || (customer.tags || []).includes(tagFilter);
-      return matchesSearch && matchesStatus && matchesTag;
+      const matchesAbc = !abcFilter || abcOf(customer.id) === abcFilter;
+      return matchesSearch && matchesStatus && matchesTag && matchesAbc;
     })
     .sort((a: any, b: any) => getDisplayName(a).localeCompare(getDisplayName(b), "de"));
 
@@ -158,6 +168,11 @@ export default function CustomersScreen() {
           </View>
           </View>
           <View className="flex-row items-center gap-3">
+            {abcOf(item.id) ? (
+              <View style={{ width: 24, height: 24, borderRadius: 7, backgroundColor: ABC_COLORS[abcOf(item.id)!] + "25", alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ fontSize: 12, fontWeight: "800", color: ABC_COLORS[abcOf(item.id)!] }}>{abcOf(item.id)}</Text>
+              </View>
+            ) : null}
             <View
               className={`px-3 py-1 rounded-full ${item.status === "active" ? "bg-success" : "bg-muted"
                 }`}
@@ -312,6 +327,25 @@ export default function CustomersScreen() {
             ))}
           </View>
 
+          {/* ABC-Filter */}
+          <View className="flex-row gap-2 mb-4">
+            {(["A", "B", "C"] as const).map((cls) => (
+              <TouchableOpacity
+                key={cls}
+                onPress={() => setAbcFilter(abcFilter === cls ? null : cls)}
+                style={{
+                  backgroundColor: abcFilter === cls ? ABC_COLORS[cls] : colors.surface,
+                  borderColor: abcFilter === cls ? ABC_COLORS[cls] : colors.border,
+                }}
+                className="px-4 py-1.5 rounded-full border"
+              >
+                <Text style={{ color: abcFilter === cls ? "#1C1D27" : colors.foreground, fontSize: 13, fontWeight: "700" }}>
+                  {cls}-Kunden
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {/* Tag-Filter */}
           {allTags.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} className="mb-4">
@@ -372,7 +406,12 @@ export default function CustomersScreen() {
                             </View>
                           )}
                           <View style={{ minWidth: 0, flex: 1 }}>
-                            <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{name}</Text>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                              <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{name}</Text>
+                              {abcOf(item.id) ? (
+                                <Text style={{ fontSize: 10.5, fontWeight: "800", color: ABC_COLORS[abcOf(item.id)!] }}>{abcOf(item.id)}</Text>
+                              ) : null}
+                            </View>
                             {item.email ? <Text style={{ fontSize: 11.5, color: colors.muted }} numberOfLines={1}>{item.email}</Text> : null}
                           </View>
                         </View>

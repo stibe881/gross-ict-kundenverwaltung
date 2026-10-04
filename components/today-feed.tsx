@@ -166,6 +166,54 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
         });
       }
 
+      // Inaktive Kunden: aktiv, aber 6 Monate ohne Rechnung und Ticket
+      if (allowed("customers")) {
+        try {
+          const inactive = await Data.getInactiveCustomers();
+          for (const c of inactive.slice(0, 3)) {
+            result.push({
+              key: `inactive-${c.id}`,
+              icon: "zzz",
+              color: "#8A8498",
+              title: c.name,
+              subtitle: "Seit 6 Monaten keine Rechnung und kein Ticket – Lebenszeichen senden",
+              route: `/customer/${c.id}`,
+            });
+          }
+        } catch (_) { /* optional */ }
+      }
+
+      // Jahresgespräch: A-Kunden rund um ihr Kundenjubiläum
+      if (allowed("customers")) {
+        try {
+          const abc = await Data.getAbcClasses();
+          const { data: aCustomers } = await supabase
+            .from("customers")
+            .select("id, company_name, first_name, last_name, created_at")
+            .eq("status", "active");
+          const now = new Date();
+          for (const c of (aCustomers as any[]) || []) {
+            if (abc[c.id]?.cls !== "A" || !c.created_at) continue;
+            const created = new Date(c.created_at);
+            if (created.getTime() > now.getTime() - 300 * 86400000) continue; // erst ab ~1 Jahr
+            const next = new Date(now.getFullYear(), created.getMonth(), created.getDate());
+            if (next < new Date(now.getFullYear(), now.getMonth(), now.getDate())) next.setFullYear(next.getFullYear() + 1);
+            const diff = Math.round((next.getTime() - now.getTime()) / 86400000);
+            if (diff <= 14) {
+              const name = c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim();
+              result.push({
+                key: `annual-${c.id}`,
+                icon: "person.2.wave.2.fill",
+                color: "#FBBF24",
+                title: `Jahresgespräch mit ${name} planen`,
+                subtitle: `A-Kunde · Kundenjubiläum in ${diff} Tag${diff === 1 ? "" : "en"}`,
+                route: `/customer/${c.id}`,
+              });
+            }
+          }
+        } catch (_) { /* optional */ }
+      }
+
       // Geburtstage & Kunden-Jubiläen (nächste 14 Tage)
       if (allowed("customers")) {
         try {

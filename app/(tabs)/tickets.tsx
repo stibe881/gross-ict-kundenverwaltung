@@ -41,7 +41,7 @@ export default function TicketsScreen() {
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
   const queryClient = useQueryClient();
   const { refreshing, onRefresh } = useGlobalRefresh();
-  const [filter, setFilter] = useState<"all" | TicketStatus>("open");
+  const [filter, setFilter] = useState<"all" | "inbox" | TicketStatus>("open");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | TicketPriority>("all");
   const [onlyMine, setOnlyMine] = useState(false);
@@ -222,7 +222,7 @@ export default function TicketsScreen() {
   };
 
   const filteredTickets = tickets
-    .filter((t) => filter === "all" || t.status === filter)
+    .filter((t) => filter === "all" || (filter === "inbox" ? !t.customer_id : t.status === filter))
     .filter((t) => {
       if (assigneeFilter === "all") return true;
       if (assigneeFilter === "unassigned") return !t.assigned_to;
@@ -703,6 +703,28 @@ export default function TicketsScreen() {
             ))}
           </View>
 
+          {/* Posteingang: eingegangene Mails ohne Kundenzuordnung */}
+          {tickets.filter((t: any) => !t.customer_id && t.status !== "closed").length > 0 ? (
+            <TouchableOpacity
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14,
+                backgroundColor: filter === "inbox" ? "#06B6D415" : colors.surface,
+                borderWidth: 1, borderColor: filter === "inbox" ? "#06B6D4" : colors.border,
+                borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+              }}
+              onPress={() => setFilter(filter === "inbox" ? "all" : "inbox")}
+              activeOpacity={0.7}
+            >
+              <IconSymbol name="tray.fill" size={15} color="#06B6D4" />
+              <Text style={{ flex: 1, fontSize: 13, fontWeight: "600", color: colors.foreground }}>
+                Posteingang: {tickets.filter((t: any) => !t.customer_id && t.status !== "closed").length} Ticket(s) ohne Kundenzuordnung
+              </Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#06B6D4" }}>
+                {filter === "inbox" ? "Alle zeigen" : "Anzeigen →"}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+
           {/* Ticket List / Table */}
           {isLoading ? (
             <View className="flex-1 items-center justify-center">
@@ -896,6 +918,46 @@ function TicketDetailsModal({
       showAlert("Fehler", "Zuordnung konnte nicht gespeichert werden: " + e.message);
     }
   };
+  // Checklisten in der Beschreibung: ☐/☑-Zeilen anklickbar machen
+  const [descText, setDescText] = useState<string>(ticket.description || "");
+  const hasChecklist = /[☐☑]/.test(descText);
+  const toggleChecklistLine = async (lineIdx: number) => {
+    const lines = descText.split("\n");
+    const line = lines[lineIdx];
+    if (!line) return;
+    if (line.trimStart().startsWith("☐")) lines[lineIdx] = line.replace("☐", "☑");
+    else if (line.trimStart().startsWith("☑")) lines[lineIdx] = line.replace("☑", "☐");
+    else return;
+    const next = lines.join("\n");
+    const prev = descText;
+    setDescText(next);
+    try {
+      await Data.updateTicket(ticket.id, { description: next } as any);
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    } catch (e: any) {
+      setDescText(prev);
+      showAlert("Fehler", e.message);
+    }
+  };
+
+  // Posteingang: Ticket nachträglich einem Kunden zuordnen
+  const [assignCustomerSearch, setAssignCustomerSearch] = useState("");
+  const { data: allCustomersForAssign = [] } = useQuery({
+    queryKey: ["customers"],
+    queryFn: Data.getCustomersWithCounts,
+    enabled: !ticket.customer_id,
+  });
+  const handleAssignCustomer = async (customerId: string) => {
+    try {
+      await Data.updateTicket(ticket.id, { customer_id: customerId } as any);
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      showToast("Ticket dem Kunden zugeordnet");
+      onClose();
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    }
+  };
+
   // Betroffenes Gerät/Lizenz aus dem Kunden-Inventar (Punkt 13)
   const [linkedAssetId, setLinkedAssetId] = useState<string | null>((ticket as any).asset_id || null);
   const { data: customerAssets = [] } = useQuery({
@@ -1653,6 +1715,47 @@ function TicketDetailsModal({
             ))}
           </View>
 
+          {/* Posteingang: Kunde zuordnen */}
+          {!ticket.customer_id ? (
+            <>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#06B6D4", textTransform: "uppercase", marginTop: 14, marginBottom: 6 }}>
+                Keinem Kunden zugeordnet
+              </Text>
+              <TextInput
+                value={assignCustomerSearch}
+                onChangeText={setAssignCustomerSearch}
+                placeholder="Kunde suchen und zuordnen…"
+                placeholderTextColor={colors.muted}
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, color: colors.foreground, fontSize: 13 }}
+              />
+              {assignCustomerSearch.length >= 2 ? (
+                <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginTop: 6, maxHeight: 160, overflow: "hidden" }}>
+                  <ScrollView nestedScrollEnabled>
+                    {(allCustomersForAssign as any[])
+                      .filter((c: any) => {
+                        const n = (c.company_name || `${c.first_name || ""} ${c.last_name || ""}`).toLowerCase();
+                        return n.includes(assignCustomerSearch.toLowerCase()) || (c.email || "").toLowerCase().includes(assignCustomerSearch.toLowerCase());
+                      })
+                      .slice(0, 8)
+                      .map((c: any) => (
+                        <TouchableOpacity
+                          key={c.id}
+                          style={{ paddingHorizontal: 12, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border + "50" }}
+                          onPress={() => handleAssignCustomer(c.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground }}>
+                            {c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim()}
+                          </Text>
+                          {c.email ? <Text style={{ fontSize: 11, color: colors.muted }}>{c.email}</Text> : null}
+                        </TouchableOpacity>
+                      ))}
+                  </ScrollView>
+                </View>
+              ) : null}
+            </>
+          ) : null}
+
           {/* Projekt-Zuordnung: Aufwände erscheinen im Projekt */}
           {customerProjects.length > 0 && (
             <>
@@ -1834,7 +1937,45 @@ function TicketDetailsModal({
           {ticket.description && (
             <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 16 }}>
               <Text style={{ fontSize: 12, fontWeight: "600", color: colors.muted, textTransform: "uppercase", marginBottom: 8 }}>Beschreibung vom {formatDate(ticket.created_at)}</Text>
-              <Text style={{ fontSize: 15, color: colors.foreground, lineHeight: 22 }}>{ticket.description}</Text>
+              {hasChecklist ? (
+                <View>
+                  {descText.split("\n").map((line, idx) => {
+                    const trimmed = line.trimStart();
+                    const isOpen = trimmed.startsWith("☐");
+                    const isDone = trimmed.startsWith("☑");
+                    if (!isOpen && !isDone) {
+                      return line.trim() === "" ? <View key={idx} style={{ height: 8 }} /> : (
+                        <Text key={idx} style={{ fontSize: 15, color: colors.foreground, lineHeight: 22 }}>{line}</Text>
+                      );
+                    }
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 3 }}
+                        onPress={() => toggleChecklistLine(idx)}
+                        activeOpacity={0.6}
+                      >
+                        <IconSymbol
+                          name={isDone ? "checkmark.circle.fill" : "circle"}
+                          size={18}
+                          color={isDone ? colors.success : colors.muted}
+                        />
+                        <Text
+                          style={{
+                            flex: 1, fontSize: 15, lineHeight: 22,
+                            color: isDone ? colors.muted : colors.foreground,
+                            textDecorationLine: isDone ? "line-through" : "none",
+                          }}
+                        >
+                          {trimmed.replace(/^[☐☑]\s*/, "")}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <Text style={{ fontSize: 15, color: colors.foreground, lineHeight: 22 }}>{ticket.description}</Text>
+              )}
             </View>
           )}
           {comments && comments.length > 0 ? (

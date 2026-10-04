@@ -5261,3 +5261,233 @@ export async function syncEntraAvatar(session: any) {
         console.warn("[Avatar] Sync fehlgeschlagen:", e?.message);
     }
 }
+
+// ════════════════ RUNDE 7 ════════════════
+
+// ── (14) ABC-Klassierung: Umsatz (bezahlt, 12 Monate) → A/B/C ──
+export async function getAbcClasses(): Promise<Record<string, { cls: "A" | "B" | "C"; revenue: number }>> {
+    const yearAgo = new Date(Date.now() - 365 * 86400000).toISOString().split("T")[0];
+    const { data } = await supabase
+        .from("invoices")
+        .select("customer_id, total")
+        .eq("status", "paid")
+        .gte("invoice_date", yearAgo);
+    const revenue = new Map<string, number>();
+    for (const i of (data as any[]) || []) {
+        if (!i.customer_id) continue;
+        revenue.set(i.customer_id, (revenue.get(i.customer_id) || 0) + (i.total || 0));
+    }
+    const sorted = Array.from(revenue.entries()).sort((a, b) => b[1] - a[1]);
+    const totalSum = sorted.reduce((s, [, v]) => s + v, 0) || 1;
+    const out: Record<string, { cls: "A" | "B" | "C"; revenue: number }> = {};
+    let cum = 0;
+    for (const [id, v] of sorted) {
+        cum += v;
+        out[id] = { cls: cum / totalSum <= 0.7 ? "A" : cum / totalSum <= 0.95 ? "B" : "C", revenue: v };
+    }
+    return out;
+}
+
+// ── (15) Inaktive Kunden: aktiv, aber seit 180 Tagen ohne Rechnung und Ticket ──
+export async function getInactiveCustomers() {
+    const cutoff = new Date(Date.now() - 180 * 86400000).toISOString();
+    const cutoffDate = cutoff.split("T")[0];
+    const [customersRes, invoicesRes, ticketsRes] = await Promise.all([
+        supabase.from("customers").select("id, company_name, first_name, last_name, created_at").eq("status", "active"),
+        supabase.from("invoices").select("customer_id").gte("invoice_date", cutoffDate),
+        supabase.from("tickets").select("customer_id").gte("created_at", cutoff),
+    ]);
+    const recent = new Set<string>();
+    for (const i of (invoicesRes.data as any[]) || []) if (i.customer_id) recent.add(i.customer_id);
+    for (const t of (ticketsRes.data as any[]) || []) if (t.customer_id) recent.add(t.customer_id);
+    return ((customersRes.data as any[]) || [])
+        .filter((c) => !recent.has(c.id) && new Date(c.created_at).getTime() < Date.now() - 180 * 86400000)
+        .map((c) => ({
+            id: c.id,
+            name: c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Kunde",
+        }));
+}
+
+// ── (11) Cross-Selling-Analyse (KI) ──
+export async function getCrossSellSuggestions() {
+    const { data, error } = await supabase.functions.invoke("cross-sell", { body: {} });
+    if (error) throw new Error(error.message);
+    return (data?.suggestions || []) as { customerId: string; customer: string; idea: string; reason: string }[];
+}
+
+// ── (18) Willkommenspaket senden (respektiert den Schalter in den Einstellungen) ──
+export async function sendWelcomePackage(customerId: string) {
+    try {
+        const { data } = await supabase.functions.invoke("send-welcome", { body: { customerId } });
+        return data;
+    } catch (_) {
+        return null; // Willkommens-Mail ist Komfort, kein Muss
+    }
+}
+
+// ── (28) Duplizieren: Angebot / Rechnung / Projekt (optional für anderen Kunden) ──
+export async function duplicateQuote(quoteId: string, targetCustomerId?: string) {
+    const quote: any = await getQuoteById(quoteId);
+    if (!quote) throw new Error("Angebot nicht gefunden");
+    const { customer, items, id, created_at, updated_at, ...rest } = quote;
+    const newNumber = await getNextQuoteNumber();
+    const { data: newQuote, error } = await db
+        .from("quotes")
+        .insert({
+            ...rest,
+            quote_number: newNumber,
+            customer_id: targetCustomerId || quote.customer_id,
+            status: "draft",
+            version: 1,
+            parent_quote_id: null,
+            followup_sent_at: null,
+            quote_date: new Date().toISOString().split("T")[0],
+        })
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    const newItems = (items || []).map((i: any) => {
+        const { id: _i, quote_id: _q, created_at: _c, ...itemRest } = i;
+        return { ...itemRest, quote_id: newQuote.id };
+    });
+    if (newItems.length) await db.from("quote_items").insert(newItems);
+    logActivity("quote", newQuote.id, "created", `Angebot ${newNumber} als Kopie von ${quote.quote_number} erstellt`);
+    return newQuote;
+}
+
+export async function duplicateInvoice(invoiceId: string, targetCustomerId?: string) {
+    const { data: invoice, error: loadErr } = await supabase
+        .from("invoices")
+        .select("*, items:invoice_items(*)")
+        .eq("id", invoiceId)
+        .single();
+    if (loadErr || !invoice) throw new Error("Rechnung nicht gefunden");
+    const { items, id, created_at, updated_at, ...rest } = invoice as any;
+    const newNumber = await getNextInvoiceNumber();
+    const today = new Date().toISOString().split("T")[0];
+    const { data: newInvoice, error } = await db
+        .from("invoices")
+        .insert({
+            ...rest,
+            invoice_number: newNumber,
+            customer_id: targetCustomerId || (invoice as any).customer_id,
+            status: "draft",
+            invoice_date: today,
+            due_date: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
+            paid_amount: 0,
+            dunning_level: 0,
+            last_dunning_at: null,
+            quote_id: null,
+            is_credit_note: false,
+            credit_note_for: null,
+        })
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    const newItems = ((items as any[]) || []).map((i: any) => {
+        const { id: _i, invoice_id: _inv, created_at: _c, ...itemRest } = i;
+        return { ...itemRest, invoice_id: newInvoice.id };
+    });
+    if (newItems.length) await db.from("invoice_items").insert(newItems);
+    logActivity("invoice", newInvoice.id, "created", `Rechnung ${newNumber} als Kopie erstellt`);
+    return newInvoice;
+}
+
+export async function duplicateProject(projectId: string, targetCustomerId?: string) {
+    const { data: project, error: loadErr } = await supabase
+        .from("projects")
+        .select("*")
+        .eq("id", projectId)
+        .single();
+    if (loadErr || !project) throw new Error("Projekt nicht gefunden");
+    const { id, created_at, updated_at, project_number, ...rest } = project as any;
+    const { data: newProject, error } = await db
+        .from("projects")
+        .insert({
+            ...rest,
+            title: `${(project as any).title} (Kopie)`,
+            customer_id: targetCustomerId || (project as any).customer_id,
+            status: "planning",
+            quote_id: null,
+        })
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    // Aufgaben und Meilensteine mitkopieren (offen/pending)
+    const [tasksRes, msRes] = await Promise.all([
+        db.from("project_tasks").select("title, description, priority, sort_order").eq("project_id", projectId),
+        db.from("project_milestones").select("title, description, percent, sort_order").eq("project_id", projectId),
+    ]);
+    const tasks = ((tasksRes.data as any[]) || []).map((t) => ({ ...t, project_id: newProject.id, status: "open" }));
+    if (tasks.length) await db.from("project_tasks").insert(tasks);
+    const ms = ((msRes.data as any[]) || []).map((m) => ({ ...m, project_id: newProject.id, status: "pending" }));
+    if (ms.length) await db.from("project_milestones").insert(ms);
+    return newProject;
+}
+
+// ── (35) Umsatz-Forecast: nächste 3 Monate ──
+export async function getForecast() {
+    const [contractsRes, leadsRes, quotesRes] = await Promise.all([
+        supabase.from("contracts").select("billing_cycle, annual_amount, amount").eq("status", "active").eq("recurring_enabled", true),
+        supabase.from("leads").select("value, rating, status").not("status", "in", '("won","lost")').not("value", "is", null),
+        supabase.from("quotes").select("total, status").in("status", ["sent", "opened"]),
+    ]);
+    // Verträge auf Monatswert normalisieren
+    let monthlyContract = 0;
+    for (const c of (contractsRes.data as any[]) || []) {
+        const amount = Number(c.annual_amount || c.amount) || 0;
+        const cycle = c.billing_cycle || "yearly";
+        monthlyContract += cycle === "monthly" ? amount : cycle === "quarterly" ? amount / 3 : amount / 12;
+    }
+    // Pipeline gewichtet (gleiche Gewichte wie die Akquise-Prognose), verteilt auf 3 Monate
+    const weights: Record<string, number> = { hot: 0.7, warm: 0.4, cold: 0.15 };
+    let pipeline = 0;
+    for (const l of (leadsRes.data as any[]) || []) {
+        pipeline += (Number(l.value) || 0) * (weights[l.rating] ?? 0.3);
+    }
+    // Offene Angebote mit 50% Abschlusswahrscheinlichkeit, verteilt auf 3 Monate
+    let openQuotes = 0;
+    for (const q of (quotesRes.data as any[]) || []) openQuotes += (Number(q.total) || 0) * 0.5;
+
+    const months: { label: string; contract: number; pipeline: number; quotes: number }[] = [];
+    for (let m = 0; m < 3; m++) {
+        const d = new Date(new Date().getFullYear(), new Date().getMonth() + m, 1);
+        months.push({
+            label: d.toLocaleDateString("de-CH", { month: "long" }),
+            contract: Math.round(monthlyContract),
+            pipeline: Math.round(pipeline / 3),
+            quotes: Math.round(openQuotes / 3),
+        });
+    }
+    return months;
+}
+
+// ── (24) Einsatzplan: alles Terminiertes einer Woche ──
+export async function getWeekPlan(weekStart: string) {
+    const start = new Date(weekStart);
+    const end = new Date(start.getTime() + 7 * 86400000);
+    const startIso = start.toISOString().split("T")[0];
+    const endIso = end.toISOString().split("T")[0];
+    const [ticketsRes, tasksRes, maintRes, absRes] = await Promise.all([
+        supabase
+            .from("tickets")
+            .select("id, title, due_date, status, priority, assignee:users!tickets_assigned_to_fkey(name)")
+            .gte("due_date", startIso).lt("due_date", endIso).neq("status", "closed"),
+        supabase
+            .from("tasks")
+            .select("id, title, due_date, status, assigned_user:users!tasks_assigned_to_fkey(name)")
+            .gte("due_date", startIso).lt("due_date", endIso).neq("status", "done"),
+        db.from("maintenance_windows")
+            .select("id, title, starts_at, ends_at")
+            .gte("starts_at", start.toISOString()).lt("starts_at", end.toISOString()),
+        db.from("user_absences")
+            .select("id, start_date, end_date, type, user:users(name)")
+            .lte("start_date", endIso).gte("end_date", startIso),
+    ]);
+    return {
+        tickets: ticketsRes.data || [],
+        tasks: tasksRes.data || [],
+        maintenance: maintRes.data || [],
+        absences: absRes.data || [],
+    };
+}

@@ -874,6 +874,29 @@ export function ProjectDetailModal({ visible, project, onClose, onUpdate }: Prop
                     )}
                 </TouchableOpacity>
 
+                {/* Projekt duplizieren */}
+                <TouchableOpacity
+                    className="flex-row items-center justify-center gap-2 py-3 rounded-xl border border-border bg-surface"
+                    onPress={() =>
+                        showConfirm(
+                            "Projekt duplizieren",
+                            `"${projectData.title}" inklusive Aufgaben und Meilensteinen kopieren? Die Kopie startet im Status Planung.`,
+                            async () => {
+                                try {
+                                    await Data.duplicateProject(projectData.id);
+                                    onUpdate();
+                                    showAlert("Erstellt", "Die Projekt-Kopie wurde angelegt (Status Planung).");
+                                } catch (e: any) { showAlert("Fehler", e.message); }
+                            },
+                            "Duplizieren"
+                        )
+                    }
+                    activeOpacity={0.7}
+                >
+                    <IconSymbol name="square.on.square" size={15} color={colors.muted} />
+                    <Text className="text-sm font-semibold" style={{ color: colors.muted }}>Projekt duplizieren</Text>
+                </TouchableOpacity>
+
                 {/* Notizen */}
                 {project.notes ? (
                     <View className="bg-surface rounded-xl p-5 border border-border">

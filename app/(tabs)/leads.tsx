@@ -34,6 +34,8 @@ export default function LeadsScreen() {
   const colors = useColors();
   const queryClient = useQueryClient();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showCallMode, setShowCallMode] = useState(false);
+  const [showCrossSell, setShowCrossSell] = useState(false);
   const [editingLead, setEditingLead] = useState<any | null>(null);
   const [convertingLead, setConvertingLead] = useState<any | null>(null);
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
@@ -174,6 +176,20 @@ export default function LeadsScreen() {
                 </Text>
               </View>
             </View>
+            <TouchableOpacity
+              className="bg-surface border border-border w-10 h-10 rounded-full items-center justify-center mr-2"
+              activeOpacity={0.8}
+              onPress={() => setShowCallMode(true)}
+            >
+              <IconSymbol name="phone.fill" size={17} color="#0EA5E9" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="bg-surface border border-border w-10 h-10 rounded-full items-center justify-center mr-2"
+              activeOpacity={0.8}
+              onPress={() => setShowCrossSell(true)}
+            >
+              <IconSymbol name="sparkles" size={17} color="#8B5CF6" />
+            </TouchableOpacity>
             <TouchableOpacity
               className="bg-primary w-10 h-10 rounded-full items-center justify-center"
               activeOpacity={0.8}
@@ -801,6 +817,12 @@ export default function LeadsScreen() {
           queryClient.invalidateQueries({ queryKey: ["leads"] });
         }}
       />
+
+      {/* Anruf-Modus (Kalt-Akquise) */}
+      <CallModeModal visible={showCallMode} onClose={() => setShowCallMode(false)} colors={colors} />
+
+      {/* Cross-Selling-Analyse */}
+      <CrossSellModal visible={showCrossSell} onClose={() => setShowCrossSell(false)} colors={colors} />
 
       {/* Convert Lead to Customer Modal */}
       {convertingLead && (
@@ -1799,6 +1821,233 @@ function LeadDetailsModal({
               <Text className="text-foreground font-semibold text-center">Schließen</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+
+// ── Anruf-Modus: Lead für Lead abtelefonieren, mit Skript und Ergebnis-Knöpfen ──
+function CallModeModal({ visible, onClose, colors }: { visible: boolean; onClose: () => void; colors: any }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [index, setIndex] = useState(0);
+  const [done, setDone] = useState(0);
+
+  const { data: callList = [] } = useQuery({
+    queryKey: ["callModeLeads"],
+    queryFn: async () => {
+      const { data } = await Data.supabase
+        .from("leads")
+        .select("*")
+        .in("status", ["new", "contacted"])
+        .order("next_action_date", { ascending: true, nullsFirst: true })
+        .limit(50);
+      return (data as any[]) || [];
+    },
+    enabled: visible,
+  });
+
+  const { data: settings = {} } = useQuery({
+    queryKey: ["marketingSettings"],
+    queryFn: Data.getMarketingSettings,
+    enabled: visible,
+  });
+  const script = (settings as any).call_script || "Kein Anruf-Skript hinterlegt – unter Einstellungen → Kundengewinnung anpassen.";
+
+  const lead = (callList as any[])[index];
+
+  const logResult = async (updates: Record<string, any>, note: string) => {
+    if (!lead) return;
+    try {
+      const stamp = new Date().toLocaleDateString("de-CH");
+      await Data.updateLead(lead.id, {
+        ...updates,
+        notes: `${lead.notes ? lead.notes + "\n" : ""}[${stamp}] ${note}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      setDone(done + 1);
+      setIndex(index + 1);
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    }
+  };
+
+  const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().split("T")[0];
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+        <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "92%" }}>
+          <View className="flex-row items-center justify-between p-4 border-b border-border">
+            <View className="flex-row items-center gap-2">
+              <IconSymbol name="phone.fill" size={17} color="#0EA5E9" />
+              <Text className="text-lg font-bold text-foreground">Anruf-Modus</Text>
+              <Text className="text-xs text-muted">· {done} erledigt</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+              <IconSymbol name="xmark.circle.fill" size={26} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+
+          {!lead ? (
+            <View className="items-center py-14 px-6">
+              <IconSymbol name="checkmark.circle.fill" size={44} color={colors.success} />
+              <Text className="text-base font-bold text-foreground mt-3">Liste abtelefoniert!</Text>
+              <Text className="text-sm text-muted text-center mt-1">
+                {done > 0 ? `${done} Anrufe protokolliert.` : "Keine Leads mit Status Neu/Kontaktiert vorhanden."}
+              </Text>
+            </View>
+          ) : (
+            <ScrollView className="p-4">
+              <Text className="text-xs text-muted mb-1">{index + 1} von {(callList as any[]).length}</Text>
+              <Text className="text-xl font-bold text-foreground">{lead.company || lead.name}</Text>
+              {lead.company ? <Text className="text-sm text-muted">{lead.name}{lead.position ? ` · ${lead.position}` : ""}</Text> : null}
+
+              {(lead.phone || lead.mobile) ? (
+                <TouchableOpacity
+                  className="flex-row items-center justify-center gap-2 py-3.5 rounded-xl mt-4"
+                  style={{ backgroundColor: "#0EA5E9" }}
+                  onPress={() => Linking.openURL(`tel:${(lead.phone || lead.mobile).replace(/\s/g, "")}`)}
+                  activeOpacity={0.8}
+                >
+                  <IconSymbol name="phone.fill" size={17} color="#FFF" />
+                  <Text className="font-bold" style={{ color: "#FFF" }}>{lead.phone || lead.mobile} anrufen</Text>
+                </TouchableOpacity>
+              ) : (
+                <Text className="text-sm mt-4" style={{ color: colors.warning }}>Keine Telefonnummer hinterlegt</Text>
+              )}
+
+              {/* Skript */}
+              <View className="bg-surface rounded-xl border border-border p-4 mt-4">
+                <Text className="text-xs font-bold text-muted mb-2">LEITFADEN</Text>
+                <Text className="text-sm text-foreground" style={{ lineHeight: 21 }}>{script}</Text>
+              </View>
+
+              {lead.notes ? (
+                <View className="bg-surface rounded-xl border border-border p-4 mt-3">
+                  <Text className="text-xs font-bold text-muted mb-2">NOTIZEN</Text>
+                  <Text className="text-xs text-muted" style={{ lineHeight: 18 }}>{lead.notes}</Text>
+                </View>
+              ) : null}
+
+              {/* Ergebnis */}
+              <Text className="text-xs font-bold text-muted mt-5 mb-2">ERGEBNIS</Text>
+              <View className="flex-row flex-wrap gap-2 mb-2">
+                <TouchableOpacity
+                  className="flex-1 py-3 rounded-xl items-center"
+                  style={{ backgroundColor: colors.success + "20", borderWidth: 1, borderColor: colors.success + "50", minWidth: "45%" }}
+                  onPress={() => logResult({ status: "contacted", next_action: "Nachfassen nach Gespräch", next_action_date: inDays(7) }, "Erreicht – Gespräch geführt")}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-sm font-bold" style={{ color: colors.success }}>✓ Erreicht</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-1 py-3 rounded-xl items-center"
+                  style={{ backgroundColor: colors.warning + "20", borderWidth: 1, borderColor: colors.warning + "50", minWidth: "45%" }}
+                  onPress={() => logResult({ next_action: "Erneut anrufen", next_action_date: inDays(2) }, "Nicht erreicht / Mailbox")}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-sm font-bold" style={{ color: colors.warning }}>☏ Mailbox</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-1 py-3 rounded-xl items-center"
+                  style={{ backgroundColor: colors.primary + "20", borderWidth: 1, borderColor: colors.primary + "50", minWidth: "45%" }}
+                  onPress={() => logResult({ status: "contacted", rating: "hot", next_action: "Termin vorbereiten", next_action_date: inDays(1) }, "Termin vereinbart!")}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-sm font-bold" style={{ color: colors.primary }}>📅 Termin!</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-1 py-3 rounded-xl items-center"
+                  style={{ backgroundColor: colors.error + "15", borderWidth: 1, borderColor: colors.error + "40", minWidth: "45%" }}
+                  onPress={() => logResult({ status: "lost" }, "Kein Interesse")}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-sm font-bold" style={{ color: colors.error }}>✕ Kein Interesse</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity className="py-2.5 items-center" onPress={() => setIndex(index + 1)} activeOpacity={0.7}>
+                <Text className="text-sm font-semibold text-muted">Überspringen →</Text>
+              </TouchableOpacity>
+              <View style={{ height: 32 }} />
+            </ScrollView>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ── Cross-Selling: KI findet fehlende Leistungen bei Bestandskunden ──
+function CrossSellModal({ visible, onClose, colors }: { visible: boolean; onClose: () => void; colors: any }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[] | null>(null);
+
+  const handleAnalyze = async () => {
+    setLoading(true);
+    try {
+      const result = await Data.getCrossSellSuggestions();
+      setSuggestions(result);
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+        <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "88%" }}>
+          <View className="flex-row items-center justify-between p-4 border-b border-border">
+            <View className="flex-row items-center gap-2">
+              <IconSymbol name="sparkles" size={17} color="#8B5CF6" />
+              <Text className="text-lg font-bold text-foreground">Potenzial bei Bestandskunden</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+              <IconSymbol name="xmark.circle.fill" size={26} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView className="p-4">
+            <Text className="text-xs text-muted mb-3">
+              Die KI vergleicht Kunden, Verträge und Ihren Leistungskatalog und schlägt vor, wem welche Leistung fehlt.
+            </Text>
+            {suggestions === null ? (
+              <TouchableOpacity
+                className="py-3.5 rounded-xl items-center"
+                style={{ backgroundColor: "#8B5CF6", opacity: loading ? 0.6 : 1 }}
+                onPress={handleAnalyze}
+                disabled={loading}
+                activeOpacity={0.8}
+              >
+                {loading ? <ActivityIndicator size="small" color="#FFF" /> : (
+                  <Text className="font-bold" style={{ color: "#FFF" }}>Analyse starten</Text>
+                )}
+              </TouchableOpacity>
+            ) : suggestions.length === 0 ? (
+              <Text className="text-sm text-muted text-center py-8">Keine offensichtlichen Lücken gefunden – gut abgedeckt!</Text>
+            ) : (
+              suggestions.map((sg: any, idx: number) => (
+                <TouchableOpacity
+                  key={idx}
+                  className="bg-surface rounded-xl border border-border p-4 mb-2.5"
+                  onPress={() => { onClose(); router.push(`/customer/${sg.customerId}` as any); }}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-sm font-bold text-foreground">{sg.customer}</Text>
+                  <Text className="text-sm mt-1" style={{ color: "#B99CFF" }}>{sg.idea}</Text>
+                  <Text className="text-xs text-muted mt-1">{sg.reason}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+            {loading && suggestions === null ? (
+              <Text className="text-xs text-muted text-center mt-3">Die KI analysiert Ihre Daten – einen Moment...</Text>
+            ) : null}
+            <View style={{ height: 32 }} />
+          </ScrollView>
         </View>
       </View>
     </Modal>

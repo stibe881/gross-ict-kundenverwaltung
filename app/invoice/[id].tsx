@@ -19,6 +19,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
+import { CustomerPickerModal } from "@/components/customer-picker-modal";
 import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { LinkedRecords } from "@/components/linked-records";
@@ -66,6 +67,7 @@ export default function InvoiceDetailScreen() {
     const [paymentAmount, setPaymentAmount] = useState("");
 
     const queryClient = useQueryClient();
+    const [showDuplicatePicker, setShowDuplicatePicker] = useState(false);
 
     const deleteInvoice = useMutation({
         mutationFn: (invoiceId: string) => Data.deleteInvoice(invoiceId),
@@ -372,6 +374,14 @@ export default function InvoiceDetailScreen() {
                                 >
                                     <IconSymbol name="arrow.down.doc.fill" size={18} color="#FFFFFF" />
                                     <Text className="text-background font-semibold ml-2 text-sm">PDF</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    className="flex-1 bg-surface border border-border py-3 rounded-lg flex-row items-center justify-center"
+                                    activeOpacity={0.8}
+                                    onPress={() => setShowDuplicatePicker(true)}
+                                >
+                                    <IconSymbol name="square.on.square" size={18} color={colors.foreground} />
+                                    <Text className="text-foreground font-semibold ml-2 text-sm">Kopie</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     className="flex-1 bg-error py-3 rounded-lg flex-row items-center justify-center"
@@ -800,6 +810,22 @@ export default function InvoiceDetailScreen() {
                     </View>
                 </View>
             </Modal>
+            <CustomerPickerModal
+                visible={showDuplicatePicker}
+                title="Rechnung duplizieren für…"
+                onClose={() => setShowDuplicatePicker(false)}
+                onSelect={async (custId) => {
+                    setShowDuplicatePicker(false);
+                    try {
+                        const ni = await Data.duplicateInvoice(id as string, custId || undefined);
+                        queryClient.invalidateQueries({ queryKey: ["invoices"] });
+                        showToast(`Rechnung ${ni.invoice_number} als Entwurf-Kopie erstellt`);
+                        router.push(`/invoice/${ni.id}`);
+                    } catch (e: any) {
+                        showAlert("Fehler", e.message);
+                    }
+                }}
+            />
         </ScreenContainer>
     );
 }

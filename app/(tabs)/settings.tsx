@@ -110,6 +110,14 @@ export default function SettingsScreen() {
       route: "/maintenance-windows",
     },
     {
+      id: "growth",
+      title: "Kundengewinnung",
+      subtitle: "Willkommenspaket, Bewertungen, Anruf-Skript",
+      icon: "megaphone.fill",
+      color: "#8B5CF6",
+      route: "/growth-settings",
+    },
+    {
       id: "recurring-tickets",
       title: "Wartungsplan",
       subtitle: "Wiederkehrende Tickets automatisch erstellen",
