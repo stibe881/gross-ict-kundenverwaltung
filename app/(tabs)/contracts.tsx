@@ -41,7 +41,7 @@ export default function ContractsScreen() {
   const queryClient = useQueryClient();
   const { refreshing, onRefresh } = useGlobalRefresh();
   const [filter, setFilter] = useState<"all" | ContractStatus | "signed" | "pending">("all");
-  const [sortBy, setSortBy] = useState<"newest" | "next_invoice" | "customer" | "amount">("newest");
+  const [sortBy, setSortBy] = useState<"newest" | "next_invoice" | "expiry" | "customer" | "amount">("newest");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Verträge aus DB laden
@@ -193,6 +193,17 @@ export default function ContractsScreen() {
         sorted.sort((a, b) => {
           const da = a.recurring_enabled && a.next_invoice_date ? a.next_invoice_date : null;
           const db = b.recurring_enabled && b.next_invoice_date ? b.next_invoice_date : null;
+          if (da && db) return da.localeCompare(db);
+          if (da) return -1;
+          if (db) return 1;
+          return 0;
+        });
+        break;
+      case "expiry":
+        // Nächstes Ablaufdatum zuerst; unbefristete Verträge (ohne end_date) ans Ende
+        sorted.sort((a, b) => {
+          const da = a.end_date || null;
+          const db = b.end_date || null;
           if (da && db) return da.localeCompare(db);
           if (da) return -1;
           if (db) return 1;
@@ -412,6 +423,7 @@ export default function ContractsScreen() {
                 {([
                   ["newest", "Neueste"],
                   ["next_invoice", "Nächste Rechnung"],
+                  ["expiry", "Läuft ab"],
                   ["customer", "Kunde"],
                   ["amount", "Betrag"],
                 ] as const).map(([key, label]) => (
