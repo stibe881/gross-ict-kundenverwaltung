@@ -69,7 +69,8 @@ export async function signInWithMicrosoft() {
         provider: "azure",
         options: {
             redirectTo,
-            scopes: "openid profile email",
+            // User.Read: erlaubt das Lesen des eigenen Entra-Profils inkl. Foto (Microsoft Graph)
+            scopes: "openid profile email User.Read",
             skipBrowserRedirect: true,  // We handle the browser ourselves
             queryParams: {
                 prompt: "select_account",

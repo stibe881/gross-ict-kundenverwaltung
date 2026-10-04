@@ -5231,10 +5231,19 @@ export async function syncEntraAvatar(session: any) {
         if (!token || !userId) return;
         avatarSyncDone = true;
 
-        const res = await fetch("https://graph.microsoft.com/v1.0/me/photos/96x96/$value", {
+        let res = await fetch("https://graph.microsoft.com/v1.0/me/photos/96x96/$value", {
             headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) return; // kein Foto hinterlegt oder kein Graph-Zugriff
+        if (!res.ok) {
+            // Fallback: Originalgrösse (manche Konten haben keine 96x96-Variante)
+            res = await fetch("https://graph.microsoft.com/v1.0/me/photo/$value", {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+        }
+        if (!res.ok) {
+            console.warn("[Avatar] Graph-Foto nicht verfügbar:", res.status);
+            return; // kein Foto hinterlegt oder kein Graph-Zugriff (fehlt User.Read?)
+        }
 
         const blob = await res.blob();
         const { error: upErr } = await supabase.storage
