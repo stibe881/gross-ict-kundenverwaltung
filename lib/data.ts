@@ -4467,10 +4467,12 @@ export async function deleteInstallments(invoiceId: string) {
 
 // ── Zeit → Rechnung: unverrechnete Ticket-Aufwände eines Kunden ──
 export async function getUnbilledTicketItems(customerId: string) {
+    // Vertraglich abgedeckte Tickets zählen nicht als offene Aufwände
     const { data: tickets } = await supabase
         .from("tickets")
         .select("id, title")
-        .eq("customer_id", customerId);
+        .eq("customer_id", customerId)
+        .or("covered_by_contract.is.null,covered_by_contract.eq.false");
     const ticketIds = (tickets || []).map((t: any) => t.id);
     if (!ticketIds.length) return [];
     const { data, error } = await db
