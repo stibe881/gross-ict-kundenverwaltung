@@ -1,4 +1,4 @@
-import { ScrollView, Text, View, TouchableOpacity } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity, Image } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -119,9 +119,11 @@ export function WebSidebar() {
                     onPress={() => router.push("/" as any)}
                     activeOpacity={0.7}
                 >
-                    <View style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
-                        <Text style={{ fontWeight: "700", fontSize: 16, color: colors.background }}>G</Text>
-                    </View>
+                    <Image
+                        source={require("@/assets/images/icon.png")}
+                        style={{ width: 34, height: 34, borderRadius: 9 }}
+                        resizeMode="contain"
+                    />
                     <View>
                         <Text style={{ fontSize: 14, fontWeight: "700", color: colors.foreground, lineHeight: 16 }}>Gross ICT</Text>
                         <Text style={{ fontSize: 11, color: colors.muted }}>Kundenverwaltung</Text>
