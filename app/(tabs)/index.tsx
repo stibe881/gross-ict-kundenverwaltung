@@ -399,6 +399,9 @@ export default function DashboardScreen() {
     searchTimer.current = setTimeout(() => performSearch(text), 350);
   };
 
+  // Gleiche Reihenfolge wie die Seitenleiste der Desktop-Ansicht:
+  // CRM (Kunden, Akquise, Angebote, Projekte) → Betrieb (Tickets, Verträge,
+  // Aufgaben, Überwachung, Wissensdatenbank, Links) → Finanzen (Buchhaltung)
   const tileCategories = [
     {
       label: "CRM",
@@ -419,20 +422,6 @@ export default function DashboardScreen() {
           color: "#17A2B8",
           route: "/leads",
         },
-      ],
-    },
-    {
-      label: "Finanzen",
-      tiles: [
-        {
-          id: "accounting",
-          title: "Buchhaltung",
-          subtitle: "Rechnungen & Zahlungen",
-          icon: "chart.bar.fill",
-          color: colors.success,
-          route: "/accounting",
-        },
-        // "Kassieren" (Tap to Pay) ist über die Tab-Leiste erreichbar
         {
           id: "quotes",
           title: "Angebote",
@@ -442,17 +431,17 @@ export default function DashboardScreen() {
           route: "/quotes",
         },
         {
-          id: "contracts",
-          title: "Verträge",
-          subtitle: "Verwaltung",
-          icon: "doc.on.doc.fill",
-          color: "#6366F1",
-          route: "/contracts",
+          id: "projects",
+          title: "Projekte",
+          subtitle: "Auftragsverwaltung",
+          icon: "folder.fill",
+          color: "#14B8A6",
+          route: "/projects",
         },
       ],
     },
     {
-      label: "Support & Kommunikation",
+      label: "Betrieb",
       tiles: [
         {
           id: "tickets",
@@ -461,6 +450,30 @@ export default function DashboardScreen() {
           icon: "ticket.fill",
           color: colors.warning,
           route: "/tickets",
+        },
+        {
+          id: "contracts",
+          title: "Verträge",
+          subtitle: "Verwaltung",
+          icon: "doc.on.doc.fill",
+          color: "#6366F1",
+          route: "/contracts",
+        },
+        {
+          id: "tasks",
+          title: "Aufgaben",
+          subtitle: "Interne To-Dos",
+          icon: "checklist",
+          color: "#8B5CF6",
+          route: "/tasks",
+        },
+        {
+          id: "uberwachung",
+          title: "Überwachung",
+          subtitle: "URL-Monitoring",
+          icon: "wifi",
+          color: "#06B6D4",
+          route: "/uberwachung",
         },
         {
           id: "knowledge-base",
@@ -478,35 +491,20 @@ export default function DashboardScreen() {
           color: "#8B5CF6",
           route: "/links",
         },
-        {
-          id: "uberwachung",
-          title: "Überwachung",
-          subtitle: "URL-Monitoring",
-          icon: "wifi",
-          color: "#06B6D4",
-          route: "/uberwachung",
-        },
       ],
     },
     {
-      label: "Projektmanagement",
+      label: "Finanzen",
       tiles: [
         {
-          id: "projects",
-          title: "Projekte",
-          subtitle: "Auftragsverwaltung",
-          icon: "folder.fill",
-          color: "#14B8A6",
-          route: "/projects",
+          id: "accounting",
+          title: "Buchhaltung",
+          subtitle: "Rechnungen & Zahlungen",
+          icon: "chart.bar.fill",
+          color: colors.success,
+          route: "/accounting",
         },
-        {
-          id: "tasks",
-          title: "Aufgaben",
-          subtitle: "Interne To-Dos",
-          icon: "checklist",
-          color: "#8B5CF6",
-          route: "/tasks",
-        },
+        // "Kassieren" (Tap to Pay) ist über die Tab-Leiste erreichbar
       ],
     },
     // Konfiguration ist in den neuen Einstellungen-Tab umgezogen
