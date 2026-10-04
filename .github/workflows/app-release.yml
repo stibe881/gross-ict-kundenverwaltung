@@ -121,7 +121,13 @@ jobs:
 
       - name: Web-Export erstellen
         if: inputs.target == 'web' || inputs.target == 'all'
-        run: npx expo export --platform web
+        run: |
+          # NativeWind legt .cache/web.css erst während des Builds an; bei frischem
+          # node_modules kennt Metro die Datei noch nicht (SHA-1-Fehler). Datei vorab
+          # anlegen, und zur Sicherheit einen zweiten Versuch (dann existiert sie sicher).
+          mkdir -p node_modules/react-native-css-interop/.cache
+          touch node_modules/react-native-css-interop/.cache/web.css
+          npx expo export --platform web || npx expo export --platform web
 
       - name: Web-Portal deployen
         if: inputs.target == 'web' || inputs.target == 'all'
