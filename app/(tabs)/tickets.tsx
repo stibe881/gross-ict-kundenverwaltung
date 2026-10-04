@@ -565,24 +565,24 @@ export default function TicketsScreen() {
               activeOpacity={0.8}
               style={{
                 flexDirection: "row", alignItems: "center", gap: 4,
-                paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1,
+                paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1,
                 backgroundColor: onlyMine ? colors.primary : colors.surface,
                 borderColor: onlyMine ? colors.primary : colors.border,
               }}
             >
-              <IconSymbol name="person.fill" size={12} color={onlyMine ? "#fff" : colors.primary} />
-              <Text style={{ fontSize: 12, fontWeight: "700", color: onlyMine ? "#fff" : colors.foreground }}>Meine Tickets</Text>
+              <IconSymbol name="person.fill" size={13} color={onlyMine ? "#fff" : colors.primary} />
+              <Text style={{ fontSize: 13, fontWeight: "700", color: onlyMine ? "#fff" : colors.foreground }}>Meine Tickets</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setAssigneeFilter(assigneeFilter === "unassigned" ? "all" : "unassigned")}
               activeOpacity={0.8}
               style={{
-                paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1,
+                paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1,
                 backgroundColor: assigneeFilter === "unassigned" ? colors.warning : colors.surface,
                 borderColor: assigneeFilter === "unassigned" ? colors.warning : colors.border,
               }}
             >
-              <Text style={{ fontSize: 12, fontWeight: "700", color: assigneeFilter === "unassigned" ? "#fff" : colors.foreground }}>Nicht zugewiesen</Text>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: assigneeFilter === "unassigned" ? "#fff" : colors.foreground }}>Nicht zugewiesen</Text>
             </TouchableOpacity>
             <View style={{ width: 1, height: 18, backgroundColor: colors.border }} />
             {([["high", "Hoch"], ["medium", "Mittel"], ["low", "Niedrig"]] as const).map(([key, label]) => {
@@ -594,12 +594,12 @@ export default function TicketsScreen() {
                   onPress={() => setPriorityFilter(active ? "all" : (key as TicketPriority))}
                   activeOpacity={0.8}
                   style={{
-                    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1,
+                    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1,
                     backgroundColor: active ? pColor : colors.surface,
                     borderColor: active ? pColor : colors.border,
                   }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: active ? "#fff" : colors.foreground }}>{label}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: active ? "#fff" : colors.foreground }}>{label}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -618,12 +618,12 @@ export default function TicketsScreen() {
                   onPress={() => setSortConfig(config as any)}
                   activeOpacity={0.8}
                   style={{
-                    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1,
+                    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1,
                     backgroundColor: active ? colors.primary + "15" : colors.surface,
                     borderColor: active ? colors.primary : colors.border,
                   }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: "600", color: active ? colors.primary : colors.foreground }}>{label}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: active ? colors.primary : colors.foreground }}>{label}</Text>
                 </TouchableOpacity>
               );
             })}
