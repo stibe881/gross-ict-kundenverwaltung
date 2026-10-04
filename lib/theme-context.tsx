@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { Platform } from "react-native";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { Platform, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { colorScheme as nativewindColorScheme } from "nativewind";
+import { colorScheme as nativewindColorScheme, vars } from "nativewind";
+// @ts-ignore – JS-Konfiguration ohne Typen
+import { themeColors } from "../theme.config.js";
 
 type ThemeMode = "light" | "dark";
 type ResolvedTheme = "light" | "dark";
@@ -22,8 +24,25 @@ const ThemeContext = createContext<ThemeContextType>({
   setThemeMode: () => {},
 });
 
+// CSS-Variablen pro Design – als Inline-vars() auf der Wurzel-View gesetzt,
+// damit Tailwind-Klassen (bg-background, text-foreground, …) auch auf
+// iOS/Android zuverlässig umschalten (der .dark-Block aus global.css
+// greift nur im Web).
+function buildVars(mode: ThemeMode) {
+  const entries: Record<string, string> = {};
+  for (const [token, value] of Object.entries(themeColors as Record<string, { light: string; dark: string }>)) {
+    entries[`color-${token}`] = value[mode];
+  }
+  return vars(entries);
+}
+
+const THEME_VARS: Record<ThemeMode, ReturnType<typeof vars>> = {
+  light: buildVars("light"),
+  dark: buildVars("dark"),
+};
+
 function applyTheme(mode: ThemeMode) {
-  // NativeWind: steuert dark:-Varianten und CSS-Variablen
+  // NativeWind: steuert dark:-Varianten
   try { nativewindColorScheme.set(mode); } catch (_) { /* noop */ }
   // Web: .dark-Klasse auf <html> für die CSS-Variablen in global.css
   if (Platform.OS === "web" && typeof document !== "undefined") {
@@ -54,6 +73,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(STORAGE_KEY, mode).catch(() => {});
   };
 
+  const themeVariables = useMemo(() => THEME_VARS[themeMode], [themeMode]);
+
   return (
     <ThemeContext.Provider
       value={{
@@ -62,7 +83,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setThemeMode,
       }}
     >
-      {children}
+      <View style={[{ flex: 1 }, themeVariables]}>{children}</View>
     </ThemeContext.Provider>
   );
 }
