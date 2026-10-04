@@ -11,6 +11,7 @@ import {
   TextInput,
   RefreshControl,
   Modal,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useRouter } from "expo-router";
@@ -1379,6 +1380,10 @@ function AskCrmModal({ visible, onClose, colors }: { visible: boolean; onClose: 
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
         <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "85%" }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 18, borderBottomWidth: 1, borderBottomColor: colors.border }}>
@@ -1436,6 +1441,7 @@ function AskCrmModal({ visible, onClose, colors }: { visible: boolean; onClose: 
           </ScrollView>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
