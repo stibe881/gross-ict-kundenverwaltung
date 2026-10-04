@@ -60,9 +60,8 @@ async function generatePassBuffer(name: string, position: string, phone: string,
     // Logo oben links neben "Gross ICT"
     "logo.png": img(passImages.logo1x),
     "logo@2x.png": img(passImages.logo2x),
-    // Thumbnail rechts neben dem Namen – füllt das Kartenlayout
-    "thumbnail.png": img(passImages.thumb1x),
-    "thumbnail@2x.png": img(passImages.thumb2x)
+    // Kein Thumbnail: das Symbol rechts neben dem Namen wirkte wie ein
+    // deplatziertes Favicon auf weissem Grund
   }, {
     wwdr: certs.wwdr,
     signerCert: certs.signerCert,
