@@ -90,6 +90,17 @@ export default function AccountingScreen() {
 
   // Invoice Filters & Sorting
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<"all" | "unpaid" | "gesendet" | "geoeffnet" | "paid" | "overdue" | "cancelled" | "unsent" | "draft">("unpaid");
+
+  // Deep-Link von der Dashboard-Kachel: Tab Rechnungen mit gewünschtem Filter öffnen
+  useEffect(() => {
+    const tab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
+    if (tab === "invoices" || tab === "overview") {
+      setActiveTab(tab as TabKey);
+      const f = Array.isArray(params.filter) ? params.filter[0] : params.filter;
+      if (f) setInvoiceStatusFilter(f as any);
+      router.setParams({ tab: undefined, filter: undefined } as any);
+    }
+  }, [params.tab]);
   const [invoiceSort, setInvoiceSort] = useState<"date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "number_desc" | "due_date_asc" | "due_date_desc">("due_date_asc");
   const [invoiceSearchQuery, setInvoiceSearchQuery] = useState("");
 
