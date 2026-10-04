@@ -53,6 +53,40 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
           : Promise.resolve({ data: [] } as any),
       ]);
 
+      // Unverrechnete Ticket-Aufwände (ohne vertraglich abgedeckte Tickets), pro Kunde gebündelt
+      let unbilledByCustomer: { id: string; name: string; total: number; count: number }[] = [];
+      if (allowed("accounting")) {
+        try {
+          const { data: openItems } = await (supabase as any)
+            .from("ticket_items")
+            .select("quantity, unit_price, ticket:tickets(customer_id, covered_by_contract, customer:customers(company_name, first_name, last_name))")
+            .is("invoice_id", null)
+            .limit(300);
+          const map = new Map<string, { id: string; name: string; total: number; count: number }>();
+          for (const it of (openItems as any[]) || []) {
+            const t = it.ticket;
+            if (!t?.customer_id || t.covered_by_contract === true) continue;
+            const name = t.customer?.company_name ||
+              `${t.customer?.first_name || ""} ${t.customer?.last_name || ""}`.trim() || "Kunde";
+            const entry = map.get(t.customer_id) || { id: t.customer_id, name, total: 0, count: 0 };
+            entry.total += (Number(it.quantity) || 0) * (Number(it.unit_price) || 0);
+            entry.count += 1;
+            map.set(t.customer_id, entry);
+          }
+          unbilledByCustomer = Array.from(map.values()).filter((e) => e.total > 0).sort((a, b) => b.total - a.total);
+        } catch (_) { /* optional */ }
+      }
+      for (const u of unbilledByCustomer.slice(0, 5)) {
+        result.push({
+          key: `unbilled-${u.id}`,
+          icon: "clock.badge.exclamationmark",
+          color: "#F59E0B",
+          title: u.name,
+          subtitle: `Offene Aufwände: ${formatCurrency(u.total)} (${u.count} Position${u.count === 1 ? "" : "en"}) – in Rechnung übernehmen`,
+          route: `/customer/${u.id}`,
+        });
+      }
+
       for (const t of tickets.data || []) {
         const overdue = t.due_date < today;
         result.push({
