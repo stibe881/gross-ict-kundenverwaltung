@@ -1,24 +1,22 @@
 ---
 // Kontaktformular → Supabase Edge Function contact-form → Lead im CRM.
-// Helle Papier-Sektion (Invert), Formular rechts, 5/7-Teilung.
+// Helle Bone-Sektion (Invert), Formular rechts, 5/7-Teilung.
 interface Props {
-  accent?: "clay" | "pine";
   heading?: string;
   intro?: string;
   messageLabel?: string;
 }
 const {
-  accent = "clay",
   heading = "Projekt anfragen",
   intro = "Beschreiben Sie kurz, was Sie vorhaben — Sie erhalten innert eines Arbeitstags eine persönliche Antwort von Stefan Gross.",
   messageLabel = "Ihr Vorhaben",
 } = Astro.props;
-const accentColor = accent === "pine" ? "var(--pine)" : "var(--clay)";
+const uid = heading.toLowerCase().replace(/[^a-z]+/g, "-");
 ---
-<section class="paper-section contact-wrap" id="kontakt">
+<section class="bone-section contact-wrap" id="kontakt">
   <div class="container contact-grid">
     <div class="contact-left">
-      <p class="label" style={`color: ${accentColor}`}>Kontakt</p>
+      <span class="mono">(Kontakt)</span>
       <h2>{heading}</h2>
       <p class="intro">{intro}</p>
       <address class="contact-address">
@@ -30,32 +28,32 @@ const accentColor = accent === "pine" ? "var(--pine)" : "var(--clay)";
     <form class="contact-form" method="post" novalidate>
       <div class="two">
         <div>
-          <label for={`cf-name-${accent}`}>Name *</label>
-          <input id={`cf-name-${accent}`} name="name" type="text" required autocomplete="name" />
+          <label for={`cf-name-${uid}`}>Name *</label>
+          <input id={`cf-name-${uid}`} name="name" type="text" required autocomplete="name" />
         </div>
         <div>
-          <label for={`cf-email-${accent}`}>E-Mail *</label>
-          <input id={`cf-email-${accent}`} name="email" type="email" required autocomplete="email" />
+          <label for={`cf-email-${uid}`}>E-Mail *</label>
+          <input id={`cf-email-${uid}`} name="email" type="email" required autocomplete="email" />
         </div>
         <div>
-          <label for={`cf-phone-${accent}`}>Telefon</label>
-          <input id={`cf-phone-${accent}`} name="phone" type="tel" autocomplete="tel" />
+          <label for={`cf-phone-${uid}`}>Telefon</label>
+          <input id={`cf-phone-${uid}`} name="phone" type="tel" autocomplete="tel" />
         </div>
         <div>
-          <label for={`cf-company-${accent}`}>Firma</label>
-          <input id={`cf-company-${accent}`} name="company" type="text" autocomplete="organization" />
+          <label for={`cf-company-${uid}`}>Firma</label>
+          <input id={`cf-company-${uid}`} name="company" type="text" autocomplete="organization" />
         </div>
       </div>
       <div style="margin-top: 14px">
-        <label for={`cf-msg-${accent}`}>{messageLabel}</label>
-        <textarea id={`cf-msg-${accent}`} name="message" rows="4"></textarea>
+        <label for={`cf-msg-${uid}`}>{messageLabel}</label>
+        <textarea id={`cf-msg-${uid}`} name="message" rows="4"></textarea>
       </div>
       <!-- Honeypot: für Menschen unsichtbar, Bots füllen es aus -->
       <div class="hp-field" aria-hidden="true">
-        <label for={`cf-web-${accent}`}>Website</label>
-        <input id={`cf-web-${accent}`} name="website" type="text" tabindex="-1" autocomplete="off" />
+        <label for={`cf-web-${uid}`}>Website</label>
+        <input id={`cf-web-${uid}`} name="website" type="text" tabindex="-1" autocomplete="off" />
       </div>
-      <button type="submit" class="btn btn-paper-ghost" style="width: 100%; margin-top: 18px">Anfrage senden</button>
+      <button type="submit" class="btn btn-dark" style="width: 100%; margin-top: 18px">Anfrage senden ↗</button>
       <p class="form-status" role="status" aria-live="polite"></p>
       <p class="form-fine">
         Ihre Anfrage landet direkt in unserem System — keine Sammel-Postfächer, keine Umwege.
@@ -66,44 +64,44 @@ const accentColor = accent === "pine" ? "var(--pine)" : "var(--clay)";
 </section>
 
 <style>
-  .contact-wrap { margin-top: 96px; padding: 80px 0 88px; }
+  .contact-wrap { margin-top: 110px; padding: 84px 0 92px; }
   .contact-grid {
     display: grid;
     grid-template-columns: 5fr 7fr;
-    gap: 64px;
+    gap: 72px;
     align-items: start;
   }
-  .contact-left { display: flex; flex-direction: column; gap: 16px; }
-  .contact-left h2 { font-size: clamp(30px, 4vw, 46px); }
-  .intro { color: var(--muted-on-paper); font-size: 15.5px; max-width: 400px; }
+  .contact-left { display: flex; flex-direction: column; gap: 18px; }
+  .contact-left h2 { font-size: clamp(32px, 4.4vw, 56px); }
+  .intro { color: var(--mute-on-bone); font-size: 15.5px; max-width: 400px; }
   .contact-address {
     font-style: normal;
-    margin-top: 12px;
+    margin-top: 14px;
     display: flex;
     flex-direction: column;
-    border-top: 1px solid var(--paper-line);
+    border-top: 1px solid var(--bone-line);
   }
   .contact-address .line {
     display: flex;
     gap: 18px;
     align-items: baseline;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--paper-line);
+    padding: 13px 0;
+    border-bottom: 1px solid var(--bone-line);
     font-size: 15px;
   }
   .contact-address .k {
+    font-family: var(--mono);
     font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--muted-on-paper);
-    width: 72px;
+    color: var(--mute-on-bone);
+    width: 76px;
     flex-shrink: 0;
   }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   @media (max-width: 920px) {
-    .contact-grid { grid-template-columns: 1fr; gap: 40px; }
-    .contact-wrap { margin-top: 64px; padding: 56px 0 64px; }
+    .contact-grid { grid-template-columns: 1fr; gap: 44px; }
+    .contact-wrap { margin-top: 68px; padding: 56px 0 64px; }
   }
   @media (max-width: 560px) {
     .two { grid-template-columns: 1fr; }
@@ -116,9 +114,9 @@ const accentColor = accent === "pine" ? "var(--pine)" : "var(--clay)";
     overflow: hidden;
   }
   .form-status { margin-top: 10px; font-size: 14px; font-weight: 600; min-height: 20px; }
-  .form-status.ok { color: var(--pine-deep); }
-  .form-status.err { color: var(--clay-deep); }
-  .form-fine { color: var(--muted-on-paper); font-size: 12px; margin-top: 8px; }
+  .form-status.ok { color: #2E6B3F; }
+  .form-status.err { color: #A33A2A; }
+  .form-fine { color: var(--mute-on-bone); font-size: 12px; margin-top: 8px; }
 </style>
 
 <script>

@@ -6,19 +6,20 @@ import ContactForm from "../components/ContactForm.astro";
   title="ICT Services — Gross ICT | IT-Betreuung ohne Warteschlange"
   description="IT-Support, Security & Firewall, Netzwerk & WLAN, Server & Storage für KMU in der Zentralschweiz — persönlich und vor Ort."
   active="ict"
+  ctaHref="#kontakt"
 >
   <section class="hero">
     <div class="container hero-grid">
-      <div class="hero-main">
-        <p class="label" style="color: var(--pine); filter: brightness(1.6)">ICT Services · Zentralschweiz</p>
-        <h1 class="reveal">IT, die einfach<br />läuft<span class="dot">.</span></h1>
+      <div>
+        <p class="mono">(02) — ICT Services</p>
+        <h1 class="reveal">IT, die einfach<br />läuft<span class="acid-txt">.</span></h1>
         <p class="lead">
           Sie erreichen direkt die Person, die Ihr Problem löst — keine
           Warteschlange, keine Ticketnummer-Odyssee. Vom Einzelarbeitsplatz
           bis zum ganzen Gebäude, per Fernwartung oder bei Ihnen im Betrieb.
         </p>
         <div class="cta-row">
-          <a class="btn btn-brass" href="#kontakt">Support anfragen</a>
+          <a class="btn btn-acid" href="#kontakt">Support anfragen</a>
           <a class="btn btn-ghost" href="#vertrag">Support-Vertrag</a>
         </div>
       </div>
@@ -37,31 +38,39 @@ import ContactForm from "../components/ContactForm.astro";
         <h2 class="section-title">ICT-Leistungen</h2>
         <p class="section-note">Alles aus einer Hand — persönlich, erreichbar, in Ihrer Nähe.</p>
       </div>
-      <div class="rows">
-        <div class="row-item">
-          <span class="no">01</span>
-          <h3>IT-Support &amp; Helpdesk</h3>
-          <p class="desc">Vor-Ort-Service ohne Warteschlange: per Telefon, Fernwartung oder bei Ihnen im Betrieb — Sie sprechen direkt mit der Person, die das Problem löst.</p>
-          <span class="price pine">nach Aufwand</span>
-        </div>
-        <div class="row-item">
-          <span class="no">02</span>
-          <h3>Security &amp; Firewall</h3>
-          <p class="desc">Schutz für Netzwerk, Endgeräte und Daten: Firewall, Virenschutz, Updates und Sensibilisierung — damit ein Klick nicht zum Schaden wird.</p>
-          <span class="price pine">auf Anfrage</span>
-        </div>
-        <div class="row-item">
-          <span class="no">03</span>
-          <h3>Netzwerk &amp; WLAN</h3>
-          <p class="desc">Planung und Umsetzung für ganze Gebäude: stabile Verkabelung, flächendeckendes WLAN und sauber getrennte Netze für Gäste und Betrieb.</p>
-          <span class="price pine">auf Anfrage</span>
-        </div>
-        <div class="row-item">
-          <span class="no">04</span>
-          <h3>Server &amp; Storage</h3>
-          <p class="desc">Lokal, Cloud oder hybrid — inklusive durchdachter Backup-Strategie, damit Ihre Daten auch im Ernstfall sicher sind.</p>
-          <span class="price pine">auf Anfrage</span>
-        </div>
+      <div class="xrows">
+        <a class="xrow" href="#kontakt">
+          <span class="idx">(01)</span>
+          <div>
+            <h3>Support &amp; Helpdesk</h3>
+            <p class="desc">Per Telefon, Fernwartung oder bei Ihnen im Betrieb — Sie sprechen direkt mit der Person, die das Problem löst.</p>
+          </div>
+          <span class="tail">nach Aufwand <span class="arrow">↗</span></span>
+        </a>
+        <a class="xrow" href="#kontakt">
+          <span class="idx">(02)</span>
+          <div>
+            <h3>Security &amp; Firewall</h3>
+            <p class="desc">Firewall, Virenschutz, Updates und Sensibilisierung — damit ein Klick nicht zum Schaden wird.</p>
+          </div>
+          <span class="tail">auf Anfrage <span class="arrow">↗</span></span>
+        </a>
+        <a class="xrow" href="#kontakt">
+          <span class="idx">(03)</span>
+          <div>
+            <h3>Netzwerk &amp; WLAN</h3>
+            <p class="desc">Stabile Verkabelung, flächendeckendes WLAN und sauber getrennte Netze für Gäste und Betrieb — für ganze Gebäude geplant und umgesetzt.</p>
+          </div>
+          <span class="tail">auf Anfrage <span class="arrow">↗</span></span>
+        </a>
+        <a class="xrow" href="#kontakt">
+          <span class="idx">(04)</span>
+          <div>
+            <h3>Server &amp; Storage</h3>
+            <p class="desc">Lokal, Cloud oder hybrid — inklusive durchdachter Backup-Strategie, damit Ihre Daten auch im Ernstfall sicher sind.</p>
+          </div>
+          <span class="tail">auf Anfrage <span class="arrow">↗</span></span>
+        </a>
       </div>
     </div>
   </section>
@@ -69,7 +78,7 @@ import ContactForm from "../components/ContactForm.astro";
   <section class="section">
     <div class="container vertrag" id="vertrag">
       <div class="vertrag-text">
-        <p class="label" style="color: rgba(239,234,227,0.75)">Support-Vertrag</p>
+        <span class="mono" style="color: var(--ink)">(Support-Vertrag)</span>
         <h3>Sorglos-IT mit garantierten Reaktionszeiten</h3>
         <p>
           Monatlicher Fixpreis, definierte SLA, Wartung und Updates inklusive —
@@ -77,12 +86,11 @@ import ContactForm from "../components/ContactForm.astro";
           Tickets, Rechnungen und Verträge jederzeit online.
         </p>
       </div>
-      <a class="btn vertrag-btn" href="#kontakt">Beratung anfragen</a>
+      <a class="btn btn-dark" href="#kontakt">Beratung anfragen ↗</a>
     </div>
   </section>
 
   <ContactForm
-    accent="pine"
     heading="Support anfragen"
     intro="Brennt es gerade, rufen Sie direkt an — sonst beschreiben Sie kurz Ihr Anliegen, und Sie hören innert eines Arbeitstags von uns."
     messageLabel="Ihr Anliegen"
@@ -90,18 +98,18 @@ import ContactForm from "../components/ContactForm.astro";
 </Base>
 
 <style>
-  .hero { border-bottom: 1px solid var(--line); padding: 88px 0 72px; }
+  .hero { padding: 92px 0 80px; border-bottom: 1px solid var(--line); }
   .hero-grid {
     display: grid;
     grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
-    gap: 64px;
+    gap: 72px;
     align-items: end;
   }
-  .hero-main { display: flex; flex-direction: column; gap: 22px; }
-  .hero h1 { font-size: clamp(42px, 6vw, 84px); }
-  .hero .dot { color: var(--pine); filter: brightness(1.5); }
-  .lead { max-width: 560px; font-size: 17px; color: var(--muted); }
-  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+  .hero .mono { display: block; margin-bottom: 24px; }
+  .hero h1 { font-size: clamp(44px, 7vw, 104px); }
+  .acid-txt { color: var(--acid); }
+  .lead { max-width: 560px; font-size: 17px; color: var(--mute); margin-top: 28px; }
+  .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 32px; }
   .hero-facts { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
   .fact {
     display: flex;
@@ -113,41 +121,32 @@ import ContactForm from "../components/ContactForm.astro";
     font-size: 14px;
   }
   .fact .k {
+    font-family: var(--mono);
     font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--mute);
   }
   .fact .v { text-align: right; }
   @media (max-width: 920px) {
     .hero { padding: 56px 0 48px; }
-    .hero-grid { grid-template-columns: 1fr; gap: 36px; }
+    .hero-grid { grid-template-columns: 1fr; gap: 40px; }
   }
-
-  .price.pine { color: var(--pine); filter: brightness(1.6); font-size: 15px; }
-  .row-item:hover { background: var(--ink-2); }
 
   .vertrag {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 32px;
+    gap: 36px;
     flex-wrap: wrap;
-    padding-top: 40px;
-    padding-bottom: 44px;
-    background: var(--pine);
+    padding-top: 44px;
+    padding-bottom: 52px;
+    background: var(--acid);
+    color: var(--ink);
   }
-  .vertrag-text { display: flex; flex-direction: column; gap: 10px; max-width: 700px; }
-  .vertrag h3 { font-size: clamp(23px, 2.8vw, 32px); color: var(--paper); }
-  .vertrag p { font-size: 14.5px; color: rgba(239,234,227,0.88); }
-  .vertrag a { color: var(--paper); }
-  .vertrag a:hover { color: var(--brass); }
-  .vertrag-btn {
-    background: var(--paper);
-    color: var(--pine-deep);
-    border-color: var(--paper);
-    text-decoration: none;
-  }
-  .vertrag-btn:hover { background: transparent; color: var(--paper); border-color: var(--paper); }
+  .vertrag-text { display: flex; flex-direction: column; gap: 12px; max-width: 720px; }
+  .vertrag h3 { font-size: clamp(24px, 3vw, 40px); color: var(--ink); }
+  .vertrag p { font-size: 15px; }
+  .vertrag a { color: var(--ink); }
+  .vertrag a:hover { color: var(--ink); }
 </style>

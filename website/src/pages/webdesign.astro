@@ -6,21 +6,21 @@ import ContactForm from "../components/ContactForm.astro";
   title="Webdesign — Gross ICT | Webseiten ab CHF 1'500"
   description="Webseiten, Web-Applikationen und Mobile Apps aus Zell LU. Festpreise, rechtssicher nach revDSG, barrierefrei nach WCAG 2.1."
   active="webdesign"
+  ctaHref="#kontakt"
 >
   <section class="hero">
     <div class="container hero-grid">
-      <div class="hero-main">
-        <p class="label" style="color: var(--clay); filter: brightness(1.3)">Webdesign · Zentralschweiz</p>
-        <h1 class="reveal">Webseiten, die<br />für Sie arbeiten<span class="dot">.</span></h1>
+      <div>
+        <p class="mono">(01) — Webdesign</p>
+        <h1 class="reveal">Webseiten,<br />die verkaufen<span class="acid-txt">.</span></h1>
         <p class="lead">
           Vom Einzelunternehmen bis zum KMU: Wir bauen Ihren Auftritt neu —
-          auffindbar, selbst pflegbar und zum Festpreis. Mit Impressum,
-          Datenschutzerklärung nach revDSG und Barrierefreiheit nach WCAG 2.1
-          gleich eingebaut.
+          auffindbar, selbst pflegbar, zum Festpreis. Impressum, Datenschutz
+          nach revDSG und Barrierefreiheit nach WCAG 2.1 sind eingebaut.
         </p>
         <div class="cta-row">
-          <a class="btn btn-brass" href="#kontakt">Projekt anfragen</a>
-          <a class="btn btn-ghost" href="/rechner">Preis berechnen</a>
+          <a class="btn btn-acid" href="/rechner">Preis berechnen</a>
+          <a class="btn btn-ghost" href="#kontakt">Projekt anfragen</a>
         </div>
       </div>
       <aside class="hero-facts" aria-label="Fakten">
@@ -38,24 +38,30 @@ import ContactForm from "../components/ContactForm.astro";
         <h2 class="section-title">Leistungen &amp; Preise</h2>
         <p class="section-note">Drei klare Angebote — jeder Preis gilt, bevor wir anfangen.</p>
       </div>
-      <div class="rows">
-        <a class="row-item hoverable" href="/rechner">
-          <span class="no">01</span>
-          <h3>Webseiten</h3>
-          <p class="desc">Ihr neuer Auftritt zum Festpreis: auffindbar in Suchmaschinen, Inhalte selbst pflegen — inklusive Impressum und Datenschutzerklärung nach Schweizer Recht.</p>
-          <span class="price">ab CHF 1'500</span>
+      <div class="xrows">
+        <a class="xrow" href="/rechner">
+          <span class="idx">(01)</span>
+          <div>
+            <h3>Webseiten</h3>
+            <p class="desc">Ihr neuer Auftritt zum Festpreis: auffindbar in Suchmaschinen, Inhalte selbst pflegen — inklusive Rechtstexten nach Schweizer Recht.</p>
+          </div>
+          <span class="tail">ab CHF 1'500 <span class="arrow">↗</span></span>
         </a>
-        <a class="row-item hoverable" href="#kontakt">
-          <span class="no">02</span>
-          <h3>Web-Applikationen</h3>
-          <p class="desc">Kundenportale, Buchungssysteme oder interne Tools — gebaut für Ihre Abläufe, nicht für den Durchschnitt.</p>
-          <span class="price">ab CHF 15'000</span>
+        <a class="xrow" href="#kontakt">
+          <span class="idx">(02)</span>
+          <div>
+            <h3>Web-Apps</h3>
+            <p class="desc">Kundenportale, Buchungssysteme oder interne Tools — gebaut für Ihre Abläufe, nicht für den Durchschnitt.</p>
+          </div>
+          <span class="tail">ab CHF 15'000 <span class="arrow">↗</span></span>
         </a>
-        <a class="row-item hoverable" href="#kontakt">
-          <span class="no">03</span>
-          <h3>Mobile Apps</h3>
-          <p class="desc">iOS und Android, nativ oder Cross-Platform — von der Idee bis in den App Store, inklusive Betrieb und Updates.</p>
-          <span class="price">ab CHF 20'000</span>
+        <a class="xrow" href="#kontakt">
+          <span class="idx">(03)</span>
+          <div>
+            <h3>Mobile Apps</h3>
+            <p class="desc">iOS und Android, nativ oder Cross-Platform — von der Idee bis in den App Store, inklusive Betrieb und Updates.</p>
+          </div>
+          <span class="tail">ab CHF 20'000 <span class="arrow">↗</span></span>
         </a>
       </div>
     </div>
@@ -63,14 +69,14 @@ import ContactForm from "../components/ContactForm.astro";
 
   <section class="section">
     <div class="container specials">
-      <article class="special special-npo">
-        <p class="label" style="color: rgba(239,234,227,0.75)">Vereine &amp; NPO</p>
+      <article class="special special-acid">
+        <span class="mono" style="color: var(--ink)">(Vereine &amp; NPO)</span>
         <h3>25% Rabatt auf Webprojekte</h3>
         <p>Weil Freiwilligenarbeit Unterstützung verdient — faire Preise für Vereine und gemeinnützige Organisationen.</p>
       </article>
-      <article class="special special-wedding">
-        <p class="label" style="color: var(--brass)">Hochzeitspaare</p>
-        <h3>Hochzeits-Webseiten ab CHF 500</h3>
+      <article class="special special-line">
+        <span class="mono">(Hochzeitspaare)</span>
+        <h3>Hochzeits&shy;seiten ab CHF 500</h3>
         <p>Von Save-the-Date bis zur Deluxe-Variante mit Fotogalerie und Online-Anmeldung für Ihre Gäste.</p>
       </article>
     </div>
@@ -83,22 +89,22 @@ import ContactForm from "../components/ContactForm.astro";
       </div>
       <ol class="process">
         <li>
-          <span class="p-no">1</span>
+          <span class="mono acid">(1)</span>
           <h3>Kennenlernen</h3>
           <p>Kostenloses Erstgespräch: Ziele, Inhalte, Budget — unverbindlich und ehrlich.</p>
         </li>
         <li>
-          <span class="p-no">2</span>
+          <span class="mono acid">(2)</span>
           <h3>Design</h3>
           <p>Sie erhalten einen Gestaltungsvorschlag und geben Feedback, bis es passt.</p>
         </li>
         <li>
-          <span class="p-no">3</span>
+          <span class="mono acid">(3)</span>
           <h3>Umsetzung</h3>
           <p>Entwicklung, Texte, Fotos, SEO — und die rechtssichere Basis gleich mit.</p>
         </li>
         <li>
-          <span class="p-no">4</span>
+          <span class="mono acid">(4)</span>
           <h3>Betreuung</h3>
           <p>Hosting, Updates und Anpassungen — wir bleiben auch nach dem Livegang dran.</p>
         </li>
@@ -106,22 +112,22 @@ import ContactForm from "../components/ContactForm.astro";
     </div>
   </section>
 
-  <ContactForm accent="clay" />
+  <ContactForm />
 </Base>
 
 <style>
-  .hero { border-bottom: 1px solid var(--line); padding: 88px 0 72px; }
+  .hero { padding: 92px 0 80px; border-bottom: 1px solid var(--line); }
   .hero-grid {
     display: grid;
     grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
-    gap: 64px;
+    gap: 72px;
     align-items: end;
   }
-  .hero-main { display: flex; flex-direction: column; gap: 22px; }
-  .hero h1 { font-size: clamp(42px, 6vw, 84px); }
-  .hero .dot { color: var(--clay); }
-  .lead { max-width: 560px; font-size: 17px; color: var(--muted); }
-  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+  .hero .mono { display: block; margin-bottom: 24px; }
+  .hero h1 { font-size: clamp(44px, 7vw, 104px); }
+  .acid-txt { color: var(--acid); }
+  .lead { max-width: 560px; font-size: 17px; color: var(--mute); margin-top: 28px; }
+  .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 32px; }
   .hero-facts { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
   .fact {
     display: flex;
@@ -133,37 +139,33 @@ import ContactForm from "../components/ContactForm.astro";
     font-size: 14px;
   }
   .fact .k {
+    font-family: var(--mono);
     font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--mute);
   }
   .fact .v { text-align: right; }
   @media (max-width: 920px) {
     .hero { padding: 56px 0 48px; }
-    .hero-grid { grid-template-columns: 1fr; gap: 36px; }
+    .hero-grid { grid-template-columns: 1fr; gap: 40px; }
   }
-
-  .rows { margin-top: 0; }
-  .section-head + .rows .row-item:first-child { border-top: none; }
 
   .specials {
     display: grid;
     grid-template-columns: 3fr 2fr;
-    gap: 1px;
-    background: var(--line);
-    border: 1px solid var(--line);
+    gap: 0;
   }
-  .special { padding: 40px 36px 44px; display: flex; flex-direction: column; gap: 12px; }
-  .special h3 { font-size: clamp(22px, 2.6vw, 30px); }
+  .special { padding: 44px 40px 52px; display: flex; flex-direction: column; gap: 14px; }
+  .special h3 { font-size: clamp(24px, 3vw, 40px); }
   .special p { font-size: 14.5px; max-width: 480px; }
-  .special-npo { background: var(--clay); color: rgba(239,234,227,0.88); }
-  .special-npo h3 { color: var(--paper); }
-  .special-wedding { background: var(--ink-2); color: var(--muted); }
-  .special-wedding h3 { color: var(--text); }
+  .special-acid { background: var(--acid); color: var(--ink); }
+  .special-acid h3 { color: var(--ink); }
+  .special-line { border: 1px solid var(--line); border-left: none; color: var(--mute); }
+  .special-line h3 { color: var(--fg); }
   @media (max-width: 860px) {
     .specials { grid-template-columns: 1fr; }
+    .special-line { border-left: 1px solid var(--line); border-top: none; }
   }
 
   .process {
@@ -172,22 +174,19 @@ import ContactForm from "../components/ContactForm.astro";
     padding: 0;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 36px;
-    padding-top: 32px;
+    gap: 0;
+    border-top: 1px solid var(--line);
   }
-  .process li { display: flex; flex-direction: column; gap: 8px; }
-  .p-no {
-    font-family: "Fraunces", Georgia, serif;
-    font-size: 15px;
-    color: var(--clay);
-    filter: brightness(1.3);
-  }
-  .process h3 { font-size: 18px; }
-  .process p { font-size: 13.5px; color: var(--muted); }
+  .process li { display: flex; flex-direction: column; gap: 10px; padding: 28px 24px 36px 0; }
+  .process li + li { padding-left: 24px; border-left: 1px solid var(--line); }
+  .process h3 { font-size: 19px; }
+  .process p { font-size: 13.5px; color: var(--mute); }
   @media (max-width: 860px) {
-    .process { grid-template-columns: 1fr 1fr; gap: 28px; }
+    .process { grid-template-columns: 1fr 1fr; }
+    .process li:nth-child(3) { padding-left: 0; border-left: none; }
   }
   @media (max-width: 520px) {
     .process { grid-template-columns: 1fr; }
+    .process li + li { padding-left: 0; border-left: none; }
   }
 </style>
