@@ -87,6 +87,21 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Interessent aktivieren: ein aus einem Lead erstellter Kunde (Status
+    // inaktiv) wird mit der Angebotsannahme zum aktiven Kunden
+    try {
+      const customerId = (updatedQuotes[0] as { customer_id?: string }).customer_id;
+      if (customerId) {
+        await supabase
+          .from("customers")
+          .update({ status: "active" })
+          .eq("id", customerId)
+          .eq("status", "inactive");
+      }
+    } catch (e) {
+      console.error("[accept-quote] Interessent-Aktivierung fehlgeschlagen:", e);
+    }
+
     // Auto-create project from accepted quote
     try {
       // Prüfen, ob bereits ein Projekt für dieses Angebot existiert (Doppelungen verhindern)

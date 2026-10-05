@@ -26,6 +26,8 @@ import { showAlert, showConfirm } from "@/lib/alert";
 import Svg, { Circle, G } from "react-native-svg";
 import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { scheduleReminderNotification, cancelReminderNotification } from "@/lib/local-notifications";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 
 type LeadStatus = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
 
@@ -41,6 +43,31 @@ const STAGE_META: Record<LeadStatus, { label: string; color: string }> = {
 const ACTIVE_STAGES: LeadStatus[] = ["new", "contacted", "qualified", "proposal"];
 const STAGE_ORDER: LeadStatus[] = ["new", "contacted", "qualified", "proposal", "won"];
 const RATING_EMOJI: Record<string, string> = { hot: "🔥", warm: "🌤", cold: "❄️" };
+const LOST_REASONS = [
+  { key: "zu_teuer", label: "Zu teuer" },
+  { key: "konkurrenz", label: "Konkurrenz" },
+  { key: "kein_bedarf", label: "Kein Bedarf" },
+  { key: "keine_antwort", label: "Keine Antwort" },
+  { key: "sonstiges", label: "Sonstiges" },
+];
+const lostReasonLabel = (key: string) => LOST_REASONS.find((r) => r.key === key)?.label || key;
+
+// Automatisches Lead-Scoring: schlägt eine Einstufung vor, wenn keine
+// manuelle gesetzt ist (Signale: Website-Mängel, Potenzialwert, Quelle, Phase)
+function suggestRating(lead: any): "hot" | "warm" | "cold" {
+  let score = 0;
+  const wc = lead.web_check;
+  if (wc) {
+    const issues = [!wc.sslValid, !wc.hasImpressum, !wc.hasPrivacy, !wc.isResponsive].filter(Boolean).length;
+    score += Math.min(issues, 2);
+  }
+  if ((lead.value || 0) >= 3000) score += 2;
+  else if ((lead.value || 0) >= 1000) score += 1;
+  if (lead.source === "empfehlung" || lead.source === "website") score += 2;
+  else if (lead.source === "messe") score += 1;
+  if (lead.status === "qualified" || lead.status === "proposal") score += 1;
+  return score >= 4 ? "hot" : score >= 2 ? "warm" : "cold";
+}
 
 export default function LeadsScreen() {
   const router = useRouter();
@@ -56,6 +83,8 @@ export default function LeadsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<string>("date");
   const [mobileStage, setMobileStage] = useState<LeadStatus>("new");
+  const [dragOverStage, setDragOverStage] = useState<LeadStatus | null>(null);
+  const [showImport, setShowImport] = useState(false);
   const { refreshing, onRefresh } = useGlobalRefresh();
   const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
 
@@ -126,12 +155,26 @@ export default function LeadsScreen() {
   const activeLeads = filteredLeads.filter((l: any) => ACTIVE_STAGES.includes(l.status));
   const pipelineValue = activeLeads.reduce((s: number, l: any) => s + (l.value || 0), 0);
 
-  // Gewichtete Pipeline: Wert × Abschlusswahrscheinlichkeit aus der Einstufung
+  // Gewichtete Pipeline: Wert × Abschlusswahrscheinlichkeit aus der Einstufung;
+  // ohne manuelle Einstufung zählt der automatische Score-Vorschlag
   const RATING_WEIGHTS: Record<string, number> = { hot: 0.7, warm: 0.4, cold: 0.15 };
   const weightedValue = activeLeads.reduce((sum: number, lead: any) => {
-    const w = RATING_WEIGHTS[lead.rating || ""] ?? 0.3;
+    const w = RATING_WEIGHTS[lead.rating || suggestRating(lead)] ?? 0.3;
     return sum + (lead.value || 0) * w;
   }, 0);
+
+  // Wochenziel: protokollierte Kontakte seit Montag
+  const { data: mkSettings = {} } = useQuery({
+    queryKey: ["marketingSettings"],
+    queryFn: Data.getMarketingSettings,
+  });
+  const { data: weekStats } = useQuery({
+    queryKey: ["weeklyContacts"],
+    queryFn: Data.getWeeklyContactStats,
+    refetchInterval: 60000,
+  });
+  const weeklyGoal = parseInt((mkSettings as any).weekly_contact_goal, 10) || 10;
+  const weeklyContacts = weekStats?.contacts || 0;
 
   const wonLeads = filteredLeads.filter((l: any) => l.status === "won");
   const lostLeads = filteredLeads.filter((l: any) => l.status === "lost");
@@ -184,18 +227,22 @@ export default function LeadsScreen() {
     const reminderOverdue = nextReminder && new Date(nextReminder.remind_at) < new Date(new Date().setHours(0, 0, 0, 0));
     const actionOverdue = lead.next_action_date && lead.next_action_date < todayStr;
     const target = nextStage(lead.status);
+    const stageDays = Math.max(0, Math.floor(
+      (Date.now() - new Date(lead.stage_changed_at || lead.created_at || Date.now()).getTime()) / 86400000
+    ));
+    const ageColor = stageDays >= 30 ? "#EF4444" : stageDays >= 14 ? "#FB923C" : colors.muted;
 
-    return (
+    const card = (
       <TouchableOpacity
         key={lead.id}
-        className="bg-background rounded-xl border border-border p-3"
+        className="bg-surface rounded-xl border border-border p-3"
         activeOpacity={0.7}
         onPress={() => setSelectedLead(lead)}
       >
         {/* Kopf: Firma + Prioritäts-Punkt */}
         <View className="flex-row items-center justify-between gap-2">
           <Text className="text-[14.5px] font-bold text-foreground flex-1" numberOfLines={1}>
-            {lead.rating ? `${RATING_EMOJI[lead.rating] || ""} ` : ""}
+            {lead.rating ? `${RATING_EMOJI[lead.rating] || ""} ` : `≈${RATING_EMOJI[suggestRating(lead)]} `}
             {lead.company || lead.name || "–"}
           </Text>
           <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: getPriorityColor(lead.priority) }} />
@@ -210,11 +257,16 @@ export default function LeadsScreen() {
           <Text className="text-sm font-bold" style={{ color: "#4ADE80" }}>
             {fmtChf(lead.value || 0)}
           </Text>
-          {lead.source ? (
-            <Text className="text-[10px] text-muted uppercase">
-              {{ website: "Website", empfehlung: "Empfehlung", messe: "Messe", kaltakquise: "Kaltakquise", social_media: "Social Media" }[lead.source as string] || lead.source}
+          <View className="flex-row items-center gap-2">
+            {lead.source ? (
+              <Text className="text-[10px] text-muted uppercase">
+                {{ website: "Website", empfehlung: "Empfehlung", messe: "Messe", kaltakquise: "Kaltakquise", social_media: "Social Media" }[lead.source as string] || lead.source}
+              </Text>
+            ) : null}
+            <Text className="text-[10px] font-semibold" style={{ color: ageColor }}>
+              {stageDays} Tg.
             </Text>
-          ) : null}
+          </View>
         </View>
 
         {/* Nächster Schritt */}
@@ -246,6 +298,30 @@ export default function LeadsScreen() {
               <Text className="text-[11px] font-bold" style={{ color: getStatusColor(target) }} numberOfLines={1}>
                 → {getStatusLabel(target)}
               </Text>
+            </TouchableOpacity>
+          ) : null}
+          {(lead.phone || lead.mobile) ? (
+            <TouchableOpacity
+              className="w-8 h-8 rounded-lg items-center justify-center"
+              style={{ backgroundColor: "#25D36618" }}
+              onPress={() => {
+                const digits = String(lead.phone || lead.mobile).replace(/\D/g, "");
+                const intl = digits.startsWith("0") ? "41" + digits.slice(1) : digits;
+                Linking.openURL(`https://wa.me/${intl}`);
+              }}
+              activeOpacity={0.7}
+            >
+              <IconSymbol name="message.fill" size={13} color="#25D366" />
+            </TouchableOpacity>
+          ) : null}
+          {lead.email ? (
+            <TouchableOpacity
+              className="w-8 h-8 rounded-lg items-center justify-center"
+              style={{ backgroundColor: "#0EA5E918" }}
+              onPress={() => Linking.openURL(`mailto:${lead.email}`)}
+              activeOpacity={0.7}
+            >
+              <IconSymbol name="envelope.fill" size={13} color="#0EA5E9" />
             </TouchableOpacity>
           ) : null}
           <TouchableOpacity
@@ -282,6 +358,53 @@ export default function LeadsScreen() {
         </View>
       </TouchableOpacity>
     );
+
+    // Web: Karte per Drag & Drop in andere Spalten ziehen
+    if (Platform.OS === "web") {
+      return (
+        <div
+          key={lead.id}
+          draggable
+          onDragStart={(e: any) => {
+            e.dataTransfer.setData("text/plain", lead.id);
+            e.dataTransfer.effectAllowed = "move";
+          }}
+          style={{ cursor: "grab" }}
+        >
+          {card}
+        </div>
+      );
+    }
+    return card;
+  };
+
+  // Web: Spalten/Kacheln als Drop-Ziele für den Phasenwechsel
+  const asDropTarget = (stage: LeadStatus, node: any, style?: any) => {
+    if (Platform.OS !== "web") return <View key={stage} style={style}>{node}</View>;
+    return (
+      <div
+        key={stage}
+        style={{ display: "flex", flexDirection: "column", ...(style || {}) }}
+        onDragOver={(e: any) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (dragOverStage !== stage) setDragOverStage(stage);
+        }}
+        onDragLeave={() => setDragOverStage((s) => (s === stage ? null : s))}
+        onDrop={(e: any) => {
+          e.preventDefault();
+          setDragOverStage(null);
+          const id = e.dataTransfer.getData("text/plain");
+          if (!id) return;
+          const dragged = (leads as any[]).find((x: any) => String(x.id) === String(id));
+          if (dragged && dragged.status !== stage) {
+            updateLeadStatus.mutate({ id, status: stage });
+          }
+        }}
+      >
+        {node}
+      </div>
+    );
   };
 
   // ── KPI-Kachel ──
@@ -317,6 +440,14 @@ export default function LeadsScreen() {
             </View>
             {isWide ? (
               <View className="flex-row items-center gap-2">
+                <TouchableOpacity
+                  className="flex-row items-center gap-1.5 bg-surface border border-border px-3.5 py-2 rounded-xl"
+                  activeOpacity={0.8}
+                  onPress={() => setShowImport(true)}
+                >
+                  <IconSymbol name="tray.fill" size={14} color={colors.muted} />
+                  <Text className="text-sm font-semibold text-foreground">Import</Text>
+                </TouchableOpacity>
                 <TouchableOpacity
                   className="flex-row items-center gap-1.5 bg-surface border border-border px-3.5 py-2 rounded-xl"
                   activeOpacity={0.8}
@@ -395,6 +526,26 @@ export default function LeadsScreen() {
               sub="fällige Follow-ups & Aktionen"
               color={dueList.length > 0 ? "#FB923C" : "#4ADE80"}
             />
+          </View>
+
+          {/* ── Wochenziel: protokollierte Kontakte seit Montag ── */}
+          <View className="bg-surface rounded-xl border border-border px-4 py-3 mb-4">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-[11px] text-muted">Wochenziel Kontakte (Anrufe, Mails, Aktivitäten)</Text>
+              <Text className="text-xs font-bold" style={{ color: weeklyContacts >= weeklyGoal ? "#4ADE80" : colors.foreground }}>
+                {weeklyContacts} / {weeklyGoal}
+              </Text>
+            </View>
+            <View className="rounded-full mt-2" style={{ height: 7, backgroundColor: colors.border, overflow: "hidden" }}>
+              <View
+                className="rounded-full"
+                style={{
+                  height: 7,
+                  width: `${Math.min(100, Math.round((weeklyContacts / Math.max(1, weeklyGoal)) * 100))}%`,
+                  backgroundColor: weeklyContacts >= weeklyGoal ? "#22C55E" : colors.primary,
+                }}
+              />
+            </View>
           </View>
 
           {/* ── Suche & Filter ── */}
@@ -560,8 +711,17 @@ export default function LeadsScreen() {
                 <View style={{ flexDirection: "row", gap: 12, alignItems: "flex-start" }}>
                   {ACTIVE_STAGES.map((stage) => {
                     const list = byStage(stage);
-                    return (
-                      <View key={stage} className="bg-surface rounded-2xl border border-border p-3" style={{ flex: 1 }}>
+                    return asDropTarget(stage, (
+                      <View
+                        className="rounded-2xl"
+                        style={{
+                          flex: 1,
+                          padding: 6,
+                          borderWidth: 1.5,
+                          borderStyle: "dashed",
+                          borderColor: dragOverStage === stage ? getStatusColor(stage) : "transparent",
+                        }}
+                      >
                         <View className="flex-row items-center justify-between mb-0.5">
                           <View className="flex-row items-center gap-2">
                             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: getStatusColor(stage) }} />
@@ -576,11 +736,11 @@ export default function LeadsScreen() {
                           <View className="gap-2">{list.map(renderLeadCard)}</View>
                         ) : (
                           <View className="rounded-xl border border-dashed items-center py-6" style={{ borderColor: colors.border }}>
-                            <Text className="text-xs text-muted">Keine Leads</Text>
+                            <Text className="text-xs text-muted">Keine Leads — hierher ziehen</Text>
                           </View>
                         )}
                       </View>
-                    );
+                    ), { flex: 1 });
                   })}
                 </View>
               ) : (
@@ -621,45 +781,64 @@ export default function LeadsScreen() {
                 </View>
               )}
 
-              {/* ── Gewonnen / Verloren (Desktop-Zusammenfassung) ── */}
-              {isWide && (wonLeads.length > 0 || lostLeads.length > 0) && (
+              {/* ── Gewonnen / Verloren (Desktop: auch Drop-Ziele) ── */}
+              {isWide && (
                 <View className="flex-row gap-3 mt-4">
-                  <View className="flex-1 bg-surface rounded-xl border border-border p-4">
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-row items-center gap-2">
-                        <IconSymbol name="checkmark.circle.fill" size={16} color="#22C55E" />
-                        <Text className="text-sm font-bold text-foreground">Gewonnen</Text>
+                  {asDropTarget("won", (
+                    <View
+                      className="bg-surface rounded-xl p-4"
+                      style={{ flex: 1, borderWidth: 1.5, borderColor: dragOverStage === "won" ? "#22C55E" : colors.border }}
+                    >
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center gap-2">
+                          <IconSymbol name="checkmark.circle.fill" size={16} color="#22C55E" />
+                          <Text className="text-sm font-bold text-foreground">Gewonnen</Text>
+                        </View>
+                        <Text className="text-sm font-bold" style={{ color: "#22C55E" }}>{fmtChf(wonValue)}</Text>
                       </View>
-                      <Text className="text-sm font-bold" style={{ color: "#22C55E" }}>{fmtChf(wonValue)}</Text>
-                    </View>
-                    <View className="gap-1.5 mt-3">
-                      {sortLeads(wonLeads).slice(0, 5).map((lead: any) => (
-                        <TouchableOpacity key={lead.id} className="flex-row items-center justify-between" onPress={() => setSelectedLead(lead)} activeOpacity={0.7}>
-                          <Text className="text-xs text-foreground flex-1 mr-2" numberOfLines={1}>{lead.company || lead.name}</Text>
-                          <Text className="text-xs font-semibold" style={{ color: "#22C55E" }}>{fmtChf(lead.value || 0)}</Text>
-                        </TouchableOpacity>
-                      ))}
-                      {wonLeads.length > 5 ? <Text className="text-[11px] text-muted">+{wonLeads.length - 5} weitere</Text> : null}
-                    </View>
-                  </View>
-                  <View className="flex-1 bg-surface rounded-xl border border-border p-4">
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-row items-center gap-2">
-                        <IconSymbol name="xmark.circle.fill" size={16} color="#EF4444" />
-                        <Text className="text-sm font-bold text-foreground">Verloren</Text>
+                      <View className="gap-1.5 mt-3">
+                        {wonLeads.length === 0 ? (
+                          <Text className="text-[11px] text-muted">Lead hierher ziehen, um ihn als gewonnen zu markieren</Text>
+                        ) : null}
+                        {sortLeads(wonLeads).slice(0, 5).map((lead: any) => (
+                          <TouchableOpacity key={lead.id} className="flex-row items-center justify-between" onPress={() => setSelectedLead(lead)} activeOpacity={0.7}>
+                            <Text className="text-xs text-foreground flex-1 mr-2" numberOfLines={1}>{lead.company || lead.name}</Text>
+                            <Text className="text-xs font-semibold" style={{ color: "#22C55E" }}>{fmtChf(lead.value || 0)}</Text>
+                          </TouchableOpacity>
+                        ))}
+                        {wonLeads.length > 5 ? <Text className="text-[11px] text-muted">+{wonLeads.length - 5} weitere</Text> : null}
                       </View>
-                      <Text className="text-sm font-bold" style={{ color: "#EF4444" }}>{fmtChf(lostValue)}</Text>
                     </View>
-                    <View className="gap-1.5 mt-3" style={{ opacity: 0.75 }}>
-                      {sortLeads(lostLeads).slice(0, 5).map((lead: any) => (
-                        <TouchableOpacity key={lead.id} className="flex-row items-center justify-between" onPress={() => setSelectedLead(lead)} activeOpacity={0.7}>
-                          <Text className="text-xs text-foreground flex-1 mr-2" numberOfLines={1}>{lead.company || lead.name}</Text>
-                          <Text className="text-xs font-semibold text-muted">{fmtChf(lead.value || 0)}</Text>
-                        </TouchableOpacity>
-                      ))}
-                      {lostLeads.length > 5 ? <Text className="text-[11px] text-muted">+{lostLeads.length - 5} weitere</Text> : null}
+                  ), { flex: 1 })}
+                  {asDropTarget("lost", (
+                    <View
+                      className="bg-surface rounded-xl p-4"
+                      style={{ flex: 1, borderWidth: 1.5, borderColor: dragOverStage === "lost" ? "#EF4444" : colors.border }}
+                    >
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center gap-2">
+                          <IconSymbol name="xmark.circle.fill" size={16} color="#EF4444" />
+                          <Text className="text-sm font-bold text-foreground">Verloren</Text>
+                        </View>
+                        <Text className="text-sm font-bold" style={{ color: "#EF4444" }}>{fmtChf(lostValue)}</Text>
+                      </View>
+                      <View className="gap-1.5 mt-3" style={{ opacity: 0.75 }}>
+                        {lostLeads.length === 0 ? (
+                          <Text className="text-[11px] text-muted">Lead hierher ziehen, um ihn als verloren zu markieren</Text>
+                        ) : null}
+                        {sortLeads(lostLeads).slice(0, 5).map((lead: any) => (
+                          <TouchableOpacity key={lead.id} className="flex-row items-center justify-between" onPress={() => setSelectedLead(lead)} activeOpacity={0.7}>
+                            <Text className="text-xs text-foreground flex-1 mr-2" numberOfLines={1}>
+                              {lead.company || lead.name}
+                              {lead.lost_reason ? `  ·  ${lostReasonLabel(lead.lost_reason)}` : ""}
+                            </Text>
+                            <Text className="text-xs font-semibold text-muted">{fmtChf(lead.value || 0)}</Text>
+                          </TouchableOpacity>
+                        ))}
+                        {lostLeads.length > 5 ? <Text className="text-[11px] text-muted">+{lostLeads.length - 5} weitere</Text> : null}
+                      </View>
                     </View>
-                  </View>
+                  ), { flex: 1 })}
                 </View>
               )}
 
@@ -675,6 +854,24 @@ export default function LeadsScreen() {
                   { label: "Gewonnen", count: wonLeads.length, color: "#22C55E", value: wonValue },
                   { label: "Verloren", count: lostLeads.length, color: "#EF4444", value: lostValue },
                 ];
+
+                // Konversions-Trichter: wie viele Leads haben jede Phase erreicht?
+                const funnelStages: LeadStatus[] = ["new", "contacted", "qualified", "proposal", "won"];
+                const funnelBase = filteredLeads.length;
+                const funnel = funnelStages.map((st, i) => ({
+                  stage: st,
+                  count: filteredLeads.filter((l: any) =>
+                    l.status !== "lost" && STAGE_ORDER.indexOf(l.status) >= i
+                  ).length + (i === 0 ? lostLeads.length : 0),
+                }));
+
+                // Verlustgründe zusammenzählen
+                const lostReasonCounts = new Map<string, number>();
+                for (const l of lostLeads as any[]) {
+                  const key = l.lost_reason || "";
+                  if (!key) continue;
+                  lostReasonCounts.set(key, (lostReasonCounts.get(key) || 0) + 1);
+                }
 
                 const renderDonut = (data: { label: string; count: number; color: string }[], total: number) => {
                   const size = 120;
@@ -763,6 +960,44 @@ export default function LeadsScreen() {
                           ))}
                         </View>
                       </View>
+                      {lostReasonCounts.size > 0 && (
+                        <View className="mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+                          <Text className="text-[10px] font-bold text-muted uppercase mb-1.5">Verlustgründe</Text>
+                          {[...lostReasonCounts.entries()].sort((a, b) => b[1] - a[1]).map(([reason, count]) => (
+                            <View key={reason} className="flex-row items-center justify-between py-0.5">
+                              <Text className="text-xs text-foreground">{lostReasonLabel(reason)}</Text>
+                              <Text className="text-xs font-semibold text-muted">{count}×</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Konversions-Trichter */}
+                    <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                      <Text className="text-sm font-semibold text-foreground mb-3">Konversions-Trichter</Text>
+                      <View className="gap-2.5">
+                        {funnel.map((f) => {
+                          const pct = funnelBase > 0 ? Math.round((f.count / funnelBase) * 100) : 0;
+                          return (
+                            <View key={f.stage}>
+                              <View className="flex-row items-center justify-between mb-1">
+                                <Text className="text-xs text-muted">{getStatusLabel(f.stage)}</Text>
+                                <Text className="text-xs font-semibold text-foreground">{f.count} · {pct}%</Text>
+                              </View>
+                              <View className="rounded-full" style={{ height: 7, backgroundColor: colors.border, overflow: "hidden" }}>
+                                <View
+                                  className="rounded-full"
+                                  style={{ height: 7, width: `${Math.max(pct, f.count > 0 ? 4 : 0)}%`, backgroundColor: getStatusColor(f.stage) }}
+                                />
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                      <Text className="text-[10px] text-muted mt-2.5">
+                        Anteil aller Leads, die die jeweilige Phase erreicht haben
+                      </Text>
                     </View>
                   </View>
                 );
@@ -790,6 +1025,15 @@ export default function LeadsScreen() {
 
       {/* Cross-Selling-Analyse */}
       <CrossSellModal visible={showCrossSell} onClose={() => setShowCrossSell(false)} colors={colors} />
+
+      {/* CSV-Import (Kaltakquise-Listen) */}
+      <ImportLeadsModal
+        visible={showImport}
+        onClose={() => setShowImport(false)}
+        colors={colors}
+        existingLeads={leads as any[]}
+        onDone={() => queryClient.invalidateQueries({ queryKey: ["leads"] })}
+      />
 
       {/* Convert Lead to Customer Modal */}
       {convertingLead && (
@@ -1063,6 +1307,199 @@ function LeadDetailsModal({
   const [webCheckLoading, setWebCheckLoading] = useState(false);
   const [webCheck, setWebCheck] = useState<any | null>(null);
 
+  // Verlustgrund-Abfrage beim Setzen auf "Verloren"
+  const [showLostPicker, setShowLostPicker] = useState(false);
+
+  // Erstkontakt-Mail (KI)
+  const [aiDraft, setAiDraft] = useState<{ subject: string; body: string } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSending, setAiSending] = useState(false);
+
+  // Termin planen (Outlook-Einladung / ICS)
+  const [showPlanMeeting, setShowPlanMeeting] = useState(false);
+  const [mtTitle, setMtTitle] = useState("");
+  const [mtDate, setMtDate] = useState("");
+  const [mtTime, setMtTime] = useState("09:00");
+  const [mtDuration, setMtDuration] = useState(60);
+  const [mtAttendee, setMtAttendee] = useState<{ email: string; name: string } | null>(null);
+  const [mtNote, setMtNote] = useState("");
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const [creatingQuote, setCreatingQuote] = useState(false);
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ["allEmployees"],
+    queryFn: Data.getAllEmployees,
+  });
+
+  // Empfohlen von (Quelle Empfehlung)
+  const { data: referrer } = useQuery({
+    queryKey: ["referrerCustomer", lead.referrer_customer_id],
+    queryFn: () => Data.getCustomerById(lead.referrer_customer_id),
+    enabled: !!lead.referrer_customer_id,
+  });
+
+  const parseMeetingStart = (): Date | null => {
+    const dParts = mtDate.trim().split(".");
+    const tParts = mtTime.trim().split(":");
+    if (dParts.length !== 3 || tParts.length < 2) return null;
+    const d = new Date(
+      parseInt(dParts[2], 10), parseInt(dParts[1], 10) - 1, parseInt(dParts[0], 10),
+      parseInt(tParts[0], 10), parseInt(tParts[1], 10), 0, 0
+    );
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const buildIcs = (start: Date) => {
+    const end = new Date(start.getTime() + mtDuration * 60000);
+    const fmt = (x: Date) => x.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+    const esc = (s: string) => String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+    return [
+      "BEGIN:VCALENDAR", "PRODID:-//Gross ICT//CRM//DE", "VERSION:2.0", "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      `UID:${Date.now()}@gross-ict.ch`,
+      `DTSTAMP:${fmt(new Date())}`,
+      `DTSTART:${fmt(start)}`,
+      `DTEND:${fmt(end)}`,
+      `SUMMARY:${esc(mtTitle || `Termin: ${lead.company || lead.name}`)}`,
+      mtNote ? `DESCRIPTION:${esc(mtNote)}` : "",
+      "END:VEVENT", "END:VCALENDAR",
+    ].filter(Boolean).join("\r\n");
+  };
+
+  const handleSendInvite = async () => {
+    const start = parseMeetingStart();
+    if (!start) { showAlert("Fehler", "Bitte Datum (TT.MM.JJJJ) und Zeit (HH:MM) prüfen."); return; }
+    if (!mtAttendee) { showAlert("Fehler", "Bitte Mitarbeitenden auswählen."); return; }
+    setSendingInvite(true);
+    try {
+      const { data, error } = await Data.supabase.functions.invoke("send-calendar-invite", {
+        body: {
+          title: mtTitle || `Termin: ${lead.company || lead.name}`,
+          description: `${mtNote ? mtNote + "\n\n" : ""}Lead: ${lead.company || lead.name}${lead.phone ? `\nTelefon: ${lead.phone}` : ""}${lead.email ? `\nE-Mail: ${lead.email}` : ""}`,
+          location: [lead.address, [lead.zip, lead.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
+          start: start.toISOString(),
+          durationMinutes: mtDuration,
+          attendeeEmail: mtAttendee.email,
+          attendeeName: mtAttendee.name,
+        },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || "Versand fehlgeschlagen");
+      await Data.addLeadActivity({
+        lead_id: lead.id,
+        type: "system",
+        content: `Termineinladung an ${mtAttendee.name || mtAttendee.email} gesendet: ${mtDate} ${mtTime} Uhr`,
+        user_name: currentUserName,
+      });
+      refetchActivities();
+      setShowPlanMeeting(false);
+      showAlert("Gesendet", `Die Kalendereinladung wurde an ${mtAttendee.email} geschickt — in Outlook einfach annehmen.`);
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    } finally {
+      setSendingInvite(false);
+    }
+  };
+
+  const handleDownloadIcs = () => {
+    const start = parseMeetingStart();
+    if (!start) { showAlert("Fehler", "Bitte Datum (TT.MM.JJJJ) und Zeit (HH:MM) prüfen."); return; }
+    if (Platform.OS !== "web") return;
+    const blob = new Blob([buildIcs(start)], { type: "text/calendar" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "termin.ics";
+    a.click();
+  };
+
+  const handleGenerateOutreach = async () => {
+    setAiLoading(true);
+    try {
+      const { data, error } = await Data.supabase.functions.invoke("lead-outreach", {
+        body: { action: "generate", leadId: lead.id },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || "Generierung fehlgeschlagen");
+      setAiDraft({ subject: data.subject || "", body: data.body || "" });
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleSendOutreach = async () => {
+    if (!aiDraft?.subject.trim() || !aiDraft?.body.trim()) {
+      showAlert("Fehler", "Betreff und Text dürfen nicht leer sein.");
+      return;
+    }
+    showConfirm(
+      "Erstkontakt-Mail senden",
+      `Die E-Mail wird an ${lead.email} gesendet.`,
+      async () => {
+        setAiSending(true);
+        try {
+          const { data, error } = await Data.supabase.functions.invoke("lead-outreach", {
+            body: { action: "send", leadId: lead.id, subject: aiDraft.subject, body: aiDraft.body },
+          });
+          if (error || data?.error) throw new Error(data?.error || error?.message || "Versand fehlgeschlagen");
+          setAiDraft(null);
+          refetchActivities();
+          showAlert("Gesendet", "Die Erstkontakt-Mail wurde versendet und protokolliert.");
+        } catch (e: any) {
+          showAlert("Fehler", e.message);
+        } finally {
+          setAiSending(false);
+        }
+      },
+      "Senden"
+    );
+  };
+
+  const handleCreateQuoteFromLead = () => {
+    showConfirm(
+      "Angebot aus Lead erstellen",
+      "Aus den Potenzial-Positionen wird ein Angebotsentwurf erstellt. Der Kunde wird als Interessent (inaktiv) angelegt und erst bei Angebotsannahme automatisch aktiviert.",
+      async () => {
+        setCreatingQuote(true);
+        try {
+          const quote = await Data.createQuoteFromLead(lead);
+          queryClient.invalidateQueries({ queryKey: ["leads"] });
+          queryClient.invalidateQueries({ queryKey: ["quotes"] });
+          queryClient.invalidateQueries({ queryKey: ["customers"] });
+          onClose();
+          router.push(`/quote/${quote.id}` as any);
+        } catch (e: any) {
+          showAlert("Fehler", e.message);
+        } finally {
+          setCreatingQuote(false);
+        }
+      },
+      "Erstellen"
+    );
+  };
+
+  const handleSetLost = async (reasonKey: string) => {
+    try {
+      try {
+        await Data.updateLead(lead.id, { status: "lost", lost_reason: reasonKey });
+      } catch (_e) {
+        // Migration 20261015 fehlt noch → nur Status setzen
+        await Data.updateLead(lead.id, { status: "lost" });
+      }
+      setCurrentStatus("lost");
+      setShowLostPicker(false);
+      await Data.addLeadActivity({
+        lead_id: lead.id,
+        type: "system",
+        content: `Status geändert zu: Verloren (${lostReasonLabel(reasonKey)})`,
+        user_name: "System",
+      });
+      refetchActivities();
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    }
+  };
+
   const runWebCheck = async () => {
     if (!lead.website) return;
     setWebCheckLoading(true);
@@ -1072,6 +1509,8 @@ function LeadDetailsModal({
       });
       if (error) throw new Error(error.message || "Analyse fehlgeschlagen");
       setWebCheck(data);
+      // Ergebnis am Lead speichern (für automatischen Recheck & Scoring)
+      Data.saveLeadWebCheck(lead.id, data);
     } catch (e: any) {
       showAlert("Fehler", "Die Website konnte nicht analysiert werden: " + e.message);
     } finally {
@@ -1156,6 +1595,21 @@ function LeadDetailsModal({
         content: `Status geändert zu: ${getStatusLabel(status as LeadStatus)}`,
         user_name: "System",
       });
+      // Empfehlungs-Tracking: bei Gewinn ans Dankeschön erinnern
+      if (status === "won" && lead.referrer_customer_id) {
+        try {
+          const ref: any = await Data.getCustomerById(lead.referrer_customer_id);
+          const refName = ref?.company_name || `${ref?.first_name || ""} ${ref?.last_name || ""}`.trim() || "Empfehler";
+          const { data: { session } } = await Data.supabase.auth.getSession();
+          await Data.createTask({
+            title: `Danke an ${refName} für die Empfehlung (${lead.company || lead.name})`,
+            status: "open",
+            due_date: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+            assigned_to: session?.user?.id || null,
+          });
+          showAlert("Lead gewonnen 🎉", `Aufgabe erstellt: Danke an ${refName} für die Empfehlung.`);
+        } catch (_) { /* Danke-Aufgabe ist Komfort, kein Muss */ }
+      }
       refetchActivities();
       queryClient.invalidateQueries({ queryKey: ["leads"] });
     },
@@ -1455,6 +1909,20 @@ function LeadDetailsModal({
                 </View>
               )}
 
+              {referrer ? (
+                <View>
+                  <Text className="text-sm text-muted mb-1">Empfohlen von</Text>
+                  <TouchableOpacity
+                    onPress={() => { onClose(); router.push(`/customer/${lead.referrer_customer_id}` as any); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text className="text-base text-primary">
+                      {(referrer as any).company_name || `${(referrer as any).first_name || ""} ${(referrer as any).last_name || ""}`.trim()}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
               {(lead.address || lead.zip || lead.city) ? (
                 <View>
                   <Text className="text-sm text-muted mb-1">Adresse</Text>
@@ -1550,7 +2018,7 @@ function LeadDetailsModal({
               )}
 
               {/* Verknüpftes Angebot */}
-              {(currentStatus === 'proposal' || linkedQuoteId) && (
+              {(currentStatus === 'proposal' || currentStatus === 'qualified' || linkedQuoteId) && (
                 <View className="bg-surface rounded-xl p-4 border border-border">
                   <Text className="text-sm font-semibold text-foreground mb-2">Verknüpftes Angebot</Text>
                   {linkedQuote ? (
@@ -1605,12 +2073,31 @@ function LeadDetailsModal({
                           </TouchableOpacity>
                         </View>
                       ) : (
-                        <TouchableOpacity
-                          className="bg-primary/10 rounded-lg p-3 items-center"
-                          onPress={() => setShowQuotePicker(true)}
-                        >
-                          <Text className="text-sm font-semibold text-primary">Angebot verknüpfen</Text>
-                        </TouchableOpacity>
+                        <View className="gap-2">
+                          <TouchableOpacity
+                            className="bg-primary/10 rounded-lg p-3 items-center"
+                            onPress={() => setShowQuotePicker(true)}
+                          >
+                            <Text className="text-sm font-semibold text-primary">Angebot verknüpfen</Text>
+                          </TouchableOpacity>
+                          {(leadItems.length > 0 || lead.extra_amount > 0) ? (
+                            <TouchableOpacity
+                              className="rounded-lg p-3 items-center"
+                              style={{ backgroundColor: "#8B5CF618" }}
+                              onPress={handleCreateQuoteFromLead}
+                              disabled={creatingQuote}
+                              activeOpacity={0.8}
+                            >
+                              {creatingQuote ? (
+                                <ActivityIndicator size="small" color="#8B5CF6" />
+                              ) : (
+                                <Text className="text-sm font-semibold text-center" style={{ color: "#8B5CF6" }}>
+                                  Angebot aus Potenzial erstellen (Kunde als Interessent)
+                                </Text>
+                              )}
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
                       )}
                     </View>
                   )}
@@ -1626,7 +2113,11 @@ function LeadDetailsModal({
                       <TouchableOpacity
                         key={s}
                         className={`px-3 py-1.5 rounded-md ${currentStatus === s ? "bg-primary" : "bg-surface border border-border"}`}
-                        onPress={() => updateStatus.mutate(s)}
+                        onPress={() => {
+                          if (s === "lost") { setShowLostPicker(true); return; }
+                          setShowLostPicker(false);
+                          updateStatus.mutate(s);
+                        }}
                         activeOpacity={0.7}
                       >
                         <Text className={`text-xs font-semibold ${currentStatus === s ? "text-background" : "text-foreground"}`}>
@@ -1636,7 +2127,96 @@ function LeadDetailsModal({
                     ))}
                   </View>
                 </ScrollView>
+                {showLostPicker && (
+                  <View className="bg-surface rounded-xl border border-border p-3 mt-2">
+                    <Text className="text-xs font-semibold text-muted mb-2">Warum ging der Lead verloren?</Text>
+                    <View className="flex-row flex-wrap gap-2">
+                      {LOST_REASONS.map((r) => (
+                        <TouchableOpacity
+                          key={r.key}
+                          className="px-3 py-1.5 rounded-full border border-border bg-background"
+                          onPress={() => handleSetLost(r.key)}
+                          activeOpacity={0.8}
+                        >
+                          <Text className="text-xs font-semibold text-foreground">{r.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                      <TouchableOpacity className="px-3 py-1.5" onPress={() => setShowLostPicker(false)} activeOpacity={0.7}>
+                        <Text className="text-xs text-muted">Abbrechen</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+                {currentStatus === "lost" && lead.lost_reason ? (
+                  <Text className="text-xs text-muted mt-2">Verlustgrund: {lostReasonLabel(lead.lost_reason)}</Text>
+                ) : null}
               </View>
+
+              {/* Erstkontakt-Mail (KI) */}
+              {lead.email ? (
+                <View className="bg-surface rounded-xl border border-border p-4">
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-2">
+                      <IconSymbol name="sparkles" size={15} color="#8B5CF6" />
+                      <Text className="text-sm font-bold text-foreground">Erstkontakt-Mail (KI)</Text>
+                    </View>
+                    {aiDraft ? (
+                      <TouchableOpacity onPress={handleGenerateOutreach} disabled={aiLoading} activeOpacity={0.7}>
+                        <Text className="text-xs font-semibold" style={{ color: "#8B5CF6" }}>
+                          {aiLoading ? "Generiert..." : "Neu generieren"}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  {!aiDraft ? (
+                    <TouchableOpacity
+                      className="py-3 rounded-xl items-center mt-3"
+                      style={{ backgroundColor: "#8B5CF6", opacity: aiLoading ? 0.6 : 1 }}
+                      onPress={handleGenerateOutreach}
+                      disabled={aiLoading}
+                      activeOpacity={0.8}
+                    >
+                      {aiLoading ? (
+                        <ActivityIndicator size="small" color="#FFF" />
+                      ) : (
+                        <Text className="font-bold" style={{ color: "#FFF" }}>Personalisierten Entwurf erstellen</Text>
+                      )}
+                    </TouchableOpacity>
+                  ) : (
+                    <View className="gap-2 mt-3">
+                      <TextInput
+                        value={aiDraft.subject}
+                        onChangeText={(v) => setAiDraft({ ...aiDraft, subject: v })}
+                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                        placeholder="Betreff"
+                        placeholderTextColor={colors.muted}
+                      />
+                      <TextInput
+                        value={aiDraft.body}
+                        onChangeText={(v) => setAiDraft({ ...aiDraft, body: v })}
+                        multiline
+                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                        style={{ minHeight: 160, textAlignVertical: "top" }}
+                        placeholderTextColor={colors.muted}
+                      />
+                      <TouchableOpacity
+                        className="py-2.5 rounded-lg items-center bg-primary"
+                        onPress={handleSendOutreach}
+                        disabled={aiSending}
+                        activeOpacity={0.8}
+                      >
+                        {aiSending ? (
+                          <ActivityIndicator size="small" color={colors.background} />
+                        ) : (
+                          <Text className="font-bold text-sm" style={{ color: colors.background }}>
+                            Senden an {lead.email}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              ) : null}
             </View>
 
             {/* Erinnerungen */}
@@ -1822,6 +2402,132 @@ function LeadDetailsModal({
               )}
             </View>
 
+            {/* Termin planen (Outlook-Einladung / Kalenderdatei) */}
+            <View className="mt-6 border-t border-border pt-6">
+              <View className="flex-row items-center justify-between mb-3">
+                <Text className="text-lg font-bold text-foreground">Termin planen</Text>
+                <TouchableOpacity
+                  className="bg-primary/10 px-3 py-1.5 rounded-lg flex-row items-center gap-1"
+                  onPress={() => {
+                    if (!showPlanMeeting) {
+                      setMtTitle(`Termin: ${lead.company || lead.name}`);
+                      const t = new Date(Date.now() + 86400000);
+                      setMtDate(t.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" }));
+                    }
+                    setShowPlanMeeting(!showPlanMeeting);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol name="calendar" size={14} color={colors.primary} />
+                  <Text className="text-xs font-semibold text-primary">Neuer Termin</Text>
+                </TouchableOpacity>
+              </View>
+              {showPlanMeeting && (
+                <View className="bg-surface rounded-xl p-4 border border-border gap-2.5">
+                  <TextInput
+                    className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                    value={mtTitle}
+                    onChangeText={setMtTitle}
+                    placeholder="Titel"
+                    placeholderTextColor={colors.muted}
+                  />
+                  <View className="flex-row gap-2">
+                    <TextInput
+                      className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                      value={mtDate}
+                      onChangeText={setMtDate}
+                      placeholder="TT.MM.JJJJ"
+                      placeholderTextColor={colors.muted}
+                    />
+                    <TextInput
+                      className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                      style={{ width: 90, textAlign: "center" }}
+                      value={mtTime}
+                      onChangeText={setMtTime}
+                      placeholder="HH:MM"
+                      placeholderTextColor={colors.muted}
+                    />
+                  </View>
+                  <View className="flex-row items-center gap-2 flex-wrap">
+                    <Text className="text-xs text-muted">Dauer:</Text>
+                    {[30, 60, 90, 120].map((m) => (
+                      <TouchableOpacity
+                        key={m}
+                        className="px-3 py-1.5 rounded-full border"
+                        style={{
+                          backgroundColor: mtDuration === m ? colors.primary : colors.background,
+                          borderColor: mtDuration === m ? colors.primary : colors.border,
+                        }}
+                        onPress={() => setMtDuration(m)}
+                        activeOpacity={0.8}
+                      >
+                        <Text className="text-xs font-semibold" style={{ color: mtDuration === m ? colors.background : colors.foreground }}>
+                          {m} Min.
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <View className="flex-row items-center gap-2 flex-wrap">
+                    <Text className="text-xs text-muted">Mitarbeitende:r:</Text>
+                    {(employees as any[]).filter((e: any) => e.email).map((emp: any) => {
+                      const active = mtAttendee?.email === emp.email;
+                      return (
+                        <TouchableOpacity
+                          key={emp.id}
+                          className="px-3 py-1.5 rounded-full border"
+                          style={{
+                            backgroundColor: active ? colors.primary : colors.background,
+                            borderColor: active ? colors.primary : colors.border,
+                          }}
+                          onPress={() => setMtAttendee({ email: emp.email, name: emp.name || emp.email })}
+                          activeOpacity={0.8}
+                        >
+                          <Text className="text-xs font-semibold" style={{ color: active ? colors.background : colors.foreground }}>
+                            {emp.name || emp.email}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <TextInput
+                    className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                    value={mtNote}
+                    onChangeText={setMtNote}
+                    placeholder="Notiz (optional)"
+                    placeholderTextColor={colors.muted}
+                    multiline
+                    style={{ minHeight: 50, textAlignVertical: "top" }}
+                  />
+                  <View className="flex-row gap-2">
+                    <TouchableOpacity
+                      className="flex-1 py-2.5 rounded-lg items-center bg-primary"
+                      onPress={handleSendInvite}
+                      disabled={sendingInvite}
+                      activeOpacity={0.8}
+                    >
+                      {sendingInvite ? (
+                        <ActivityIndicator size="small" color={colors.background} />
+                      ) : (
+                        <Text className="text-sm font-bold" style={{ color: colors.background }}>Outlook-Einladung senden</Text>
+                      )}
+                    </TouchableOpacity>
+                    {Platform.OS === "web" && (
+                      <TouchableOpacity
+                        className="py-2.5 px-4 rounded-lg items-center border border-border bg-background"
+                        onPress={handleDownloadIcs}
+                        activeOpacity={0.8}
+                      >
+                        <Text className="text-sm font-semibold text-foreground">.ics</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <Text className="text-[11px] text-muted">
+                    Die Einladung geht als Kalender-Anhang an die E-Mail des Mitarbeitenden — in Outlook annehmen genügt, dann steht der Termin im Kalender.
+                  </Text>
+                </View>
+              )}
+            </View>
+
             {/* Historie */}
             <View className="mt-6">
               <Text className="text-lg font-bold text-foreground mb-3">Aktivitätsverlauf</Text>
@@ -1955,7 +2661,15 @@ function CallModeModal({ visible, onClose, colors }: { visible: boolean; onClose
         ...updates,
         notes: `${lead.notes ? lead.notes + "\n" : ""}[${stamp}] ${note}`,
       });
+      // Zählt als Kontakt fürs Wochenziel und erscheint in der Historie
+      await Data.addLeadActivity({
+        lead_id: lead.id,
+        type: "activity",
+        content: `Anruf-Modus: ${note}`,
+        user_name: "Anruf-Modus",
+      });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["weeklyContacts"] });
       setDone(done + 1);
       setIndex(index + 1);
     } catch (e: any) {
@@ -2135,6 +2849,192 @@ function CrossSellModal({ visible, onClose, colors }: { visible: boolean; onClos
             {loading && suggestions === null ? (
               <Text className="text-xs text-muted text-center mt-3">Die KI analysiert Ihre Daten – einen Moment...</Text>
             ) : null}
+            <View style={{ height: 32 }} />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ── CSV-Import: Firmenlisten (z.B. Branchenverzeichnis-Export) als Leads ──
+function ImportLeadsModal({
+  visible, onClose, colors, existingLeads, onDone,
+}: { visible: boolean; onClose: () => void; colors: any; existingLeads: any[]; onDone: () => void }) {
+  const [csvText, setCsvText] = useState("");
+  const [importing, setImporting] = useState(false);
+
+  const parseCsv = (text: string) => {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length < 2) return { rows: [] as any[], skipped: 0 };
+    // Trennzeichen erkennen
+    const head = lines[0];
+    const delim = head.includes(";") ? ";" : head.includes("\t") ? "\t" : ",";
+    const headers = head.split(delim).map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ""));
+    const col = (names: string[]) => headers.findIndex((h) => names.includes(h));
+    const idx = {
+      company: col(["firma", "company", "firmenname", "unternehmen", "name der firma"]),
+      name: col(["name", "kontakt", "kontaktperson", "ansprechpartner", "person"]),
+      email: col(["email", "e-mail", "mail"]),
+      phone: col(["telefon", "phone", "tel", "telefonnummer"]),
+      website: col(["website", "webseite", "url", "web", "homepage"]),
+      address: col(["adresse", "strasse", "address", "street"]),
+      zip: col(["plz", "zip", "postleitzahl"]),
+      city: col(["ort", "city", "stadt", "gemeinde"]),
+      notes: col(["notizen", "notes", "bemerkung", "bemerkungen"]),
+    };
+    if (idx.company < 0 && idx.name < 0) return { rows: [], skipped: 0, badHeader: true } as any;
+
+    const existingEmails = new Set(
+      existingLeads.map((l) => (l.email || "").toLowerCase()).filter(Boolean)
+    );
+    const existingCompanies = new Set(
+      existingLeads.map((l) => (l.company || "").toLowerCase()).filter(Boolean)
+    );
+
+    const rows: any[] = [];
+    let skipped = 0;
+    for (const line of lines.slice(1)) {
+      const cells = line.split(delim).map((c) => c.trim().replace(/^"|"$/g, ""));
+      const get = (i: number) => (i >= 0 && cells[i] ? cells[i] : "");
+      const company = get(idx.company);
+      const name = get(idx.name);
+      if (!company && !name) continue;
+      const email = get(idx.email).toLowerCase();
+      if ((email && existingEmails.has(email)) || (company && existingCompanies.has(company.toLowerCase()))) {
+        skipped++;
+        continue;
+      }
+      rows.push({
+        company: company || undefined,
+        name: name || company,
+        email: email || undefined,
+        phone: get(idx.phone) || undefined,
+        website: get(idx.website) || undefined,
+        address: get(idx.address) || undefined,
+        zip: get(idx.zip) || undefined,
+        city: get(idx.city) || undefined,
+        notes: get(idx.notes) || undefined,
+        status: "new",
+        priority: "medium",
+        source: "kaltakquise",
+        value: 0,
+      });
+    }
+    return { rows, skipped };
+  };
+
+  const preview = parseCsv(csvText);
+
+  const handlePickFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: ["text/csv", "text/plain", "*/*"], copyToCacheDirectory: true });
+      if (result.canceled || !result.assets?.[0]) return;
+      const uri = result.assets[0].uri;
+      const text = Platform.OS === "web"
+        ? await (await fetch(uri)).text()
+        : await FileSystem.readAsStringAsync(uri);
+      setCsvText(text);
+    } catch (e: any) {
+      showAlert("Fehler", "Datei konnte nicht gelesen werden: " + e.message);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!preview.rows.length) return;
+    setImporting(true);
+    try {
+      let created = 0;
+      for (const row of preview.rows) {
+        try {
+          await Data.createLead(row);
+          created++;
+        } catch (e) {
+          console.warn("[import] Lead übersprungen:", row.company || row.name, e);
+        }
+      }
+      onDone();
+      onClose();
+      setCsvText("");
+      showAlert("Import abgeschlossen", `${created} Lead(s) importiert${preview.skipped ? `, ${preview.skipped} Duplikat(e) übersprungen` : ""}.`);
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View className="flex-1 bg-black/50 justify-end" style={Platform.OS === "web" ? { justifyContent: "center", alignItems: "center" } : undefined}>
+        <View className="bg-background rounded-t-3xl" style={Platform.OS === "web" ? { maxWidth: 640, width: "100%", borderRadius: 24, maxHeight: "85%" } : { maxHeight: "90%" }}>
+          <View className="flex-row items-center justify-between p-4 border-b border-border">
+            <View className="flex-row items-center gap-2">
+              <IconSymbol name="tray.fill" size={17} color={colors.primary} />
+              <Text className="text-lg font-bold text-foreground">Leads importieren (CSV)</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+              <IconSymbol name="xmark.circle.fill" size={26} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView className="p-4" keyboardShouldPersistTaps="handled">
+            <Text className="text-xs text-muted mb-3" style={{ lineHeight: 18 }}>
+              CSV mit Kopfzeile einfügen oder als Datei wählen. Erkannte Spalten: Firma, Name, E-Mail, Telefon, Website, Adresse, PLZ, Ort, Notizen (Komma, Semikolon oder Tab als Trennzeichen). Bereits vorhandene Leads (gleiche Firma oder E-Mail) werden übersprungen — alle neuen landen als «Neu» mit Quelle «Kaltakquise».
+            </Text>
+            <TouchableOpacity
+              className="flex-row items-center justify-center gap-2 py-2.5 rounded-xl border border-border bg-surface mb-3"
+              onPress={handlePickFile}
+              activeOpacity={0.8}
+            >
+              <IconSymbol name="folder.fill" size={15} color={colors.primary} />
+              <Text className="text-sm font-semibold text-foreground">CSV-Datei wählen</Text>
+            </TouchableOpacity>
+            <TextInput
+              className="bg-surface border border-border rounded-xl px-3 py-2.5 text-foreground"
+              style={{ minHeight: 140, textAlignVertical: "top", fontSize: 12, fontFamily: Platform.OS === "web" ? "monospace" : undefined }}
+              value={csvText}
+              onChangeText={setCsvText}
+              multiline
+              placeholder={"Firma;Name;E-Mail;Telefon;Website;PLZ;Ort\nMuster AG;Max Muster;max@muster.ch;041 123 45 67;www.muster.ch;6130;Willisau"}
+              placeholderTextColor={colors.muted}
+            />
+            {csvText.trim().length > 0 && (
+              <View className="bg-surface rounded-xl border border-border p-3 mt-3">
+                {(preview as any).badHeader ? (
+                  <Text className="text-xs" style={{ color: "#EF4444" }}>
+                    Keine Spalte «Firma» oder «Name» in der Kopfzeile gefunden.
+                  </Text>
+                ) : (
+                  <Text className="text-xs text-foreground">
+                    <Text className="font-bold">{preview.rows.length}</Text> neue Leads erkannt
+                    {preview.skipped ? ` · ${preview.skipped} Duplikat(e) werden übersprungen` : ""}
+                  </Text>
+                )}
+                {preview.rows.slice(0, 5).map((r: any, i: number) => (
+                  <Text key={i} className="text-[11px] text-muted mt-1" numberOfLines={1}>
+                    • {r.company || r.name}{r.city ? ` (${r.city})` : ""}{r.email ? ` · ${r.email}` : ""}
+                  </Text>
+                ))}
+                {preview.rows.length > 5 ? (
+                  <Text className="text-[11px] text-muted mt-1">… und {preview.rows.length - 5} weitere</Text>
+                ) : null}
+              </View>
+            )}
+            <TouchableOpacity
+              className="py-3 rounded-xl items-center bg-primary mt-4"
+              style={{ opacity: preview.rows.length && !importing ? 1 : 0.5 }}
+              onPress={handleImport}
+              disabled={!preview.rows.length || importing}
+              activeOpacity={0.8}
+            >
+              {importing ? (
+                <ActivityIndicator size="small" color={colors.background} />
+              ) : (
+                <Text className="font-bold" style={{ color: colors.background }}>
+                  {preview.rows.length ? `${preview.rows.length} Leads importieren` : "Leads importieren"}
+                </Text>
+              )}
+            </TouchableOpacity>
             <View style={{ height: 32 }} />
           </ScrollView>
         </View>

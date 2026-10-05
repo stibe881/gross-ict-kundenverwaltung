@@ -28,6 +28,7 @@ export default function GrowthSettingsScreen() {
     const [reviewEnabled, setReviewEnabled] = useState(false);
     const [reviewLink, setReviewLink] = useState("");
     const [callScript, setCallScript] = useState("");
+    const [weeklyGoal, setWeeklyGoal] = useState("10");
     const [saving, setSaving] = useState(false);
     const [loaded, setLoaded] = useState(false);
 
@@ -40,6 +41,7 @@ export default function GrowthSettingsScreen() {
         setReviewEnabled(s.review_auto_enabled === "true");
         setReviewLink(s.review_link || "");
         setCallScript(s.call_script || "Guten Tag, Stefan Gross von Gross ICT aus der Region. Wir unterstützen KMU bei IT, Webseite und Microsoft 365.\n\nDarf ich fragen, wer sich bei Ihnen aktuell um die IT kümmert?\n\n→ Ziel: 15-Minuten-Kennenlerntermin vereinbaren.");
+        setWeeklyGoal(s.weekly_contact_goal || "10");
         setLoaded(true);
     }, [settings, loaded]);
 
@@ -53,6 +55,7 @@ export default function GrowthSettingsScreen() {
                 Data.setMarketingSetting("review_auto_enabled", reviewEnabled ? "true" : "false"),
                 Data.setMarketingSetting("review_link", reviewLink.trim()),
                 Data.setMarketingSetting("call_script", callScript.trim()),
+                Data.setMarketingSetting("weekly_contact_goal", String(parseInt(weeklyGoal, 10) || 10)),
             ]);
             queryClient.invalidateQueries({ queryKey: ["marketingSettings"] });
             showToast("Einstellungen gespeichert");
@@ -157,6 +160,22 @@ export default function GrowthSettingsScreen() {
                             <TextInput
                                 value={callScript} onChangeText={setCallScript} multiline
                                 style={[inputStyle, { minHeight: 140, textAlignVertical: "top" }]}
+                                placeholderTextColor={colors.muted}
+                            />
+                        </View>
+
+                        {/* Wochenziel Akquise */}
+                        <View className="bg-surface rounded-2xl border border-border p-4 mb-4">
+                            <View className="flex-row items-center gap-2 mb-1">
+                                <IconSymbol name="flame.fill" size={16} color="#FB923C" />
+                                <Text className="text-base font-bold text-foreground">Wochenziel Kontakte</Text>
+                            </View>
+                            <Text className="text-xs text-muted mb-3">
+                                So viele protokollierte Kontakte (Anrufe, Mails, Aktivitäten) pro Woche peilen Sie an — als Fortschrittsbalken im Akquise-Cockpit sichtbar.
+                            </Text>
+                            <TextInput
+                                value={weeklyGoal} onChangeText={setWeeklyGoal} keyboardType="number-pad"
+                                style={[inputStyle, { width: 120 }]}
                                 placeholderTextColor={colors.muted}
                             />
                         </View>

@@ -66,6 +66,7 @@ serve(async (req) => {
     recurringTickets: [] as string[],
     escalatedTickets: [] as string[],
     reviewRequests: [] as string[],
+    webRechecks: [] as string[],
     errors: [] as string[],
   };
 
@@ -569,6 +570,65 @@ serve(async (req) => {
     summary.errors.push("Eskalation: " + e.message);
   }
 
+  // ── 13. Website-Recheck: offene Leads monatlich neu analysieren ────────────
+  // Verschlechtert sich eine Website (SSL weg, Impressum weg, ...), wird der
+  // Lead mit frischem Gesprächsaufhänger auf "Heute dran" gesetzt.
+  try {
+    const recheckCutoff = new Date(Date.now() - 30 * 86400000).toISOString();
+    const { data: recheckLeads } = await supabase
+      .from("leads")
+      .select("id, company, name, website, web_check, web_check_at")
+      .in("status", ["new", "contacted", "qualified", "proposal"])
+      .not("website", "is", null)
+      .or(`web_check_at.is.null,web_check_at.lt.${recheckCutoff}`)
+      .limit(5);
+    for (const l of recheckLeads || []) {
+      if (!l.website) continue;
+      try {
+        const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-website`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url: l.website }),
+        });
+        if (!res.ok) continue;
+        const check = await res.json();
+        const newCheck = {
+          sslValid: !!check.sslValid,
+          hasImpressum: !!check.hasImpressum,
+          hasPrivacy: !!check.hasPrivacy,
+          isResponsive: !!check.isResponsive,
+        };
+        const old = l.web_check as typeof newCheck | null;
+        const worsened: string[] = [];
+        if (old) {
+          if (old.sslValid && !newCheck.sslValid) worsened.push("SSL-Zertifikat");
+          if (old.hasImpressum && !newCheck.hasImpressum) worsened.push("Impressum");
+          if (old.hasPrivacy && !newCheck.hasPrivacy) worsened.push("Datenschutzerklärung");
+          if (old.isResponsive && !newCheck.isResponsive) worsened.push("Mobil-Optimierung");
+        }
+        const updates: Record<string, unknown> = {
+          web_check: newCheck,
+          web_check_at: new Date().toISOString(),
+        };
+        if (worsened.length > 0) {
+          const name = l.company || l.name || "Lead";
+          updates.next_action = `Website verschlechtert (${worsened.join(", ")}) – guter Aufhänger fürs Gespräch`;
+          updates.next_action_date = today;
+          updates.priority = "high";
+          summary.webRechecks.push(`${name}: ${worsened.join(", ")} neu fehlend`);
+        }
+        await supabase.from("leads").update(updates).eq("id", l.id);
+      } catch (e) {
+        console.error("[automations] Website-Recheck fehlgeschlagen:", l.website, e);
+      }
+    }
+  } catch (e: any) {
+    summary.errors.push("Website-Recheck: " + e.message);
+  }
+
   // ── 9. Papierkorb aufräumen (älter als 30 Tage) ────────────────────────────
   try {
     const cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
@@ -580,6 +640,20 @@ serve(async (req) => {
   // ── Push an Admins über die bestehende send-push-Funktion ──────────────────
   const pushUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push`;
   const pushAuth = { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`, "Content-Type": "application/json" };
+
+  if (summary.webRechecks.length > 0) {
+    try {
+      await fetch(pushUrl, {
+        method: "POST", headers: pushAuth,
+        body: JSON.stringify({
+          recipients: "all_admins", recipientType: "admin",
+          title: "Lead-Websites verschlechtert",
+          body: summary.webRechecks.join(" · "),
+          data: { url: "/leads", category: "leads" },
+        }),
+      });
+    } catch (e) { console.error("[automations] Push (Website-Recheck) fehlgeschlagen:", e); }
+  }
 
   if (summary.createdInvoices.length > 0) {
     try {

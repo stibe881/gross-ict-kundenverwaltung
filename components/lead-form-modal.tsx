@@ -67,9 +67,79 @@ export function LeadFormModal({
     rating: "",
     nextAction: "",
     nextActionDate: "",
+    referrerCustomerId: "",
   });
 
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([]);
+  const [showPackages, setShowPackages] = useState(false);
+  const [newPackageName, setNewPackageName] = useState("");
+  const [savingPackage, setSavingPackage] = useState(false);
+  const [refSearch, setRefSearch] = useState("");
+
+  // Potenzial-Pakete (vordefinierte Produktbündel)
+  const { data: leadPackages = [], refetch: refetchPackages } = useQuery({
+    queryKey: ["leadPackages"],
+    queryFn: Data.getLeadPackages,
+    enabled: visible,
+  });
+
+  // Kundenliste für "Empfohlen von"
+  const { data: allCustomers = [] } = useQuery({
+    queryKey: ["customersWithCounts"],
+    queryFn: Data.getCustomersWithCounts,
+    enabled: visible,
+  });
+  const customerDisplayName = (c: any) =>
+    c?.company_name || `${c?.first_name || ""} ${c?.last_name || ""}`.trim() || "Unbenannt";
+  const selectedReferrer = (allCustomers as any[]).find((c: any) => c.id === formData.referrerCustomerId);
+
+  // Paket anwenden: alle enthaltenen Positionen zum Potenzial hinzufügen
+  const applyPackage = (pkg: any) => {
+    const items = Array.isArray(pkg.items) ? pkg.items : [];
+    setSelectedProducts((prev) => {
+      const next = [...prev];
+      items.forEach((item: any, idx: number) => {
+        const pid = item.product_id || `pkg-${Date.now()}-${idx}`;
+        const existing = item.product_id ? next.find((p) => p.product_id === item.product_id) : undefined;
+        if (existing) {
+          existing.quantity += item.quantity || 1;
+        } else {
+          next.push({
+            product_id: pid,
+            name: item.description || "Position",
+            quantity: item.quantity || 1,
+            unit_price: item.unit_price || 0,
+          });
+        }
+      });
+      return next;
+    });
+    setShowPackages(false);
+  };
+
+  const handleSavePackage = async () => {
+    const name = newPackageName.trim();
+    if (!name || selectedProducts.length === 0) return;
+    setSavingPackage(true);
+    try {
+      await Data.createLeadPackage(
+        name,
+        selectedProducts.map((p) => ({
+          description: p.name,
+          quantity: p.quantity,
+          unit_price: p.unit_price,
+          product_id: p.product_id && !p.product_id.startsWith("pkg-") ? p.product_id : null,
+        }))
+      );
+      setNewPackageName("");
+      refetchPackages();
+      showAlert("Gespeichert", `Paket «${name}» steht ab jetzt zur Auswahl.`);
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    } finally {
+      setSavingPackage(false);
+    }
+  };
 
   // Load products
   const { data: allProducts = [] } = useQuery({
@@ -114,12 +184,13 @@ export function LeadFormModal({
         nextActionDate: lead.next_action_date
           ? new Date(lead.next_action_date).toLocaleDateString("de-CH")
           : "",
+        referrerCustomerId: lead.referrer_customer_id || "",
       });
       // Load existing items
       Data.getLeadItems(lead.id).then((items) => {
         setSelectedProducts(
           items.map((item: any) => ({
-            product_id: item.product_id || "",
+            product_id: item.product_id || `pkg-geladen-${item.id || Math.random()}`,
             name: item.description || "",
             quantity: item.quantity || 1,
             unit_price: item.unit_price || 0,
@@ -148,6 +219,7 @@ export function LeadFormModal({
         rating: "",
         nextAction: "",
         nextActionDate: "",
+        referrerCustomerId: "",
       });
       setSelectedProducts([]);
       setStep(1);
@@ -307,6 +379,8 @@ export function LeadFormModal({
         notes: formData.notes || undefined,
         rating: formData.rating || null,
         next_action: formData.nextAction || null,
+        // Nur mitsenden, wenn gesetzt — Spalte existiert erst ab Migration 20261015
+        ...(formData.referrerCustomerId ? { referrer_customer_id: formData.referrerCustomerId } : {}),
         next_action_date: (() => {
           const v = formData.nextActionDate.trim();
           if (!v) return null;
@@ -320,7 +394,7 @@ export function LeadFormModal({
         description: p.name,
         quantity: p.quantity,
         unit_price: p.unit_price,
-        product_id: p.product_id,
+        product_id: p.product_id && !p.product_id.startsWith("pkg-") ? p.product_id : undefined,
       }));
 
       if (lead) {
@@ -615,6 +689,57 @@ export function LeadFormModal({
                   </View>
                 </View>
 
+                {formData.source === "empfehlung" && (
+                  <View>
+                    <Text className="text-xs font-semibold text-muted mb-1.5">EMPFOHLEN VON (KUNDE)</Text>
+                    {selectedReferrer ? (
+                      <View className="flex-row items-center justify-between bg-background border border-border rounded-lg px-3 py-2.5">
+                        <Text className="text-sm text-foreground flex-1 mr-2" numberOfLines={1}>
+                          {customerDisplayName(selectedReferrer)}
+                        </Text>
+                        <TouchableOpacity onPress={() => setFormData({ ...formData, referrerCustomerId: "" })} activeOpacity={0.7}>
+                          <IconSymbol name="xmark.circle.fill" size={18} color={colors.muted} />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View>
+                        <TextInput
+                          className="bg-background border border-border rounded-lg px-3 py-2.5 text-foreground"
+                          placeholder="Kunde suchen..."
+                          placeholderTextColor={colors.muted}
+                          value={refSearch}
+                          onChangeText={setRefSearch}
+                        />
+                        {refSearch.trim().length > 0 && (
+                          <View className="bg-background border border-border rounded-lg mt-1" style={{ maxHeight: 170, overflow: "hidden" }}>
+                            <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                              {(allCustomers as any[])
+                                .filter((c: any) => customerDisplayName(c).toLowerCase().includes(refSearch.toLowerCase()))
+                                .slice(0, 6)
+                                .map((c: any) => (
+                                  <TouchableOpacity
+                                    key={c.id}
+                                    className="px-3 py-2.5 border-b border-border"
+                                    onPress={() => {
+                                      setFormData({ ...formData, referrerCustomerId: c.id });
+                                      setRefSearch("");
+                                    }}
+                                    activeOpacity={0.7}
+                                  >
+                                    <Text className="text-sm text-foreground">{customerDisplayName(c)}</Text>
+                                  </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                          </View>
+                        )}
+                        <Text className="text-[11px] text-muted mt-1">
+                          Beim Gewinn des Leads werden Sie automatisch ans Dankeschön erinnert.
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
                 <View>
                   <Text className="text-xs font-semibold text-muted mb-1.5">EINSTUFUNG</Text>
                   <View className="flex-row gap-2">
@@ -746,17 +871,81 @@ export function LeadFormModal({
                 <View className="mb-3">
                   <View className="flex-row items-center justify-between mb-2">
                     <Text className="text-xs font-semibold text-muted">PRODUKTE</Text>
-                    <TouchableOpacity
-                      className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg bg-primary/10"
-                      onPress={() => setShowProductPicker(true)}
-                      activeOpacity={0.7}
-                    >
-                      <IconSymbol name="plus" size={14} color={colors.primary} />
-                      <Text className="text-xs font-semibold" style={{ color: colors.primary }}>
-                        Hinzufügen
-                      </Text>
-                    </TouchableOpacity>
+                    <View className="flex-row items-center gap-2">
+                      <TouchableOpacity
+                        className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg"
+                        style={{ backgroundColor: "#8B5CF618" }}
+                        onPress={() => setShowPackages(!showPackages)}
+                        activeOpacity={0.7}
+                      >
+                        <IconSymbol name="shippingbox.fill" size={13} color="#8B5CF6" />
+                        <Text className="text-xs font-semibold" style={{ color: "#8B5CF6" }}>Paket</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg bg-primary/10"
+                        onPress={() => setShowProductPicker(true)}
+                        activeOpacity={0.7}
+                      >
+                        <IconSymbol name="plus" size={14} color={colors.primary} />
+                        <Text className="text-xs font-semibold" style={{ color: colors.primary }}>
+                          Hinzufügen
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
+
+                  {/* Potenzial-Pakete: Bündel mit einem Tipp übernehmen */}
+                  {showPackages && (
+                    <View className="bg-background rounded-lg border border-border p-3 mb-2 gap-2">
+                      {(leadPackages as any[]).length === 0 ? (
+                        <Text className="text-xs text-muted">
+                          Noch keine Pakete vorhanden — Produkte auswählen und unten als Paket speichern (z.B. «Webseite Unternehmen»).
+                        </Text>
+                      ) : (
+                        (leadPackages as any[]).map((pkg: any) => {
+                          const pkgItems = Array.isArray(pkg.items) ? pkg.items : [];
+                          const sum = pkgItems.reduce((s: number, i: any) => s + (i.quantity || 1) * (i.unit_price || 0), 0);
+                          return (
+                            <View key={pkg.id} className="flex-row items-center gap-2">
+                              <TouchableOpacity className="flex-1" onPress={() => applyPackage(pkg)} activeOpacity={0.7}>
+                                <Text className="text-sm font-semibold" style={{ color: "#8B5CF6" }}>{pkg.name}</Text>
+                                <Text className="text-[11px] text-muted" numberOfLines={1}>
+                                  {pkgItems.length} Positionen · CHF {sum.toLocaleString("de-CH")} · {pkgItems.map((i: any) => i.description).join(", ")}
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                onPress={() => Data.deleteLeadPackage(pkg.id).then(() => refetchPackages()).catch((e: any) => showAlert("Fehler", e.message))}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                activeOpacity={0.7}
+                              >
+                                <IconSymbol name="trash" size={14} color={colors.error} />
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        })
+                      )}
+                      {selectedProducts.length > 0 && (
+                        <View className="flex-row gap-2 pt-2 border-t border-border">
+                          <TextInput
+                            className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-foreground"
+                            placeholder="Aktuelle Auswahl als Paket speichern..."
+                            placeholderTextColor={colors.muted}
+                            value={newPackageName}
+                            onChangeText={setNewPackageName}
+                          />
+                          <TouchableOpacity
+                            className="px-3 rounded-lg items-center justify-center"
+                            style={{ backgroundColor: colors.primary, opacity: savingPackage || !newPackageName.trim() ? 0.5 : 1 }}
+                            disabled={savingPackage || !newPackageName.trim()}
+                            onPress={handleSavePackage}
+                            activeOpacity={0.8}
+                          >
+                            <Text className="text-xs font-bold" style={{ color: colors.background }}>Speichern</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  )}
 
                   {selectedProducts.length > 0 ? (
                     <View className="gap-2">

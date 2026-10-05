@@ -2760,12 +2760,33 @@ export async function createLead(lead: {
 }
 
 export async function updateLead(id: string, updates: Record<string, any>, items?: { description: string; quantity: number; unit_price: number; product_id?: string }[]) {
-    const { data, error } = await supabase
+    // Phasen-Alter: stage_changed_at nur setzen, wenn sich der Status wirklich ändert
+    let finalUpdates = { ...updates };
+    if (updates.status) {
+        try {
+            const { data: current } = await supabase.from("leads").select("status").eq("id", id).single();
+            if (current && current.status !== updates.status) {
+                finalUpdates = { ...finalUpdates, stage_changed_at: new Date().toISOString() };
+            }
+        } catch (_) { /* Spalte/Lead fehlt → ohne Phasen-Alter weiterfahren */ }
+    }
+    let { data, error } = await supabase
         .from("leads")
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...finalUpdates, updated_at: new Date().toISOString() })
         .eq("id", id)
         .select()
         .single();
+
+    // Fallback, solange Migration 20261015 (stage_changed_at) noch fehlt
+    if (error && finalUpdates.stage_changed_at && /stage_changed_at/.test(error.message)) {
+        const { stage_changed_at: _sc, ...withoutStage } = finalUpdates;
+        ({ data, error } = await supabase
+            .from("leads")
+            .update({ ...withoutStage, updated_at: new Date().toISOString() })
+            .eq("id", id)
+            .select()
+            .single());
+    }
 
     if (error) throw new Error(error.message);
 
@@ -2784,6 +2805,133 @@ export async function updateLead(id: string, updates: Record<string, any>, items
         }
     }
     return data;
+}
+
+// ── Akquise Runde 8 ──
+
+// Ergebnis der Website-Analyse am Lead speichern (für Recheck & Scoring)
+export async function saveLeadWebCheck(leadId: string, result: any) {
+    try {
+        await (supabase as any)
+            .from("leads")
+            .update({
+                web_check: {
+                    sslValid: !!result.sslValid,
+                    hasImpressum: !!result.hasImpressum,
+                    hasPrivacy: !!result.hasPrivacy,
+                    isResponsive: !!result.isResponsive,
+                },
+                web_check_at: new Date().toISOString(),
+            })
+            .eq("id", leadId);
+    } catch (_) { /* Migration 20261015 fehlt noch → still ignorieren */ }
+}
+
+// Wochenziel: protokollierte Kontakte (Aktivitäten) seit Montag
+export async function getWeeklyContactStats() {
+    const now = new Date();
+    const monday = new Date(now);
+    const day = (now.getDay() + 6) % 7; // Mo=0
+    monday.setDate(now.getDate() - day);
+    monday.setHours(0, 0, 0, 0);
+    const { count } = await (supabase as any)
+        .from("lead_activities")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", monday.toISOString())
+        .neq("user_name", "System");
+    return { contacts: count || 0 };
+}
+
+// Angebots-Brücke: Angebot direkt aus einem Lead erstellen.
+// Legt den Kunden als "Interessent" (Status inaktiv) an — aktiv wird er
+// erst bei Angebotsannahme.
+export async function createQuoteFromLead(lead: any) {
+    const leadItems = await getLeadItems(lead.id);
+    if (!leadItems.length && !(lead.extra_amount > 0)) {
+        throw new Error("Der Lead hat keine Potenzial-Positionen.");
+    }
+
+    const nameParts = (lead.name || "").split(" ");
+    const customer = await createCustomer({
+        first_name: nameParts[0] || "",
+        last_name: nameParts.slice(1).join(" ") || "",
+        company_name: lead.company || "",
+        email: lead.email || "",
+        phone: lead.phone || "",
+        status: "inactive",
+        notes: "Interessent aus Lead — wird bei Angebotsannahme aktiviert.",
+    } as any);
+
+    const quoteNumber = await getNextQuoteNumber();
+    let subtotal = 0;
+    let tax = 0;
+    const quoteItems: any[] = leadItems.map((item: any) => {
+        const lineSub = (item.quantity || 1) * (item.unit_price || 0);
+        const vat = item.vat_rate ?? 8.1;
+        subtotal += lineSub;
+        tax += lineSub * (vat / 100);
+        return {
+            description: item.description,
+            quantity: item.quantity || 1,
+            unit_price: item.unit_price || 0,
+            vat_rate: vat,
+            total: lineSub,
+            product_id: item.product_id,
+        };
+    });
+    if (lead.extra_amount > 0) {
+        subtotal += lead.extra_amount;
+        tax += lead.extra_amount * 0.081;
+        quoteItems.push({
+            description: lead.extra_description || "Sonstiges",
+            quantity: 1,
+            unit_price: lead.extra_amount,
+            vat_rate: 8.1,
+            total: lead.extra_amount,
+            product_id: null,
+        });
+    }
+
+    const quote = await createQuote({
+        customer_id: customer.id,
+        quote_number: quoteNumber,
+        status: "draft",
+        valid_until: new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0],
+        subtotal,
+        tax,
+        total: subtotal + tax,
+    } as any, quoteItems);
+
+    await updateLead(lead.id, { status: "proposal", quote_id: quote.id });
+    await addLeadActivity({
+        lead_id: lead.id,
+        type: "system",
+        content: `Angebot ${quoteNumber} direkt aus Lead erstellt (Kunde als Interessent angelegt)`,
+        user_name: "System",
+    });
+    return quote;
+}
+
+// Potenzial-Pakete: vordefinierte Produktbündel fürs Lead-Potenzial
+export async function getLeadPackages() {
+    const { data } = await (supabase as any)
+        .from("lead_packages")
+        .select("*")
+        .order("name", { ascending: true });
+    return data || [];
+}
+
+export async function createLeadPackage(
+    name: string,
+    items: { description: string; quantity: number; unit_price: number; product_id?: string | null }[]
+) {
+    const { error } = await (supabase as any).from("lead_packages").insert({ name, items });
+    if (error) throw new Error(error.message);
+}
+
+export async function deleteLeadPackage(id: string) {
+    const { error } = await (supabase as any).from("lead_packages").delete().eq("id", id);
+    if (error) throw new Error(error.message);
 }
 
 export async function createLeadReminder(reminder: { lead_id: string; remind_at: string; note: string }) {

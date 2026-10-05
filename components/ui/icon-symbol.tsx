@@ -25,6 +25,7 @@ const MAPPING = {
   "ticket.fill": "confirmation-number",
   "doc.text.fill": "description",
   "envelope.fill": "email",
+  "message.fill": "chat",
   "gear": "settings",
   "plus.circle.fill": "add-circle",
   "magnifyingglass": "search",
