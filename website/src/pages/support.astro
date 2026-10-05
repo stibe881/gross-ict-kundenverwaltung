@@ -83,11 +83,27 @@ const downloads = [
       Telefon, E-Mail, Remote oder Vor-Ort. Sie sagen uns, wo es brennt — wir sind sofort dran. Ohne Warteschleife, ohne Tickets, die im Nirgendwo verschwinden.
     </p>
     <div class="status-line">
-      <span class="status-dot" aria-hidden="true"></span>
-      <strong>Service betriebsbereit</strong>
+      <span class="status-dot" id="status-dot" aria-hidden="true"></span>
+      <strong id="status-text">Service betriebsbereit</strong>
       <span class="status-sep" aria-hidden="true"></span>
       <span class="status-hours">Mo-Fr 08:00-17:30</span>
     </div>
+    <script>
+      // Ampel: grün während der Arbeitszeiten (Mo–Fr 08:00–17:30 Schweizer Zeit), sonst orange
+      const parts = new Intl.DateTimeFormat("de-CH", {
+        timeZone: "Europe/Zurich", weekday: "short", hour: "numeric", minute: "numeric", hour12: false,
+      }).formatToParts(new Date());
+      const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
+      const wochentag = get("weekday");
+      const minuten = Number(get("hour")) * 60 + Number(get("minute"));
+      const offen = !["Sa", "So"].includes(wochentag) && minuten >= 8 * 60 && minuten < 17 * 60 + 30;
+      if (!offen) {
+        const dot = document.getElementById("status-dot");
+        const text = document.getElementById("status-text");
+        if (dot) { dot.style.background = "#F59E0B"; dot.style.boxShadow = "0 0 0 4px rgba(245,158,11,0.2)"; }
+        if (text) text.textContent = "Zurzeit nicht besetzt";
+      }
+    </script>
   </div>
 
   <section class="section" style="padding-top: 0;">
