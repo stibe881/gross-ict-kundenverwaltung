@@ -248,6 +248,31 @@ export default function CustomerDetailScreen() {
     .filter((inv: any) => ["open", "sent", "overdue"].includes(inv.status))
     .reduce((sum: number, inv: any) => sum + Math.max(0, (getInvoiceTotal(inv) || 0) - (inv.paid_amount || 0)), 0);
 
+  // Zahlungsmoral — gleiche Näherung wie "Debitoren & Zahlungsmoral":
+  // Zahlungsdatum = letzte Änderung der bezahlten Rechnung
+  const paymentStats = (() => {
+    const paid = invoices.filter((inv: any) => inv.status === "paid");
+    if (!paid.length) return null;
+    let daysSum = 0;
+    let late = 0;
+    for (const inv of paid as any[]) {
+      daysSum += Math.max(0, Math.round(
+        (new Date(inv.updated_at || inv.invoice_date).getTime() - new Date(inv.invoice_date).getTime()) / 86400000
+      ));
+      if (inv.due_date && (inv.updated_at || "").split("T")[0] > inv.due_date) late++;
+    }
+    return {
+      count: paid.length,
+      avgDays: Math.round(daysSum / paid.length),
+      latePct: Math.round((late / paid.length) * 100),
+    };
+  })();
+  const payColor = !paymentStats
+    ? colors.muted
+    : paymentStats.latePct >= 50 ? colors.error
+    : paymentStats.latePct > 0 ? colors.warning
+    : colors.success;
+
   const contactPerson = customer?.first_name || customer?.last_name
     ? `${customer?.first_name || ""} ${customer?.last_name || ""}`.trim()
     : null;
@@ -1365,6 +1390,16 @@ export default function CustomerDetailScreen() {
                             </Text>
                           </View>
                         )}
+                        {paymentStats && paymentStats.count >= 2 && paymentStats.latePct >= 50 && (
+                          <View className="px-2 py-0.5 rounded" style={{ backgroundColor: colors.error + "20" }}>
+                            <Text className="text-[10px] font-bold" style={{ color: colors.error }}>ZAHLT SPÄT</Text>
+                          </View>
+                        )}
+                        {paymentStats && paymentStats.count >= 2 && paymentStats.latePct === 0 && (
+                          <View className="px-2 py-0.5 rounded" style={{ backgroundColor: colors.success + "20" }}>
+                            <Text className="text-[10px] font-bold" style={{ color: colors.success }}>ZAHLT PÜNKTLICH</Text>
+                          </View>
+                        )}
                       </View>
 
                       {/* Contact Info Row */}
@@ -1435,6 +1470,16 @@ export default function CustomerDetailScreen() {
                           {formatKPI(totalUnpaid)}
                         </Text>
                         <Text className="text-[9px] font-semibold text-muted uppercase mt-0.5">CHF Offen</Text>
+                      </View>
+                    )}
+                    {paymentStats && (
+                      <View className="flex-1 bg-background rounded-lg border border-border px-3 py-3 items-center" style={isWide ? { minWidth: 80, flex: undefined } : {}}>
+                        <Text className="text-2xl font-bold" style={{ color: payColor }}>
+                          {paymentStats.avgDays}
+                        </Text>
+                        <Text className="text-[9px] font-semibold text-muted uppercase mt-0.5 text-center">
+                          Ø Tage bis Zahlung{paymentStats.latePct > 0 ? ` · ${paymentStats.latePct}% spät` : ""}
+                        </Text>
                       </View>
                     )}
                     <View className="flex-1 bg-background rounded-lg border border-border px-3 py-3 items-center" style={isWide ? { minWidth: 80, flex: undefined } : {}}>
