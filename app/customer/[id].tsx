@@ -11,6 +11,7 @@ import {
   TextInput,
   Platform,
   Alert,
+  Switch,
 } from "react-native";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
@@ -1621,6 +1622,91 @@ export default function CustomerDetailScreen() {
                   ))}
                 </View>
               ) : null}
+
+              {/* ── Inaktivitäts-Erinnerung ── */}
+              <View className="bg-surface rounded-xl border border-border p-4 mb-4">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center gap-2 flex-1 mr-2">
+                    <IconSymbol
+                      name={(customer as any)?.inactive_muted ? "bell.slash.fill" : "bell.fill"}
+                      size={16}
+                      color={(customer as any)?.inactive_muted ? colors.muted : colors.primary}
+                    />
+                    <View className="flex-1">
+                      <Text className="text-sm font-bold text-foreground">Inaktivitäts-Erinnerung</Text>
+                      <Text className="text-[11px] text-muted">
+                        {(customer as any)?.inactive_muted
+                          ? "Stummgeschaltet — keine Erinnerung in «Heute wichtig»"
+                          : `Erinnert nach ${(customer as any)?.inactive_months || 6} Monaten ohne Rechnung und Ticket`}
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={!(customer as any)?.inactive_muted}
+                    onValueChange={async (v) => {
+                      try {
+                        // Beim Reaktivieren auch eine laufende Pause aufheben
+                        await Data.updateInactiveReminderSettings(id as string, v ? { muted: false, snoozeUntil: null } : { muted: true });
+                        queryClient.invalidateQueries({ queryKey: ["customer", id] });
+                        queryClient.invalidateQueries({ queryKey: ["todayFeed"] });
+                      } catch (e: any) { showAlert("Fehler", e.message); }
+                    }}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor="#fff"
+                  />
+                </View>
+                {!(customer as any)?.inactive_muted && (
+                  <View className="flex-row items-center gap-2 mt-3 flex-wrap">
+                    <Text className="text-xs text-muted">Erinnern nach:</Text>
+                    {[3, 6, 9, 12].map((m) => {
+                      const active = ((customer as any)?.inactive_months || 6) === m;
+                      return (
+                        <TouchableOpacity
+                          key={m}
+                          className="px-3 py-1.5 rounded-full border"
+                          style={{
+                            backgroundColor: active ? colors.primary : colors.background,
+                            borderColor: active ? colors.primary : colors.border,
+                          }}
+                          onPress={async () => {
+                            try {
+                              await Data.updateInactiveReminderSettings(id as string, { months: m });
+                              queryClient.invalidateQueries({ queryKey: ["customer", id] });
+                              queryClient.invalidateQueries({ queryKey: ["todayFeed"] });
+                            } catch (e: any) { showAlert("Fehler", e.message); }
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text className="text-xs font-semibold" style={{ color: active ? colors.background : colors.foreground }}>
+                            {m} Mt.
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+                {!(customer as any)?.inactive_muted && (customer as any)?.inactive_snooze_until &&
+                  (customer as any).inactive_snooze_until > new Date().toISOString().split("T")[0] && (
+                  <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-border">
+                    <Text className="text-xs text-muted flex-1 mr-2">
+                      Pausiert bis {formatDate((customer as any).inactive_snooze_until)}
+                    </Text>
+                    <TouchableOpacity
+                      className="px-3 py-1.5 rounded-lg border border-border bg-background"
+                      onPress={async () => {
+                        try {
+                          await Data.updateInactiveReminderSettings(id as string, { snoozeUntil: null });
+                          queryClient.invalidateQueries({ queryKey: ["customer", id] });
+                          queryClient.invalidateQueries({ queryKey: ["todayFeed"] });
+                        } catch (e: any) { showAlert("Fehler", e.message); }
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text className="text-xs font-semibold text-foreground">Pause aufheben</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
 
               {/* ── Tab Navigation ── */}
               <ScrollView horizontal={!isWide} showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} className="mb-4 border-b border-border pb-2">

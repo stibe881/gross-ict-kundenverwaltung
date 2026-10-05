@@ -5362,16 +5362,10 @@ export async function getAbcClasses(): Promise<Record<string, { cls: "A" | "B" |
 
 // ── (15) Inaktive Kunden: aktiv, aber seit 180 Tagen ohne Rechnung und Ticket ──
 export async function getInactiveCustomers() {
-    const cutoff = new Date(Date.now() - 180 * 86400000).toISOString();
-    const cutoffDate = cutoff.split("T")[0];
     const today = new Date().toISOString().split("T")[0];
-    const [customersRes, invoicesRes, ticketsRes] = await Promise.all([
-        (supabase as any).from("customers")
-            .select("id, company_name, first_name, last_name, created_at, inactive_snooze_until, inactive_muted")
-            .eq("status", "active"),
-        supabase.from("invoices").select("customer_id").gte("invoice_date", cutoffDate),
-        supabase.from("tickets").select("customer_id").gte("created_at", cutoff),
-    ]);
+    const customersRes = await (supabase as any).from("customers")
+        .select("id, company_name, first_name, last_name, created_at, inactive_snooze_until, inactive_muted, inactive_months")
+        .eq("status", "active");
     let customers: any[] = (customersRes.data as any[]) || [];
     if (customersRes.error) {
         // Migration 20261013 noch nicht eingespielt → ohne Erinnerungs-Steuerung weiterarbeiten
@@ -5380,19 +5374,45 @@ export async function getInactiveCustomers() {
             .eq("status", "active");
         customers = (fallback.data as any[]) || [];
     }
-    const recent = new Set<string>();
-    for (const i of (invoicesRes.data as any[]) || []) if (i.customer_id) recent.add(i.customer_id);
-    for (const t of (ticketsRes.data as any[]) || []) if (t.customer_id) recent.add(t.customer_id);
+
+    // Grösstes Intervall bestimmt, wie weit zurück Aktivität geladen werden muss
+    const maxMonths = customers.reduce((m, c) => Math.max(m, c.inactive_months || 6), 6);
+    const oldest = new Date();
+    oldest.setMonth(oldest.getMonth() - maxMonths);
+    const oldestIso = oldest.toISOString();
+
+    const [invoicesRes, ticketsRes] = await Promise.all([
+        supabase.from("invoices").select("customer_id, invoice_date").gte("invoice_date", oldestIso.split("T")[0]),
+        supabase.from("tickets").select("customer_id, created_at").gte("created_at", oldestIso),
+    ]);
+    // Letzte Aktivität (Rechnung oder Ticket) pro Kunde
+    const lastActivity = new Map<string, number>();
+    for (const i of (invoicesRes.data as any[]) || []) {
+        if (!i.customer_id) continue;
+        const t = new Date(i.invoice_date).getTime();
+        if (t > (lastActivity.get(i.customer_id) || 0)) lastActivity.set(i.customer_id, t);
+    }
+    for (const t of (ticketsRes.data as any[]) || []) {
+        if (!t.customer_id) continue;
+        const ts = new Date(t.created_at).getTime();
+        if (ts > (lastActivity.get(t.customer_id) || 0)) lastActivity.set(t.customer_id, ts);
+    }
+
     return customers
-        .filter((c) =>
-            !recent.has(c.id) &&
-            new Date(c.created_at).getTime() < Date.now() - 180 * 86400000 &&
-            c.inactive_muted !== true &&
-            (!c.inactive_snooze_until || c.inactive_snooze_until <= today)
-        )
+        .filter((c) => {
+            if (c.inactive_muted === true) return false;
+            if (c.inactive_snooze_until && c.inactive_snooze_until > today) return false;
+            const months = c.inactive_months || 6;
+            const cutoff = new Date();
+            cutoff.setMonth(cutoff.getMonth() - months);
+            const cutoffMs = cutoff.getTime();
+            if (new Date(c.created_at).getTime() >= cutoffMs) return false; // Kunde jünger als das Intervall
+            return (lastActivity.get(c.id) || 0) < cutoffMs;
+        })
         .map((c) => ({
             id: c.id,
             name: c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Kunde",
+            months: c.inactive_months || 6,
         }));
 }
 
@@ -5412,6 +5432,23 @@ export async function muteInactiveReminder(customerId: string) {
     const { error } = await (supabase as any)
         .from("customers")
         .update({ inactive_muted: true })
+        .eq("id", customerId);
+    if (error) throw new Error(error.message);
+}
+
+// Inaktivitäts-Erinnerung konfigurieren (Kunden-Dossier):
+// muted an/aus, Intervall in Monaten, Pause setzen/aufheben
+export async function updateInactiveReminderSettings(
+    customerId: string,
+    fields: { muted?: boolean; months?: number | null; snoozeUntil?: string | null }
+) {
+    const payload: any = {};
+    if (fields.muted !== undefined) payload.inactive_muted = fields.muted;
+    if (fields.months !== undefined) payload.inactive_months = fields.months;
+    if (fields.snoozeUntil !== undefined) payload.inactive_snooze_until = fields.snoozeUntil;
+    const { error } = await (supabase as any)
+        .from("customers")
+        .update(payload)
         .eq("id", customerId);
     if (error) throw new Error(error.message);
 }

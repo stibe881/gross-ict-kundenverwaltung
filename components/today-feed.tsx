@@ -178,7 +178,7 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
               icon: "zzz",
               color: "#8A8498",
               title: c.name,
-              subtitle: "Seit 6 Monaten keine Rechnung und kein Ticket – Lebenszeichen senden",
+              subtitle: `Seit ${(c as any).months || 6} Monaten keine Rechnung und kein Ticket – Lebenszeichen senden`,
               route: `/customer/${c.id}`,
               inactiveCustomerId: c.id,
             } as any);
