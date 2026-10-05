@@ -1,0 +1,304 @@
+---
+import Base from "../layouts/Base.astro";
+
+// FAQ Data
+const faqs = [
+  { q: "Was kostet ein Support-Einsatz ohne Vertrag?", a: "Wir verrechnen Support-Einsätze ohne SLA/Wartungsvertrag nach Aufwand. Der Stundensatz beträgt CHF 160.–, abgerechnet im 15-Minuten-Takt." },
+  { q: "Wie schnell sind Sie wirklich erreichbar?", a: "Während den Bürozeiten (Mo-Fr, 08:00 - 17:30) erreichen Sie uns sofort per Telefon. Notfälle werden priorisiert behandelt." },
+  { q: "Welche Remote-Tools verwenden Sie?", a: "Wir verwenden primär AnyDesk (über unsere eigene Support-Exe) für eine schnelle, unkomplizierte und sichere Fernwartung." },
+  { q: "Was, wenn das Problem ausserhalb der Bürozeiten passiert?", a: "Kunden mit einem Wartungsvertrag haben Zugriff auf unseren Pikett-Service. Für Kunden ohne Vertrag können wir Einsätze nach Verfügbarkeit (mit Aufschlag) anbieten." },
+  { q: "Können Sie unsere bisherige IT übernehmen?", a: "Ja, wir führen gerne ein Onboarding durch, analysieren Ihre bestehende Infrastruktur und übernehmen die Betreuung nahtlos." },
+  { q: "Bleiben unsere Daten in der Schweiz?", a: "Ja, alle von uns betriebenen Server und Backups befinden sich in zertifizierten Rechenzentren in der Schweiz." }
+];
+
+// Downloads Data
+const downloads = [
+  { name: "Windows", desc: "Für Windows 10/11", url: "/Downloads/Support/GrossICT-Support.exe", icon: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0B5392" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>`, color: "rgba(11, 83, 146, 0.08)" },
+  { name: "macOS", desc: "Für macOS 12+", url: "https://anydesk.com/de/downloads/thank-you?dv=mac_dmg", icon: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2"><rect x="2" y="4" width="20" height="12" rx="2"></rect><path d="M12 16v4"></path><path d="M8 20h8"></path></svg>`, color: "rgba(51, 51, 51, 0.08)" },
+  { name: "iOS", desc: "Für iPhone & iPad", url: "https://apps.apple.com/app/anydesk-remote-desktop/id1176131273", icon: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8B2FC9" stroke-width="2"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"></path><path d="M10 2c1 .5 2 2 2 5"></path></svg>`, color: "rgba(139, 47, 201, 0.08)" },
+  { name: "Android", desc: "Für Android-Geräte", url: "https://play.google.com/store/apps/details?id=com.anydesk.anydeskandroid", icon: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2E6B3F" stroke-width="2"><path d="M17 14v1a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1"></path><path d="M12 5V2"></path><path d="M8.2 4.2l-1.4-1.4"></path><path d="M15.8 4.2l1.4-1.4"></path><circle cx="12" cy="10" r="4"></circle></svg>`, color: "rgba(46, 107, 63, 0.08)" }
+];
+---
+
+<Base title="Support & Helpdesk — Gross ICT" description="Schneller IT-Support. Ticket erstellen oder Remote-Support herunterladen." active="support" theme="light">
+  
+  <style>
+    :global(body) { background: #F3EFE9 !important; color: #2C2621 !important; }
+    :global(.site-header.light) { background: #F3EFE9 !important; border-bottom: 1px solid rgba(0,0,0,0.05) !important; }
+    
+    .sup-hero { padding: 80px 0; }
+    .sup-hero-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start; }
+    @media (max-width: 920px) { .sup-hero-inner { grid-template-columns: 1fr; gap: 40px; } }
+    
+    .sup-title { font-size: clamp(48px, 8vw, 84px); line-height: 1.05; color: #2C2621; margin: 16px 0 24px; }
+    .sup-title span { color: var(--gold); font-style: italic; }
+    .sup-desc { font-size: 18px; color: #5D564D; max-width: 480px; margin-bottom: 32px; }
+    
+    .status-badge { display: inline-flex; align-items: center; gap: 8px; background: #fff; padding: 12px 20px; border-radius: 99px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .status-dot { width: 10px; height: 10px; background: #4ADE80; border-radius: 50%; box-shadow: 0 0 0 4px rgba(74,222,128,0.2); }
+    
+    .ticket-card { background: #FCFAF7; border: 1px solid rgba(0,0,0,0.06); border-radius: 16px; padding: 40px; box-shadow: 0 12px 32px rgba(0,0,0,0.02); }
+    .ticket-card h2 { font-size: 26px; font-family: "Manrope", sans-serif; font-weight: 700; color: #2C2621; margin-bottom: 8px; }
+    .ticket-card p { font-size: 15px; color: #5D564D; margin-bottom: 24px; }
+    
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 13px; font-weight: 600; color: #5D564D; }
+    .form-group input, .form-group select, .form-group textarea { background: #fff; border: 1px solid #E5DFD5; border-radius: 8px; padding: 12px 14px; font-family: inherit; font-size: 15px; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--gold); }
+    
+    .checkbox-group { display: flex; gap: 12px; align-items: flex-start; margin: 24px 0; }
+    .checkbox-group input { margin-top: 4px; accent-color: var(--gold); width: 16px; height: 16px; }
+    .checkbox-group label { font-size: 13.5px; color: #5D564D; font-weight: 400; line-height: 1.5; }
+    
+    .btn-submit { width: 100%; background: #DEB163; color: #2C2621; font-weight: 700; font-size: 16px; border: none; border-radius: 99px; padding: 16px; cursor: pointer; transition: background 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
+    .btn-submit:hover { background: #CF9F52; }
+    
+    .contact-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 0 0 80px; }
+    @media (max-width: 820px) { .contact-cards { grid-template-columns: 1fr; } }
+    .ccard { background: #fff; border-radius: 16px; padding: 32px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.02); }
+    .ccard .icon { width: 56px; height: 56px; border-radius: 50%; background: #FDF7ED; display: flex; align-items: center; justify-content: center; color: var(--gold); }
+    .ccard p.label { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #9A9185; margin: 0; }
+    .ccard p.val { font-size: 18px; font-weight: 700; color: #2C2621; margin: 0; }
+    
+    .faq-section { padding: 80px 0; border-top: 1px solid rgba(0,0,0,0.06); }
+    .faq-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; gap: 40px; }
+    @media (max-width: 820px) { .faq-header { flex-direction: column; align-items: flex-start; gap: 16px; } }
+    .faq-title { font-size: clamp(36px, 5vw, 54px); line-height: 1.1; margin: 0; max-width: 500px; }
+    .faq-desc { font-size: 16px; color: #5D564D; max-width: 320px; margin: 0; }
+    
+    .faq-item { background: #fff; border-radius: 12px; padding: 24px 32px; margin-bottom: 12px; cursor: pointer; transition: box-shadow 0.2s; overflow: hidden; }
+    .faq-item:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+    .faq-item-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .faq-item h3 { font-size: 16px; font-family: "Manrope", sans-serif; font-weight: 600; color: #2C2621; margin: 0; }
+    .faq-item .plus { color: #DEB163; font-size: 24px; font-weight: 300; line-height: 1; transition: transform 0.2s; }
+    .faq-answer { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s ease; }
+    .faq-answer p { overflow: hidden; color: #5D564D; font-size: 15px; margin: 0; }
+    .faq-item.open .faq-answer { grid-template-rows: 1fr; }
+    .faq-item.open .faq-answer p { padding-top: 16px; }
+    .faq-item.open .plus { transform: rotate(45deg); }
+    
+    .cta-banner { background: linear-gradient(135deg, #2A251D 0%, #1D1A14 100%); border-radius: 20px; padding: 60px; display: flex; justify-content: space-between; align-items: center; gap: 40px; position: relative; overflow: hidden; margin: 40px 0 80px; }
+    .cta-banner::before { content: ""; position: absolute; right: -100px; top: -100px; width: 400px; height: 400px; background: radial-gradient(circle, rgba(222,177,99,0.15) 0%, transparent 70%); }
+    @media (max-width: 920px) { .cta-banner { flex-direction: column; align-items: flex-start; padding: 40px; } }
+    .cta-left h2 { font-size: clamp(36px, 5vw, 64px); color: #fff; font-weight: 300; }
+    .cta-left h2 span { color: var(--gold); font-style: italic; }
+    .cta-right { max-width: 340px; }
+    .cta-right p { color: #A8A196; font-size: 16px; margin-bottom: 24px; }
+    .cta-btns { display: flex; gap: 16px; flex-wrap: wrap; }
+    .cta-btn-gold { background: #DEB163; color: #2C2621; padding: 14px 28px; border-radius: 99px; font-weight: 700; text-decoration: none; }
+    .cta-btn-ghost { border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 14px 28px; border-radius: 99px; font-weight: 600; text-decoration: none; }
+    
+    .downloads-section { padding: 40px 0 100px; }
+    .dl-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; }
+    @media (max-width: 820px) { .dl-header { flex-direction: column; align-items: flex-start; gap: 16px; } }
+    .dl-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+    @media (max-width: 1024px) { .dl-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 540px) { .dl-grid { grid-template-columns: 1fr; } }
+    
+    .dl-card { background: #fff; border: 1px solid rgba(0,0,0,0.04); border-radius: 16px; padding: 40px 24px; text-align: center; transition: transform 0.2s, box-shadow 0.2s; text-decoration: none; display: flex; flex-direction: column; align-items: center; }
+    .dl-card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,0.06); text-decoration: none; }
+    .dl-icon { width: 64px; height: 64px; border-radius: 18px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; }
+    .dl-card h3 { font-size: 18px; font-family: "Manrope", sans-serif; font-weight: 700; color: #2C2621; margin: 0 0 4px; }
+    .dl-card p { font-size: 13px; color: #8A8175; margin: 0 0 24px; }
+    .dl-btn { font-size: 14px; font-weight: 700; color: #DEB163; display: flex; align-items: center; gap: 6px; }
+  </style>
+
+  <div class="container">
+    <section class="sup-hero">
+      <div class="sup-hero-inner">
+        <div>
+          <p class="mono" style="color: #9A9185; letter-spacing: 2px;">SUPPORT & HELPDESK</p>
+          <h1 class="anton sup-title">Wir helfen.<br/><span>Schnell.</span></h1>
+          <p class="sup-desc">Telefon, E-Mail, Remote oder Vor-Ort. Sie sagen uns, wo es brennt — wir sind sofort dran. Ohne Warteschleife, ohne Tickets, die im Nirgendwo verschwinden.</p>
+          <div class="status-badge">
+            <div class="status-dot"></div>
+            Service betriebsbereit &middot; <span style="color: #DEB163">Mo–Fr 08:00–17:30</span>
+          </div>
+        </div>
+        
+        <div class="ticket-card">
+          <h2>Ticket erstellen</h2>
+          <p>Beschreiben Sie Ihr Problem — wir kümmern uns darum.</p>
+          <form class="ticket-form" method="post" id="support-form">
+            <div class="form-grid" style="margin-bottom: 16px;">
+              <div class="form-group">
+                <label>Firma</label>
+                <input type="text" name="company" />
+              </div>
+              <div class="form-group">
+                <label>Anrede *</label>
+                <select name="salutation" required>
+                  <option value="">Bitte wählen</option>
+                  <option value="Frau">Frau</option>
+                  <option value="Herr">Herr</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-grid" style="margin-bottom: 16px;">
+              <div class="form-group">
+                <label>Vorname *</label>
+                <input type="text" name="firstname" required />
+              </div>
+              <div class="form-group">
+                <label>Nachname *</label>
+                <input type="text" name="lastname" required />
+              </div>
+            </div>
+            <div class="form-grid" style="margin-bottom: 16px;">
+              <div class="form-group">
+                <label>Telefon</label>
+                <input type="tel" name="phone" />
+              </div>
+              <div class="form-group">
+                <label>E-Mail *</label>
+                <input type="email" name="email" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Problembeschreibung *</label>
+              <textarea name="message" rows="4" required></textarea>
+            </div>
+            <div class="checkbox-group">
+              <input type="checkbox" id="dsgvo" required />
+              <label for="dsgvo">Ich habe die <a href="/datenschutz" style="text-decoration: underline; color: inherit;">Datenschutzerklärung</a> gelesen und bin einverstanden, dass meine Angaben zur Bearbeitung gespeichert werden.</label>
+            </div>
+            <button type="submit" class="btn-submit">
+              Ticket erstellen 
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>
+            </button>
+            <p id="support-status" style="margin-top: 12px; font-weight: 600; font-size: 14px; display: none;"></p>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="contact-cards">
+      <div class="ccard">
+        <div class="icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+        </div>
+        <div>
+          <p class="label">Telefon</p>
+          <p class="val">+41 41 562 34 16</p>
+        </div>
+      </div>
+      <div class="ccard">
+        <div class="icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+        </div>
+        <div>
+          <p class="label">Support-E-Mail</p>
+          <p class="val">support@gross-ict.ch</p>
+        </div>
+      </div>
+      <div class="ccard">
+        <div class="icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        </div>
+        <div>
+          <p class="label">Vor-Ort-Service</p>
+          <p class="val">Zentralschweiz</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="faq-section">
+      <div class="faq-header">
+        <div>
+          <p class="mono" style="color: #9A9185; letter-spacing: 2px;">HÄUFIG GEFRAGT</p>
+          <h2 class="anton faq-title">Antworten auf<br/><span style="color: var(--gold); font-style: italic;">die wichtigsten</span><br/>Fragen.</h2>
+        </div>
+        <p class="faq-desc">Etwas nicht dabei? Greifen Sie zum Hörer — wir antworten lieber persönlich.</p>
+      </div>
+      <div class="faq-list">
+        {faqs.map(faq => (
+          <div class="faq-item" onclick="this.classList.toggle('open')">
+            <div class="faq-item-header">
+              <h3>{faq.q}</h3>
+              <span class="plus">+</span>
+            </div>
+            <div class="faq-answer">
+              <p>{faq.a}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="cta-banner">
+      <div class="cta-left">
+        <p class="mono" style="color: #DEB163; letter-spacing: 2px; margin-bottom: 16px;">BEREIT?</p>
+        <h2 class="anton">Ein Anruf —<br/><span>und es läuft.</span></h2>
+      </div>
+      <div class="cta-right">
+        <p>Wir hören kurz zu, und sind dann per Fernwartung für Sie da. Erstgespräch kostenlos, Beratung ehrlich.</p>
+        <div class="cta-btns">
+          <a href="tel:+41415623416" class="cta-btn-gold">+41 41 562 34 16 &rarr;</a>
+          <a href="mailto:support@gross-ict.ch" class="cta-btn-ghost">support@gross-ict.ch</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="downloads-section">
+      <div class="dl-header">
+        <h2 class="anton" style="font-size: clamp(32px, 4vw, 48px); line-height: 1.1; max-width: 400px; color: #2C2621;">Remote-Support herunterladen</h2>
+        <p style="color: #5D564D; max-width: 400px; margin: 0; font-size: 15px;">Für eine schnelle und sichere Fernwartung benötigen Sie unsere Support-Software. Wählen Sie die Version für Ihr Betriebssystem.</p>
+      </div>
+      <div class="dl-grid">
+        {downloads.map(dl => (
+          <a href={dl.url} class="dl-card" target="_blank" rel="noopener">
+            <div class="dl-icon" style={`background: ${dl.color}`}>
+              <Fragment set:html={dl.icon} />
+            </div>
+            <h3>{dl.name}</h3>
+            <p>{dl.desc}</p>
+            <div class="dl-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Herunterladen
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const form = document.getElementById('support-form') as HTMLFormElement;
+    const status = document.getElementById('support-status');
+    if (form && status) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        status.style.display = 'block';
+        status.style.color = '#5D564D';
+        status.textContent = 'Wird gesendet...';
+        
+        const fd = new FormData(form);
+        const data = Object.fromEntries(fd.entries());
+        // For the ticket, we can just send it to the contact form endpoint or create a specific one.
+        // We will send it to the existing contact form endpoint which creates a lead, or just email it.
+        try {
+          const res = await fetch("https://bvluvvyvftygnxtmboxw.supabase.co/functions/v1/contact-form", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: `${data.firstname} ${data.lastname}`,
+              email: data.email,
+              phone: data.phone,
+              company: data.company,
+              message: `[SUPPORT-TICKET]\nAnrede: ${data.salutation}\n\nProblem:\n${data.message}`
+            })
+          });
+          if (!res.ok) throw new Error();
+          status.style.color = '#4ADE80';
+          status.textContent = 'Ticket erfolgreich erstellt. Wir melden uns in Kürze!';
+          form.reset();
+        } catch {
+          status.style.color = '#F87171';
+          status.textContent = 'Fehler beim Senden. Bitte rufen Sie uns an.';
+        }
+      });
+    }
+  </script>
+</Base>

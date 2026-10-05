@@ -1,0 +1,22 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  
+  # Wenn die Datei existiert, liefere sie direkt aus
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Falls eine .html-Datei für den Pfad existiert (z.B. /accounting -> /accounting.html)
+  RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+  RewriteRule ^(.*)$ $1.html [L]
+
+  # Falls die HTML-Datei im Ordner liegt (z.B. /accounting -> /accounting/index.html)
+  RewriteCond %{DOCUMENT_ROOT}/$1/index.html -f
+  RewriteRule ^(.*)$ $1/index.html [L]
+
+  # Fallback bei unbekannten Routen (React Router behandelt den Rest)
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+ErrorDocument 404 /404.html

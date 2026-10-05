@@ -1,0 +1,23 @@
+---
+import Base from "../layouts/Base.astro";
+import ContactForm from "../components/ContactForm.astro";
+---
+<Base
+  title="Kontakt — Gross ICT | IT-Support & Web-Agentur in Zell LU"
+  description="Nehmen Sie Kontakt mit Gross ICT auf. Wir beraten Sie gerne unverbindlich zu Webdesign, App-Entwicklung und ICT Services."
+  active="kontakt"
+>
+  <div class="page-header" style="padding: 120px 24px 60px; max-width: 1240px; margin: 0 auto;">
+    <p class="mono">Kontakt</p>
+    <h1 class="anton anton-title" style="margin-top: 14px">Schreiben Sie uns</h1>
+    <p style="color: var(--muted); font-size: 18px; margin-top: 16px; max-width: 600px;">
+      Egal ob neues Webprojekt, IT-Notfall oder einfach eine unverbindliche Beratung — wir sind für Sie da.
+    </p>
+  </div>
+
+  <section class="section" style="padding-top: 0;">
+    <div class="container">
+      <ContactForm />
+    </div>
+  </section>
+</Base>
