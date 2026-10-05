@@ -5,22 +5,21 @@ import Base from "../layouts/Base.astro";
   title="Preisrechner — Gross ICT | Webseite in 2 Minuten kalkulieren"
   description="Berechnen Sie den Festpreis für Ihre neue Webseite: Kundentyp, Umfang, Sprachen, Zusatzleistungen, Hosting und Wartung — transparent und unverbindlich."
   active="rechner"
-  noCta
 >
   <section class="hero">
     <div class="container">
-      <p class="mono">(Preisrechner)</p>
-      <h1 class="reveal">Was kostet Ihre<br />Webseite<span class="acid-txt">?</span></h1>
+      <p class="mono">Preisrechner</p>
+      <h1 class="anton">Was kostet Ihre<br />Webseite?</h1>
       <p class="lead">In zwei Minuten zum Festpreis — unverbindlich, ohne Angabe von Kontaktdaten.</p>
     </div>
   </section>
 
   <section class="section calc-section">
-    <div class="container calc-layout on-dark">
+    <div class="container calc-layout">
       <div class="calc-steps">
 
-        <fieldset class="group">
-          <legend class="step-title"><span class="no">(01)</span> Wer sind Sie?</legend>
+        <fieldset class="group card">
+          <legend class="step-title"><span>01</span> Wer sind Sie?</legend>
           <div class="choices" role="radiogroup" aria-label="Kundentyp">
             <label class="choice"><input type="radio" name="ctype" value="kmu" checked> <span class="t">Unternehmen / KMU</span> <span class="d">Standardpreise</span></label>
             <label class="choice"><input type="radio" name="ctype" value="verein"> <span class="t">Verein / Organisation</span> <span class="d">25% Rabatt</span></label>
@@ -29,8 +28,8 @@ import Base from "../layouts/Base.astro";
           </div>
         </fieldset>
 
-        <fieldset class="group" id="grp-type">
-          <legend class="step-title"><span class="no">(02)</span> Was brauchen Sie?</legend>
+        <fieldset class="group card" id="grp-type">
+          <legend class="step-title"><span>02</span> Was brauchen Sie?</legend>
           <div class="choices" role="radiogroup" aria-label="Webseitentyp">
             <label class="choice"><input type="radio" name="wtype" value="1500" checked> <span class="t">Landing Page</span> <span class="d">1–3 Seiten · CHF 1'500</span></label>
             <label class="choice"><input type="radio" name="wtype" value="3500"> <span class="t">Unternehmenswebseite</span> <span class="d">5–15 Seiten · CHF 3'500</span></label>
@@ -39,8 +38,8 @@ import Base from "../layouts/Base.astro";
           </div>
         </fieldset>
 
-        <fieldset class="group" id="grp-wedding" hidden>
-          <legend class="step-title"><span class="no">(02)</span> Welches Hochzeitspaket?</legend>
+        <fieldset class="group card" id="grp-wedding" hidden>
+          <legend class="step-title"><span>02</span> Welches Hochzeitspaket?</legend>
           <div class="choices" role="radiogroup" aria-label="Hochzeitspaket">
             <label class="choice"><input type="radio" name="wpaket" value="500" checked> <span class="t">«Save the Date»</span> <span class="d">Basic · CHF 500</span></label>
             <label class="choice"><input type="radio" name="wpaket" value="950"> <span class="t">«Der grosse Tag»</span> <span class="d">Premium · CHF 950</span></label>
@@ -48,10 +47,10 @@ import Base from "../layouts/Base.astro";
           </div>
         </fieldset>
 
-        <fieldset class="group">
-          <legend class="step-title"><span class="no">(03)</span> Sprachen</legend>
+        <fieldset class="group card">
+          <legend class="step-title"><span>03</span> Sprachen</legend>
           <p class="hint">Erste Sprache inklusive, jede weitere +CHF 600.</p>
-          <label for="langs" style="margin-top: 12px">Anzahl Sprachen</label>
+          <label for="langs" style="margin-top: 10px">Anzahl Sprachen</label>
           <select id="langs">
             <option value="1" selected>1 Sprache (inklusive)</option>
             <option value="2">2 Sprachen (+CHF 600)</option>
@@ -60,8 +59,8 @@ import Base from "../layouts/Base.astro";
           </select>
         </fieldset>
 
-        <fieldset class="group" id="grp-extras">
-          <legend class="step-title"><span class="no">(04)</span> Zusatzleistungen</legend>
+        <fieldset class="group card" id="grp-extras">
+          <legend class="step-title"><span>04</span> Zusatzleistungen</legend>
           <div class="extras" id="extras-std">
             <label class="extra"><input type="checkbox" value="800" data-label="Logo-Design"> Logo-Design <span>+CHF 800</span></label>
             <label class="extra"><input type="checkbox" value="400" data-label="Professionelle Texte"> Professionelle Texte <span>+CHF 400</span></label>
@@ -85,16 +84,16 @@ import Base from "../layouts/Base.astro";
           </div>
         </fieldset>
 
-        <fieldset class="group">
-          <legend class="step-title"><span class="no">(05)</span> Hosting</legend>
+        <fieldset class="group card">
+          <legend class="step-title"><span>05</span> Hosting</legend>
           <div class="choices" role="radiogroup" aria-label="Hosting">
             <label class="choice"><input type="radio" name="hosting" value="0"> <span class="t">Kein Hosting</span> <span class="d">Sie hosten selbst</span></label>
             <label class="choice"><input type="radio" name="hosting" value="189" checked> <span class="t">Hosting bei Gross ICT</span> <span class="d">CHF 189/Jahr · Schweizer Server</span></label>
           </div>
         </fieldset>
 
-        <fieldset class="group">
-          <legend class="step-title"><span class="no">(06)</span> Wartung &amp; Betreuung</legend>
+        <fieldset class="group card">
+          <legend class="step-title"><span>06</span> Wartung &amp; Betreuung</legend>
           <div class="choices" role="radiogroup" aria-label="Wartungsvertrag">
             <label class="choice"><input type="radio" name="care" value="0" checked> <span class="t">Keine Wartung</span> <span class="d">CHF 0/Monat</span></label>
             <label class="choice"><input type="radio" name="care" value="49"> <span class="t">Basic</span> <span class="d">CHF 49/Monat</span></label>
@@ -106,7 +105,7 @@ import Base from "../layouts/Base.astro";
       <!-- Ergebnis -->
       <aside class="calc-summary" aria-label="Preisübersicht">
         <div class="summary-card">
-          <span class="mono" style="color: var(--mute-on-bone)">(Ihr Festpreis)</span>
+          <p class="mono" style="color: #96652A">Ihr Festpreis</p>
           <dl>
             <div class="row"><dt>Grundpreis</dt><dd id="s-base">CHF 1'500</dd></div>
             <div class="row"><dt>Sprachen</dt><dd id="s-langs">CHF 0</dd></div>
@@ -116,11 +115,11 @@ import Base from "../layouts/Base.astro";
             <div class="row"><dt>Hosting</dt><dd id="s-hosting">CHF 189/Jahr</dd></div>
             <div class="row"><dt>Wartung</dt><dd id="s-care">CHF 0/Monat</dd></div>
           </dl>
-          <button type="button" class="btn btn-dark" id="btn-offer" style="width: 100%; margin-top: 18px">Festpreis-Angebot anfordern ↗</button>
+          <button type="button" class="btn btn-dark-pill" id="btn-offer" style="width: 100%; margin-top: 18px">Festpreis-Angebot anfordern</button>
           <a class="btn btn-call" href="tel:+41415623416" style="width: 100%; margin-top: 10px">Oder anrufen: 041 562 34 16</a>
 
-          <form id="offer-form" hidden style="margin-top: 18px; border-top: 1px solid var(--bone-line); padding-top: 16px">
-            <div style="display: grid; gap: 10px">
+          <form id="offer-form" hidden style="margin-top: 18px; border-top: 1px solid #DDD6C8; padding-top: 16px">
+            <div style="display: grid; gap: 10px" class="form-light">
               <div>
                 <label for="of-name">Name *</label>
                 <input id="of-name" name="name" type="text" required autocomplete="name">
@@ -137,7 +136,7 @@ import Base from "../layouts/Base.astro";
                 <label for="of-web">Website</label>
                 <input id="of-web" name="website" type="text" tabindex="-1" autocomplete="off">
               </div>
-              <button type="submit" class="btn btn-dark">Konfiguration senden</button>
+              <button type="submit" class="btn btn-dark-pill">Konfiguration senden</button>
               <p class="form-status" role="status" aria-live="polite"></p>
             </div>
           </form>
@@ -148,90 +147,72 @@ import Base from "../layouts/Base.astro";
 </Base>
 
 <style>
-  .hero { padding: 80px 0 64px; border-bottom: 1px solid var(--line); }
-  .hero .mono { display: block; margin-bottom: 24px; }
-  .hero h1 { font-size: clamp(40px, 6.5vw, 96px); }
-  .acid-txt { color: var(--acid); }
-  .lead { max-width: 560px; font-size: 17px; color: var(--mute); margin-top: 24px; }
+  .hero { padding: 72px 0 0; }
+  .hero .container { display: flex; flex-direction: column; gap: 16px; }
+  .hero h1 { font-size: clamp(40px, 6.5vw, 88px); color: #fff; }
+  .lead { max-width: 560px; font-size: 17px; color: var(--muted); }
 
-  .calc-section { padding-top: 64px; }
-  .calc-layout { display: grid; grid-template-columns: 1.7fr 1fr; gap: 56px; align-items: start; }
-  @media (max-width: 920px) { .calc-layout { grid-template-columns: 1fr; gap: 36px; } }
-  .calc-steps { display: flex; flex-direction: column; }
+  .calc-section { padding-top: 48px; }
+  .calc-layout { display: grid; grid-template-columns: 1.8fr 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 920px) { .calc-layout { grid-template-columns: 1fr; } }
+  .calc-steps { display: flex; flex-direction: column; gap: 20px; }
 
-  .group { border: none; margin: 0 0 48px; padding: 0; }
+  .group { border: 1px solid var(--line); margin: 0; }
   .step-title {
-    font-family: "Space Grotesk", sans-serif;
-    font-size: clamp(20px, 2.4vw, 28px);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: -0.01em;
-    padding: 0 0 14px;
-    border-bottom: 1px solid var(--line);
-    width: 100%;
-    margin-bottom: 18px;
+    font-family: "Sora", sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    padding: 0 8px;
+    margin-left: -8px;
   }
-  .step-title .no { font-family: var(--mono); font-size: 13px; font-weight: 400; color: var(--acid); margin-right: 10px; letter-spacing: 0.08em; }
-  .hint { font-size: 13.5px; color: var(--mute); }
+  .step-title span { color: var(--gold); margin-right: 8px; font-size: 14px; letter-spacing: 1px; }
+  .hint { font-size: 13.5px; color: var(--faint); margin-top: 6px; }
 
-  .choices { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .choices { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-top: 12px; }
   @media (max-width: 640px) { .choices { grid-template-columns: 1fr; } }
   .choice {
-    position: relative;
     display: flex; flex-direction: column; gap: 2px;
-    background: transparent; border: 1px solid var(--line); border-radius: 0;
+    background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px;
     padding: 14px 16px; cursor: pointer; font-size: 15px;
-    text-transform: none; letter-spacing: 0; color: var(--fg);
-    font-family: "Archivo", sans-serif;
   }
-  .choice:has(input:checked) { border-color: var(--acid); background: var(--bg-2); }
-  .choice:has(input:checked)::before {
-    content: "";
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 3px;
-    background: var(--acid);
-  }
-  .choice:has(input:focus-visible) { outline: 2px solid var(--acid); outline-offset: 2px; }
+  .choice:has(input:checked) { border-color: var(--magenta); background: rgba(192,24,143,0.1); }
+  .choice:has(input:focus-visible) { outline: 3px solid var(--gold); outline-offset: 2px; }
   .choice input { position: absolute; opacity: 0; }
   .choice .t { font-weight: 700; }
-  .choice .d { font-size: 12.5px; color: var(--mute); }
+  .choice .d { font-size: 12.5px; color: var(--muted); }
 
-  .extras { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+  .extras { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-top: 12px; }
   @media (max-width: 640px) { .extras { grid-template-columns: 1fr; } }
   .extra {
     display: flex; align-items: center; gap: 10px;
-    font-size: 14px; font-weight: 500; color: var(--fg);
-    background: transparent; border: 1px solid var(--line); border-radius: 0;
+    font-size: 14px; font-weight: 500; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
     padding: 11px 13px; cursor: pointer;
-    text-transform: none; letter-spacing: 0;
-    font-family: "Archivo", sans-serif;
   }
-  .extra:has(input:checked) { border-color: var(--acid); background: var(--bg-2); }
-  .extra input { width: 15px; height: 15px; accent-color: #D9FF3F; }
-  .extra span { margin-left: auto; font-size: 12.5px; color: var(--mute); white-space: nowrap; }
+  .extra:has(input:checked) { border-color: var(--magenta); background: rgba(192,24,143,0.1); }
+  .extra input { width: 16px; height: 16px; accent-color: #C0188F; }
+  .extra span { margin-left: auto; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 
-  .calc-summary { position: sticky; top: 82px; }
+  .calc-summary { position: sticky; top: 20px; }
   .summary-card {
-    background: var(--bone);
-    color: var(--ink);
+    background: #F6F1E7;
+    color: #221A0E;
+    border-radius: 16px;
     padding: 28px;
   }
-  .summary-card dl { margin: 16px 0 0; }
-  .summary-card .row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; font-size: 14.5px; border-bottom: 1px solid var(--bone-line); }
-  .summary-card dt { color: var(--mute-on-bone); }
-  .summary-card dd { margin: 0; font-weight: 600; }
+  .summary-card dl { margin: 14px 0 0; }
+  .summary-card .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; font-size: 14.5px; border-bottom: 1px solid #E4DCCB; }
+  .summary-card .row[hidden] { display: none; }
+  .summary-card dt { color: #6E6352; }
+  .summary-card dd { margin: 0; font-weight: 700; }
   .summary-card .discount dd { color: #2E6B3F; }
-  .summary-card .total { border-top: 2px solid var(--ink); border-bottom: none; margin-top: 6px; padding-top: 14px; }
-  .summary-card .total dt { color: var(--ink); font-weight: 700; }
-  .summary-card .total dd {
-    font-family: "Space Grotesk", sans-serif;
-    font-size: 26px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-  }
-  .btn-call { background: transparent; color: var(--ink); border-color: var(--ink); text-decoration: none; }
-  .btn-call:hover { background: var(--ink); color: var(--bone); }
+  .summary-card .total { border-top: 2px solid #221A0E; border-bottom: none; margin-top: 6px; padding-top: 13px; }
+  .summary-card .total dt { color: #221A0E; font-weight: 800; }
+  .summary-card .total dd { font-family: "Anton", sans-serif; font-weight: 400; font-size: 26px; letter-spacing: 0.5px; color: #B4238B; }
+  .btn-dark-pill { background: #221A0E; color: #F6F1E7; }
+  .btn-dark-pill:hover { background: #3A2E1C; color: #F6F1E7; }
+  .btn-call { background: transparent; border: 1.5px solid #221A0E; color: #221A0E; }
+  .btn-call:hover { background: #221A0E; color: #F6F1E7; text-decoration: none; }
 
   .hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
   .form-status { font-size: 13.5px; font-weight: 600; min-height: 18px; margin: 0; }

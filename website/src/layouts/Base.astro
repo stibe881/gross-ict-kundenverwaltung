@@ -6,16 +6,19 @@ interface Props {
   title: string;
   description?: string;
   active?: string;
-  noCta?: boolean;
-  ctaHref?: string;
+  noChrome?: boolean;
+  theme?: "dark" | "light";
+  overlayHeader?: boolean;
 }
 const {
   title,
-  description = "Gross ICT, Zell LU — Webseiten zum Festpreis ab CHF 1'500 und IT-Betreuung ohne Warteschlange für die Zentralschweiz.",
+  description = "Gross ICT, Zell LU — Web- und Appdesign zum Festpreis ab CHF 1'500 und ICT Services ohne Warteschlange für die Zentralschweiz.",
   active = "",
-  noCta = false,
-  ctaHref = "/webdesign#kontakt",
+  noChrome = false,
+  theme = "dark",
+  overlayHeader = false,
 } = Astro.props;
+const headerClass = ["site-header", theme === "light" ? "light" : "", overlayHeader ? "overlay" : ""].filter(Boolean).join(" ");
 ---
 <!doctype html>
 <html lang="de">
@@ -28,51 +31,60 @@ const {
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="preload" href="/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/anton-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <a class="skip-link" href="#main">Zum Inhalt springen</a>
-    <header class="site-header">
-      <div class="inner">
-        <a class="brand" href="/">Gross ICT</a>
-        <nav class="site-nav" aria-label="Hauptnavigation">
-          <a href="/webdesign" aria-current={active === "webdesign" ? "page" : undefined}>Webdesign</a>
-          <a href="/ict-services" aria-current={active === "ict" ? "page" : undefined}>ICT Services</a>
-          <a href="/rechner" aria-current={active === "rechner" ? "page" : undefined}>Preisrechner</a>
-          <a class="btn-login" href="https://portal.gross-ict.ch">Kunden-Login</a>
-        </nav>
-      </div>
-    </header>
+    {!noChrome && (
+      <header class={headerClass}>
+        <div class="inner">
+          <a href="/" aria-label="Zur Startseite">
+            <img class="brand-logo" src="/assets/logo.webp" alt="Gross ICT" />
+          </a>
+          <nav class="site-nav" aria-label="Hauptnavigation">
+            <a href="/webdesign" aria-current={active === "webdesign" ? "page" : undefined}>Web- &amp; Appdesign</a>
+            <a href="/ict-services" aria-current={active === "ict" ? "page" : undefined}>ICT Services</a>
+            <a href="/rechner" aria-current={active === "rechner" ? "page" : undefined}>Preisrechner</a>
+            <a class="btn-login" href="https://portal.gross-ict.ch">Kunden-Login</a>
+          </nav>
+        </div>
+      </header>
+    )}
     <main id="main">
       <slot />
     </main>
-    {!noCta && (
-      <section class="cta-band">
-        <div class="container">
-          <span class="mono acid">(Kontakt)</span>
-          <a class="cta-link" href={ctaHref}>Projekt anfragen <span class="arrow">↗</span></a>
-          <p class="cta-sub">
-            Oder direkt: <a href="tel:+41415623416">+41 41 562 34 16</a> ·
-            <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a> — Antwort innert eines Arbeitstags.
-          </p>
+    {!noChrome && (
+      <footer class="site-footer">
+        <div class="container inner">
+          <div>
+            <a href="/" aria-label="Zur Startseite"><img class="brand-logo" src="/assets/logo.webp" alt="Gross ICT" /></a>
+            <p class="fine" style="margin-top: 10px">Web- &amp; Appdesign und ICT Services für die Zentralschweiz</p>
+            <p class="fine" style="margin-top: 4px">Neuhushof 3, 6144 Zell · <a href="tel:+41415623416">+41 41 562 34 16</a> · <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a></p>
+          </div>
+          <div class="legal">
+            <a href="/impressum">Impressum</a>
+            <a href="/datenschutz">Datenschutz</a>
+            <a href="/barrierefreiheit">Barrierefreiheit</a>
+          </div>
+          <p class="fine">© {new Date().getFullYear()} Gross ICT, Zell LU</p>
         </div>
-      </section>
+      </footer>
     )}
-    <footer class="site-footer">
-      <div class="container inner">
-        <div>
-          <a class="brand" href="/" style="font-size: 15px">Gross ICT</a>
-          <p class="fine" style="margin-top: 10px">Webseiten &amp; ICT — Neuhushof 3, 6144 Zell LU</p>
-          <p class="fine" style="margin-top: 2px"><a href="tel:+41415623416">+41 41 562 34 16</a> · <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a></p>
-        </div>
-        <div class="legal">
-          <a href="/impressum">Impressum</a>
-          <a href="/datenschutz">Datenschutz</a>
-          <a href="/barrierefreiheit">Barrierefreiheit</a>
-        </div>
-        <p class="fine">© {new Date().getFullYear()} Gross ICT, Zell LU</p>
-      </div>
-    </footer>
+    <script>
+      // Scroll-Reveal für [data-reveal]-Elemente
+      const els = document.querySelectorAll("[data-reveal]");
+      if ("IntersectionObserver" in window && els.length) {
+        const io = new IntersectionObserver((entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) { e.target.classList.add("revealed"); io.unobserve(e.target); }
+          });
+        }, { rootMargin: "0px 0px -60px 0px", threshold: 0.1 });
+        els.forEach((el) => io.observe(el));
+      } else {
+        els.forEach((el) => el.classList.add("revealed"));
+      }
+    </script>
   </body>
 </html>

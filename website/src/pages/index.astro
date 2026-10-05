@@ -1,165 +1,239 @@
 ---
 import Base from "../layouts/Base.astro";
-import ContactForm from "../components/ContactForm.astro";
 ---
 <Base
-  title="Gross ICT — Webdesign & ICT Services, Zentralschweiz"
-  description="Gross ICT aus Zell LU: Webseiten zum Festpreis ab CHF 1'500 und IT-Betreuung ohne Warteschlange für KMU in der Zentralschweiz."
-  ctaHref="#kontakt"
+  title="Gross ICT — Web- & Appdesign und ICT Services, Zentralschweiz"
+  description="Gross ICT aus Zell LU: Web- und Appdesign zum Festpreis ab CHF 1'500 und ICT Services ohne Warteschlange für KMU in der Zentralschweiz."
+  noChrome
 >
-  <section class="hero">
-    <div class="container">
-      <p class="mono">(Webagentur &amp; ICT — Zell, Luzern)</p>
-      <h1 class="mega reveal">
-        <span class="l">Webseiten,</span>
-        <span class="l indent">Apps &amp; IT<span class="acid-txt">*</span></span>
-        <span class="l">für die Zentralschweiz</span>
-      </h1>
-      <div class="hero-foot">
-        <p class="hero-note"><span class="acid-txt">*</span> Festpreis statt Überraschung: Webauftritte ab CHF 1'500, IT-Betreuung, bei der Sie direkt die Person erreichen, die das Problem löst.</p>
-        <div class="hero-cta">
-          <a class="btn btn-acid" href="/rechner">Preis berechnen</a>
-          <a class="btn btn-ghost" href="#kontakt">Projekt anfragen</a>
+  <div class="split">
+    <!-- Linke Welt: Web- und Appdesign -->
+    <section class="half half-web" aria-label="Web- und Appdesign">
+      <div class="glow g1" aria-hidden="true"></div>
+      <div class="dots" aria-hidden="true"></div>
+
+      <div class="deko" aria-hidden="true">
+        <div class="ui-card c1">
+          <div class="dots-row"><span></span><span></span><span></span></div>
+          <div class="bar w70 strong"></div>
+          <div class="bar w90"></div>
+          <div class="bar w60"></div>
+          <div class="chip-btn"></div>
         </div>
+        <div class="ui-card c2">
+          <div class="media"></div>
+          <div class="bar w80"></div>
+          <div class="bar w55"></div>
+        </div>
+        <div class="ui-card c3 phone">
+          <div class="media tall"></div>
+          <div class="bar w85 strong"></div>
+          <div class="bar w60"></div>
+          <div class="home-dash"></div>
+        </div>
+        <span class="deko-chip d1">&lt;UI/UX DESIGN&gt;</span>
+        <span class="deko-chip d2">APP DEV</span>
+        <span class="deko-chip d3">BUILD</span>
       </div>
-    </div>
-  </section>
 
-  <section class="panels" aria-label="Bereiche">
-    <div class="container panel-grid">
-      <a class="panel" href="/webdesign">
-        <span class="mono idx">(01)</span>
-        <h2>Webdesign <span class="arrow">↗</span></h2>
-        <p>Webseiten, Web-Apps und Mobile Apps — selbst pflegbar, auffindbar, sauber nach revDSG und WCAG gebaut. Ab CHF 1'500.</p>
-      </a>
-      <a class="panel" href="/ict-services">
-        <span class="mono idx">(02)</span>
-        <h2>ICT Services <span class="arrow">↗</span></h2>
-        <p>Support, Security, Netzwerk und Server — ohne Warteschlange, per Fernwartung oder vor Ort.</p>
-      </a>
-    </div>
-  </section>
+      <div class="content">
+        <h1>WEB- UND<br />APPDESIGN</h1>
+        <p>Webseiten, Web-Apps und Mobile Apps — zum Festpreis, rechtssicher nach revDSG, barrierefrei nach WCAG.</p>
+        <a class="discover" href="/webdesign">ENTDECKEN</a>
+      </div>
+    </section>
 
-  <div class="marquee" aria-hidden="true">
-    <div class="track">
-      <div class="seq">
-        <span>Webseiten</span><span>Web-Apps</span><span>Mobile Apps</span><span>IT-Support</span><span>Security</span><span>Netzwerk &amp; WLAN</span><span>Server &amp; Backup</span><span>Hosting Schweiz</span>
+    <!-- Rechte Welt: ICT Services -->
+    <section class="half half-ict" aria-label="ICT Services">
+      <div class="glow g2" aria-hidden="true"></div>
+      <div class="gridlines" aria-hidden="true"></div>
+
+      <svg class="circuit" width="640" height="860" viewBox="0 0 640 860" fill="none" aria-hidden="true">
+        <path d="M20 120 H220 L280 180 V420" stroke="#38BDF8" stroke-opacity="0.5" stroke-width="1.5"/>
+        <path d="M40 760 H260 L340 680 H620" stroke="#38BDF8" stroke-opacity="0.4" stroke-width="1.5"/>
+        <path d="M520 80 V260 L440 340 V520" stroke="#7DD3FC" stroke-opacity="0.45" stroke-width="1.5"/>
+        <path d="M600 500 H480 L420 560 V760" stroke="#38BDF8" stroke-opacity="0.35" stroke-width="1.5"/>
+        <circle cx="280" cy="420" r="5" fill="#7DD3FC"/>
+        <circle cx="220" cy="120" r="4" fill="#38BDF8"/>
+        <circle cx="340" cy="680" r="5" fill="#7DD3FC"/>
+        <circle cx="440" cy="340" r="4" fill="#38BDF8"/>
+        <circle cx="420" cy="760" r="4" fill="#38BDF8"/>
+      </svg>
+      <span class="tech-label t1" aria-hidden="true">CYBERSECURITY</span>
+      <span class="tech-label t2" aria-hidden="true">DATA ENCRYPTION</span>
+      <svg class="tech-icon i1" width="34" height="40" viewBox="0 0 24 28" fill="none" stroke="#7DD3FC" stroke-width="1.6" aria-hidden="true"><path d="M12 2 3 5.5v7c0 6 3.9 10.8 9 12.5 5.1-1.7 9-6.5 9-12.5v-7L12 2Z"/><path d="M8.5 13.5l2.5 2.5 4.5-5"/></svg>
+      <svg class="tech-icon i2" width="30" height="36" viewBox="0 0 24 28" fill="none" stroke="#38BDF8" stroke-width="1.6" aria-hidden="true"><rect x="4" y="11" width="16" height="12" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+
+      <div class="content">
+        <h1>ICT SERVICES</h1>
+        <p>Zuverlässiger IT-Support, Netzwerk, Security und Cloud-Lösungen für KMU.</p>
+        <a class="discover filled" href="/ict-services">ENTDECKEN</a>
       </div>
-      <div class="seq">
-        <span>Webseiten</span><span>Web-Apps</span><span>Mobile Apps</span><span>IT-Support</span><span>Security</span><span>Netzwerk &amp; WLAN</span><span>Server &amp; Backup</span><span>Hosting Schweiz</span>
-      </div>
-    </div>
+    </section>
+
+    <!-- Freigestelltes Logo oben Mitte -->
+    <a class="home-logo" href="/webdesign" aria-label="Gross ICT">
+      <img src="/assets/logo.webp" alt="Gross ICT" />
+    </a>
+
+    <!-- Kontaktzeile unten -->
+    <p class="contact-line">
+      Neuhushof 3, 6144 Zell · <a href="tel:+41415623416">+41 41 562 34 16</a> · <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a>
+    </p>
   </div>
-
-  <section class="section">
-    <div class="container facts">
-      <div class="fact">
-        <span class="mono">(Preis)</span>
-        <p class="big">ab CHF 1'500</p>
-        <p class="small">Webauftritt zum Festpreis — der Preis steht, bevor wir anfangen.</p>
-      </div>
-      <div class="fact">
-        <span class="mono">(Antwort)</span>
-        <p class="big">1 Arbeitstag</p>
-        <p class="small">So lange warten Sie höchstens auf eine persönliche Antwort.</p>
-      </div>
-      <div class="fact">
-        <span class="mono">(Recht)</span>
-        <p class="big">revDSG + WCAG</p>
-        <p class="small">Datenschutz und Barrierefreiheit sind eingebaut, kein Aufpreis-Thema.</p>
-      </div>
-      <div class="fact">
-        <span class="mono">(Hosting)</span>
-        <p class="big">Schweiz</p>
-        <p class="small">Ihre Daten bleiben hier — Server und Support im selben Land.</p>
-      </div>
-    </div>
-  </section>
-
-  <ContactForm />
 </Base>
 
 <style>
-  .hero { padding: 104px 0 88px; border-bottom: 1px solid var(--line); }
-  .hero .mono { display: block; margin-bottom: 26px; }
-  .mega { display: flex; flex-direction: column; font-size: clamp(44px, 9vw, 128px); }
-  .mega .l { display: block; }
-  .mega .indent { padding-left: clamp(40px, 12vw, 220px); }
-  .acid-txt { color: var(--acid); }
-  .hero-foot {
+  .split {
+    position: relative;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 40px;
-    flex-wrap: wrap;
-    margin-top: 48px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--bg);
   }
-  .hero-note { max-width: 460px; color: var(--mute); font-size: 15.5px; }
-  .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
-  @media (max-width: 640px) {
-    .hero { padding: 64px 0 56px; }
-    .hero-foot { margin-top: 32px; }
+  .half {
+    position: relative;
+    overflow: hidden;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 150px 36px 100px;
+    transition: flex 0.35s ease;
+  }
+  @media (min-width: 901px) {
+    .half:hover, .half:focus-within { flex: 1.15; }
+  }
+  .half-web { background: var(--grad-web); }
+  .half-ict { background: var(--grad-ict); border-left: 1px solid rgba(255,255,255,0.25); }
+
+  .glow { position: absolute; border-radius: 50%; pointer-events: none; }
+  .g1 { width: 540px; height: 540px; background: rgba(255,255,255,0.15); filter: blur(90px); top: -140px; left: -120px; }
+  .g2 { width: 560px; height: 560px; background: rgba(56,189,248,0.3); filter: blur(100px); top: -160px; right: -140px; }
+  .dots {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.16) 1px, transparent 1px);
+    background-size: 26px 26px; opacity: 0.35;
+  }
+  .gridlines {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(125,211,252,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(125,211,252,0.1) 1px, transparent 1px);
+    background-size: 44px 44px; opacity: 0.6;
   }
 
-  .panels { padding: 0; }
-  .panel-grid {
-    display: grid;
-    grid-template-columns: 58fr 42fr;
-    gap: 0;
-    padding: 0;
-    max-width: none;
+  /* Schwebende UI-Motive links */
+  .deko { position: absolute; inset: 0; pointer-events: none; }
+  .ui-card {
+    position: absolute;
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.09);
+    padding: 12px;
   }
-  .panel {
+  .ui-card .dots-row { display: flex; gap: 5px; margin-bottom: 12px; }
+  .ui-card .dots-row span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.55); }
+  .ui-card .dots-row span:first-child { background: rgba(255,255,255,0.75); }
+  .ui-card .bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.3); margin-top: 7px; }
+  .ui-card .bar.strong { height: 10px; background: rgba(255,255,255,0.55); }
+  .ui-card .w55 { width: 55%; } .ui-card .w60 { width: 60%; } .ui-card .w70 { width: 70%; }
+  .ui-card .w80 { width: 80%; } .ui-card .w85 { width: 85%; } .ui-card .w90 { width: 90%; }
+  .ui-card .chip-btn { width: 76px; height: 20px; border-radius: 10px; background: rgba(255,255,255,0.85); margin-top: 12px; }
+  .ui-card .media { height: 48px; border-radius: 8px; background: rgba(255,255,255,0.25); }
+  .ui-card .media.tall { height: 90px; border-radius: 12px; }
+  .ui-card .home-dash { width: 46px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.5); margin: 14px auto 0; }
+  .c1 { top: 120px; left: 70px; width: 200px; transform: rotate(-6deg); }
+  .c2 { bottom: 150px; left: 110px; width: 170px; transform: rotate(5deg); }
+  .c3 { top: 150px; right: 90px; width: 150px; border-radius: 20px; transform: rotate(7deg); }
+  .deko-chip {
+    position: absolute;
+    font-family: "Sora", monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.75);
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 999px;
+    padding: 5px 13px;
+  }
+  .d1 { top: 88px; right: 250px; transform: rotate(-4deg); }
+  .d2 { bottom: 110px; right: 110px; transform: rotate(4deg); }
+  .d3 { top: 330px; left: 42px; transform: rotate(-8deg); }
+  @media (max-width: 1100px) { .c3, .d1 { display: none; } }
+
+  /* Leiterbahnen rechts */
+  .circuit { position: absolute; top: 20px; left: 20px; opacity: 0.55; pointer-events: none; }
+  .tech-label {
+    position: absolute;
+    font-family: "Sora", monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: rgba(125,211,252,0.8);
+    pointer-events: none;
+  }
+  .t1 { top: 200px; right: 60px; transform: rotate(3deg); }
+  .t2 { bottom: 180px; left: 70px; transform: rotate(-3deg); }
+  .tech-icon { position: absolute; opacity: 0.8; pointer-events: none; }
+  .i1 { top: 300px; left: 80px; }
+  .i2 { bottom: 260px; right: 120px; }
+
+  .content {
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    padding: 56px 48px 64px;
-    border-bottom: 1px solid var(--line);
-    color: var(--fg);
-    text-decoration: none;
-    transition: background 0.15s ease, color 0.15s ease;
+    align-items: center;
+    gap: 20px;
+    max-width: 460px;
+    text-align: center;
   }
-  .panel + .panel { border-left: 1px solid var(--line); }
-  .panel h2 { font-size: clamp(32px, 4.6vw, 64px); }
-  .panel .arrow { color: var(--acid); }
-  .panel p { color: var(--mute); font-size: 15px; max-width: 480px; }
-  .panel:hover { background: var(--acid); color: var(--ink); }
-  .panel:hover .idx, .panel:hover p { color: var(--ink); }
-  .panel:hover h2, .panel:hover .arrow { color: var(--ink); }
-  @media (max-width: 860px) {
-    .panel-grid { grid-template-columns: 1fr; }
-    .panel { padding: 36px 28px 44px; }
-    .panel + .panel { border-left: none; }
+  .content h1 {
+    font-size: clamp(30px, 3.6vw, 48px);
+    font-weight: 800;
+    letter-spacing: 3px;
+    line-height: 1.18;
+    color: #fff;
+  }
+  .content p { font-size: 17px; color: rgba(255,255,255,0.93); }
+  .discover {
+    display: inline-flex;
+    margin-top: 8px;
+    padding: 15px 48px;
+    border: 1.5px solid #fff;
+    border-radius: 999px;
+    font-family: "Sora", sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 2.5px;
+    color: #fff;
+  }
+  .discover:hover { background: rgba(255,255,255,0.14); color: #fff; text-decoration: none; }
+  .discover.filled { background: #F2F5FA; color: #0B3E73; border-color: #F2F5FA; }
+  .discover.filled:hover { background: #fff; color: #0B3E73; }
+
+  .home-logo { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); z-index: 2; }
+  .home-logo img {
+    display: block;
+    height: 76px;
+    width: auto;
+    filter: brightness(1.45) drop-shadow(0 2px 12px rgba(0,0,0,0.55));
   }
 
-  .facts {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0;
-    border-top: 1px solid var(--line);
+  .contact-line {
+    position: absolute;
+    bottom: 24px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.92);
+    z-index: 2;
   }
-  .fact {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 30px 24px 36px 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .fact + .fact { padding-left: 24px; border-left: 1px solid var(--line); }
-  .fact .big {
-    font-family: "Space Grotesk", sans-serif;
-    font-weight: 700;
-    font-size: clamp(20px, 2.4vw, 30px);
-    text-transform: uppercase;
-    letter-spacing: -0.01em;
-  }
-  .fact .small { color: var(--mute); font-size: 13.5px; }
-  @media (max-width: 860px) {
-    .facts { grid-template-columns: 1fr 1fr; }
-    .fact:nth-child(3) { padding-left: 0; border-left: none; }
-  }
-  @media (max-width: 520px) {
-    .facts { grid-template-columns: 1fr; }
-    .fact + .fact { padding-left: 0; border-left: none; }
+  .contact-line a { color: rgba(255,255,255,0.95); }
+
+  @media (max-width: 900px) {
+    .split { flex-direction: column; }
+    .half { padding: 130px 28px 80px; }
+    .half-ict { border-left: none; border-top: 1px solid rgba(255,255,255,0.25); padding-top: 90px; }
+    .home-logo img { height: 56px; }
+    .contact-line { position: static; padding: 18px 16px 26px; background: var(--bg); font-size: 14.5px; }
   }
 </style>

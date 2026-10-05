@@ -1,59 +1,62 @@
-# Design-Brief gross-ict.ch (v2)
+# Design-Brief gross-ict.ch (v3 — umgesetztes Mockup)
 
-Gemäss CLAUDE.md vor dem Code festgehalten. v1 («Schweizer Werkstatt»,
-Serif auf Tinte/Papier) wirkte zu altmodisch — v2 zielt auf die Optik
-einer zeitgemässen Digital-Agentur, ohne in AI-Slop zu kippen.
+Gemäss CLAUDE.md vor dem Code festgehalten. v3 folgt dem vom Inhaber
+freigegebenen Mockup (claude.ai/artifact/BZC9Rr9KYcZmgdiDQirtcF) und
+dessen Vorlagen; wo das Mockup bewusst von einzelnen CLAUDE.md-Regeln
+abweicht (Farbverläufe der Farbwelten), gilt die Freigabe des Inhabers.
 
 ## 1. Design Statement
 
-Selbstbewusstes Studio-Portfolio: fast schwarzer Grund, übergrosse,
-eng gesetzte Grotesk-Versalien, ein einziger elektrischer Akzent
-(Acid-Gelbgrün), Mono-Ziffern als Ordnungssystem, grossflächige
-Hover-Reaktionen. Energie kommt aus Typografie-Massstab, Kontrast
-und Bewegung im Detail — nicht aus Gradients, Glows oder Karten.
+Zwei Markenwelten unter einem Dach: Die Startseite teilt den Viewport
+in eine Magenta/Violett-Welt (Web- und Appdesign) und eine
+Tiefblau-Welt (ICT Services). Die Webdesign-Seite inszeniert sich wie
+eine Kreativagentur — cinematisches Vollbild-Foto (Bergsonnenuntergang),
+kondensierte Anton-Versalien, dunkle Referenz-Galerie mit echten
+Monitor-Szenen. Die ICT-Seite tritt hell und corporate auf — Foto-Hero
+mit Blau-Überlagerung, überlappende weisse Leistungskarten. Gold
+(#D9A96A) ist die verbindende Markenfarbe, das echte Logo steht überall
+freigestellt.
 
 ## 2. Token-System
 
-Farben (high-contrast, monochrom + 1 Akzent, keine Gradients/Schatten;
-Charcoal/Off-White gemäss CLAUDE.md «Agency Design Blueprint»):
-- `--bg     #111111`  Grund (Deep Charcoal)
-- `--bg-2   #1A1A19`  Panels/Zeilen-Hover
-- `--line   #2C2C2A`  1px-Linien auf Dunkel
-- `--fg     #F9F6F0`  Text (Off-White)
-- `--mute   #908E86`  Nebentext
-- `--acid   #D9FF3F`  der eine Akzent (Electric Acid Lime)
-- `--bone   #F9F6F0`  helle Invert-Sektionen (Kontakt/Preis-Panel)
-- `--bone-line #DEDACF`, Text auf Hell `#111111` / gedämpft `#6D6B62`
+Farben:
+- Dunkle Basis: `--bg #0B0E1A`, Panels `#121318`/`#1A1B22`, Linien `#2A2B33`
+- Text: `#EDEFF5`, gedämpft `#A9AEBC`
+- Marke: `--gold #D9A96A`, hell `#EBD9BC`
+- Webwelt: Verlauf `#C0188F → #8B2FC9 → #4C1D95`
+- ICT-Welt: Verlauf `#081831 → #0E3B6E → #0B5392`, Akzent `#38BDF8`
+- Helle ICT-Seite: Grund `#F5F7FA`, Karten weiss, Text `#152238`/`#5A6578`
 
-Typografie:
-- Display: Space Grotesk 500–700, Versalien, clamp bis 128px,
-  line-height 0.95, letter-spacing −0.02em
-- Body/UI: Archivo 400–700, 16px/1.65
-- Ordnung/Labels: System-Mono (ui-monospace), 11–12px, z.B. «(01)»
+Typografie (alle lokal gehostet):
+- Anton 400: kondensierte Display-Versalien (Hero-Zeilen bis 170px,
+  Sektionstitel der Webwelt)
+- Sora 600–800: Logo-Ersatztexte, UI-Titel, Versal-Headlines der ICT-Welt
+- Manrope 400–800: Fliesstext 16px/1.65
 
-Form: keine Radien (0–2px), 1px-Linien, flat; Buttons eckig —
-Acid-Füllung mit schwarzem Text oder 1px-Outline; grosse Zeilen
-reagieren als ganze Fläche auf Hover (Füllung Acid, Text schwarz).
+Form: Pill-Buttons (radius 999), Karten 14–16px Radius; Schatten nur
+in der hellen ICT-Welt und unter Monitor-Szenen (fotografischer Look).
 
 ## 3. Layout-Blueprint
 
-- Durchgehende schlanke Sticky-Nav (Brand links, Links rechts,
-  Acid-CTA), alle Seiten mit gleichem Chrome.
-- Start: linksbündiger, dreizeiliger Versal-Hero über die volle
-  Breite (eine Zeile eingerückt, ein Wort in Acid-Outline-Stil),
-  darunter 58/42 zwei grosse Panel-Links Webdesign/ICT mit
-  Hover-Invert; dann ein laufendes Acid-Marquee-Band mit den
-  Leistungen; Faktenzeile (4 ungleiche Spalten); grosser
-  Text-CTA im Footer-Vorfeld.
-- Unterseiten: Hero mit Mono-Label + Versal-Titel über ~10/12
-  Spalten, Fakten rechts; Leistungen als grosse nummerierte Zeilen
-  (Mono-Index, Titel in Display-Grösse, Preis rechts, Hover füllt
-  die Zeile Acid); Spezialangebote als 3/5+2/5-Blöcke (ein
-  Acid-Block, ein Outline-Block); Prozess als nummerierte Zeile.
-- Kontakt: helle Bone-Sektion, 5/7-Teilung, Formular rechts.
-- Rechner: Schritte als flache Gruppen mit 1px-Linien und
-  Acid-Checked-State; Preisübersicht als helles Sticky-Panel.
-- Bewegung: genau zwei animierte Elemente — Hero-Titel-Reveal
-  beim Laden und das Marquee-Band; sonst nur Hover-Übergänge.
-- Copy: konkret («Sie rufen an, wir nehmen ab»), keine Floskeln,
-  Schweizer Hochdeutsch ohne ß.
+- Start (ohne Chrome): 50/50-Farbwelten-Split mit schwebenden
+  UI-Motiven links und Leiterbahnen rechts, freigestelltes Logo
+  (76px) oben Mitte, ENTDECKEN-Pillen, Kontaktzeile (17px) unten.
+- Webdesign: transparenter Header über Vollbild-Sonnenuntergang,
+  Anton-Headline «Web- & App-Agentur mit WEITBLICK», Scroll-Kreis zu
+  den Referenzen; Referenzen als Zeilen — links Foto-Szene
+  (Umgebungsbild passend zur Branche + Monitor mit echtem Screenshot
+  der Kundenseite), rechts Infos (Kunde in Gold, Anton-Titel, Text,
+  Link, Tag-Pillen); danach Angebote, Spezialpreise, Prozess, Kontakt.
+- ICT Services (hell): weisse Navigation, Foto-Hero (Serverraum) mit
+  Blau-Überlagerung und Gold-CTA, drei überlappende weisse Karten,
+  Vertrag-Band, Kontakt.
+- Rechner (/rechner.html): Originallogik unverändert, dunkle Gruppen
+  mit Magenta-Checked-State, helle Sticky-Preisübersicht.
+- Dynamik: Scroll-Reveal auf Referenzzeilen/Sektionen (eine
+  Translate/Fade-Transition, respektiert prefers-reduced-motion);
+  Referenzdaten zentral als Datenliste gepflegt.
+- Copy: konkret, ohne die verbotenen Wörter der CLAUDE.md.
+
+Bildnachweis: Umgebungsfotos sind CC-lizenzierte Platzhalter
+(Openverse/Flickr) — vor dem Livegang durch eigene oder lizenzfreie
+Bilder ersetzen oder Attribution im Impressum ergänzen.

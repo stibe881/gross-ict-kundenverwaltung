@@ -4,149 +4,175 @@ import ContactForm from "../components/ContactForm.astro";
 ---
 <Base
   title="ICT Services — Gross ICT | IT-Betreuung ohne Warteschlange"
-  description="IT-Support, Security & Firewall, Netzwerk & WLAN, Server & Storage für KMU in der Zentralschweiz — persönlich und vor Ort."
+  description="IT-Support, Cloud, Cyber-Sicherheit, Netzwerk und Server für KMU in der Zentralschweiz — persönlich und vor Ort."
   active="ict"
-  ctaHref="#kontakt"
+  theme="light"
 >
-  <section class="hero">
-    <div class="container hero-grid">
-      <div>
-        <p class="mono">(02) — ICT Services</p>
-        <h1 class="reveal">IT, die einfach<br />läuft<span class="acid-txt">.</span></h1>
+  <div class="ict-page">
+    <!-- Hero mit Serverraum-Foto -->
+    <section class="hero">
+      <img class="hero-bg" src="/img/umgebung/ict.webp" alt="" />
+      <div class="hero-shade" aria-hidden="true"></div>
+      <div class="container hero-inner">
+        <p class="kicker">ICT SERVICES · ZENTRALSCHWEIZ</p>
+        <h1>Ihre Zukunft mit<br />verlässlicher ICT</h1>
         <p class="lead">
-          Sie erreichen direkt die Person, die Ihr Problem löst — keine
-          Warteschlange, keine Ticketnummer-Odyssee. Vom Einzelarbeitsplatz
-          bis zum ganzen Gebäude, per Fernwartung oder bei Ihnen im Betrieb.
+          Massgeschneiderte IT-Dienstleistungen für Ihr Unternehmen: Cloud-Lösungen,
+          IT-Sicherheit, Netzwerktechnik und Betreuung ohne Warteschlange.
         </p>
-        <div class="cta-row">
-          <a class="btn btn-acid" href="#kontakt">Support anfragen</a>
-          <a class="btn btn-ghost" href="#vertrag">Support-Vertrag</a>
+        <a class="btn btn-gold" href="#kontakt">Kontaktieren Sie uns</a>
+      </div>
+    </section>
+
+    <!-- Überlappende Leistungs-Karten -->
+    <section class="cards-wrap">
+      <div class="container cards">
+        <article class="scard" data-reveal>
+          <div class="icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#17457A" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 0 0 .4-9A6.5 6.5 0 0 0 5.2 8.6 4.2 4.2 0 0 0 6 19h11.5Z"/></svg>
+          </div>
+          <h2>Cloud Computing</h2>
+          <p>Microsoft 365, Datenablage und Zusammenarbeit in der Cloud — sauber eingerichtet und sicher betrieben.</p>
+          <a href="#kontakt">Mehr erfahren →</a>
+        </article>
+        <article class="scard" data-reveal>
+          <div class="icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#17457A" stroke-width="2"><path d="M12 2 4 5.5v6.5c0 5 3.4 9.3 8 10.9 4.6-1.6 8-5.9 8-10.9V5.5L12 2Z"/><path d="M8.8 12.2l2.3 2.3 4.2-4.6"/></svg>
+          </div>
+          <h2>Cyber-Sicherheit</h2>
+          <p>Firewall, Virenschutz, Updates und Sensibilisierung — damit ein Klick nicht zum Schaden wird.</p>
+          <a href="#kontakt">Mehr erfahren →</a>
+        </article>
+        <article class="scard" data-reveal>
+          <div class="icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#17457A" stroke-width="2"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01"/></svg>
+          </div>
+          <h2>Managed IT-Services</h2>
+          <p>Monatlicher Fixpreis, definierte Reaktionszeiten, Wartung inklusive — Ihre IT läuft, wir kümmern uns.</p>
+          <a href="#kontakt">Mehr erfahren →</a>
+        </article>
+      </div>
+    </section>
+
+    <!-- Weitere Leistungen -->
+    <section class="more">
+      <div class="container">
+        <h2 class="more-title">Alles aus einer Hand</h2>
+        <div class="more-grid">
+          <article class="mcard" data-reveal>
+            <h3>IT-Support &amp; Helpdesk</h3>
+            <p>Sie erreichen direkt die Person, die Ihr Problem löst — per Telefon, Fernwartung oder bei Ihnen im Betrieb. Keine Warteschlange, keine Ticketnummer-Odyssee.</p>
+          </article>
+          <article class="mcard" data-reveal>
+            <h3>Netzwerk &amp; WLAN</h3>
+            <p>Planung und Umsetzung für ganze Gebäude: stabile Verkabelung, flächendeckendes WLAN und sauber getrennte Netze für Gäste und Betrieb.</p>
+          </article>
+          <article class="mcard" data-reveal>
+            <h3>Server &amp; Storage</h3>
+            <p>Lokal, Cloud oder hybrid — inklusive durchdachter Backup-Strategie, damit Ihre Daten auch im Ernstfall sicher sind.</p>
+          </article>
+          <article class="mcard" data-reveal>
+            <h3>Geräte &amp; Lizenzen</h3>
+            <p>Beschaffung, Einrichtung und Verwaltung von Arbeitsplätzen, Mobilgeräten und Software-Lizenzen — dokumentiert im Kundenportal.</p>
+          </article>
         </div>
       </div>
-      <aside class="hero-facts" aria-label="Fakten">
-        <div class="fact"><span class="k">Erreichbarkeit</span><span class="v">direkt, ohne Hotline</span></div>
-        <div class="fact"><span class="k">Einsatz</span><span class="v">Fernwartung oder vor Ort</span></div>
-        <div class="fact"><span class="k">Region</span><span class="v">Zentralschweiz</span></div>
-        <div class="fact"><span class="k">Portal</span><span class="v">Tickets &amp; Rechnungen online</span></div>
-      </aside>
-    </div>
-  </section>
+    </section>
 
-  <section class="section">
-    <div class="container">
-      <div class="section-head">
-        <h2 class="section-title">ICT-Leistungen</h2>
-        <p class="section-note">Alles aus einer Hand — persönlich, erreichbar, in Ihrer Nähe.</p>
+    <!-- Support-Vertrag -->
+    <section class="vertrag-wrap" id="vertrag">
+      <div class="container vertrag">
+        <div>
+          <p class="vkicker">SUPPORT-VERTRAG</p>
+          <h2>Sorglos-IT mit garantierten Reaktionszeiten</h2>
+          <p class="vtext">
+            Monatlicher Fixpreis, definierte SLA, Wartung und Updates inklusive — und im
+            <a href="https://portal.gross-ict.ch">Kundenportal</a> sehen Sie Tickets,
+            Rechnungen und Verträge jederzeit online.
+          </p>
+        </div>
+        <a class="btn btn-gold" href="#kontakt">Beratung anfragen</a>
       </div>
-      <div class="xrows">
-        <a class="xrow" href="#kontakt">
-          <span class="idx">(01)</span>
-          <div>
-            <h3>Support &amp; Helpdesk</h3>
-            <p class="desc">Per Telefon, Fernwartung oder bei Ihnen im Betrieb — Sie sprechen direkt mit der Person, die das Problem löst.</p>
-          </div>
-          <span class="tail">nach Aufwand <span class="arrow">↗</span></span>
-        </a>
-        <a class="xrow" href="#kontakt">
-          <span class="idx">(02)</span>
-          <div>
-            <h3>Security &amp; Firewall</h3>
-            <p class="desc">Firewall, Virenschutz, Updates und Sensibilisierung — damit ein Klick nicht zum Schaden wird.</p>
-          </div>
-          <span class="tail">auf Anfrage <span class="arrow">↗</span></span>
-        </a>
-        <a class="xrow" href="#kontakt">
-          <span class="idx">(03)</span>
-          <div>
-            <h3>Netzwerk &amp; WLAN</h3>
-            <p class="desc">Stabile Verkabelung, flächendeckendes WLAN und sauber getrennte Netze für Gäste und Betrieb — für ganze Gebäude geplant und umgesetzt.</p>
-          </div>
-          <span class="tail">auf Anfrage <span class="arrow">↗</span></span>
-        </a>
-        <a class="xrow" href="#kontakt">
-          <span class="idx">(04)</span>
-          <div>
-            <h3>Server &amp; Storage</h3>
-            <p class="desc">Lokal, Cloud oder hybrid — inklusive durchdachter Backup-Strategie, damit Ihre Daten auch im Ernstfall sicher sind.</p>
-          </div>
-          <span class="tail">auf Anfrage <span class="arrow">↗</span></span>
-        </a>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section">
-    <div class="container vertrag" id="vertrag">
-      <div class="vertrag-text">
-        <span class="mono" style="color: var(--ink)">(Support-Vertrag)</span>
-        <h3>Sorglos-IT mit garantierten Reaktionszeiten</h3>
-        <p>
-          Monatlicher Fixpreis, definierte SLA, Wartung und Updates inklusive —
-          und im <a href="https://portal.gross-ict.ch">Kundenportal</a> sehen Sie
-          Tickets, Rechnungen und Verträge jederzeit online.
-        </p>
+    <!-- Kontakt -->
+    <section class="contact-wrap">
+      <div class="container">
+        <ContactForm
+          theme="light"
+          heading="Support anfragen"
+          intro="Brennt es gerade, rufen Sie direkt an — sonst beschreiben Sie kurz Ihr Anliegen, und Sie hören innert eines Arbeitstags von uns."
+          messageLabel="Ihr Anliegen"
+        />
       </div>
-      <a class="btn btn-dark" href="#kontakt">Beratung anfragen ↗</a>
-    </div>
-  </section>
-
-  <ContactForm
-    heading="Support anfragen"
-    intro="Brennt es gerade, rufen Sie direkt an — sonst beschreiben Sie kurz Ihr Anliegen, und Sie hören innert eines Arbeitstags von uns."
-    messageLabel="Ihr Anliegen"
-  />
+    </section>
+  </div>
 </Base>
 
 <style>
-  .hero { padding: 92px 0 80px; border-bottom: 1px solid var(--line); }
-  .hero-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
-    gap: 72px;
-    align-items: end;
-  }
-  .hero .mono { display: block; margin-bottom: 24px; }
-  .hero h1 { font-size: clamp(44px, 7vw, 104px); }
-  .acid-txt { color: var(--acid); }
-  .lead { max-width: 560px; font-size: 17px; color: var(--mute); margin-top: 28px; }
-  .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 32px; }
-  .hero-facts { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
-  .fact {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    align-items: baseline;
-    padding: 13px 0;
-    border-bottom: 1px solid var(--line);
-    font-size: 14px;
-  }
-  .fact .k {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--mute);
-  }
-  .fact .v { text-align: right; }
-  @media (max-width: 920px) {
-    .hero { padding: 56px 0 48px; }
-    .hero-grid { grid-template-columns: 1fr; gap: 40px; }
-  }
+  .ict-page { background: var(--ict-bg); color: var(--ict-ink); margin-bottom: -84px; padding-bottom: 84px; }
 
+  .hero { position: relative; overflow: hidden; }
+  .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .hero-shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(100deg, rgba(8,24,49,0.94) 0%, rgba(10,32,62,0.78) 48%, rgba(12,58,105,0.42) 100%);
+  }
+  .hero-inner { position: relative; padding-top: 96px; padding-bottom: 170px; }
+  .kicker { margin: 0; font-family: "Sora", sans-serif; font-size: 12.5px; font-weight: 800; letter-spacing: 3px; color: var(--gold); }
+  .hero h1 {
+    margin: 18px 0 0;
+    font-size: clamp(32px, 4.6vw, 52px);
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: 1px;
+    color: #FFFFFF;
+    text-transform: uppercase;
+    max-width: 720px;
+  }
+  .lead { margin: 20px 0 0; font-size: 17px; line-height: 1.65; color: rgba(255,255,255,0.92); max-width: 540px; }
+  .hero .btn { margin-top: 30px; }
+
+  .cards-wrap { position: relative; margin-top: -96px; }
+  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+  @media (max-width: 920px) { .cards { grid-template-columns: 1fr; } }
+  .scard {
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 30px 28px;
+    box-shadow: 0 22px 44px rgba(16,42,80,0.16);
+  }
+  .scard .icon {
+    width: 52px; height: 52px; border-radius: 13px; background: #E8F1FB;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .scard h2 { margin: 18px 0 0; font-size: 16px; font-weight: 800; letter-spacing: 1.5px; color: var(--ict-ink); text-transform: uppercase; }
+  .scard p { margin: 10px 0 0; font-size: 13.5px; line-height: 1.65; color: var(--ict-muted); }
+  .scard a { display: inline-block; margin-top: 14px; font-size: 13px; font-weight: 800; color: #B57F3C; }
+  .scard a:hover { color: #96652A; text-decoration: none; }
+
+  .more { padding: 72px 0 0; }
+  .more-title { font-size: clamp(24px, 3.4vw, 32px); font-weight: 800; color: var(--ict-ink); }
+  .more-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 26px; }
+  @media (max-width: 760px) { .more-grid { grid-template-columns: 1fr; } }
+  .mcard { background: #FFFFFF; border: 1px solid #E6EAF0; border-radius: 14px; padding: 26px; }
+  .mcard h3 { font-size: 17px; color: var(--ict-ink); }
+  .mcard p { margin-top: 8px; font-size: 14px; line-height: 1.65; color: var(--ict-muted); }
+
+  .vertrag-wrap { margin-top: 72px; background: var(--grad-ict); }
   .vertrag {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 36px;
+    gap: 32px;
     flex-wrap: wrap;
     padding-top: 44px;
-    padding-bottom: 52px;
-    background: var(--acid);
-    color: var(--ink);
+    padding-bottom: 48px;
   }
-  .vertrag-text { display: flex; flex-direction: column; gap: 12px; max-width: 720px; }
-  .vertrag h3 { font-size: clamp(24px, 3vw, 40px); color: var(--ink); }
-  .vertrag p { font-size: 15px; }
-  .vertrag a { color: var(--ink); }
-  .vertrag a:hover { color: var(--ink); }
+  .vkicker { margin: 0; font-family: "Sora", sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 3px; color: var(--cyan); }
+  .vertrag h2 { margin: 10px 0 0; font-size: clamp(22px, 3vw, 28px); font-weight: 800; color: #fff; }
+  .vtext { margin: 10px 0 0; font-size: 14.5px; color: rgba(255,255,255,0.88); max-width: 700px; }
+  .vtext a { color: #BAE3FF; }
+
+  .contact-wrap { padding: 72px 0 12px; }
 </style>

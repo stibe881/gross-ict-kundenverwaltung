@@ -1,192 +1,266 @@
 ---
 import Base from "../layouts/Base.astro";
 import ContactForm from "../components/ContactForm.astro";
+
+// Referenzen: zentrale Datenliste (später aus dem CRM speisbar).
+const referenzen = [
+  {
+    kunde: "GJONI WORK",
+    titel: "Reinigungs- & Haus­wartungs­dienste",
+    text: "Webauftritt für das Reinigungsunternehmen aus Emmenbrücke — klar strukturiert und auf Kundengewinnung ausgelegt.",
+    url: "https://gjoni-work.ch",
+    urlLabel: "gjoni-work.ch",
+    tags: ["Webdesign", "Frontend", "MS365 Tenant"],
+    shot: "/img/referenzen/gjoni.webp",
+    env: "/img/umgebung/office.webp",
+    alt: "Webseite von Gjoni Work auf einem Monitor in einem Büro",
+  },
+  {
+    kunde: "STEINMANN MELKTECHNIK GMBH",
+    titel: "Unternehmens­webseite",
+    text: "Webpräsenz für Melktechnik und Stalleinrichtungen — mit Produkten, Projekten und Referenzen direkt vom Hof.",
+    url: "https://steinmannhoftech.ch",
+    urlLabel: "steinmannhoftech.ch",
+    tags: ["Webdesign", "Frontend", "Dienstleistungen"],
+    shot: "/img/referenzen/steinmann.webp",
+    env: "/img/umgebung/barn.webp",
+    alt: "Webseite der Steinmann Melktechnik GmbH auf einem Monitor im Kuhstall",
+  },
+  {
+    kunde: "VIER KORKEN",
+    titel: "Premium-Weinshop",
+    text: "Onlineshop für erlesene Weine aus aller Welt — elegant, schnell und mit klarem Bestellprozess.",
+    url: "https://vierkorken.ch",
+    urlLabel: "vierkorken.ch",
+    tags: ["Webdesign", "Webshop", "Backend"],
+    shot: "/img/referenzen/vierkorken.webp",
+    env: "/img/umgebung/cellar.webp",
+    alt: "Webshop von Vier Korken auf einem Monitor im Weinkeller",
+  },
+  {
+    kunde: "ACKERT GARTEN GMBH",
+    titel: "Digitale Präsenz",
+    text: "Webauftritt für den Gartenbaubetrieb — mit SEO-Basis und Inhalten, die das Team selbst pflegt.",
+    url: "https://ackert.ch",
+    urlLabel: "ackert.ch",
+    tags: ["Webdesign", "Frontend", "Dienstleistungen"],
+    shot: "/img/referenzen/ackert.webp",
+    env: "/img/umgebung/garden.webp",
+    alt: "Webseite der Ackert Garten GmbH auf einem Monitor im Garten",
+  },
+  {
+    kunde: "DIE ROLLENDE PIZZERIA",
+    titel: "Webseite & digitale Speisekarte",
+    text: "Mobil-optimierte Website mit digitaler Speisekarte und klarer Bestellführung — fürs Geschäft auf vier Rädern.",
+    url: "https://rollendepizzeria.ch",
+    urlLabel: "rollendepizzeria.ch",
+    tags: ["Webdesign", "Frontend", "MS365 Tenant"],
+    shot: "/img/referenzen/pizzeria.webp",
+    env: "/img/umgebung/pizza.webp",
+    alt: "Webseite der Rollenden Pizzeria auf einem Monitor vor dem Holzofen",
+  },
+  {
+    kunde: "FC ZELL",
+    titel: "Vereins­webseite",
+    text: "Webpräsenz für den Fussballclub Zell — mit Mannschaften, News, Spielplan und aktivem Vereinsleben.",
+    url: "https://fczell.ch",
+    urlLabel: "fczell.ch",
+    tags: ["Webdesign", "Frontend"],
+    shot: "/img/referenzen/fczell.webp",
+    env: null,
+    alt: "Webseite des FC Zell auf einem Monitor",
+  },
+];
 ---
 <Base
-  title="Webdesign — Gross ICT | Webseiten ab CHF 1'500"
+  title="Web- & Appdesign — Gross ICT | Webseiten ab CHF 1'500"
   description="Webseiten, Web-Applikationen und Mobile Apps aus Zell LU. Festpreise, rechtssicher nach revDSG, barrierefrei nach WCAG 2.1."
   active="webdesign"
-  ctaHref="#kontakt"
+  overlayHeader
 >
+  <!-- Vollbild-Hero: Sonnenuntergang in den Bergen -->
   <section class="hero">
-    <div class="container hero-grid">
-      <div>
-        <p class="mono">(01) — Webdesign</p>
-        <h1 class="reveal">Webseiten,<br />die verkaufen<span class="acid-txt">.</span></h1>
-        <p class="lead">
-          Vom Einzelunternehmen bis zum KMU: Wir bauen Ihren Auftritt neu —
-          auffindbar, selbst pflegbar, zum Festpreis. Impressum, Datenschutz
-          nach revDSG und Barrierefreiheit nach WCAG 2.1 sind eingebaut.
-        </p>
-        <div class="cta-row">
-          <a class="btn btn-acid" href="/rechner">Preis berechnen</a>
-          <a class="btn btn-ghost" href="#kontakt">Projekt anfragen</a>
-        </div>
-      </div>
-      <aside class="hero-facts" aria-label="Fakten">
-        <div class="fact"><span class="k">Einstieg</span><span class="v">ab CHF 1'500</span></div>
-        <div class="fact"><span class="k">Preismodell</span><span class="v">Festpreis, vorab vereinbart</span></div>
-        <div class="fact"><span class="k">Recht</span><span class="v">revDSG · UWG · WCAG 2.1 AA</span></div>
-        <div class="fact"><span class="k">Hosting</span><span class="v">Server in der Schweiz</span></div>
-      </aside>
+    <img class="hero-bg" src="/img/umgebung/sunset.webp" alt="" />
+    <div class="hero-shade" aria-hidden="true"></div>
+    <div class="hero-bottom-shade" aria-hidden="true"></div>
+    <div class="hero-line" aria-hidden="true"></div>
+    <div class="hero-text">
+      <p class="anton kicker">Web- &amp; App-Agentur mit</p>
+      <h1 class="anton big">Weitblick</h1>
+    </div>
+    <div class="hero-scroll">
+      <a href="#referenzen" aria-label="Zu den Referenzen scrollen">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#2A1D12" stroke-width="2.4" aria-hidden="true"><path d="M3 6l5 5 5-5"/></svg>
+      </a>
+      <span>REFERENZEN</span>
     </div>
   </section>
 
+  <!-- Referenzen: eine pro Zeile, Monitor in passender Umgebung -->
+  <section class="section" id="referenzen">
+    <div class="container">
+      <p class="mono">Referenzen</p>
+      <h2 class="anton anton-title" style="margin: 14px 0 56px">Ausgewählte<br />Arbeiten</h2>
+      {referenzen.map((r) => (
+        <div class="ref-row" data-reveal>
+          <div class="szene">
+            <img class={`bg ${r.env ? "" : "blurred"}`} src={r.env ?? r.shot} alt="" loading="lazy" />
+            <div class="shade"></div>
+            <div class="mon">
+              <div class="frame"><img src={r.shot} alt={r.alt} loading="lazy" /></div>
+              <div class="fuss"></div>
+              <div class="sockel"></div>
+            </div>
+          </div>
+          <div>
+            <p class="mono ref-kunde" style="font-size: 12.5px; letter-spacing: 2.5px">{r.kunde}</p>
+            <h3 class="ref-titel" set:html={r.titel} />
+            <p class="ref-text">{r.text}</p>
+            <a class="ref-link" href={r.url}>{r.urlLabel} ansehen ↗</a>
+            <div class="ref-tags">
+              {r.tags.map((t) => <span class="tag">{t}</span>)}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- Angebote & Preise -->
   <section class="section" id="pakete">
     <div class="container">
-      <div class="section-head">
-        <h2 class="section-title">Leistungen &amp; Preise</h2>
-        <p class="section-note">Drei klare Angebote — jeder Preis gilt, bevor wir anfangen.</p>
+      <p class="mono">Angebote</p>
+      <h2 class="anton anton-title" style="margin: 14px 0 8px">Was wir bauen</h2>
+      <p class="section-sub">Drei klare Angebote — jeder Preis gilt, bevor wir anfangen.</p>
+      <div class="grid grid-3" style="margin-top: 34px">
+        <article class="card offer" data-reveal>
+          <h3>Webseiten</h3>
+          <p>Ihr neuer Auftritt zum Festpreis: auffindbar in Suchmaschinen, Inhalte selbst pflegen — inklusive Impressum und Datenschutzerklärung nach Schweizer Recht.</p>
+          <p class="price">ab CHF 1'500</p>
+          <a class="btn btn-gold" href="/rechner" style="margin-top: 16px">Preis berechnen</a>
+        </article>
+        <article class="card offer" data-reveal>
+          <h3>Web-Applikationen</h3>
+          <p>Kundenportale, Buchungssysteme oder interne Tools — gebaut für Ihre Abläufe, nicht für den Durchschnitt.</p>
+          <p class="price">ab CHF 15'000</p>
+          <a class="btn btn-ghost" href="#kontakt" style="margin-top: 16px">Projekt anfragen</a>
+        </article>
+        <article class="card offer" data-reveal>
+          <h3>Mobile Apps</h3>
+          <p>iOS und Android, nativ oder Cross-Platform — von der Idee bis in den App Store, inklusive Betrieb und Updates.</p>
+          <p class="price">ab CHF 20'000</p>
+          <a class="btn btn-ghost" href="#kontakt" style="margin-top: 16px">Projekt anfragen</a>
+        </article>
       </div>
-      <div class="xrows">
-        <a class="xrow" href="/rechner">
-          <span class="idx">(01)</span>
-          <div>
-            <h3>Webseiten</h3>
-            <p class="desc">Ihr neuer Auftritt zum Festpreis: auffindbar in Suchmaschinen, Inhalte selbst pflegen — inklusive Rechtstexten nach Schweizer Recht.</p>
-          </div>
-          <span class="tail">ab CHF 1'500 <span class="arrow">↗</span></span>
-        </a>
-        <a class="xrow" href="#kontakt">
-          <span class="idx">(02)</span>
-          <div>
-            <h3>Web-Apps</h3>
-            <p class="desc">Kundenportale, Buchungssysteme oder interne Tools — gebaut für Ihre Abläufe, nicht für den Durchschnitt.</p>
-          </div>
-          <span class="tail">ab CHF 15'000 <span class="arrow">↗</span></span>
-        </a>
-        <a class="xrow" href="#kontakt">
-          <span class="idx">(03)</span>
-          <div>
-            <h3>Mobile Apps</h3>
-            <p class="desc">iOS und Android, nativ oder Cross-Platform — von der Idee bis in den App Store, inklusive Betrieb und Updates.</p>
-          </div>
-          <span class="tail">ab CHF 20'000 <span class="arrow">↗</span></span>
-        </a>
+
+      <div class="grid grid-2" style="margin-top: 24px">
+        <article class="card special special-npo" data-reveal>
+          <p class="mono" style="color: #FBD9F2">Vereine &amp; NPO</p>
+          <h3>25% Rabatt auf Webprojekte</h3>
+          <p>Weil Freiwilligenarbeit Unterstützung verdient — faire Preise für Vereine und gemeinnützige Organisationen.</p>
+        </article>
+        <article class="card special special-wedding" data-reveal>
+          <p class="mono">Hochzeitspaare</p>
+          <h3>Hochzeits-Webseiten ab CHF 500</h3>
+          <p>Von Save-the-Date bis zur Deluxe-Variante mit Fotogalerie und Online-Anmeldung für Ihre Gäste.</p>
+        </article>
       </div>
     </div>
   </section>
 
-  <section class="section">
-    <div class="container specials">
-      <article class="special special-acid">
-        <span class="mono" style="color: var(--ink)">(Vereine &amp; NPO)</span>
-        <h3>25% Rabatt auf Webprojekte</h3>
-        <p>Weil Freiwilligenarbeit Unterstützung verdient — faire Preise für Vereine und gemeinnützige Organisationen.</p>
-      </article>
-      <article class="special special-line">
-        <span class="mono">(Hochzeitspaare)</span>
-        <h3>Hochzeits&shy;seiten ab CHF 500</h3>
-        <p>Von Save-the-Date bis zur Deluxe-Variante mit Fotogalerie und Online-Anmeldung für Ihre Gäste.</p>
-      </article>
-    </div>
-  </section>
-
+  <!-- Prozess -->
   <section class="section">
     <div class="container">
-      <div class="section-head">
-        <h2 class="section-title">So läuft Ihr Projekt</h2>
+      <p class="mono">Ablauf</p>
+      <h2 class="anton anton-title" style="margin: 14px 0 30px">So läuft Ihr Projekt</h2>
+      <div class="grid grid-4">
+        <article class="card step"><p class="num">1</p><h3>Kennenlernen</h3><p>Kostenloses Erstgespräch: Ziele, Inhalte, Budget — unverbindlich und ehrlich.</p></article>
+        <article class="card step"><p class="num">2</p><h3>Design</h3><p>Sie erhalten einen Gestaltungsvorschlag und geben Feedback, bis es passt.</p></article>
+        <article class="card step"><p class="num">3</p><h3>Umsetzung</h3><p>Entwicklung, Texte, Fotos, SEO — und die rechtssichere Basis gleich mit.</p></article>
+        <article class="card step"><p class="num">4</p><h3>Betreuung</h3><p>Hosting, Updates und Anpassungen — wir bleiben auch nach dem Livegang dran.</p></article>
       </div>
-      <ol class="process">
-        <li>
-          <span class="mono acid">(1)</span>
-          <h3>Kennenlernen</h3>
-          <p>Kostenloses Erstgespräch: Ziele, Inhalte, Budget — unverbindlich und ehrlich.</p>
-        </li>
-        <li>
-          <span class="mono acid">(2)</span>
-          <h3>Design</h3>
-          <p>Sie erhalten einen Gestaltungsvorschlag und geben Feedback, bis es passt.</p>
-        </li>
-        <li>
-          <span class="mono acid">(3)</span>
-          <h3>Umsetzung</h3>
-          <p>Entwicklung, Texte, Fotos, SEO — und die rechtssichere Basis gleich mit.</p>
-        </li>
-        <li>
-          <span class="mono acid">(4)</span>
-          <h3>Betreuung</h3>
-          <p>Hosting, Updates und Anpassungen — wir bleiben auch nach dem Livegang dran.</p>
-        </li>
-      </ol>
     </div>
   </section>
 
-  <ContactForm />
+  <!-- Kontakt -->
+  <section class="section">
+    <div class="container">
+      <ContactForm />
+    </div>
+  </section>
 </Base>
 
 <style>
-  .hero { padding: 92px 0 80px; border-bottom: 1px solid var(--line); }
-  .hero-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
-    gap: 72px;
-    align-items: end;
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+    background: #140E0A;
   }
-  .hero .mono { display: block; margin-bottom: 24px; }
-  .hero h1 { font-size: clamp(44px, 7vw, 104px); }
-  .acid-txt { color: var(--acid); }
-  .lead { max-width: 560px; font-size: 17px; color: var(--mute); margin-top: 28px; }
-  .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 32px; }
-  .hero-facts { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
-  .fact {
+  .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .hero-shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(100deg, rgba(14,9,6,0.72) 0%, rgba(14,9,6,0.38) 48%, rgba(14,9,6,0.08) 100%);
+  }
+  .hero-bottom-shade {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 220px;
+    background: linear-gradient(180deg, rgba(14,9,6,0) 0%, rgba(14,9,6,0.55) 100%);
+  }
+  .hero-line { position: absolute; top: 0; bottom: 0; left: clamp(24px, 25vw, 368px); width: 1px; background: rgba(255,255,255,0.28); }
+  .hero-text {
+    position: absolute;
+    left: clamp(44px, 28vw, 420px);
+    top: 50%;
+    transform: translateY(-55%);
+    padding-right: 24px;
+  }
+  .kicker { font-size: clamp(22px, 3.2vw, 46px); letter-spacing: 1.5px; color: #F2E8D8; text-shadow: 0 2px 16px rgba(0,0,0,0.45); margin: 0; }
+  .big { font-size: clamp(64px, 11.5vw, 168px); letter-spacing: 2px; color: #FFD79A; text-shadow: 0 4px 26px rgba(0,0,0,0.5); margin: 6px 0 0; }
+  .hero-scroll {
+    position: absolute;
+    left: clamp(44px, 28vw, 420px);
+    bottom: 58px;
     display: flex;
-    justify-content: space-between;
+    align-items: center;
     gap: 16px;
-    align-items: baseline;
-    padding: 13px 0;
-    border-bottom: 1px solid var(--line);
-    font-size: 14px;
   }
-  .fact .k {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--mute);
+  .hero-scroll a {
+    display: flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: #F6F1E7;
   }
-  .fact .v { text-align: right; }
-  @media (max-width: 920px) {
-    .hero { padding: 56px 0 48px; }
-    .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+  .hero-scroll a:hover { background: #fff; }
+  .hero-scroll span {
+    font-family: "Sora", sans-serif;
+    font-size: 13px; font-weight: 700; letter-spacing: 2.5px;
+    color: #F6F1E7;
   }
 
-  .specials {
-    display: grid;
-    grid-template-columns: 3fr 2fr;
-    gap: 0;
+  .offer { display: flex; flex-direction: column; gap: 14px; }
+  .offer h3 { font-size: 20px; }
+  .offer p { font-size: 14.5px; color: var(--muted); }
+  .offer .price {
+    margin-top: auto;
+    font-family: "Sora", sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--gold);
   }
-  .special { padding: 44px 40px 52px; display: flex; flex-direction: column; gap: 14px; }
-  .special h3 { font-size: clamp(24px, 3vw, 40px); }
-  .special p { font-size: 14.5px; max-width: 480px; }
-  .special-acid { background: var(--acid); color: var(--ink); }
-  .special-acid h3 { color: var(--ink); }
-  .special-line { border: 1px solid var(--line); border-left: none; color: var(--mute); }
-  .special-line h3 { color: var(--fg); }
-  @media (max-width: 860px) {
-    .specials { grid-template-columns: 1fr; }
-    .special-line { border-left: 1px solid var(--line); border-top: none; }
-  }
+  .offer .btn { align-self: flex-start; }
 
-  .process {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0;
-    border-top: 1px solid var(--line);
+  .special { display: flex; flex-direction: column; gap: 10px; padding: 28px; }
+  .special h3 { font-size: 21px; color: #fff; }
+  .special p { font-size: 14.5px; color: rgba(255,255,255,0.85); }
+  .special-npo { background: var(--grad-web); border-color: rgba(232,121,201,0.4); }
+  .special-wedding {
+    background: linear-gradient(135deg, rgba(217,169,106,0.2), rgba(26,27,34,0.6));
+    border-color: rgba(217,169,106,0.45);
   }
-  .process li { display: flex; flex-direction: column; gap: 10px; padding: 28px 24px 36px 0; }
-  .process li + li { padding-left: 24px; border-left: 1px solid var(--line); }
-  .process h3 { font-size: 19px; }
-  .process p { font-size: 13.5px; color: var(--mute); }
-  @media (max-width: 860px) {
-    .process { grid-template-columns: 1fr 1fr; }
-    .process li:nth-child(3) { padding-left: 0; border-left: none; }
-  }
-  @media (max-width: 520px) {
-    .process { grid-template-columns: 1fr; }
-    .process li + li { padding-left: 0; border-left: none; }
-  }
+  .special-wedding p { color: var(--muted); }
+
+  .step { display: flex; flex-direction: column; gap: 8px; padding: 24px; background: var(--panel-2); }
+  .step .num { font-family: "Anton", sans-serif; font-size: 30px; color: var(--gold); }
+  .step h3 { font-size: 16px; }
+  .step p { font-size: 13.5px; color: var(--muted); }
 </style>
