@@ -40,3 +40,15 @@ jobs:
             --exclude '.well-known' \
             -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT:-22} -o StrictHostKeyChecking=no" \
             website/dist/ "$DEPLOY_USER@$DEPLOY_HOST:$DEST/"
+
+      - name: Ziel auf dem Server prüfen
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_PATH_WEBSITE: ${{ secrets.DEPLOY_PATH_WEBSITE }}
+        run: |
+          DEST="${DEPLOY_PATH_WEBSITE:-public_html}"
+          ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" -o StrictHostKeyChecking=no \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            'echo "== SSH-Home:"; pwd; echo "== Inhalt des Zielordners:"; ls -la '"'$DEST'"' | head -25; echo "== index.html:"; head -c 200 '"'$DEST'"'/index.html 2>/dev/null; echo'
