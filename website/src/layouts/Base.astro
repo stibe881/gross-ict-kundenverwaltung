@@ -122,7 +122,10 @@ try {
           <a href="/" class="dynamic-logo-link" aria-label="Zur Startseite">
             <img class="brand-logo" src="/assets/logo.webp" alt="Gross ICT" />
           </a>
-          <nav class="site-nav" aria-label="Hauptnavigation">
+          <button class="nav-toggle" type="button" aria-label="Menü öffnen" aria-expanded="false" aria-controls="site-nav">
+            <span></span><span></span><span></span>
+          </button>
+          <nav class="site-nav" id="site-nav" aria-label="Hauptnavigation">
             <a id="nav-webdesign" href="/webdesign">Web- &amp; Appdesign</a>
             <a id="nav-ict" href="/ict-services">ICT Services</a>
             <a id="nav-ref-webdesign" href="/referenzen-webdesign" aria-current={active === "referenzen-webdesign" ? "page" : undefined}>Referenzen</a>
@@ -166,6 +169,23 @@ try {
       </footer>
     )}
     <script>
+      // Mobile: Burger-Menü auf- und zuklappen
+      const navToggle = document.querySelector<HTMLButtonElement>(".nav-toggle");
+      const siteNav = document.getElementById("site-nav");
+      if (navToggle && siteNav) {
+        navToggle.addEventListener("click", () => {
+          const open = siteNav.classList.toggle("open");
+          navToggle.setAttribute("aria-expanded", String(open));
+          navToggle.setAttribute("aria-label", open ? "Menü schliessen" : "Menü öffnen");
+        });
+        siteNav.querySelectorAll("a").forEach((a) =>
+          a.addEventListener("click", () => {
+            siteNav.classList.remove("open");
+            navToggle.setAttribute("aria-expanded", "false");
+          })
+        );
+      }
+
       // Scroll-Reveal für [data-reveal]-Elemente
       const els = document.querySelectorAll("[data-reveal]");
       if ("IntersectionObserver" in window && els.length) {
