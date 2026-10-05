@@ -252,7 +252,7 @@ import Base from "../layouts/Base.astro";
             <div class="row"><dt>Wartung</dt><dd id="s-care">CHF 0/Monat</dd></div>
           </dl>
           <button type="button" class="btn btn-dark-pill" id="btn-offer" style="width: 100%; margin-top: 18px">Festpreis-Angebot anfordern</button>
-          <a class="btn btn-call" href="tel:+41415623416" style="width: 100%; margin-top: 10px">Oder anrufen: 041 562 34 16</a>
+          <a class="btn btn-call" href="tel:+41415623416" style="width: 100%; margin-top: 10px">Oder anrufen: <span class="nr">041 562 34 16</span></a>
 
           <form id="offer-form" hidden style="margin-top: 18px; border-top: 1px solid #DDD6C8; padding-top: 16px">
             <div style="display: grid; gap: 10px" class="form-light">
@@ -354,7 +354,8 @@ import Base from "../layouts/Base.astro";
   .summary-card .total dd { font-family: "Anton", sans-serif; font-weight: 400; font-size: 26px; letter-spacing: 0.5px; color: #96652A; }
   .btn-dark-pill { background: #221A0E; color: #F6F1E7; }
   .btn-dark-pill:hover { background: #3A2E1C; color: #F6F1E7; }
-  .btn-call { background: transparent; border: 1.5px solid #221A0E; color: #221A0E; }
+  .btn-call { background: transparent; border: 1.5px solid #221A0E; color: #221A0E; text-align: center; flex-wrap: wrap; row-gap: 0; }
+  .btn-call .nr { white-space: nowrap; }
   .btn-call:hover { background: #221A0E; color: #F6F1E7; text-decoration: none; }
 
   .hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
