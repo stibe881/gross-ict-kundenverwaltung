@@ -55,20 +55,12 @@ const config: ExpoConfig = {
       "ITSAppUsesNonExemptEncryption": false,
       "NSFaceIDUsageDescription": "Wir nutzen Face ID für den schnellen Login."
     },
-    // Tap to Pay on iPhone: Apple vergibt das Entitlement zweistufig (Development,
-    // dann Distribution). Solange nur das Development-Entitlement gewährt ist,
-    // schlagen App-Store-/TestFlight-Builds damit fehl — darum nur im
-    // Development-Profil aktiv. Sobald Apple das Distribution-Entitlement gewährt:
-    // Bedingung entfernen (Entitlement immer setzen).
-    // TAP_TO_PAY_ENTITLEMENT wird in eas.json (development-Profil) gesetzt und gilt
-    // dadurch sowohl lokal (Credential-Erstellung) als auch auf dem Build-Server.
-    ...(process.env.TAP_TO_PAY_ENTITLEMENT === "1" || process.env.EAS_BUILD_PROFILE === "development"
-      ? {
-          entitlements: {
-            "com.apple.developer.proximity-reader.payment.acceptance": true,
-          },
-        }
-      : {}),
+    // Tap to Pay on iPhone: Apple hat das Entitlement für das Konto bestätigt
+    // (E-Mail «entitlement confirmation» vom Oktober 2026) — es gilt jetzt für
+    // alle Build-Profile, auch TestFlight/App Store.
+    entitlements: {
+      "com.apple.developer.proximity-reader.payment.acceptance": true,
+    },
   },
   android: {
     adaptiveIcon: {

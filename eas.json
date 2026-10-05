@@ -7,9 +7,6 @@
         "development": {
             "developmentClient": true,
             "distribution": "internal",
-            "env": {
-                "TAP_TO_PAY_ENTITLEMENT": "1"
-            },
             "credentialsSource": "local"
         },
         "preview": {
