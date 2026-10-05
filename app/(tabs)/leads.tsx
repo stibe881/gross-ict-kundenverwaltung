@@ -1324,7 +1324,8 @@ function LeadDetailsModal({
   // Verlustgrund-Abfrage beim Setzen auf "Verloren"
   const [showLostPicker, setShowLostPicker] = useState(false);
 
-  // Erstkontakt-Mail (KI)
+  // Erstkontakt (KI): E-Mail-Entwurf oder Telefon-Einstieg
+  const [aiMode, setAiMode] = useState<"email" | "call">(lead.email ? "email" : "call");
   const [aiDraft, setAiDraft] = useState<{ subject: string; body: string } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSending, setAiSending] = useState(false);
@@ -1429,7 +1430,7 @@ function LeadDetailsModal({
     setAiLoading(true);
     try {
       const { data, error } = await Data.supabase.functions.invoke("lead-outreach", {
-        body: { action: "generate", leadId: lead.id },
+        body: { action: "generate", leadId: lead.id, mode: aiMode },
       });
       if (error || data?.error) throw new Error(data?.error || error?.message || "Generierung fehlgeschlagen");
       setAiDraft({ subject: data.subject || "", body: data.body || "" });
@@ -1466,6 +1467,29 @@ function LeadDetailsModal({
       },
       "Senden"
     );
+  };
+
+  // Telefon-Einstieg in den Notizen festhalten
+  const handleSaveCallScript = async () => {
+    if (!aiDraft?.body.trim()) return;
+    try {
+      const stamp = new Date().toLocaleDateString("de-CH");
+      await Data.updateLead(lead.id, {
+        notes: `${lead.notes ? lead.notes + "\n\n" : ""}[${stamp}] Telefon-Einstieg (KI):\n${aiDraft.body.trim()}`,
+      });
+      await Data.addLeadActivity({
+        lead_id: lead.id,
+        type: "system",
+        content: "Telefon-Einstieg (KI) generiert und in Notizen gespeichert",
+        user_name: currentUserName,
+      });
+      refetchActivities();
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      setAiDraft(null);
+      showAlert("Gespeichert", "Der Gesprächseinstieg steht jetzt in den Notizen des Leads — auch im Anruf-Modus sichtbar.");
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    }
   };
 
   const handleCreateQuoteFromLead = () => {
@@ -2166,38 +2190,79 @@ function LeadDetailsModal({
                 ) : null}
               </View>
 
-              {/* Erstkontakt-Mail (KI) */}
-              {lead.email ? (
-                <View className="bg-surface rounded-xl border border-border p-4">
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-row items-center gap-2">
-                      <IconSymbol name="sparkles" size={15} color="#8B5CF6" />
-                      <Text className="text-sm font-bold text-foreground">Erstkontakt-Mail (KI)</Text>
-                    </View>
-                    {aiDraft ? (
-                      <TouchableOpacity onPress={handleGenerateOutreach} disabled={aiLoading} activeOpacity={0.7}>
-                        <Text className="text-xs font-semibold" style={{ color: "#8B5CF6" }}>
-                          {aiLoading ? "Generiert..." : "Neu generieren"}
+              {/* Erstkontakt (KI): E-Mail oder Telefon-Einstieg */}
+              <View className="bg-surface rounded-xl border border-border p-4">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center gap-2">
+                    <IconSymbol name="sparkles" size={15} color="#8B5CF6" />
+                    <Text className="text-sm font-bold text-foreground">Erstkontakt (KI)</Text>
+                  </View>
+                  {aiDraft ? (
+                    <TouchableOpacity onPress={handleGenerateOutreach} disabled={aiLoading} activeOpacity={0.7}>
+                      <Text className="text-xs font-semibold" style={{ color: "#8B5CF6" }}>
+                        {aiLoading ? "Generiert..." : "Neu generieren"}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+
+                {/* Modus: E-Mail oder Telefonat */}
+                <View className="flex-row gap-2 mt-3">
+                  {[
+                    { key: "email" as const, label: "E-Mail", icon: "envelope.fill" },
+                    { key: "call" as const, label: "Telefon-Einstieg", icon: "phone.fill" },
+                  ].map((m) => {
+                    const active = aiMode === m.key;
+                    return (
+                      <TouchableOpacity
+                        key={m.key}
+                        className="flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-lg border"
+                        style={{
+                          backgroundColor: active ? "#8B5CF618" : colors.background,
+                          borderColor: active ? "#8B5CF6" : colors.border,
+                        }}
+                        onPress={() => {
+                          if (aiMode !== m.key) {
+                            setAiMode(m.key);
+                            setAiDraft(null);
+                          }
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <IconSymbol name={m.icon as any} size={13} color={active ? "#8B5CF6" : colors.muted} />
+                        <Text className="text-xs font-semibold" style={{ color: active ? "#8B5CF6" : colors.foreground }}>
+                          {m.label}
                         </Text>
                       </TouchableOpacity>
-                    ) : null}
-                  </View>
-                  {!aiDraft ? (
-                    <TouchableOpacity
-                      className="py-3 rounded-xl items-center mt-3"
-                      style={{ backgroundColor: "#8B5CF6", opacity: aiLoading ? 0.6 : 1 }}
-                      onPress={handleGenerateOutreach}
-                      disabled={aiLoading}
-                      activeOpacity={0.8}
-                    >
-                      {aiLoading ? (
-                        <ActivityIndicator size="small" color="#FFF" />
-                      ) : (
-                        <Text className="font-bold" style={{ color: "#FFF" }}>Personalisierten Entwurf erstellen</Text>
-                      )}
-                    </TouchableOpacity>
-                  ) : (
-                    <View className="gap-2 mt-3">
+                    );
+                  })}
+                </View>
+
+                {aiMode === "email" && !lead.email ? (
+                  <Text className="text-xs mt-3" style={{ color: colors.warning }}>
+                    Für den E-Mail-Versand fehlt die E-Mail-Adresse des Leads — Entwurf erstellen geht trotzdem.
+                  </Text>
+                ) : null}
+
+                {!aiDraft ? (
+                  <TouchableOpacity
+                    className="py-3 rounded-xl items-center mt-3"
+                    style={{ backgroundColor: "#8B5CF6", opacity: aiLoading ? 0.6 : 1 }}
+                    onPress={handleGenerateOutreach}
+                    disabled={aiLoading}
+                    activeOpacity={0.8}
+                  >
+                    {aiLoading ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Text className="font-bold" style={{ color: "#FFF" }}>
+                        {aiMode === "email" ? "Personalisierten Mail-Entwurf erstellen" : "Gesprächseinstieg erstellen"}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ) : (
+                  <View className="gap-2 mt-3">
+                    {aiMode === "email" && (
                       <TextInput
                         value={aiDraft.subject}
                         onChangeText={(v) => setAiDraft({ ...aiDraft, subject: v })}
@@ -2205,32 +2270,55 @@ function LeadDetailsModal({
                         placeholder="Betreff"
                         placeholderTextColor={colors.muted}
                       />
-                      <TextInput
-                        value={aiDraft.body}
-                        onChangeText={(v) => setAiDraft({ ...aiDraft, body: v })}
-                        multiline
-                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
-                        style={{ minHeight: 160, textAlignVertical: "top" }}
-                        placeholderTextColor={colors.muted}
-                      />
+                    )}
+                    <TextInput
+                      value={aiDraft.body}
+                      onChangeText={(v) => setAiDraft({ ...aiDraft, body: v })}
+                      multiline
+                      className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                      style={{ minHeight: 160, textAlignVertical: "top" }}
+                      placeholderTextColor={colors.muted}
+                    />
+                    {aiMode === "email" ? (
                       <TouchableOpacity
                         className="py-2.5 rounded-lg items-center bg-primary"
+                        style={{ opacity: lead.email ? 1 : 0.5 }}
                         onPress={handleSendOutreach}
-                        disabled={aiSending}
+                        disabled={aiSending || !lead.email}
                         activeOpacity={0.8}
                       >
                         {aiSending ? (
                           <ActivityIndicator size="small" color={colors.background} />
                         ) : (
                           <Text className="font-bold text-sm" style={{ color: colors.background }}>
-                            Senden an {lead.email}
+                            {lead.email ? `Senden an ${lead.email}` : "Keine E-Mail-Adresse hinterlegt"}
                           </Text>
                         )}
                       </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              ) : null}
+                    ) : (
+                      <View className="flex-row gap-2">
+                        <TouchableOpacity
+                          className="flex-1 py-2.5 rounded-lg items-center bg-primary"
+                          onPress={handleSaveCallScript}
+                          activeOpacity={0.8}
+                        >
+                          <Text className="font-bold text-sm" style={{ color: colors.background }}>In Notizen speichern</Text>
+                        </TouchableOpacity>
+                        {(lead.phone || lead.mobile) ? (
+                          <TouchableOpacity
+                            className="py-2.5 px-4 rounded-lg items-center justify-center"
+                            style={{ backgroundColor: "#0EA5E9" }}
+                            onPress={() => Linking.openURL(`tel:${String(lead.phone || lead.mobile).replace(/\s/g, "")}`)}
+                            activeOpacity={0.8}
+                          >
+                            <IconSymbol name="phone.fill" size={15} color="#FFF" />
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
             </View>
 
             {/* Erinnerungen */}

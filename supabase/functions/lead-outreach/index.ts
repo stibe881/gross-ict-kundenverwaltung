@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { action, leadId, subject, body } = await req.json();
+    const { action, leadId, subject, body, mode } = await req.json();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -86,12 +86,17 @@ Deno.serve(async (req) => {
         ? `Website: ${lead.website} (noch nicht analysiert)`
         : "Keine Website bekannt.";
 
-    const anthropic = new Anthropic({ apiKey });
-    const response = await anthropic.messages.create({
-      model: "claude-opus-5-5",
-      max_tokens: 900,
-      output_config: { effort: "low" },
-      system: `Du schreibst für Gross ICT (Schweizer IT-Dienstleister & Webagentur, Inhaber Stefan Gross) kurze Erstkontakt-E-Mails an potenzielle Kunden.
+    const isCall = mode === "call";
+    const systemPrompt = isCall
+      ? `Du schreibst für Gross ICT (Schweizer IT-Dienstleister & Webagentur, Inhaber Stefan Gross) einen Gesprächseinstieg für ein Erstkontakt-Telefonat mit einem potenziellen Kunden.
+Antworte AUSSCHLIESSLICH mit gültigem JSON ohne Markdown:
+{"subject": "", "body": "..."}
+
+Regeln für "body" (der Telefon-Leitfaden):
+- Sie-Form, Schweizer Hochdeutsch ohne ß, natürliche gesprochene Sprache — so, wie man es am Telefon wirklich sagt.
+- Aufbau: (1) kurze Begrüssung/Vorstellung (1-2 Sätze), (2) konkreter Aufhänger zur Firma bzw. zu erkannten Website-Mängeln (als gut gemeinter Hinweis, nie als Vorwurf), (3) eine offene Anschlussfrage, (4) darunter 2-3 Stichpunkte mit möglichen Einwänden und je einer kurzen Antwort darauf.
+- Insgesamt kompakt — in 30 Sekunden sprechbar, Stichpunkte mit "•".`
+      : `Du schreibst für Gross ICT (Schweizer IT-Dienstleister & Webagentur, Inhaber Stefan Gross) kurze Erstkontakt-E-Mails an potenzielle Kunden.
 Antworte AUSSCHLIESSLICH mit gültigem JSON ohne Markdown:
 {"subject": "...", "body": "..."}
 
@@ -100,7 +105,14 @@ Regeln:
 - 5-8 Sätze. Konkret auf die Firma und erkannte Website-Mängel eingehen (als gut gemeinten Hinweis, nie als Vorwurf).
 - Mit einer einfachen, unverbindlichen Frage enden (z.B. kurzes Telefonat anbieten).
 - Grussformel: "Freundliche Grüsse\\nStefan Gross\\nGross ICT".
-- "subject": kurz und konkret, kein Clickbait.`,
+- "subject": kurz und konkret, kein Clickbait.`;
+
+    const anthropic = new Anthropic({ apiKey });
+    const response = await anthropic.messages.create({
+      model: "claude-opus-5-5",
+      max_tokens: 900,
+      output_config: { effort: "low" },
+      system: systemPrompt,
       messages: [{
         role: "user",
         content: `Firma: ${lead.company || "-"}
