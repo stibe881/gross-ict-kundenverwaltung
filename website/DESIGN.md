@@ -14,15 +14,16 @@ und Bewegung im Detail — nicht aus Gradients, Glows oder Karten.
 
 ## 2. Token-System
 
-Farben (high-contrast, monochrom + 1 Akzent, keine Gradients/Schatten):
-- `--bg     #0D0D0B`  Grund (warmes Fast-Schwarz)
-- `--bg-2   #151512`  Panels/Zeilen-Hover
-- `--line   #2A2A24`  1px-Linien auf Dunkel
-- `--fg     #F1EFE8`  Text (Off-White)
-- `--mute   #8F8D80`  Nebentext
-- `--acid   #D9FF3F`  der eine Akzent (Buttons, Hover-Füllungen, Marker)
-- `--bone   #F1EFE8`  helle Invert-Sektionen (Kontakt/Preis-Panel)
-- `--bone-line #D9D6C9`, Text auf Hell `#121210` / gedämpft `#6B695E`
+Farben (high-contrast, monochrom + 1 Akzent, keine Gradients/Schatten;
+Charcoal/Off-White gemäss CLAUDE.md «Agency Design Blueprint»):
+- `--bg     #111111`  Grund (Deep Charcoal)
+- `--bg-2   #1A1A19`  Panels/Zeilen-Hover
+- `--line   #2C2C2A`  1px-Linien auf Dunkel
+- `--fg     #F9F6F0`  Text (Off-White)
+- `--mute   #908E86`  Nebentext
+- `--acid   #D9FF3F`  der eine Akzent (Electric Acid Lime)
+- `--bone   #F9F6F0`  helle Invert-Sektionen (Kontakt/Preis-Panel)
+- `--bone-line #DEDACF`, Text auf Hell `#111111` / gedämpft `#6D6B62`
 
 Typografie:
 - Display: Space Grotesk 500–700, Versalien, clamp bis 128px,

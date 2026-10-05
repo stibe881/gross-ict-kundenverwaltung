@@ -2,16 +2,16 @@
    Token-System und Blueprint: siehe website/DESIGN.md (nach CLAUDE.md).
    Flat, 1px-Linien, keine Gradients, keine Schatten. */
 :root {
-  --bg: #0D0D0B;
-  --bg-2: #151512;
-  --line: #2A2A24;
-  --fg: #F1EFE8;
-  --mute: #8F8D80;
+  --bg: #111111;
+  --bg-2: #1A1A19;
+  --line: #2C2C2A;
+  --fg: #F9F6F0;
+  --mute: #908E86;
   --acid: #D9FF3F;
-  --bone: #F1EFE8;
-  --bone-line: #D9D6C9;
-  --ink: #121210;
-  --mute-on-bone: #6B695E;
+  --bone: #F9F6F0;
+  --bone-line: #DEDACF;
+  --ink: #111111;
+  --mute-on-bone: #6D6B62;
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 }
 
