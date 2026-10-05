@@ -5546,6 +5546,11 @@ export async function syncEntraAvatar(session: any) {
     }
 }
 
+// Nach dem Abmelden zurücksetzen, damit der nächste SSO-Login das Foto neu lädt
+export function resetAvatarSync() {
+    avatarSyncDone = false;
+}
+
 // ════════════════ RUNDE 7 ════════════════
 
 // ── (14) ABC-Klassierung: Umsatz (bezahlt, 12 Monate) → A/B/C ──

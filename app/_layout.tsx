@@ -79,7 +79,11 @@ export default function RootLayout() {
       if (session) Data.syncEntraAvatar(session);
     });
     const { data: avatarSub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) Data.syncEntraAvatar(session);
+      // setTimeout: Supabase hält während des Callbacks den Auth-Lock —
+      // Datenbank-/Storage-Aufrufe müssen ausserhalb davon laufen.
+      if (event === "SIGNED_IN" && session) setTimeout(() => Data.syncEntraAvatar(session), 0);
+      // Nach Abmelden zurücksetzen, damit der nächste Login das Foto neu lädt
+      if (event === "SIGNED_OUT") Data.resetAvatarSync();
     });
     return () => avatarSub.subscription.unsubscribe();
   }, []);
@@ -205,7 +209,11 @@ export default function RootLayout() {
                 email: "merged_sso_" + session.user.id.substring(0, 5) + "_" + session.user.email 
               }).eq("id", existingUserByEmail.id);
               
+              // Alle bestehenden Profilfelder (avatar_url, Push-Einstellungen, …)
+              // mitkopieren — sonst verliert der Benutzer sie bei jeder Migration.
+              const { id: _oldId, email: _oldEmail, created_at: _oldCreated, updated_at: _oldUpdated, ...keepFields } = existingUserByEmail as any;
               await supabase.from("users").insert({
+                ...keepFields,
                 id: session.user.id,
                 email: session.user.email,
                 name: userName || existingUserByEmail.name,
@@ -240,8 +248,13 @@ export default function RootLayout() {
       }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    // WICHTIG: Supabase hält während des onAuthStateChange-Callbacks einen
+    // internen Auth-Lock. Datenbank-Abfragen (holen sich das Access-Token via
+    // getSession) oder weitere Auth-Aufrufe im Callback verklemmen diesen Lock:
+    // exchangeCodeForSession kehrt dann nie zurück und der Microsoft-SSO-Login
+    // bleibt am Spinner hängen. Deshalb kehrt der Callback sofort zurück und
+    // die eigentliche Arbeit läuft per setTimeout ausserhalb des Locks.
+    const handleAuthEvent = async (event: string, session: any) => {
         // Only navigate on actual sign-in, NOT on token refresh or initial session
         if (event === "SIGNED_IN" && session && !authHandled.current) {
           const isCustomerPortalUser = !!session.user.user_metadata?.customer_id;
@@ -320,8 +333,11 @@ export default function RootLayout() {
             router.replace("/login");
           }
         }
-      }
-    );
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setTimeout(() => { handleAuthEvent(event, session).catch(console.error); }, 0);
+    });
     return () => subscription.unsubscribe();
   }, []);
 
