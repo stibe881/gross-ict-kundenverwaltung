@@ -1613,7 +1613,7 @@ function LeadDetailsModal({
       const stamp = new Date().toLocaleDateString("de-CH");
       const summary = [
         `[${stamp}] Website neu analysiert:`,
-        `SSL ${webCheck.sslValid ? "✓" : "✗"} · Impressum ${webCheck.hasImpressum ? "✓" : "✗"} · Datenschutz ${webCheck.hasPrivacy ? "✓" : "✗"} · Mobil ${webCheck.isResponsive ? "✓" : "✗"}`,
+        `SSL ${webCheck.sslValid ? "✓" : "✗"} · Impressum ${webCheck.hasImpressum ? "✓" : "✗"} · Datenschutz ${webCheck.hasPrivacy ? "✓" : "✗"} · Mobil ${webCheck.isResponsive ? "✓" : "✗"}${webCheck.wcagOk !== undefined ? ` · WCAG ${webCheck.wcagOk ? "✓" : "✗"}` : ""}`,
         webCheck.notes || "",
       ].filter(Boolean).join("\n");
       await Data.updateLead(lead.id, {
@@ -1955,6 +1955,7 @@ function LeadDetailsModal({
                           { label: "Impressum", ok: !!webCheck.hasImpressum },
                           { label: "Datenschutz", ok: !!webCheck.hasPrivacy },
                           { label: "Mobil-optimiert", ok: !!webCheck.isResponsive },
+                          ...(webCheck.wcagOk !== undefined ? [{ label: "Barrierefreiheit (WCAG)", ok: !!webCheck.wcagOk }] : []),
                         ].map((c) => (
                           <View
                             key={c.label}

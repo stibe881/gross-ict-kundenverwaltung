@@ -66,6 +66,11 @@ serve(async (req: Request) => {
 
     const lowerHtml = html.toLowerCase();
     const isResponsive = /<meta[^>]*name=["']viewport["']/i.test(html);
+
+    // Barrierefreiheit (WCAG): einfache, serverseitig prüfbare Signale
+    const hasLangAttr = /<html[^>]*\slang\s*=/i.test(html);
+    const imgTags = html.match(/<img\b[^>]*>/gi) || [];
+    const imgsWithoutAlt = imgTags.filter((t) => !/\salt\s*=/i.test(t)).length;
     
     const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
     let title = titleMatch ? titleMatch[1].trim() : "";
@@ -108,6 +113,7 @@ serve(async (req: Request) => {
       hasImpressum: false,
       hasPrivacy: false,
       privacyRequired: true,
+      accessibilityIssues: [] as string[],
       salesPitch: ""
     };
     let aiSuccess = false;
@@ -132,7 +138,8 @@ Extrahiere folgende Daten und antworte AUSSCHLIESSLICH im gültigen JSON-Format:
   "hasImpressum": true/false (Gibt es einen ECHTEN Link oder Menüpunkt zu einem Impressum?),
   "hasPrivacy": true/false (Gibt es einen ECHTEN Link oder Menüpunkt zu einer Datenschutzerklärung?),
   "privacyRequired": true/false (Ist für diese Webseite rechtlich zwingend eine Datenschutzerklärung nötig? z.B. weil Kontaktformulare, Logins, Shops oder Newsletter-Anmeldungen im Text vorkommen?),
-  "salesPitch": "Schreibe einen maßgeschneiderten, kurzen Sales-Tipp (1-2 Sätze) für unser Sales-Team. Berücksichtige die Branche des Kunden und technische Mängel (SSL, Responsive, Impressum, Datenschutz), um einen guten Aufhänger für das Verkaufsgespräch zu liefern. (Beginne mit: 💡 Tipp für die Kontaktaufnahme: ...)"
+  "accessibilityIssues": ["Kurze Liste konkreter Barrierefreiheits-Probleme nach WCAG 2.1 AA, die sich aus dem Text ableiten lassen (z.B. nichtssagende Linktexte wie 'hier klicken', fehlende Formular-Beschriftungen, rein visuelle Hinweise). Leere Liste, wenn nichts erkennbar."],
+  "salesPitch": "Schreibe einen massgeschneiderten, kurzen Sales-Tipp (2-3 Sätze) für unser Sales-Team. Hauptfokus: dem Kunden primär eine NEUE, moderne Website empfehlen; Anpassungen an der bestehenden nur als zweite Option. Ordne Mängel rechtlich für die Schweiz ein: Datenschutzerklärung ist Pflicht nach revDSG (Bussen bis CHF 250'000, bei EU-Kunden zusätzlich DSGVO), Impressum ist Pflicht nach UWG Art. 3, Barrierefreiheit nach WCAG 2.1 wird mit dem European Accessibility Act für EU-Geschäft zur Pflicht. Sachlich bleiben, keine Angstmacherei. (Beginne mit: 💡 Tipp für die Kontaktaufnahme: ...)"
 }
 
 Webseiten-Text:
@@ -180,31 +187,44 @@ ${plainText}`;
     let priority = "low";
     let notes = "";
     
+    // WCAG-Hinweise: technische Signale + KI-Befunde
+    const wcagHints: string[] = [];
+    if (!hasLangAttr) wcagHints.push("fehlende Sprachangabe (lang-Attribut)");
+    if (imgsWithoutAlt > 0) wcagHints.push(`${imgsWithoutAlt} Bild(er) ohne Alt-Text`);
+    if (aiSuccess && Array.isArray(aiData.accessibilityIssues)) {
+      wcagHints.push(...aiData.accessibilityIssues.filter(Boolean).map(String).slice(0, 4));
+    }
+    const wcagOk = wcagHints.length === 0;
+
     const fehlendeDinge = [];
-    if (!sslValid) fehlendeDinge.push("kein gültiges SSL-Zertifikat");
-    if (!hasImpressum) fehlendeDinge.push("kein Impressum gefunden");
-    
+    if (!sslValid) fehlendeDinge.push("kein gültiges SSL-Zertifikat (Browser-Warnung, Vertrauens- und SEO-Risiko)");
+    if (!hasImpressum) fehlendeDinge.push("kein Impressum gefunden (Pflicht nach UWG Art. 3 — Abmahn- und Bussenrisiko)");
+
     // Only warn about missing privacy policy if it is legally required according to AI
     const requiresPrivacy = aiSuccess ? aiData.privacyRequired : true;
     if (!hasPrivacy && requiresPrivacy) {
-      fehlendeDinge.push("keine Datenschutzerklärung gefunden");
+      fehlendeDinge.push("keine Datenschutzerklärung gefunden (Pflicht nach revDSG seit 2023, Bussen bis CHF 250'000; bei EU-Kunden zusätzlich DSGVO)");
     }
 
     if (!isResponsive) {
-      fehlendeDinge.push("fehlendes Responsive Design (nicht mobil-optimiert)");
+      fehlendeDinge.push("fehlendes Responsive Design (nicht mobil-optimiert — Ranking-Nachteil bei Google)");
     }
-    
+
     if (fehlendeDinge.length > 0) {
       priority = fehlendeDinge.length > 1 || !sslValid || !hasImpressum ? "high" : "medium";
       notes = `Website weist folgende Mängel auf: ${fehlendeDinge.join(", ")}.`;
       if (!aiSuccess || !aiData.salesPitch) {
-        notes += ` Gutes Verkaufsargument: Abmahnrisiko minimieren, Sichtbarkeit bei Google verbessern (Mobil-Optimierung) und Vertrauen durch einen professionellen Auftritt gewinnen.\n\n💡 Tipp für die Kontaktaufnahme: Zeigen Sie sich als Problemlöser. Erwähnen Sie die Mängel nicht als Vorwurf, sondern als gut gemeinten Hinweis.`;
+        notes += ` Empfehlung: primär eine neue, moderne Website anbieten (rechtssicher nach revDSG/UWG, barrierefrei nach WCAG, mobil-optimiert); Anpassungen an der bestehenden Website nur als zweite Option.\n\n💡 Tipp für die Kontaktaufnahme: Zeigen Sie sich als Problemlöser. Erwähnen Sie die Mängel nicht als Vorwurf, sondern als gut gemeinten Hinweis auf die Schweizer Rechtslage.`;
       }
     } else {
-      notes = "Website sieht technisch und rechtlich solide aus. Argument: Optimierung der Conversion-Rate oder Redesign für frischen Look.";
+      notes = "Website sieht technisch und rechtlich solide aus. Argument: Neuaufbau für frischen, modernen Auftritt (inkl. Barrierefreiheit nach WCAG) oder Optimierung der Conversion-Rate.";
       if (!aiSuccess || !aiData.salesPitch) {
-        notes += `\n\n💡 Tipp für die Kontaktaufnahme: Da die Basis bereits gut ist, loben Sie ihren Auftritt. Fokussieren Sie sich im Gespräch auf fortgeschrittene Themen wie Performance-Optimierung, messbare Lead-Generierung oder gezieltes Online-Marketing.`;
+        notes += `\n\n💡 Tipp für die Kontaktaufnahme: Da die Basis bereits gut ist, loben Sie den Auftritt. Fokussieren Sie sich auf fortgeschrittene Themen wie Barrierefreiheit (WCAG/European Accessibility Act), Performance oder messbare Lead-Generierung.`;
       }
+    }
+
+    if (wcagHints.length > 0) {
+      notes += `\n\nBarrierefreiheit (WCAG 2.1): ${wcagHints.join(", ")}. Einordnung: Mit dem European Accessibility Act ist Barrierefreiheit für Firmen mit EU-Kundschaft Pflicht; in der Schweiz ist sie für Private (noch) nicht generell vorgeschrieben, aber klarer Qualitäts- und SEO-Faktor — und ein starkes Argument für einen Neuaufbau.`;
     }
 
     if (aiSuccess && aiData.salesPitch) {
@@ -282,6 +302,8 @@ ${plainText}`;
         hasImpressum,
         hasPrivacy,
         isResponsive,
+        wcagOk,
+        wcagHints,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

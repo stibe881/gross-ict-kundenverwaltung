@@ -81,10 +81,19 @@ Deno.serve(async (req) => {
 
     const wc = lead.web_check || null;
     const webInfo = wc
-      ? `Website-Check (${lead.website}): SSL ${wc.sslValid ? "ok" : "FEHLT"}, Impressum ${wc.hasImpressum ? "ok" : "FEHLT"}, Datenschutzerklärung ${wc.hasPrivacy ? "ok" : "FEHLT"}, Mobil-Optimierung ${wc.isResponsive ? "ok" : "FEHLT"}`
+      ? `Website-Check (${lead.website}): SSL ${wc.sslValid ? "ok" : "FEHLT"}, Impressum ${wc.hasImpressum ? "ok" : "FEHLT"}, Datenschutzerklärung ${wc.hasPrivacy ? "ok" : "FEHLT"}, Mobil-Optimierung ${wc.isResponsive ? "ok" : "FEHLT"}${wc.wcagOk === false ? `, Barrierefreiheit (WCAG): Mängel${Array.isArray(wc.wcagHints) && wc.wcagHints.length ? ` (${wc.wcagHints.slice(0, 3).join(", ")})` : ""}` : ""}`
       : lead.website
         ? `Website: ${lead.website} (noch nicht analysiert)`
         : "Keine Website bekannt.";
+
+    // Gemeinsame Verkaufslogik für E-Mail und Telefon
+    const salesRules = `
+Verkaufslogik:
+- Geht es um die Website: empfiehl primär eine NEUE, moderne Website von Gross ICT (rechtssicher, barrierefrei, mobil-optimiert) — Anpassungen an der bestehenden Website nur als zweite Option erwähnen.
+- Mängel rechtlich für die Schweiz einordnen und die Konsequenz nennen, sachlich und ohne Angstmacherei:
+  · Datenschutzerklärung: Pflicht nach revDSG (seit September 2023), Bussen bis CHF 250'000 gegen die verantwortliche Person; bei Kundschaft in der EU gilt zusätzlich die DSGVO.
+  · Impressum: Pflicht nach UWG Art. 3 — Abmahn- und Bussenrisiko.
+  · Barrierefreiheit (WCAG 2.1): mit dem European Accessibility Act Pflicht für Firmen mit EU-Kundschaft; in der Schweiz für Private (noch) nicht generell vorgeschrieben, aber klarer Qualitäts- und SEO-Faktor.`;
 
     const isCall = mode === "call";
     const systemPrompt = isCall
@@ -98,7 +107,8 @@ Regeln:
 - "pitch": konkreter Aufhänger zur Firma bzw. zu erkannten Website-Mängeln (als gut gemeinter Hinweis, nie als Vorwurf), 2-3 Sätze.
 - "question": eine offene Anschlussfrage.
 - "objections": 2-3 typische Einwände; "say" ist der Einwand in Kundenworten, "answer" die kurze, entspannte Antwort darauf.
-- Insgesamt kompakt — in 30 Sekunden sprechbar.`
+- Insgesamt kompakt — in 30 Sekunden sprechbar.
+${salesRules}`
       : `Du schreibst für Gross ICT (Schweizer IT-Dienstleister & Webagentur, Inhaber Stefan Gross) kurze Erstkontakt-E-Mails an potenzielle Kunden.
 Antworte AUSSCHLIESSLICH mit gültigem JSON ohne Markdown:
 {"subject": "...", "body": "..."}
@@ -108,7 +118,8 @@ Regeln:
 - 5-8 Sätze. Konkret auf die Firma und erkannte Website-Mängel eingehen (als gut gemeinten Hinweis, nie als Vorwurf).
 - Mit einer einfachen, unverbindlichen Frage enden (z.B. kurzes Telefonat anbieten).
 - Grussformel: "Freundliche Grüsse\\nStefan Gross\\nGross ICT".
-- "subject": kurz und konkret, kein Clickbait.`;
+- "subject": kurz und konkret, kein Clickbait.
+${salesRules}`;
 
     const anthropic = new Anthropic({ apiKey });
     const response = await anthropic.messages.create({

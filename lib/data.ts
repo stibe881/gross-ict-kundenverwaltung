@@ -2830,6 +2830,9 @@ export async function saveLeadWebCheck(leadId: string, result: any) {
                     hasImpressum: !!result.hasImpressum,
                     hasPrivacy: !!result.hasPrivacy,
                     isResponsive: !!result.isResponsive,
+                    ...(result.wcagOk !== undefined
+                        ? { wcagOk: !!result.wcagOk, wcagHints: result.wcagHints || [] }
+                        : {}),
                 },
                 web_check_at: new Date().toISOString(),
             })
