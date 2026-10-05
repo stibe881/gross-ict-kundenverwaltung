@@ -197,7 +197,7 @@ const referenzen = [
         <article class="card offer" data-reveal>
           <h3>Webseiten</h3>
           <p>Ihr neuer Auftritt zum Festpreis: auffindbar in Suchmaschinen, Inhalte selbst pflegen — inklusive Impressum und Datenschutzerklärung nach Schweizer Recht.</p>
-          <p class="price">ab CHF 1'500</p>
+          <p class="price">ab CHF 500</p>
           <a class="btn btn-gold" href="/rechner" style="margin-top: 16px">Preis berechnen</a>
         </article>
         <article class="card offer" data-reveal>
@@ -260,6 +260,10 @@ const referenzen = [
     background: #140E0A;
   }
   .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  /* Mobil: Ausschnitt auf den Gipfel legen (liegt rechts der Bildmitte) */
+  @media (max-width: 900px) {
+    .hero-bg { object-position: 70% center; }
+  }
   .hero-shade {
     position: absolute; inset: 0;
     background: linear-gradient(100deg, rgba(14,9,6,0.72) 0%, rgba(14,9,6,0.38) 48%, rgba(14,9,6,0.08) 100%);
