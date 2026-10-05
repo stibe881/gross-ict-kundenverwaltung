@@ -8,6 +8,9 @@ const corsHeaders = {
 
 const GITHUB_REPO = "stibe881/gross-ict-kundenverwaltung";
 const WORKFLOW_FILE = "app-release.yml";
+// Separater Workflow für die öffentliche Webseite gross-ict.ch —
+// bewusst NICHT Teil von "Alles aktualisieren"
+const WEBSITE_WORKFLOW_FILE = "website-deploy.yml";
 
 function githubHeaders() {
   const token = Deno.env.get("GITHUB_PAT");
@@ -51,6 +54,25 @@ serve(async (req) => {
     await requireAdmin(req);
 
     if (action === "trigger") {
+      // Webseite: eigener Workflow ohne Versions-Logik
+      if (target === "website") {
+        const res = await fetch(
+          `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${WEBSITE_WORKFLOW_FILE}/dispatches`,
+          {
+            method: "POST",
+            headers: githubHeaders(),
+            body: JSON.stringify({ ref: "main" }),
+          }
+        );
+        if (res.status !== 204) {
+          const body = await res.text();
+          throw new Error(`Webseiten-Deploy konnte nicht gestartet werden (${res.status}): ${body}`);
+        }
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const validBump = ["build", "patch", "minor"].includes(bump) ? bump : "build";
       const validTarget = ["all", "apps", "web"].includes(target) ? target : "all";
       const res = await fetch(
@@ -71,8 +93,9 @@ serve(async (req) => {
     }
 
     if (action === "status") {
+      const workflowFile = target === "website" ? WEBSITE_WORKFLOW_FILE : WORKFLOW_FILE;
       const res = await fetch(
-        `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${WORKFLOW_FILE}/runs?per_page=1`,
+        `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${workflowFile}/runs?per_page=1`,
         { headers: githubHeaders() }
       );
       const data = await res.json();

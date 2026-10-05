@@ -36,29 +36,48 @@ export function AppReleaseCard() {
     },
   });
 
+  const { data: websiteStatus, refetch: refetchWebsiteStatus } = useQuery({
+    queryKey: ["websiteDeployStatus"],
+    queryFn: Data.getWebsiteDeployStatus,
+    enabled: isAdmin,
+    refetchInterval: (query) => {
+      const s = query.state.data?.status;
+      return s === "queued" || s === "in_progress" ? 20000 : false;
+    },
+  });
+
   if (!isAdmin) return null;
 
   const version = Constants.expoConfig?.version || "?";
   const build = (Constants.expoConfig?.ios as any)?.buildNumber || "?";
 
-  const trigger = (bump: "build" | "patch", target: "all" | "apps" | "web") => {
+  const trigger = (bump: "build" | "patch", target: "all" | "apps" | "web" | "website") => {
     const targetLabel = {
-      all: "Apps (iOS & Android via TestFlight) UND Web-Portal",
+      all: "Apps (iOS & Android via TestFlight) UND CRM Web (portal.gross-ict.ch) — ohne die Webseite",
       apps: "nur die Apps (iOS & Android via TestFlight)",
-      web: "nur das Web-Portal (portal.gross-ict.ch)",
+      web: "nur CRM Web (portal.gross-ict.ch)",
+      website: "nur die öffentliche Webseite (gross-ict.ch)",
     }[target];
     const bumpLabel = bump === "patch"
       ? "\n\nDie Versionsnummer wird dabei erhöht (nach einer App-Store-Freigabe nötig)."
       : "";
+    const ablauf = target === "website"
+      ? "\n\nAblauf: Die Webseite wird aus dem main-Branch gebaut und auf den Webspace geladen (ca. 2–3 Min.)."
+      : `\n\nAblauf: Alle Branches werden gemergt und das Update automatisch veröffentlicht (Apps: ca. 20–30 Min., Web: ca. 5 Min.).`;
     showConfirm(
       "Update veröffentlichen",
-      `Aktualisiert wird: ${targetLabel}.${bumpLabel}\n\nAblauf: Alle Branches werden gemergt und das Update automatisch veröffentlicht (Apps: ca. 20–30 Min., Web: ca. 5 Min.).`,
+      `Aktualisiert wird: ${targetLabel}.${bumpLabel}${ablauf}`,
       async () => {
         setTriggering(true);
         try {
           await Data.triggerAppRelease(bump, target);
-          showToast("Update gestartet — läuft jetzt automatisch durch.");
-          setTimeout(() => refetchStatus(), 3000);
+          showToast(target === "website"
+            ? "Webseiten-Deploy gestartet — in wenigen Minuten live."
+            : "Update gestartet — läuft jetzt automatisch durch.");
+          setTimeout(() => {
+            refetchStatus();
+            refetchWebsiteStatus();
+          }, 3000);
         } catch (e: any) {
           showAlert("Fehler", e.message || "Update konnte nicht gestartet werden");
         } finally {
@@ -77,6 +96,17 @@ export function AppReleaseCard() {
     if (status.conclusion === "failure") return { label: "Letzter Release fehlgeschlagen", color: "#ef4444", running: false };
     return null;
   })();
+
+  const websiteInfo = (() => {
+    if (!websiteStatus || websiteStatus.status === "none") return null;
+    if (websiteStatus.status === "queued") return { label: "Webseite: in Warteschlange…", color: "#f59e0b", running: true };
+    if (websiteStatus.status === "in_progress") return { label: "Webseite: Deploy läuft…", color: "#f59e0b", running: true };
+    if (websiteStatus.conclusion === "success") return { label: "Webseite: letzter Deploy erfolgreich", color: "#22c55e", running: false };
+    if (websiteStatus.conclusion === "failure") return { label: "Webseite: letzter Deploy fehlgeschlagen", color: "#ef4444", running: false };
+    return null;
+  })();
+
+  const busy = triggering || !!statusInfo?.running || !!websiteInfo?.running;
 
   return (
     <View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 16 }}>
@@ -103,10 +133,25 @@ export function AppReleaseCard() {
         </TouchableOpacity>
       )}
 
+      {websiteInfo && (
+        <TouchableOpacity
+          style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}
+          activeOpacity={0.7}
+          onPress={() => websiteStatus?.html_url && Linking.openURL(websiteStatus.html_url)}
+        >
+          {websiteInfo.running ? (
+            <ActivityIndicator size="small" color={websiteInfo.color} />
+          ) : (
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: websiteInfo.color }} />
+          )}
+          <Text style={{ fontSize: 12, color: websiteInfo.color, fontWeight: "600" }}>{websiteInfo.label}</Text>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity
-        style={{ backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, opacity: triggering || statusInfo?.running ? 0.5 : 1 }}
+        style={{ backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, opacity: busy ? 0.5 : 1 }}
         activeOpacity={0.8}
-        disabled={triggering || !!statusInfo?.running}
+        disabled={busy}
         onPress={() => trigger("build", "all")}
       >
         {triggering ? (
@@ -119,29 +164,38 @@ export function AppReleaseCard() {
 
       <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
         <TouchableOpacity
-          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: triggering || statusInfo?.running ? 0.5 : 1 }}
+          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy ? 0.5 : 1 }}
           activeOpacity={0.8}
-          disabled={triggering || !!statusInfo?.running}
+          disabled={busy}
           onPress={() => trigger("build", "apps")}
         >
           <IconSymbol name="iphone" size={14} color={colors.foreground} />
           <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>Nur Apps</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: triggering || statusInfo?.running ? 0.5 : 1 }}
+          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy ? 0.5 : 1 }}
           activeOpacity={0.8}
-          disabled={triggering || !!statusInfo?.running}
+          disabled={busy}
           onPress={() => trigger("build", "web")}
         >
+          <IconSymbol name="desktopcomputer" size={14} color={colors.foreground} />
+          <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>CRM Web</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy ? 0.5 : 1 }}
+          activeOpacity={0.8}
+          disabled={busy}
+          onPress={() => trigger("build", "website")}
+        >
           <IconSymbol name="globe" size={14} color={colors.foreground} />
-          <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>Nur Web</Text>
+          <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>Webseite</Text>
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity
         style={{ paddingVertical: 10, alignItems: "center" }}
         activeOpacity={0.7}
-        disabled={triggering || !!statusInfo?.running}
+        disabled={busy}
         onPress={() => trigger("patch", "all")}
       >
         <Text style={{ fontSize: 12, color: colors.muted, textDecorationLine: "underline" }}>
@@ -150,7 +204,8 @@ export function AppReleaseCard() {
       </TouchableOpacity>
 
       <Text style={{ fontSize: 11, color: colors.muted, lineHeight: 16 }}>
-        Merged alle Branches und veröffentlicht automatisch: Apps zu TestFlight, Web-Portal auf portal.gross-ict.ch.
+        «Alles aktualisieren» merged alle Branches und veröffentlicht Apps (TestFlight) und CRM Web (portal.gross-ict.ch).
+        Die öffentliche Webseite gross-ict.ch wird nur über den Knopf «Webseite» deployt.
       </Text>
     </View>
   );

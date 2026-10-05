@@ -64,13 +64,18 @@ async function invokeAppUpdate(body: Record<string, unknown>) {
 
 export async function triggerAppRelease(
     bump: "build" | "patch" | "minor" = "build",
-    target: "all" | "apps" | "web" = "all"
+    target: "all" | "apps" | "web" | "website" = "all"
 ) {
     return invokeAppUpdate({ action: 'trigger', bump, target });
 }
 
 export async function getAppReleaseStatus() {
     return invokeAppUpdate({ action: 'status' });
+}
+
+// Status des Webseiten-Deploys (Workflow website-deploy.yml)
+export async function getWebsiteDeployStatus() {
+    return invokeAppUpdate({ action: 'status', target: 'website' });
 }
 
 // ==================== DIGITALE VISITENKARTE ====================
