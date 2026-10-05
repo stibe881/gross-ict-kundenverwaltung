@@ -118,6 +118,14 @@ export default function SettingsScreen() {
       route: "/growth-settings",
     },
     {
+      id: "website-referenzen",
+      title: "Website-Referenzen",
+      subtitle: "Referenzen auf gross-ict.ch pflegen",
+      icon: "globe",
+      color: "#C0188F",
+      route: "/website-referenzen",
+    },
+    {
       id: "recurring-tickets",
       title: "Wartungsplan",
       subtitle: "Wiederkehrende Tickets automatisch erstellen",

@@ -5868,3 +5868,48 @@ export async function getWeekPlan(weekStart: string) {
         absences: absRes.data || [],
     };
 }
+
+// ============ Website-Referenzen (gross-ict.ch) ============
+
+export interface WebsiteReference {
+    id: string;
+    name: string;
+    titel: string;
+    beschreibung: string | null;
+    url: string | null;
+    url_label: string | null;
+    tags: string[];
+    bild_url: string | null;
+    umgebung_bild_url: string | null;
+    sort_order: number;
+    active: boolean;
+    customer_id: string | null;
+}
+
+export async function getWebsiteReferences(): Promise<WebsiteReference[]> {
+    const { data, error } = await db
+        .from("website_references")
+        .select("*")
+        .order("sort_order", { ascending: true });
+    if (error) throw error;
+    return data || [];
+}
+
+export async function createWebsiteReference(r: Partial<WebsiteReference>) {
+    const { data, error } = await db.from("website_references").insert([r]).select().single();
+    if (error) throw error;
+    return data;
+}
+
+export async function updateWebsiteReference(id: string, r: Partial<WebsiteReference>) {
+    const { error } = await db
+        .from("website_references")
+        .update({ ...r, updated_at: new Date().toISOString() })
+        .eq("id", id);
+    if (error) throw error;
+}
+
+export async function deleteWebsiteReference(id: string) {
+    const { error } = await db.from("website_references").delete().eq("id", id);
+    if (error) throw error;
+}

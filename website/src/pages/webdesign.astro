@@ -101,6 +101,7 @@ const referenzen = [
     <div class="container">
       <p class="mono">Referenzen</p>
       <h2 class="anton anton-title" style="margin: 14px 0 56px">Ausgewählte<br />Arbeiten</h2>
+      <div id="ref-liste">
       {referenzen.map((r) => (
         <div class="ref-row" data-reveal>
           <div class="szene">
@@ -123,8 +124,73 @@ const referenzen = [
           </div>
         </div>
       ))}
+      </div>
+
+      <template id="ref-tpl">
+        <div class="ref-row revealed">
+          <div class="szene">
+            <img class="bg" src="" alt="" loading="lazy" />
+            <div class="shade"></div>
+            <div class="mon">
+              <div class="frame"><img src="" alt="" loading="lazy" /></div>
+              <div class="fuss"></div>
+              <div class="sockel"></div>
+            </div>
+          </div>
+          <div>
+            <p class="mono ref-kunde" style="font-size: 12.5px; letter-spacing: 2.5px"></p>
+            <h3 class="ref-titel"></h3>
+            <p class="ref-text"></p>
+            <a class="ref-link" href=""></a>
+            <div class="ref-tags"></div>
+          </div>
+        </div>
+      </template>
     </div>
   </section>
+
+  <script>
+    // Dynamische Referenzen: aus dem CRM (Tabelle website_references) geladen.
+    // Schlägt der Abruf fehl, bleibt die eingebaute Liste stehen.
+    const REF_URL = "https://bvluvvyvftygnxtmboxw.supabase.co/functions/v1/website-referenzen";
+    fetch(REF_URL)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(({ references }) => {
+        if (!Array.isArray(references) || references.length === 0) return;
+        const list = document.getElementById("ref-liste");
+        const tpl = document.getElementById("ref-tpl") as HTMLTemplateElement | null;
+        if (!list || !tpl) return;
+        list.innerHTML = "";
+        for (const r of references) {
+          const node = tpl.content.cloneNode(true) as DocumentFragment;
+          const bg = node.querySelector<HTMLImageElement>(".bg")!;
+          bg.src = r.umgebung_bild_url || r.bild_url || "";
+          if (!r.umgebung_bild_url) bg.classList.add("blurred");
+          const shot = node.querySelector<HTMLImageElement>(".mon img")!;
+          shot.src = r.bild_url || "";
+          shot.alt = `Webseite von ${r.name} auf einem Monitor`;
+          node.querySelector(".ref-kunde")!.textContent = r.name || "";
+          node.querySelector(".ref-titel")!.textContent = r.titel || "";
+          node.querySelector(".ref-text")!.textContent = r.beschreibung || "";
+          const link = node.querySelector<HTMLAnchorElement>(".ref-link")!;
+          if (r.url) {
+            link.href = r.url;
+            link.textContent = `${r.url_label || r.url.replace(/^https?:\/\//, "")} ansehen ↗`;
+          } else {
+            link.remove();
+          }
+          const tags = node.querySelector(".ref-tags")!;
+          for (const t of r.tags || []) {
+            const s = document.createElement("span");
+            s.className = "tag";
+            s.textContent = t;
+            tags.appendChild(s);
+          }
+          list.appendChild(node);
+        }
+      })
+      .catch(() => { /* eingebaute Liste bleibt */ });
+  </script>
 
   <!-- Angebote & Preise -->
   <section class="section" id="pakete">

@@ -214,6 +214,7 @@ export default function TabLayout() {
       <Tabs.Screen name="maintenance-windows" options={{ href: null, title: "Wartungsfenster" }} />
       <Tabs.Screen name="recurring-tickets" options={{ href: null, title: "Wartungsplan" }} />
       <Tabs.Screen name="growth-settings" options={{ href: null, title: "Kundengewinnung" }} />
+      <Tabs.Screen name="website-referenzen" options={{ href: null, title: "Website-Referenzen" }} />
       <Tabs.Screen name="einsatzplan" options={{ href: null, title: "Einsatzplan" }} />
       <Tabs.Screen name="activity-log" options={{ href: null, title: "Aktivitäten & Papierkorb" }} />
       <Tabs.Screen name="users" options={{ href: null, title: "Mitarbeitende" }} />
