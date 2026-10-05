@@ -348,8 +348,7 @@ export default function CustomersScreen() {
 
           {/* Tag-Filter */}
           {allTags.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} className="mb-4">
-              <View className="flex-row gap-2">
+            <View className="flex-row flex-wrap gap-2 mb-4">
                 {allTags.map((tag) => (
                   <TouchableOpacity
                     key={tag}
@@ -365,8 +364,7 @@ export default function CustomersScreen() {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
-            </ScrollView>
+            </View>
           ) : null}
 
           {/* Kundenliste */}

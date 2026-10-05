@@ -4479,10 +4479,23 @@ export async function getUnbilledTicketItems(customerId: string) {
         .from("ticket_items")
         .select("*")
         .in("ticket_id", ticketIds)
-        .is("invoice_id", null);
+        .is("invoice_id", null)
+        .or("written_off.is.null,written_off.eq.false");
     if (error) throw new Error(error.message);
     const titleById = new Map((tickets || []).map((t: any) => [t.id, t.title]));
     return (data || []).map((i: any) => ({ ...i, ticket_title: titleById.get(i.ticket_id) || "" }));
+}
+
+// Einzelne offene Position nachträglich einer bestehenden Rechnung zuordnen
+export async function linkTicketItemToInvoice(itemId: string, invoiceId: string) {
+    const { error } = await db.from("ticket_items").update({ invoice_id: invoiceId }).eq("id", itemId);
+    if (error) throw new Error(error.message);
+}
+
+// Offene Position abschreiben: bleibt am Ticket dokumentiert, zählt aber nicht mehr als offen
+export async function writeOffTicketItem(itemId: string) {
+    const { error } = await db.from("ticket_items").update({ written_off: true }).eq("id", itemId);
+    if (error) throw new Error(error.message);
 }
 
 export async function markTicketItemsBilled(itemIds: string[], invoiceId: string) {

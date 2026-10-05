@@ -1851,6 +1851,13 @@ export default function CustomerDetailScreen() {
 function UnbilledWorkCard({ customerId, colors }: { customerId: string; colors: any }) {
   const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
+  const [linkingItem, setLinkingItem] = useState<any>(null);
+
+  const { data: customerInvoices = [] } = useQuery({
+    queryKey: ["invoices", "customer", customerId],
+    queryFn: () => Data.getCustomerInvoices(customerId),
+    enabled: !!customerId,
+  });
 
   const { data: items = [] } = useQuery({
     queryKey: ["unbilledItems", customerId],
@@ -1924,8 +1931,45 @@ function UnbilledWorkCard({ customerId, colors }: { customerId: string; colors: 
       <Text className="text-sm text-muted mb-3">
         {(items as any[]).length} unverrechnete Position(en) aus Tickets · {formatCurrency(total)} (exkl. MwSt)
       </Text>
+
+      {/* Einzelpositionen: verknüpfen (schon verrechnet) oder abschreiben */}
+      {(items as any[]).map((i: any) => (
+        <View key={i.id} className="flex-row items-center gap-2 py-1.5" style={{ borderBottomWidth: 1, borderBottomColor: colors.border + "40" }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text className="text-sm text-foreground" numberOfLines={1}>{i.description || "Aufwand"}</Text>
+            <Text className="text-xs text-muted">
+              {i.quantity} × {formatCurrency(Number(i.unit_price) || 0)}{i.ticket_title ? ` · ${i.ticket_title}` : ""}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={{ paddingHorizontal: 8, paddingVertical: 5, borderRadius: 7, backgroundColor: colors.primary + "15" }}
+            onPress={() => setLinkingItem(i)}
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primary }}>Verknüpfen</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ paddingHorizontal: 8, paddingVertical: 5, borderRadius: 7, backgroundColor: colors.muted + "20" }}
+            onPress={() =>
+              showConfirm(
+                "Abschreiben",
+                `"${i.description || "Aufwand"}" als nicht verrechenbar abschreiben? Die Position bleibt am Ticket dokumentiert.`,
+                async () => {
+                  await Data.writeOffTicketItem(i.id);
+                  queryClient.invalidateQueries({ queryKey: ["unbilledItems", customerId] });
+                },
+                "Abschreiben"
+              )
+            }
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontSize: 11, fontWeight: "700", color: colors.muted }}>Abschreiben</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+
       <TouchableOpacity
-        className="bg-primary py-2.5 rounded-lg flex-row items-center justify-center gap-2"
+        className="bg-primary py-2.5 rounded-lg flex-row items-center justify-center gap-2 mt-3"
         onPress={handleCreateInvoice}
         disabled={creating}
         activeOpacity={0.8}
@@ -1933,6 +1977,35 @@ function UnbilledWorkCard({ customerId, colors }: { customerId: string; colors: 
         {creating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <IconSymbol name="doc.text.fill" size={14} color={colors.background} />}
         <Text className="text-background font-semibold text-sm">In Rechnung übernehmen</Text>
       </TouchableOpacity>
+
+      {/* Mit bestehender Rechnung verknüpfen */}
+      {linkingItem ? (
+        <View className="mt-3 rounded-lg border p-3" style={{ borderColor: colors.primary + "40", backgroundColor: colors.background }}>
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-xs font-bold text-muted">MIT WELCHER RECHNUNG WURDE DAS VERRECHNET?</Text>
+            <TouchableOpacity onPress={() => setLinkingItem(null)}>
+              <IconSymbol name="xmark.circle.fill" size={18} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+          {(customerInvoices as any[]).filter((inv: any) => inv.status !== "cancelled").slice(0, 10).map((inv: any) => (
+            <TouchableOpacity
+              key={inv.id}
+              className="flex-row items-center justify-between py-2"
+              style={{ borderBottomWidth: 1, borderBottomColor: colors.border + "40" }}
+              onPress={async () => {
+                await Data.linkTicketItemToInvoice(linkingItem.id, inv.id);
+                setLinkingItem(null);
+                queryClient.invalidateQueries({ queryKey: ["unbilledItems", customerId] });
+                showToast(`Mit ${inv.invoice_number} verknüpft`);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text className="text-sm font-semibold text-foreground">{inv.invoice_number}</Text>
+              <Text className="text-xs text-muted">{formatDate(inv.invoice_date)} · {formatCurrency(inv.total || 0)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }

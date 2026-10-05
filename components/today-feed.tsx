@@ -59,8 +59,9 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
         try {
           const { data: openItems } = await (supabase as any)
             .from("ticket_items")
-            .select("quantity, unit_price, ticket:tickets(customer_id, covered_by_contract, customer:customers(company_name, first_name, last_name))")
+            .select("quantity, unit_price, written_off, ticket:tickets(customer_id, covered_by_contract, customer:customers(company_name, first_name, last_name))")
             .is("invoice_id", null)
+            .or("written_off.is.null,written_off.eq.false")
             .limit(300);
           const map = new Map<string, { id: string; name: string; total: number; count: number }>();
           for (const it of (openItems as any[]) || []) {
