@@ -650,6 +650,7 @@ export default function AccountingScreen() {
       marketing: "megaphone.fill",
       accounting: "doc.text.fill",
       equipment: "wrench.and.screwdriver.fill",
+      fees: "percent",
       salary: "dollarsign.circle.fill",
       other: "ellipsis.circle.fill",
       // Custom categories (these match the internal 'value' generated for them)

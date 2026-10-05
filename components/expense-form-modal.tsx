@@ -99,6 +99,8 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
     });
 
     const [isIncome, setIsIncome] = useState(false);
+    // Gebühren/Abzüge zu einer Einnahme — werden beim Speichern als EINE Ausgabe-Buchung erfasst
+    const [fees, setFees] = useState<{ description: string; amount: string }[]>([]);
 
     useEffect(() => {
         if (expense) {
@@ -145,6 +147,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 user_id: expense.user_id || "",
             });
             setIsIncome(expense.amount && expense.amount < 0 ? true : false);
+            setFees([]);
             setExistingReceiptPath(expense.receipt_path || null);
             setExistingReceiptUrl(expense.receipt_url || null);
             setReceiptFile(null);
@@ -165,6 +168,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 user_id: "",
             });
             setIsIncome(initialIsIncome);
+            setFees([]);
             setExistingReceiptPath(null);
             setExistingReceiptUrl(null);
             
@@ -460,6 +464,36 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
             } else {
                 await Data.createExpense(payload);
             }
+
+            // Gebühren zur Einnahme: automatisch als EINE gesammelte Ausgabe-Buchung
+            // erfassen (gleiches Datum, gleicher Beleg, abzugsfähig)
+            const validFees = isIncome
+                ? fees.filter((f) => (parseFloat(f.amount) || 0) > 0)
+                : [];
+            if (validFees.length > 0) {
+                const feesSum = validFees.reduce((s, f) => s + parseFloat(f.amount), 0);
+                const feeLines = validFees.map(
+                    (f) => `– ${f.description.trim() || "Gebühr"}: CHF ${parseFloat(f.amount).toFixed(2)}`
+                );
+                await Data.createExpense({
+                    date: toDbDate(form.date),
+                    amount: feesSum,
+                    description: `Gebühren: ${form.description.trim()}`,
+                    category: "fees",
+                    supplier: form.supplier.trim() || null,
+                    payment_method: form.payment_method,
+                    tax_rate: 0,
+                    is_deductible: true,
+                    notes: [
+                        `Automatisch erfasst zur Einnahme «${form.description.trim()}» vom ${form.date}`,
+                        ...feeLines,
+                    ].join("\n"),
+                    receipt_path: uploadedPath,
+                    receipt_url: uploadedUrl,
+                    user_id: form.user_id || "",
+                });
+            }
+
             onSuccess();
             onClose();
         } catch (err: any) {
@@ -470,6 +504,8 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
     };
 
     const taxAmount = (parseFloat(form.amount) || 0) * (parseFloat(form.tax_rate) || 0) / 100;
+    const feesTotal = isIncome ? fees.reduce((s, f) => s + (parseFloat(f.amount) || 0), 0) : 0;
+    const netAfterFees = (parseFloat(form.amount) || 0) - feesTotal;
 
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -542,7 +578,66 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                                 inkl. CHF {taxAmount.toFixed(2)} MwSt ({form.tax_rate}%)
                             </Text>
                         )}
+                        {isIncome && (
+                            <Text style={{ fontSize: 12, color: colors.muted, marginTop: 6, textAlign: "center" }}>
+                                Brutto-Betrag erfassen — Gebühren unten angeben
+                            </Text>
+                        )}
                     </View>
+
+                    {/* Gebühren / Abzüge (nur bei Einnahmen) */}
+                    {isIncome && (
+                        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border, gap: 10 }}>
+                            <View>
+                                <Text style={{ fontSize: 12, color: colors.muted, fontWeight: "600" }}>Gebühren / Abzüge (optional)</Text>
+                                <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>
+                                    z.B. Stripe-, PayPal- oder Plattform-Gebühren — werden beim Speichern automatisch als eine Ausgabe-Buchung «Gebühren & Kommissionen» erfasst, inkl. Beleg.
+                                </Text>
+                            </View>
+                            {fees.map((fee, idx) => (
+                                <View key={idx} style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+                                    <TextInput
+                                        style={{ flex: 1, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border, color: colors.foreground, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14 }}
+                                        value={fee.description}
+                                        onChangeText={(v) => setFees(fees.map((f, i) => (i === idx ? { ...f, description: v } : f)))}
+                                        placeholder="z.B. Stripe-Gebühr"
+                                        placeholderTextColor={colors.muted}
+                                    />
+                                    <TextInput
+                                        style={{ width: 92, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border, color: colors.foreground, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, textAlign: "right" }}
+                                        value={fee.amount}
+                                        onChangeText={(v) => setFees(fees.map((f, i) => (i === idx ? { ...f, amount: v.replace(/[^0-9.]/g, "") } : f)))}
+                                        placeholder="0.00"
+                                        placeholderTextColor={colors.muted}
+                                        keyboardType="decimal-pad"
+                                    />
+                                    <TouchableOpacity onPress={() => setFees(fees.filter((_, i) => i !== idx))} activeOpacity={0.7}>
+                                        <IconSymbol name="xmark.circle.fill" size={20} color={colors.error} />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                            <TouchableOpacity
+                                onPress={() => setFees([...fees, { description: "", amount: "" }])}
+                                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+                                activeOpacity={0.7}
+                            >
+                                <IconSymbol name="plus.circle.fill" size={16} color={colors.primary} />
+                                <Text style={{ fontSize: 14, color: colors.primary, fontWeight: "600" }}>Gebühr hinzufügen</Text>
+                            </TouchableOpacity>
+                            {feesTotal > 0 && (
+                                <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, gap: 4 }}>
+                                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                                        <Text style={{ fontSize: 13, color: colors.muted }}>Gebühren total ({fees.filter((f) => (parseFloat(f.amount) || 0) > 0).length} Positionen)</Text>
+                                        <Text style={{ fontSize: 13, fontWeight: "600", color: colors.error }}>− CHF {feesTotal.toFixed(2)}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                                        <Text style={{ fontSize: 13, fontWeight: "600", color: colors.foreground }}>Netto (kommt aufs Konto)</Text>
+                                        <Text style={{ fontSize: 13, fontWeight: "700", color: "#22c55e" }}>CHF {netAfterFees.toFixed(2)}</Text>
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+                    )}
 
                     {/* Beschreibung */}
                     <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border, zIndex: 20 }}>

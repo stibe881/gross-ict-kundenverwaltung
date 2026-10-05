@@ -2883,6 +2883,7 @@ export async function deleteLeadActivity(id: string) {
 export const EXPENSE_CATEGORIES = [
     { value: "accounting", label: "Buchhaltung & Beratung" },
     { value: "office", label: "Büro & Miete" },
+    { value: "fees", label: "Gebühren & Kommissionen" },
     { value: "customer_order", label: "Kundenbestellung" },
     { value: "software", label: "Lizenzen & Software" },
     { value: "salary", label: "Lohnzahlung" },
