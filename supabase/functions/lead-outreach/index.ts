@@ -99,15 +99,18 @@ Verkaufslogik:
     const systemPrompt = isCall
       ? `Du schreibst für Gross ICT (Schweizer IT-Dienstleister & Webagentur, Inhaber Stefan Gross) einen Gesprächseinstieg für ein Erstkontakt-Telefonat mit einem potenziellen Kunden.
 Antworte AUSSCHLIESSLICH mit gültigem JSON ohne Markdown, in genau dieser Struktur:
-{"greeting": "...", "pitch": "...", "question": "...", "objections": [{"say": "...", "answer": "..."}]}
+{"greeting": "...", "pitch": "...", "question": "...", "objections": [{"say": "...", "answer": "...", "followups": [{"say": "...", "answer": "...", "followups": []}]}]}
 
 Regeln:
 - Sie-Form, Schweizer Hochdeutsch ohne ß, natürliche gesprochene Sprache — so, wie man es am Telefon wirklich sagt.
 - "greeting": kurze Begrüssung/Vorstellung (1-2 Sätze, endet mit "Haben Sie kurz einen Moment?").
 - "pitch": konkreter Aufhänger zur Firma bzw. zu erkannten Website-Mängeln (als gut gemeinter Hinweis, nie als Vorwurf), 2-3 Sätze.
 - "question": eine offene Anschlussfrage.
-- "objections": 2-3 typische Einwände; "say" ist der Einwand in Kundenworten, "answer" die kurze, entspannte Antwort darauf.
-- Insgesamt kompakt — in 30 Sekunden sprechbar.
+- "objections" ist ein GESPRÄCHSBAUM für einen klickbaren Ablauf:
+  · Erste Ebene: 3-4 typische erste Reaktionen des Kunden — mindestens eine positive/interessierte darunter. "say" ist die Reaktion in Kundenworten, "answer" Ihre kurze, entspannte Antwort darauf.
+  · Jede erste Reaktion hat 2-3 "followups": realistische Folge-Reaktionen des Kunden auf Ihre Antwort, wieder mit "say" und "answer".
+  · Die Antworten der zweiten Ebene führen das Gespräch zu einem klaren Abschluss (Termin vorschlagen, Angebot/Mail anbieten oder freundlich verabschieden); deren "followups" bleiben leer ([]).
+- Insgesamt kompakt, jede Antwort in 1-3 gesprochenen Sätzen.
 ${salesRules}`
       : `Du schreibst für Gross ICT (Schweizer IT-Dienstleister & Webagentur, Inhaber Stefan Gross) kurze Erstkontakt-E-Mails an potenzielle Kunden.
 Antworte AUSSCHLIESSLICH mit gültigem JSON ohne Markdown:
@@ -124,7 +127,7 @@ ${salesRules}`;
     const anthropic = new Anthropic({ apiKey });
     const response = await anthropic.messages.create({
       model: "claude-opus-5-5",
-      max_tokens: 900,
+      max_tokens: isCall ? 3000 : 900,
       output_config: { effort: "low" },
       system: systemPrompt,
       messages: [{
@@ -150,12 +153,19 @@ Notizen (interne Infos, nur als Kontext): ${(lead.notes || "").slice(0, 1500)}`,
     const parsed = JSON.parse(match[0]);
 
     if (isCall) {
+      const mapNode = (o: any, depth: number): any => ({
+        say: String(o?.say || ""),
+        answer: String(o?.answer || ""),
+        followups: depth < 2 && Array.isArray(o?.followups)
+          ? o.followups.slice(0, 3).map((f: any) => mapNode(f, depth + 1))
+          : [],
+      });
       const script = {
         greeting: String(parsed.greeting || ""),
         pitch: String(parsed.pitch || ""),
         question: String(parsed.question || ""),
         objections: Array.isArray(parsed.objections)
-          ? parsed.objections.map((o: any) => ({ say: String(o.say || ""), answer: String(o.answer || "") }))
+          ? parsed.objections.slice(0, 4).map((o: any) => mapNode(o, 0))
           : [],
       };
       const body = [

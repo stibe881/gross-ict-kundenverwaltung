@@ -1341,6 +1341,9 @@ function LeadDetailsModal({
   const [aiMode, setAiMode] = useState<"email" | "call">(lead.email ? "email" : "call");
   const [aiDraft, setAiDraft] = useState<{ subject: string; body: string; script?: any } | null>(null);
 
+  // Gesprächs-Navigator (klickbarer Ablauf durchs Telefonat)
+  const [showCallFlow, setShowCallFlow] = useState(false);
+
   // Gespeicherten Telefon-Einstieg beim Öffnen wiederherstellen
   const callScriptLoaded = useRef(false);
   useEffect(() => {
@@ -2431,6 +2434,18 @@ function LeadDetailsModal({
                         )}
                       </TouchableOpacity>
                     ) : (
+                      <View className="gap-2">
+                        {aiDraft.script ? (
+                          <TouchableOpacity
+                            className="flex-row items-center justify-center gap-2 py-3 rounded-xl"
+                            style={{ backgroundColor: "#8B5CF6" }}
+                            onPress={() => setShowCallFlow(true)}
+                            activeOpacity={0.8}
+                          >
+                            <IconSymbol name="play.fill" size={15} color="#FFF" />
+                            <Text className="font-bold" style={{ color: "#FFF" }}>Gesprächs-Ablauf starten</Text>
+                          </TouchableOpacity>
+                        ) : null}
                       <View className="flex-row gap-2">
                         <TouchableOpacity
                           className="flex-1 py-2.5 rounded-lg items-center bg-primary"
@@ -2449,6 +2464,7 @@ function LeadDetailsModal({
                             <IconSymbol name="phone.fill" size={15} color="#FFF" />
                           </TouchableOpacity>
                         ) : null}
+                      </View>
                       </View>
                     )}
                   </View>
@@ -2850,9 +2866,223 @@ function LeadDetailsModal({
               onPress={onClose}
               activeOpacity={0.8}
             >
-              <Text className="text-foreground font-semibold text-center">Schließen</Text>
+              <Text className="text-foreground font-semibold text-center">Schliessen</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Gesprächs-Navigator */}
+          {showCallFlow && aiDraft?.script ? (
+            <CallFlowModal
+              visible={showCallFlow}
+              onClose={() => setShowCallFlow(false)}
+              lead={lead}
+              script={aiDraft.script}
+              colors={colors}
+              userName={currentUserName}
+              onLogged={() => {
+                refetchActivities();
+                queryClient.invalidateQueries({ queryKey: ["leads"] });
+                queryClient.invalidateQueries({ queryKey: ["leadDetail"] });
+                queryClient.invalidateQueries({ queryKey: ["weeklyContacts"] });
+              }}
+            />
+          ) : null}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ── Gesprächs-Navigator: klickbarer Ablauf durchs Erstkontakt-Telefonat ──
+function CallFlowModal({
+  visible, onClose, lead, script, colors, userName, onLogged,
+}: {
+  visible: boolean; onClose: () => void; lead: any; script: any; colors: any;
+  userName: string; onLogged: () => void;
+}) {
+  const [path, setPath] = useState<any[]>([]);
+  const [logging, setLogging] = useState(false);
+
+  const currentOptions: any[] = path.length === 0
+    ? (script.objections || [])
+    : (path[path.length - 1].followups || []);
+
+  const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().split("T")[0];
+  const stamp = new Date().toLocaleDateString("de-CH");
+
+  const logOutcome = async (updates: Record<string, any>, note: string) => {
+    setLogging(true);
+    try {
+      const verlauf = path.length
+        ? ` — Verlauf: ${path.map((p: any) => `«${p.say}»`).join(" → ")}`
+        : "";
+      const newNotes = `${lead.notes ? lead.notes + "\n" : ""}[${stamp}] Gesprächs-Ablauf: ${note}${verlauf}`;
+      try {
+        await Data.updateLead(lead.id, { ...updates, notes: newNotes });
+      } catch (err) {
+        // Fallback, solange Migration 20261015 (lost_reason) fehlt
+        if ((updates as any).lost_reason) {
+          const { lost_reason: _lr, ...rest } = updates as any;
+          await Data.updateLead(lead.id, { ...rest, notes: newNotes });
+        } else {
+          throw err;
+        }
+      }
+      await Data.addLeadActivity({
+        lead_id: lead.id,
+        type: "activity",
+        content: `Gesprächs-Ablauf: ${note}${verlauf}`,
+        user_name: userName,
+      });
+      onLogged();
+      setPath([]);
+      onClose();
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    } finally {
+      setLogging(false);
+    }
+  };
+
+  const SieCard = ({ label, text }: { label: string; text: string }) =>
+    text ? (
+      <View className="rounded-xl p-3" style={{ backgroundColor: "#22C55E12", borderWidth: 1, borderColor: "#22C55E35" }}>
+        <Text className="text-[10px] font-bold uppercase mb-1" style={{ color: "#22C55E", letterSpacing: 0.5 }}>{label}</Text>
+        <Text className="text-[14px] text-foreground" style={{ lineHeight: 21 }}>{text}</Text>
+      </View>
+    ) : null;
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View className="flex-1 bg-black/60 justify-end" style={Platform.OS === "web" ? { justifyContent: "center", alignItems: "center" } : undefined}>
+        <View className="bg-background rounded-t-3xl" style={Platform.OS === "web" ? { maxWidth: 580, width: "100%", borderRadius: 24, maxHeight: "90%" } : { maxHeight: "92%" }}>
+          {/* Kopf */}
+          <View className="flex-row items-center justify-between p-4 border-b border-border">
+            <View className="flex-1 mr-2">
+              <Text className="text-lg font-bold text-foreground" numberOfLines={1}>Gesprächs-Ablauf</Text>
+              <Text className="text-xs text-muted" numberOfLines={1}>{lead.company || lead.name}</Text>
+            </View>
+            {(lead.phone || lead.mobile) ? (
+              <TouchableOpacity
+                className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                style={{ backgroundColor: "#0EA5E9" }}
+                onPress={() => Linking.openURL(`tel:${String(lead.phone || lead.mobile).replace(/\s/g, "")}`)}
+                activeOpacity={0.8}
+              >
+                <IconSymbol name="phone.fill" size={16} color="#FFF" />
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+              <IconSymbol name="xmark.circle.fill" size={26} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView className="p-4" showsVerticalScrollIndicator={false}>
+            {/* Einstieg (nur am Anfang) */}
+            {path.length === 0 ? (
+              <View className="gap-2.5">
+                <SieCard label="Einstieg" text={script.greeting} />
+                <SieCard label="Aufhänger" text={script.pitch} />
+                <SieCard label="Offene Frage" text={script.question} />
+              </View>
+            ) : (
+              <View className="gap-2.5">
+                {/* Verlauf: gewählte Reaktionen + Ihre Antworten */}
+                {path.map((p: any, idx: number) => {
+                  const isLast = idx === path.length - 1;
+                  return (
+                    <View key={idx} className="gap-2.5" style={{ opacity: isLast ? 1 : 0.5 }}>
+                      <View className="rounded-xl p-3 self-end" style={{ backgroundColor: "#FB923C15", borderWidth: 1, borderColor: "#FB923C40", maxWidth: "92%" }}>
+                        <Text className="text-[10px] font-bold uppercase mb-1" style={{ color: "#FB923C", letterSpacing: 0.5 }}>Kunde</Text>
+                        <Text className="text-[13.5px] text-foreground" style={{ fontStyle: "italic", lineHeight: 20 }}>«{p.say}»</Text>
+                      </View>
+                      <SieCard label="Ihre Antwort" text={p.answer} />
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Nächste Kundenreaktionen zum Antippen */}
+            {currentOptions.length > 0 ? (
+              <View className="mt-4">
+                <Text className="text-[10px] font-bold uppercase mb-2" style={{ color: colors.muted, letterSpacing: 0.5 }}>
+                  Kunde sagt — antippen:
+                </Text>
+                <View className="gap-2">
+                  {currentOptions.map((o: any, idx: number) => (
+                    <TouchableOpacity
+                      key={idx}
+                      className="rounded-xl px-3.5 py-3"
+                      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: "#FB923C50" }}
+                      onPress={() => setPath([...path, o])}
+                      activeOpacity={0.7}
+                    >
+                      <Text className="text-[13.5px] text-foreground" style={{ fontStyle: "italic", lineHeight: 20 }}>
+                        «{o.say}»
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ) : (
+              <View className="mt-4 rounded-xl p-3 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <Text className="text-xs text-muted text-center">
+                  Führen Sie das Gespräch zum Abschluss und wählen Sie unten das Ergebnis.
+                </Text>
+              </View>
+            )}
+
+            {path.length > 0 ? (
+              <TouchableOpacity className="mt-3 py-2 items-center" onPress={() => setPath(path.slice(0, -1))} activeOpacity={0.7}>
+                <Text className="text-xs font-semibold text-muted">← Schritt zurück</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {/* Ergebnis */}
+            <Text className="text-[10px] font-bold uppercase mt-5 mb-2" style={{ color: colors.muted, letterSpacing: 0.5 }}>
+              Gespräch beenden mit Ergebnis:
+            </Text>
+            <View className="flex-row flex-wrap gap-2 mb-2">
+              <TouchableOpacity
+                className="flex-1 py-3 rounded-xl items-center"
+                style={{ backgroundColor: "#22C55E20", borderWidth: 1, borderColor: "#22C55E50", minWidth: "45%", opacity: logging ? 0.5 : 1 }}
+                disabled={logging}
+                onPress={() => logOutcome({ status: "contacted", rating: "hot", next_action: "Termin vorbereiten", next_action_date: inDays(1) }, "Termin vereinbart!")}
+                activeOpacity={0.8}
+              >
+                <Text className="text-sm font-bold" style={{ color: "#22C55E" }}>Termin vereinbart</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 py-3 rounded-xl items-center"
+                style={{ backgroundColor: colors.primary + "20", borderWidth: 1, borderColor: colors.primary + "50", minWidth: "45%", opacity: logging ? 0.5 : 1 }}
+                disabled={logging}
+                onPress={() => logOutcome({ status: "contacted", next_action: "Infos/Angebot per E-Mail senden", next_action_date: inDays(0) }, "Infos per E-Mail gewünscht")}
+                activeOpacity={0.8}
+              >
+                <Text className="text-sm font-bold" style={{ color: colors.primary }}>Mail gewünscht</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 py-3 rounded-xl items-center"
+                style={{ backgroundColor: colors.warning + "20", borderWidth: 1, borderColor: colors.warning + "50", minWidth: "45%", opacity: logging ? 0.5 : 1 }}
+                disabled={logging}
+                onPress={() => logOutcome({ next_action: "Erneut anrufen", next_action_date: inDays(2) }, "Nicht erreicht / Mailbox")}
+                activeOpacity={0.8}
+              >
+                <Text className="text-sm font-bold" style={{ color: colors.warning }}>Nicht erreicht</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 py-3 rounded-xl items-center"
+                style={{ backgroundColor: "#EF444415", borderWidth: 1, borderColor: "#EF444440", minWidth: "45%", opacity: logging ? 0.5 : 1 }}
+                disabled={logging}
+                onPress={() => logOutcome({ status: "lost", lost_reason: "kein_bedarf" }, "Kein Interesse")}
+                activeOpacity={0.8}
+              >
+                <Text className="text-sm font-bold" style={{ color: "#EF4444" }}>Kein Interesse</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ height: 28 }} />
+          </ScrollView>
         </View>
       </View>
     </Modal>
