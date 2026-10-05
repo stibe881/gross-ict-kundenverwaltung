@@ -1444,7 +1444,12 @@ function TicketDetailsModal({
       };
       
       const newInvoice = await Data.createInvoice(draftInvoice, invoiceItems);
-      
+
+      // Aufwände als verrechnet markieren, damit sie nirgends mehr als offen erscheinen
+      if (ticketItems.length > 0) {
+        await Data.markTicketItemsBilled(ticketItems.map((i: any) => i.id), newInvoice.id);
+      }
+
       onClose();
       router.push(`/invoice/${newInvoice.id}` as any);
     } catch (err: any) {
