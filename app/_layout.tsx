@@ -17,6 +17,7 @@ function ThemedStatusBar() {
   return <StatusBar style={resolvedTheme === "dark" ? "light" : "dark"} />;
 }
 import { ToastProvider } from "@/components/toast-provider";
+import { DialogProvider } from "@/components/dialog-provider";
 import { RouteGuard } from "@/components/route-guard";
 import {
   SafeAreaFrameContext,
@@ -431,11 +432,13 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <RouteGuard>
           <ToastProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="oauth/callback" />
-            </Stack>
-            <ThemedStatusBar />
+            <DialogProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="oauth/callback" />
+              </Stack>
+              <ThemedStatusBar />
+            </DialogProvider>
           </ToastProvider>
         </RouteGuard>
       </QueryClientProvider>

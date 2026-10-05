@@ -4,6 +4,7 @@ import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Platform } from "react-native";
 import { jsPDF } from "./jspdf-import";
+import { showAlert } from "@/lib/alert";
 
 export interface JournalEntry {
   id: string;
@@ -321,6 +322,6 @@ export async function downloadBuchungsjournalPDF(data: BuchungsjournalData) {
       });
     }
   } catch (error: any) {
-    Alert.alert("Fehler beim Export", error?.message || "PDF konnte nicht generiert werden.");
+    showAlert("Fehler beim Export", error?.message || "PDF konnte nicht generiert werden.");
   }
 }

@@ -18,6 +18,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
+import { showAlert } from "@/lib/alert";
 
 type TabKey = "invoices" | "dunning";
 
@@ -72,14 +73,14 @@ export default function DunningSettingsScreen() {
         mutationFn: (data: any) => Data.updateDunningSettings(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["dunningSettings"] });
-            Alert.alert("Gespeichert", "Mahnungseinstellungen aktualisiert.");
+            showAlert("Gespeichert", "Mahnungseinstellungen aktualisiert.");
         },
         onError: (err: any) => {
             const msg = err.message || "";
             if (msg.includes("schema cache") || msg.includes("relation") || msg.includes("not find")) {
-                Alert.alert("Migration erforderlich", "Bitte führe im Supabase SQL-Editor den Befehl 'NOTIFY pgrst, \\'reload schema\\'' aus, oder starte das Supabase-Projekt neu.\n\nDie Tabellen wurden erstellt, aber der API-Cache muss noch aktualisiert werden.");
+                showAlert("Migration erforderlich", "Bitte führe im Supabase SQL-Editor den Befehl 'NOTIFY pgrst, \\'reload schema\\'' aus, oder starte das Supabase-Projekt neu.\n\nDie Tabellen wurden erstellt, aber der API-Cache muss noch aktualisiert werden.");
             } else {
-                Alert.alert("Fehler", msg);
+                showAlert("Fehler", msg);
             }
         },
     });
@@ -88,14 +89,14 @@ export default function DunningSettingsScreen() {
         mutationFn: (data: any) => Data.updateInvoiceSettings(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["invoiceSettings"] });
-            Alert.alert("Gespeichert", "Rechnungseinstellungen aktualisiert.");
+            showAlert("Gespeichert", "Rechnungseinstellungen aktualisiert.");
         },
         onError: (err: any) => {
             const msg = err.message || "";
             if (msg.includes("schema cache") || msg.includes("relation") || msg.includes("not find")) {
-                Alert.alert("Migration erforderlich", "Bitte führe im Supabase SQL-Editor den Befehl 'NOTIFY pgrst, \\'reload schema\\'' aus, oder starte das Supabase-Projekt neu.\n\nDie Tabellen wurden erstellt, aber der API-Cache muss noch aktualisiert werden.");
+                showAlert("Migration erforderlich", "Bitte führe im Supabase SQL-Editor den Befehl 'NOTIFY pgrst, \\'reload schema\\'' aus, oder starte das Supabase-Projekt neu.\n\nDie Tabellen wurden erstellt, aber der API-Cache muss noch aktualisiert werden.");
             } else {
-                Alert.alert("Fehler", msg);
+                showAlert("Fehler", msg);
             }
         },
     });

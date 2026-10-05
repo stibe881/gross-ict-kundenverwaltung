@@ -14,7 +14,7 @@ import {
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import * as Data from "@/lib/data";
-import { showAlert } from "@/lib/alert";
+import { showAlert, showConfirm } from "@/lib/alert";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -189,23 +189,13 @@ export function LeadFormModal({
         };
 
         if (data.duplicateWarning) {
-          if (Platform.OS === 'web') {
-            const proceed = window.confirm(`${data.duplicateWarning}\n\nMöchten Sie diesen Lead trotzdem erfassen?`);
-            if (proceed) {
-              proceedWithLead();
-            } else {
-              setAnalyzing(false);
-            }
-          } else {
-            Alert.alert(
-              "Duplikat gefunden",
-              `${data.duplicateWarning}\n\nMöchten Sie diesen Lead trotzdem erfassen?`,
-              [
-                { text: "Abbrechen", style: "cancel", onPress: () => setAnalyzing(false) },
-                { text: "Trotzdem erfassen", style: "destructive", onPress: proceedWithLead }
-              ]
-            );
-          }
+          setAnalyzing(false);
+          showConfirm(
+            "Duplikat gefunden",
+            `${data.duplicateWarning}\n\nMöchten Sie diesen Lead trotzdem erfassen?`,
+            proceedWithLead,
+            "Trotzdem erfassen"
+          );
         } else {
           proceedWithLead();
         }

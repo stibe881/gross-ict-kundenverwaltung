@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { showAlert } from "@/lib/alert";
 
 interface PasswordResetModalProps {
   visible: boolean;
@@ -35,7 +36,7 @@ export function PasswordResetModal({
 
   const handleResetPassword = () => {
     if (!email) {
-      Alert.alert("Fehler", "Bitte geben Sie Ihre E-Mail-Adresse ein");
+      showAlert("Fehler", "Bitte geben Sie Ihre E-Mail-Adresse ein");
       return;
     }
 

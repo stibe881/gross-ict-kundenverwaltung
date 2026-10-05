@@ -1,12 +1,14 @@
 import { Alert, Platform } from "react-native";
+import { showDialog } from "@/components/dialog-provider";
 
 /**
- * Cross-platform alert that works on Web, iOS, and Android.
- * On web, uses window.alert/window.confirm instead of React Native's Alert.
+ * Zentrale Dialoge. Auf iOS/Android die nativen System-Dialoge (Alert.alert),
+ * im Web app-eigene, gestylte Dialoge statt der Browser-Popups
+ * ("portal.gross-ict.ch enthält ...").
  */
 export function showAlert(title: string, message?: string) {
     if (Platform.OS === "web") {
-        window.alert(message ? `${title}\n\n${message}` : title);
+        showDialog({ title, message, buttons: [{ text: "OK", style: "primary" }] });
     } else {
         Alert.alert(title, message);
     }
@@ -19,10 +21,16 @@ export function showConfirm(
     confirmText: string = "OK",
     cancelText: string = "Abbrechen"
 ) {
+    const destructive = /löschen|entfernen|stornieren|verwerfen/i.test(confirmText);
     if (Platform.OS === "web") {
-        if (window.confirm(`${title}\n\n${message}`)) {
-            onConfirm();
-        }
+        showDialog({
+            title,
+            message,
+            buttons: [
+                { text: cancelText, style: "cancel" },
+                { text: confirmText, style: destructive ? "destructive" : "primary", onPress: onConfirm },
+            ],
+        });
     } else {
         Alert.alert(title, message, [
             { text: cancelText, style: "cancel" },
@@ -32,8 +40,7 @@ export function showConfirm(
 }
 
 /**
- * Three-button confirm dialog: primary action, secondary action, cancel.
- * On web: primary is shown first, cancel leads to secondary.
+ * Drei-Knopf-Dialog: Primäraktion, Sekundäraktion, Abbrechen.
  */
 export function showConfirm2(
     title: string,
@@ -45,11 +52,15 @@ export function showConfirm2(
     cancelText: string = "Abbrechen"
 ) {
     if (Platform.OS === "web") {
-        if (window.confirm(`${title}\n\n${message}\n\n[OK = ${primaryText} / Abbrechen = ${secondaryText}]`)) {
-            onPrimary();
-        } else {
-            onSecondary();
-        }
+        showDialog({
+            title,
+            message,
+            buttons: [
+                { text: primaryText, style: "primary", onPress: onPrimary },
+                { text: secondaryText, style: "default", onPress: onSecondary },
+                { text: cancelText, style: "cancel" },
+            ],
+        });
     } else {
         Alert.alert(title, message, [
             { text: cancelText, style: "cancel" },

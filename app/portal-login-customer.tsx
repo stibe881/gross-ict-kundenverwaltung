@@ -12,6 +12,7 @@ import { useColors } from "@/hooks/use-colors";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "@/lib/supabase";
+import { showAlert } from "@/lib/alert";
 
 export default function PortalLoginScreen() {
   const colors = useColors();
@@ -21,7 +22,7 @@ export default function PortalLoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Fehler", "Bitte E-Mail und Passwort eingeben");
+      showAlert("Fehler", "Bitte E-Mail und Passwort eingeben");
       return;
     }
 
@@ -44,10 +45,10 @@ export default function PortalLoginScreen() {
 
         router.replace("/portal-tickets-customer");
       } else {
-        Alert.alert("Fehler", "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.");
+        showAlert("Fehler", "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.");
       }
     } catch (error) {
-      Alert.alert("Fehler", "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.");
+      showAlert("Fehler", "Login fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.");
     } finally {
       setLoading(false);
     }

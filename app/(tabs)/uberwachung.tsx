@@ -22,6 +22,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
+import { showAlert, showConfirm } from "@/lib/alert";
 import { MonitoringDetailModal } from "@/components/monitoring-detail-modal";
 
 // ── Typen ──────────────────────────────────────────────────────────────────
@@ -214,7 +215,7 @@ export default function UeberwachungScreen() {
 
     const handleSave = async () => {
         if (!form.name.trim() || !form.url.trim()) {
-            Alert.alert("Fehler", "Name und URL sind erforderlich.");
+            showAlert("Fehler", "Name und URL sind erforderlich.");
             return;
         }
         let finalUrl = form.url.trim();
@@ -247,28 +248,20 @@ export default function UeberwachungScreen() {
             queryClient.invalidateQueries({ queryKey: ["monitoringUrls"] });
             cancelForm();
         } catch (e: any) {
-            Alert.alert("Fehler", e.message);
+            showAlert("Fehler", e.message);
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleDelete = async (entry: MonitoringUrl) => {
-        const confirm = () => executeDelete(entry.id);
-        if (Platform.OS === "web") {
-            if (window.confirm(`"${entry.name}" wirklich löschen?`)) confirm();
-        } else {
-            Alert.alert("Löschen", `"${entry.name}" wirklich löschen?`, [
-                { text: "Abbrechen", style: "cancel" },
-                { text: "Löschen", style: "destructive", onPress: confirm },
-            ]);
-        }
+        showConfirm("Löschen", `"${entry.name}" wirklich löschen?`, () => executeDelete(entry.id), "Löschen");
     };
 
     const openLink = (url: string) => {
         Linking.openURL(url).catch(err => {
             console.error("Could not open URL:", err);
-            Alert.alert("Fehler", "Der Link konnte nicht geöffnet werden.");
+            showAlert("Fehler", "Der Link konnte nicht geöffnet werden.");
         });
     };
 
@@ -277,7 +270,7 @@ export default function UeberwachungScreen() {
             await Data.deleteMonitoringUrl(id);
             queryClient.invalidateQueries({ queryKey: ["monitoringUrls"] });
         } catch (e: any) {
-            Alert.alert("Fehler", e.message);
+            showAlert("Fehler", e.message);
         }
     };
 
@@ -288,14 +281,12 @@ export default function UeberwachungScreen() {
         try {
             const result = await Data.checkMonitoringUrlViaEdgeFunction(entry.id);
             if (result?.errors && result.errors.length > 0) {
-                if (Platform.OS === "web") window.alert(result.errors.join("\n"));
-                else Alert.alert("SSL Debug Info", result.errors.join("\n"));
+                showAlert("SSL Debug Info", result.errors.join("\n"));
             }
             queryClient.invalidateQueries({ queryKey: ["monitoringUrls"] });
         } catch (e: any) {
             console.error("Check failed:", e);
-            if (Platform.OS === "web") window.alert("Fehler: " + e.message);
-            else Alert.alert("Fehler", e.message);
+            showAlert("Fehler", e.message);
         } finally {
             setCheckingIds(prev => ({ ...prev, [entry.id]: false }));
         }

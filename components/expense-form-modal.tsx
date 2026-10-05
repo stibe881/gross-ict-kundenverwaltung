@@ -14,6 +14,7 @@ import {
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import * as Data from "@/lib/data";
+import { showAlert, showConfirm } from "@/lib/alert";
 import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
@@ -293,7 +294,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
             }
         } catch (error: any) {
             console.warn("AI Analysis failed details:", error);
-            Alert.alert("KI-Fehler", error.message || "Beleg konnte nicht analysiert werden.");
+            showAlert("KI-Fehler", error.message || "Beleg konnte nicht analysiert werden.");
         } finally {
             setIsAnalyzingAI(false);
         }
@@ -330,7 +331,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 });
             }
         } catch (_e) {
-            Alert.alert("Fehler", "Kamera konnte nicht gestartet werden.");
+            showAlert("Fehler", "Kamera konnte nicht gestartet werden.");
         }
     };
 
@@ -350,7 +351,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 });
             }
         } catch (_e) {
-            Alert.alert("Fehler", "Bildergalerie konnte nicht geöffnet werden.");
+            showAlert("Fehler", "Bildergalerie konnte nicht geöffnet werden.");
         }
     };
 
@@ -371,7 +372,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                 });
             }
         } catch (_e) {
-            Alert.alert("Fehler", "Dokument konnte nicht ausgewählt werden.");
+            showAlert("Fehler", "Dokument konnte nicht ausgewählt werden.");
         }
     };
 
@@ -379,38 +380,34 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
         if (receiptFile) {
             setReceiptFile(null);
         } else if (existingReceiptPath) {
-            Alert.alert(
+            showConfirm(
                 "Beleg löschen",
                 "Möchten Sie diesen Beleg unwiderruflich löschen?",
-                [
-                    { text: "Abbrechen", style: "cancel" },
-                    {
-                        text: "Löschen", style: "destructive", onPress: async () => {
-                            setLoading(true);
-                            try {
-                                await Data.deleteExpenseReceipt(existingReceiptPath, expense.id);
-                                setExistingReceiptPath(null);
-                                setExistingReceiptUrl(null);
-                                onSuccess(); // Refresh list to show without clip
-                            } catch (err: any) {
-                                Alert.alert("Fehler", err.message);
-                            } finally {
-                                setLoading(false);
-                            }
-                        }
+                async () => {
+                    setLoading(true);
+                    try {
+                        await Data.deleteExpenseReceipt(existingReceiptPath, expense.id);
+                        setExistingReceiptPath(null);
+                        setExistingReceiptUrl(null);
+                        onSuccess(); // Refresh list to show without clip
+                    } catch (err: any) {
+                        showAlert("Fehler", err.message);
+                    } finally {
+                        setLoading(false);
                     }
-                ]
+                },
+                "Löschen"
             );
         }
     };
 
     const handleSave = async () => {
         if (!form.description.trim()) {
-            Alert.alert("Fehler", "Bitte Beschreibung eingeben");
+            showAlert("Fehler", "Bitte Beschreibung eingeben");
             return;
         }
         if (!form.amount || parseFloat(form.amount) <= 0) {
-            Alert.alert("Fehler", "Bitte gültigen Betrag eingeben");
+            showAlert("Fehler", "Bitte gültigen Betrag eingeben");
             return;
         }
 
@@ -497,7 +494,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
             onSuccess();
             onClose();
         } catch (err: any) {
-            Alert.alert("Fehler", err.message);
+            showAlert("Fehler", err.message);
         } finally {
             setLoading(false);
         }
@@ -799,7 +796,7 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                                                     setForm({ ...form, category: value });
                                                     setShowNewCatInput(false);
                                                     setShowCategoryPicker(false);
-                                                } catch (e: any) { Alert.alert("Fehler", e.message); } finally { setSavingCat(false); }
+                                                } catch (e: any) { showAlert("Fehler", e.message); } finally { setSavingCat(false); }
                                             }}
                                             activeOpacity={0.8}
                                         >
@@ -1117,39 +1114,23 @@ export function ExpenseFormModal({ visible, onClose, onSuccess, expense, initial
                     {expense && (
                         <TouchableOpacity
                             onPress={() => {
-                                if (Platform.OS === 'web') {
-                                    if (window.confirm("Möchten Sie diesen Eintrag wirklich löschen?")) {
-                                        setLoading(true);
-                                        Data.deleteExpense(expense.id).then(() => {
+                                showConfirm(
+                                    "Eintrag löschen",
+                                    "Möchten Sie diesen Eintrag wirklich löschen?",
+                                    async () => {
+                                        try {
+                                            setLoading(true);
+                                            await Data.deleteExpense(expense.id);
                                             onSuccess();
                                             onClose();
-                                        }).catch(err => {
-                                            Alert.alert("Fehler", err.message);
-                                        }).finally(() => setLoading(false));
-                                    }
-                                } else {
-                                    Alert.alert(
-                                        "Eintrag löschen",
-                                        "Möchten Sie diesen Eintrag wirklich löschen?",
-                                        [
-                                            { text: "Abbrechen", style: "cancel" },
-                                            {
-                                                text: "Löschen", style: "destructive", onPress: async () => {
-                                                    try {
-                                                        setLoading(true);
-                                                        await Data.deleteExpense(expense.id);
-                                                        onSuccess();
-                                                        onClose();
-                                                    } catch (err: any) {
-                                                        Alert.alert("Fehler", err.message);
-                                                    } finally {
-                                                        setLoading(false);
-                                                    }
-                                                }
-                                            }
-                                        ]
-                                    );
-                                }
+                                        } catch (err: any) {
+                                            showAlert("Fehler", err.message);
+                                        } finally {
+                                            setLoading(false);
+                                        }
+                                    },
+                                    "Löschen"
+                                );
                             }}
                             style={{ backgroundColor: colors.error + "15", borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.error + "30", alignItems: "center" }}
                         >

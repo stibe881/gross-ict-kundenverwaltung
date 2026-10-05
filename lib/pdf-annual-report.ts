@@ -3,6 +3,7 @@ import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { Alert, Platform } from "react-native";
 import { jsPDF } from "./jspdf-import";
+import { showAlert } from "@/lib/alert";
 
 function fmtCHF(amount: number | null | undefined): string {
   if (amount == null) return "0.00";
@@ -307,6 +308,6 @@ export async function downloadAnnualReportPDF(data: AnnualReportData) {
       });
     }
   } catch (error: any) {
-    Alert.alert("Fehler beim Export", error?.message || "PDF konnte nicht generiert werden.");
+    showAlert("Fehler beim Export", error?.message || "PDF konnte nicht generiert werden.");
   }
 }

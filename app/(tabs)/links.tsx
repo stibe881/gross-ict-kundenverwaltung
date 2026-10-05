@@ -22,6 +22,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
+import { showAlert, showConfirm } from "@/lib/alert";
 
 export default function LinksScreen() {
     const colors = useColors();
@@ -67,7 +68,7 @@ export default function LinksScreen() {
 
     const handleSave = async () => {
         if (!form.title.trim() || !form.url.trim()) {
-            Alert.alert("Fehler", "Titel und URL sind erforderlich.");
+            showAlert("Fehler", "Titel und URL sind erforderlich.");
             return;
         }
         
@@ -105,7 +106,7 @@ export default function LinksScreen() {
                     await Data.uploadLinkLogo(savedLink.id, form.logo_uri);
                 } catch (uploadObjError: any) {
                     console.error("Fehler beim Logo-Upload:", uploadObjError);
-                    Alert.alert("Warnung", "Der Link wurde gespeichert, aber das Logo konnte nicht hochgeladen werden.");
+                    showAlert("Warnung", "Der Link wurde gespeichert, aber das Logo konnte nicht hochgeladen werden.");
                 }
             }
 
@@ -114,23 +115,14 @@ export default function LinksScreen() {
             setEditingLink(null);
             setForm({ title: "", url: "", description: "", icon: "link", visibility: "public", allowed_roles: [], logo_url: "", logo_uri: "" });
         } catch (e: any) {
-            Alert.alert("Fehler", e.message);
+            showAlert("Fehler", e.message);
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleDelete = async (id: string) => {
-        if (Platform.OS === 'web') {
-            if (window.confirm("Möchten Sie diesen Link wirklich löschen?")) {
-                await executeDelete(id);
-            }
-        } else {
-            Alert.alert("Löschen", "Möchten Sie diesen Link wirklich löschen?", [
-                { text: "Abbrechen", style: "cancel" },
-                { text: "Löschen", style: "destructive", onPress: () => executeDelete(id) }
-            ]);
-        }
+        showConfirm("Löschen", "Möchten Sie diesen Link wirklich löschen?", () => executeDelete(id), "Löschen");
     };
 
     const executeDelete = async (id: string) => {
@@ -138,14 +130,14 @@ export default function LinksScreen() {
             await Data.deleteUsefulLink(id);
             queryClient.invalidateQueries({ queryKey: ["usefulLinks"] });
         } catch (e: any) {
-            Alert.alert("Fehler", e.message);
+            showAlert("Fehler", e.message);
         }
     };
 
     const openLink = (url: string) => {
         Linking.openURL(url).catch(err => {
             console.error("Could not open URL:", err);
-            Alert.alert("Fehler", "Der Link konnte nicht geöffnet werden.");
+            showAlert("Fehler", "Der Link konnte nicht geöffnet werden.");
         });
     };
 

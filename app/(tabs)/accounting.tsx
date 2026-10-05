@@ -553,7 +553,7 @@ export default function AccountingScreen() {
           await Data.deleteExpense(expense.id);
           refetchExpenses();
         } catch (err: any) {
-          Alert.alert("Fehler", err.message);
+          showAlert("Fehler", err.message);
         }
       },
       "Löschen",
@@ -1778,7 +1778,7 @@ export default function AccountingScreen() {
                   expensesByCategory,
                 });
               } catch (error: any) {
-                Alert.alert("Fehler", "PDF konnte nicht erstellt werden: " + error.message);
+                showAlert("Fehler", "PDF konnte nicht erstellt werden: " + error.message);
               }
             }}
           >
@@ -2608,7 +2608,7 @@ function BudgetTab({
       setEditing(null);
       setEditingIncome(false);
       setEditingProfit(false);
-    } catch (e: any) { Alert.alert("Fehler", e.message); } finally { setSaving(false); }
+    } catch (e: any) { showAlert("Fehler", e.message); } finally { setSaving(false); }
   };
 
   // Totals

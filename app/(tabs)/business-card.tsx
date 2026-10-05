@@ -11,6 +11,7 @@ import * as Data from "@/lib/data";
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { showAlert } from "@/lib/alert";
 
 export default function BusinessCardScreen() {
     const colors = useColors();
@@ -112,19 +113,19 @@ export default function BusinessCardScreen() {
             await AsyncStorage.setItem(`business_card_${email}`, JSON.stringify(dataToSave));
             const savedCentrally = await Data.saveBusinessCard(email, dataToSave);
             if (savedCentrally) {
-                Alert.alert("Gespeichert", "Die Kartendaten wurden gespeichert und sind auf allen deinen Geräten verfügbar.");
+                showAlert("Gespeichert", "Die Kartendaten wurden gespeichert und sind auf allen deinen Geräten verfügbar.");
             } else {
-                Alert.alert("Gespeichert", "Die Kartendaten wurden lokal gespeichert. Zentrale Speicherung nicht möglich — ggf. fehlt die Migration '20261002_business_card.sql' oder die Karte gehört einem anderen Benutzer.");
+                showAlert("Gespeichert", "Die Kartendaten wurden lokal gespeichert. Zentrale Speicherung nicht möglich — ggf. fehlt die Migration '20261002_business_card.sql' oder die Karte gehört einem anderen Benutzer.");
             }
         } catch (e) {
             console.error("Error saving card data:", e);
-            Alert.alert("Fehler", "Die Daten konnten nicht gespeichert werden.");
+            showAlert("Fehler", "Die Daten konnten nicht gespeichert werden.");
         }
     };
 
     const handleDownload = async () => {
         if (!name || !email) {
-            Alert.alert("Fehler", "Bitte fülle die Pflichtfelder (Name, E-Mail) aus.");
+            showAlert("Fehler", "Bitte fülle die Pflichtfelder (Name, E-Mail) aus.");
             return;
         }
 
@@ -163,7 +164,7 @@ export default function BusinessCardScreen() {
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-                        Alert.alert("Erfolg", "Pass wurde heruntergeladen.");
+                        showAlert("Erfolg", "Pass wurde heruntergeladen.");
                     } else {
                         // Android fallback
                         const filepath = `${FileSystem.documentDirectory}${filename}`;
@@ -182,7 +183,7 @@ export default function BusinessCardScreen() {
             }
         } catch (error: any) {
             console.error("Error generating pass:", error);
-            Alert.alert("Fehler", `Die Visitenkarte konnte nicht generiert werden: ${error.message}`);
+            showAlert("Fehler", `Die Visitenkarte konnte nicht generiert werden: ${error.message}`);
         } finally {
             setGenerating(false);
         }

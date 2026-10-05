@@ -19,6 +19,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { sendTicketNotification } from "@/lib/push-notifications";
 import { ContractFormModal } from "@/components/contract-form-modal";
+import { showAlert } from "@/lib/alert";
 
 interface TicketFormModalProps {
   visible: boolean;
@@ -166,7 +167,7 @@ export function TicketFormModal({
         }]);
       }
     } catch (_e) {
-      Alert.alert("Fehler", "Kamera konnte nicht gestartet werden.");
+      showAlert("Fehler", "Kamera konnte nicht gestartet werden.");
     }
   };
 
@@ -201,7 +202,7 @@ export function TicketFormModal({
       await Data.deleteTicketAttachment(attachment.id, attachment.file_path);
       refetchAttachments();
     } catch (e: any) {
-      Alert.alert("Fehler", "Konnte den Anhang nicht löschen: " + e.message);
+      showAlert("Fehler", "Konnte den Anhang nicht löschen: " + e.message);
     }
   };
 
@@ -273,7 +274,7 @@ export function TicketFormModal({
       onSuccess?.(newTicket);
       onClose();
     } catch (error: any) {
-      Alert.alert("Fehler", error.message);
+      showAlert("Fehler", error.message);
     } finally {
       setIsUploading(false);
     }
