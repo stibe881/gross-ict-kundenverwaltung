@@ -1268,56 +1268,114 @@ export async function getCustomerProfitability(year: number) {
     const start = `${year}-01-01`;
     const end = `${year}-12-31`;
 
-    const [invoicesRes, contractsRes, ticketsRes] = await Promise.all([
+    const [invoicesRes, contractsRes, ticketsRes, ordersRes, customersRes] = await Promise.all([
         supabase.from("invoices")
-            .select("customer_id, total, paid_amount, status, invoice_date")
+            .select("id, customer_id, invoice_number, total, paid_amount, status, invoice_date")
             .gte("invoice_date", start).lte("invoice_date", end)
             .not("customer_id", "is", null),
         supabase.from("contracts")
-            .select("customer_id, internal_costs")
+            .select("id, customer_id, title, internal_costs")
             .eq("status", "active")
             .not("customer_id", "is", null),
         supabase.from("tickets")
-            .select("customer_id, created_at, items:ticket_items(quantity, unit_price)")
+            .select("id, customer_id, title, created_at, items:ticket_items(quantity, unit_price, invoice_id)")
             .eq("covered_by_contract", true)
             .gte("created_at", start)
+            .lte("created_at", `${end}T23:59:59`)
             .not("customer_id", "is", null),
+        // Kundenbestellungen & Fremdleistungen mit "Kunde: ..." in den Notizen
+        supabase.from("expenses")
+            .select("id, description, amount, category, notes, expense_date")
+            .in("category", ["customer_order", "salary"])
+            .gt("amount", 0)
+            .gte("expense_date", start).lte("expense_date", end),
+        supabase.from("customers")
+            .select("id, company_name, first_name, last_name"),
     ]);
 
-    const map: Record<string, { revenue: number; internalCosts: number; coveredEffort: number }> = {};
-    const entry = (id: string) => (map[id] = map[id] || { revenue: 0, internalCosts: 0, coveredEffort: 0 });
+    const customers = customersRes.data || [];
+    const displayName = (c: any) =>
+        c?.company_name || `${c?.first_name || ""} ${c?.last_name || ""}`.trim() || "Unbekannt";
+    const idByName = new Map<string, string>();
+    for (const c of customers) idByName.set(displayName(c).toLowerCase(), c.id);
+
+    type Detail = {
+        invoices: { id: string; label: string; date: string; counted: number; total: number; status: string }[];
+        contracts: { id: string; label: string; costs: number }[];
+        tickets: { id: string; label: string; date: string; effort: number }[];
+        orders: { id: string; label: string; date: string; amount: number }[];
+    };
+    const map: Record<string, { revenue: number; internalCosts: number; coveredEffort: number; orderCosts: number; details: Detail }> = {};
+    const entry = (id: string) =>
+        (map[id] = map[id] || {
+            revenue: 0, internalCosts: 0, coveredEffort: 0, orderCosts: 0,
+            details: { invoices: [], contracts: [], tickets: [], orders: [] },
+        });
 
     for (const inv of invoicesRes.data || []) {
         const e = entry(inv.customer_id as string);
-        if (inv.paid_amount && inv.paid_amount > 0) e.revenue += inv.paid_amount;
-        else if (inv.status === "paid") e.revenue += inv.total || 0;
+        let counted = 0;
+        if (inv.paid_amount && inv.paid_amount > 0) counted = inv.paid_amount;
+        else if (inv.status === "paid") counted = inv.total || 0;
+        e.revenue += counted;
+        e.details.invoices.push({
+            id: inv.id, label: inv.invoice_number || "Rechnung",
+            date: (inv.invoice_date || "").slice(0, 10),
+            counted, total: inv.total || 0, status: inv.status || "",
+        });
     }
     for (const c of contractsRes.data || []) {
-        entry(c.customer_id as string).internalCosts += c.internal_costs || 0;
+        const e = entry(c.customer_id as string);
+        e.internalCosts += c.internal_costs || 0;
+        if ((c.internal_costs || 0) > 0) {
+            e.details.contracts.push({ id: c.id, label: (c as any).title || "Vertrag", costs: c.internal_costs || 0 });
+        }
     }
     for (const t of ticketsRes.data || []) {
         const e = entry((t as any).customer_id as string);
-        e.coveredEffort += ((t as any).items || []).reduce(
-            (s: number, i: any) => s + (i.quantity || 0) * (i.unit_price || 0), 0,
-        );
+        // Bereits verrechnete Positionen sind Umsatz, nicht interner Aufwand
+        const effort = ((t as any).items || [])
+            .filter((i: any) => !i.invoice_id)
+            .reduce((s: number, i: any) => s + (i.quantity || 0) * (i.unit_price || 0), 0);
+        e.coveredEffort += effort;
+        if (effort > 0) {
+            e.details.tickets.push({
+                id: (t as any).id, label: (t as any).title || "Ticket",
+                date: ((t as any).created_at || "").slice(0, 10), effort,
+            });
+        }
+    }
+    for (const x of ordersRes.data || []) {
+        const m = ((x as any).notes || "").match(/Kunde:\s*([^\n]*)/);
+        if (!m) continue;
+        const custId = idByName.get(m[1].trim().toLowerCase());
+        if (!custId) continue;
+        const e = entry(custId);
+        e.orderCosts += (x as any).amount || 0;
+        e.details.orders.push({
+            id: (x as any).id,
+            label: `${(x as any).category === "salary" ? "Fremdleistung" : "Einkauf"}: ${(x as any).description || ""}`,
+            date: ((x as any).expense_date || "").slice(0, 10),
+            amount: (x as any).amount || 0,
+        });
     }
 
-    const ids = Object.keys(map);
-    if (ids.length === 0) return [];
-    const { data: customers } = await supabase
-        .from("customers")
-        .select("id, company_name, first_name, last_name")
-        .in("id", ids);
     const nameFor = (id: string) => {
-        const c = (customers || []).find((x: any) => x.id === id);
-        return c?.company_name || `${c?.first_name || ""} ${c?.last_name || ""}`.trim() || "Unbekannt";
+        const c = customers.find((x: any) => x.id === id);
+        return displayName(c);
     };
 
-    return ids
+    return Object.keys(map)
         .map((id) => {
             const e = map[id];
-            const costs = e.internalCosts + e.coveredEffort;
-            return { customerId: id, name: nameFor(id), revenue: e.revenue, costs, coveredEffort: e.coveredEffort, internalCosts: e.internalCosts, margin: e.revenue - costs };
+            const costs = e.internalCosts + e.coveredEffort + e.orderCosts;
+            return {
+                customerId: id, name: nameFor(id),
+                revenue: e.revenue, costs,
+                coveredEffort: e.coveredEffort, internalCosts: e.internalCosts, orderCosts: e.orderCosts,
+                margin: e.revenue - costs,
+                details: e.details,
+            };
         })
         .filter((r) => r.revenue > 0 || r.costs > 0)
         .sort((a, b) => b.margin - a.margin);

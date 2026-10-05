@@ -2831,6 +2831,7 @@ function BudgetTab({
 // ─── Kunden-Profitabilität ────────────────────────────────────────────────────
 function CustomerProfitabilityCard({ selectedYear, colors }: { selectedYear: number; colors: any }) {
   const [expanded, setExpanded] = useState(false);
+  const [openCustomerId, setOpenCustomerId] = useState<string | null>(null);
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["customerProfitability", selectedYear],
     queryFn: () => Data.getCustomerProfitability(selectedYear),
@@ -2839,37 +2840,110 @@ function CustomerProfitabilityCard({ selectedYear, colors }: { selectedYear: num
   if (!isLoading && rows.length === 0) return null;
   const visible = expanded ? rows : rows.slice(0, 5);
 
+  const DetailRow = ({ label, date, amount, color, note }: { label: string; date?: string; amount: string; color: string; note?: string }) => (
+    <View className="flex-row items-center justify-between py-1">
+      <View className="flex-1 mr-2">
+        <Text className="text-[11px] text-foreground" numberOfLines={1}>{label}</Text>
+        {(date || note) ? (
+          <Text className="text-[10px] text-muted">{[date, note].filter(Boolean).join(" · ")}</Text>
+        ) : null}
+      </View>
+      <Text className="text-[11px] font-semibold" style={{ color }}>{amount}</Text>
+    </View>
+  );
+
   return (
     <View className="bg-surface rounded-xl border border-border overflow-hidden">
       <View className="p-4 border-b border-border">
         <Text className="text-base font-bold text-foreground">Kunden-Profitabilität {selectedYear}</Text>
         <Text className="text-xs text-muted mt-1">
-          Umsatz abzüglich interner Vertragskosten und im Vertrag abgedeckter Ticket-Aufwände
+          Umsatz (bezahlte Rechnungen) abzüglich interner Vertragskosten, abgedeckter Ticket-Aufwände sowie Einkäufe/Fremdleistungen für den Kunden. Auf einen Kunden tippen für die Aufschlüsselung.
         </Text>
       </View>
       {isLoading ? (
         <View className="items-center py-6"><ActivityIndicator color={colors.primary} /></View>
       ) : (
         <>
-          {visible.map((r: any, idx: number) => (
-            <View
-              key={r.customerId}
-              className="flex-row items-center px-4 py-3"
-              style={{ borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: colors.border }}
-            >
-              <Text className="text-xs font-bold text-muted" style={{ width: 22 }}>{idx + 1}.</Text>
-              <View className="flex-1 mr-2">
-                <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{r.name}</Text>
-                <Text className="text-[11px] text-muted" numberOfLines={1}>
-                  Umsatz {formatCurrency(r.revenue)} · Kosten {formatCurrency(r.costs)}
-                  {r.coveredEffort > 0 ? ` (davon Aufwände ${formatCurrency(r.coveredEffort)})` : ""}
+          {visible.map((r: any, idx: number) => {
+            const open = openCustomerId === r.customerId;
+            const d = r.details || { invoices: [], contracts: [], tickets: [], orders: [] };
+            return (
+            <View key={r.customerId} style={{ borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: colors.border }}>
+              <TouchableOpacity
+                className="flex-row items-center px-4 py-3"
+                onPress={() => setOpenCustomerId(open ? null : r.customerId)}
+                activeOpacity={0.7}
+              >
+                <Text className="text-xs font-bold text-muted" style={{ width: 22 }}>{idx + 1}.</Text>
+                <View className="flex-1 mr-2">
+                  <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{r.name}</Text>
+                  <Text className="text-[11px] text-muted" numberOfLines={1}>
+                    Umsatz {formatCurrency(r.revenue)} · Kosten {formatCurrency(r.costs)}
+                  </Text>
+                </View>
+                <Text className="text-sm font-bold mr-1.5" style={{ color: r.margin >= 0 ? "#22C55E" : "#EF4444" }}>
+                  {formatCurrency(r.margin)}
                 </Text>
-              </View>
-              <Text className="text-sm font-bold" style={{ color: r.margin >= 0 ? "#22C55E" : "#EF4444" }}>
-                {formatCurrency(r.margin)}
-              </Text>
+                <IconSymbol name={open ? "chevron.up" : "chevron.down"} size={12} color={colors.muted} />
+              </TouchableOpacity>
+
+              {open && (
+                <View className="px-4 pb-3" style={{ backgroundColor: colors.background + "60" }}>
+                  {/* Einnahmen */}
+                  <Text className="text-[10px] font-bold text-muted uppercase mt-1 mb-0.5">Einnahmen</Text>
+                  {d.invoices.length === 0 ? (
+                    <Text className="text-[11px] text-muted py-1">Keine Rechnungen in {selectedYear}</Text>
+                  ) : (
+                    d.invoices.map((inv: any) => (
+                      <DetailRow
+                        key={inv.id}
+                        label={inv.label}
+                        date={inv.date}
+                        amount={inv.counted > 0 ? `+ ${formatCurrency(inv.counted)}` : formatCurrency(0)}
+                        color={inv.counted > 0 ? "#22C55E" : colors.muted}
+                        note={
+                          inv.counted <= 0
+                            ? `offen (${formatCurrency(inv.total)}) — zählt erst nach Zahlung`
+                            : inv.counted < inv.total
+                              ? `Teilzahlung von ${formatCurrency(inv.total)}`
+                              : undefined
+                        }
+                      />
+                    ))
+                  )}
+
+                  {/* Kosten */}
+                  <Text className="text-[10px] font-bold text-muted uppercase mt-2 mb-0.5">Kosten</Text>
+                  {d.contracts.length === 0 && d.tickets.length === 0 && d.orders.length === 0 ? (
+                    <Text className="text-[11px] text-muted py-1">Keine Kosten erfasst</Text>
+                  ) : (
+                    <>
+                      {d.contracts.map((c: any) => (
+                        <DetailRow key={c.id} label={c.label} note="Interne Vertragskosten" amount={`− ${formatCurrency(c.costs)}`} color="#EF4444" />
+                      ))}
+                      {d.tickets.map((t: any) => (
+                        <DetailRow key={t.id} label={t.label} date={t.date} note="Im Vertrag abgedeckter Aufwand" amount={`− ${formatCurrency(t.effort)}`} color="#EF4444" />
+                      ))}
+                      {d.orders.map((o: any) => (
+                        <DetailRow key={o.id} label={o.label} date={o.date} amount={`− ${formatCurrency(o.amount)}`} color="#EF4444" />
+                      ))}
+                    </>
+                  )}
+
+                  {/* Summe */}
+                  <View className="flex-row items-center justify-between mt-2 pt-2" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+                    <Text className="text-[11px] font-semibold text-foreground">
+                      {formatCurrency(r.revenue)} − {formatCurrency(r.costs)} =
+                    </Text>
+                    <Text className="text-[12px] font-bold" style={{ color: r.margin >= 0 ? "#22C55E" : "#EF4444" }}>
+                      {formatCurrency(r.margin)}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
-          ))}
+            );
+          })}
           {rows.length > 5 && (
             <TouchableOpacity
               className="items-center py-3 border-t border-border"
