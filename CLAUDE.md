@@ -1,20 +1,21 @@
-# Frontend Design Skill & Rules
+# Skill: Avantgarde & Editorial Web Agency Design
 
-This project enforces strict modern frontend design standards to completely avoid generic AI-generated layouts, repetitive card grids, and predictable color palettes (the "AI Slop" look).
+This project enforces high-end, award-winning agency aesthetics (Awwwards-style). It completely bans generic tech-SaaS styles and corporate AI patterns.
 
-## Core Design Philosophy
-- **Anti-AI Slop**: Never use purple/indigo gradients on white backgrounds, generic pastel cards with large border-radii, glowing neon accents, or repetitive 3-column feature grids.
-- **Asymmetry & Intent**: Break perfect symmetry. Use intentional white space, off-center alignments, and varied section heights.
-- **Typography First**: Treat typography as a core design element. Avoid using just "Inter" or "System-UI" for everything. Mix sharp/serif headers with clean sans-serif body text.
-- **Authentic Colors**: Use cohesive, real-world color palettes (e.g., earthy, brutalist, high-contrast, monochrome) instead of safe corporate-blue SaaS palettes.
+## Agency Design Blueprint
+- **Aesthetic**: Bold Editorial, Neo-Brutalist, or Swiss Minimalism. Sharp edges, heavy typography, and high contrast.
+- **Color Palette**: High-contrast monochrome (Deep Charcoal `#111111` and Off-White `#F9F6F0`) paired with *one* single, aggressive accent color (e.g., Electric Acid Lime, Cobalt Blue, or International Klein Blue). Completely ban pastel gradients.
+- **Typography**: Oversized, ultra-bold Serif or Display headings (e.g., Clarenton, Editorial New style) contrasted with tight, technical Mono or geometric Sans-Serif body text.
+- **Layout Rules**: 
+  - Massive whitespace (oversized padding).
+  - Broken grid system: elements overlap intentionally or align to unexpected screen edges.
+  - No card components. Use clean, full-width rows divided by razor-thin lines (`1px`) instead.
 
-## Required Process Before Coding
-Before generating or modifying any UI code, you MUST think step-by-step and write down a brief:
-1. **Design Statement**: What is the unique vibe, aesthetic, and mood of this specific interface?
-2. **Token System**: Define explicit Tailwind classes or CSS variables for typography (scales, weights), color palette (primary, background, accents), and spacing/gaps.
-3. **Layout Blueprint**: Describe how the layout breaks standard generic patterns (e.g., "Left-aligned oversized header with a 2-column off-grid content layout").
+## Strict Copywriting Rules (Anti-AI)
+- **Banned Words**: "Transform", "Empower", "Revolutionize", "Seamless", "Next-Gen", "Innovative", "Modern", "Beautiful".
+- **Tone**: Human, confident, slightly raw, and direct. Write copy as if a cynical but brilliant creative director wrote it.
 
-## Visual Guardrails
-- **Animations**: Limit entry animations to a maximum of 1-2 key elements. Never fade-in every single card or paragraph on scroll.
-- **Borders & Shadows**: Avoid soft, generic box-shadows on every element. Use either crisp, sharp borders, or completely flat surfaces.
-- **Copywriting**: Never use generic AI placeholder text like "Transform your workflow" or words like "modern, beautiful, professional". Write realistic, human, and contextual copy.
+## Execution Order
+Before rendering code, you must output:
+1. `[DESIGN DIRECTION]`: State the chosen visual concept (e.g., "Swiss Minimalist Layout with Acid Accent").
+2. `[TYPOGRAPHY & COLOR SYSTEM]`: List exact tailwind/CSS definitions.
