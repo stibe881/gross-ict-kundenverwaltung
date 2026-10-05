@@ -23,6 +23,31 @@
   --grad-ict: linear-gradient(135deg, #081831 0%, #0E3B6E 55%, #0B5392 100%);
 }
 
+/* Dynamisches Light-Theme für den ICT-Bereich (macht Support/Kontakt/Referenzen passend) */
+html.area-ict body {
+  --bg: var(--ict-bg);
+  --panel: #FFFFFF;
+  --panel-2: #FFFFFF;
+  --line: #E6EAF0;
+  --text: var(--ict-ink);
+  --muted: var(--ict-muted); --faint: var(--ict-muted);
+}
+/* Header anpassen, wenn er nicht transparent (overlay) über einem dunklen Hero liegt */
+html.area-ict .site-header:not(.overlay) {
+  background: #FFFFFF;
+  border-bottom: 1px solid #E6EAF0;
+}
+html.area-ict .site-footer { background: #FFFFFF; border-top-color: #D8DEE8; } html.area-ict .site-header:not(.overlay) .brand-logo, html.area-ict .site-footer .brand-logo {
+  filter: none;
+}
+html.area-ict .site-header:not(.overlay) .site-nav a {
+  color: #465060;
+}
+html.area-ict .site-header:not(.overlay) .site-nav a:hover,
+html.area-ict .site-header:not(.overlay) .site-nav a[aria-current="page"] {
+  color: var(--ict-ink);
+}
+
 * { box-sizing: border-box; }
 
 html { scroll-behavior: smooth; }
@@ -193,8 +218,8 @@ a:hover { color: var(--gold-light); text-decoration: underline; }
   display: inline-block;
   font-size: 12px;
   font-weight: 700;
-  color: #C8CBD4;
-  border: 1px solid #3A3B44;
+  color: var(--muted);
+  border: 1px solid var(--line);
   border-radius: 999px;
   padding: 6px 14px;
 }
@@ -211,46 +236,26 @@ a:hover { color: var(--gold-light); text-decoration: underline; }
 @media (max-width: 920px) {
   .ref-row { grid-template-columns: 1fr; gap: 28px; padding: 36px 0 42px; }
 }
-.szene { position: relative; height: 500px; border-radius: 12px; overflow: hidden; background: var(--panel-2); }
-@media (max-width: 640px) { .szene { height: 360px; } }
-.szene .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.szene .bg.blurred { filter: blur(20px) brightness(0.85); transform: scale(1.15); }
-.szene .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,12,16,0.05) 0%, rgba(10,12,16,0.3) 100%); pointer-events: none; }
-
-/* Realistischer Tisch */
-.desk {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 110px;
-  background-image: url('/img/umgebung/wood.webp');
-  background-size: cover;
-  background-position: center top;
-  border-top: 5px solid #4a3018; /* Tischkante */
-  box-shadow: inset 0 20px 50px rgba(0,0,0,0.65), 0 -15px 40px rgba(0,0,0,0.4);
-  z-index: 1;
+.szene {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border-radius: 12px;
+  background: transparent;
+  overflow: hidden;
+  box-shadow: 0 16px 32px rgba(0,0,0,0.1);
 }
-
-/* Realistischer Monitor auf dem Tisch */
-.mon { position: absolute; left: 50%; bottom: 65px; transform: translateX(-50%); width: min(520px, 88%); z-index: 2; filter: drop-shadow(0 25px 30px rgba(0,0,0,0.85)); }
-.mon .frame { background: #080808; border-radius: 12px; padding: 10px 10px 38px 10px; position: relative; box-shadow: inset 0 1px 2px rgba(255,255,255,0.15), inset 0 -1px 2px rgba(0,0,0,0.8); }
-.mon .frame img { display: block; width: 100%; border-radius: 4px; position: relative; z-index: 1; border: 1px solid #000; }
-/* Standfuss (Hals) */
-.mon .fuss { margin: 0 auto; width: 34px; height: 55px; background: linear-gradient(to right, #111, #444 50%, #111); position: relative; z-index: 0; margin-top: -10px; box-shadow: inset 0 5px 10px rgba(0,0,0,0.8); }
-/* Standfuss (Bodenplatte) */
-.mon .sockel { margin: 0 auto; width: 140px; height: 8px; border-radius: 4px 4px 0 0; background: linear-gradient(to right, #222, #666 50%, #222); box-shadow: 0 5px 15px rgba(0,0,0,0.9); border-top: 1px solid rgba(255,255,255,0.2); }
-
-@media (max-width: 640px) {
-  .desk { height: 80px; border-top: 3px solid #4a3018; }
-  .mon { width: min(340px, 85%); bottom: 45px; }
-  .mon .frame { padding: 6px 6px 24px 6px; border-radius: 8px; }
-  .mon .fuss { height: 35px; width: 22px; margin-top: -6px; }
-  .mon .sockel { width: 100px; height: 5px; }
+.szene .bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
 }
 
 .ref-kunde { margin: 0; }
 .ref-titel { font-family: "Anton", sans-serif; font-weight: 400; font-size: clamp(26px, 3.4vw, 40px); line-height: 1.05; letter-spacing: 0.5px; text-transform: uppercase; margin: 12px 0 0; }
 .ref-text { margin: 18px 0 0; font-size: 15px; line-height: 1.7; color: var(--muted); }
-.ref-link { display: inline-block; margin-top: 20px; font-size: 14.5px; font-weight: 800; color: #fff; text-decoration: underline; text-underline-offset: 4px; }
+.ref-link { display: inline-block; margin-top: 20px; font-size: 14.5px; font-weight: 800; color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
 .ref-link:hover { color: var(--gold); }
 .ref-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 22px; }
 
@@ -268,14 +273,20 @@ input[type="text"], input[type="email"], input[type="tel"], textarea, select {
 }
 textarea { resize: vertical; }
 input:focus, textarea:focus, select:focus { border-color: var(--gold); }
-.form-light label { color: var(--ict-muted); }
-.form-light input, .form-light textarea, .form-light select { background: #fff; border-color: #D8DEE8; color: var(--ict-ink); }
-.form-light input:focus, .form-light textarea:focus, .form-light select:focus { border-color: var(--blue); }
+.form-light label, html.area-ict .contact-card label { color: var(--ict-muted); }
+.form-light input, .form-light textarea, .form-light select,
+html.area-ict .contact-card input, html.area-ict .contact-card textarea, html.area-ict .contact-card select { 
+  background: #fff; border-color: #D8DEE8; color: var(--ict-ink); 
+}
+.form-light input:focus, .form-light textarea:focus, .form-light select:focus,
+html.area-ict .contact-card input:focus, html.area-ict .contact-card textarea:focus, html.area-ict .contact-card select:focus { 
+  border-color: var(--blue); outline-color: var(--blue);
+}
 
 /* Footer */
 .site-footer {
   margin-top: 84px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--line);
   background: var(--bg);
   padding: 36px 0 44px;
 }

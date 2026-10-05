@@ -117,14 +117,7 @@ export default function SettingsScreen() {
       color: "#8B5CF6",
       route: "/growth-settings",
     },
-    {
-      id: "website-referenzen",
-      title: "Website-Referenzen",
-      subtitle: "Referenzen auf gross-ict.ch pflegen",
-      icon: "globe",
-      color: "#C0188F",
-      route: "/website-referenzen",
-    },
+
     {
       id: "recurring-tickets",
       title: "Wartungsplan",
@@ -140,6 +133,25 @@ export default function SettingsScreen() {
       icon: "clock.fill",
       color: "#8B5CF6",
       route: "/activity-log",
+    },
+  ];
+
+  const websiteRows: SettingsRow[] = [
+    {
+      id: "website-referenzen",
+      title: "Website-Referenzen",
+      subtitle: "Referenzen auf gross-ict.ch pflegen",
+      icon: "globe",
+      color: "#C0188F",
+      route: "/website-referenzen",
+    },
+    {
+      id: "website-partner",
+      title: "Partner",
+      subtitle: "Partner-Logos für den Footer verwalten",
+      icon: "building.2.fill",
+      color: "#10B981",
+      route: "/website-partner",
     },
   ];
 
@@ -342,6 +354,9 @@ export default function SettingsScreen() {
 
             {/* Nur Admins sehen und verwalten die Administration */}
             {isAdmin && renderSection("Administration", adminRows)}
+
+            {/* Webseite verwalten */}
+            {isAdmin && renderSection("Webseite", websiteRows)}
 
             {/* App-Update direkt in den Einstellungen (nur Admins) */}
             {isAdmin && (

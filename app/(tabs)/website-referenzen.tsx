@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { ScrollView, Text, View, TouchableOpacity, TextInput, ActivityIndicator, Switch } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -10,7 +10,7 @@ import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
 
-const EMPTY = {
+const EMPTY = { branche: "",
   name: "",
   titel: "",
   beschreibung: "",
@@ -49,11 +49,11 @@ export default function WebsiteReferenzenScreen() {
     setEditingId(r.id);
     setForm({
       name: r.name,
-      titel: r.titel,
+      titel: r.titel, branche: (r.tags || []).find(t => t.startsWith("Branche:"))?.replace("Branche:", "").trim() || "",
       beschreibung: r.beschreibung || "",
       url: r.url || "",
       url_label: r.url_label || "",
-      tags: (r.tags || []).join(", "),
+      tags: (r.tags || []).filter(t => !t.startsWith("Branche:")).join(", "), 
       bild_url: r.bild_url || "",
       umgebung_bild_url: r.umgebung_bild_url || "",
       sort_order: String(r.sort_order ?? 0),
@@ -62,8 +62,8 @@ export default function WebsiteReferenzenScreen() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.titel.trim()) {
-      showAlert("Fehler", "Bitte mindestens Kundenname und Projekttitel angeben.");
+    if (!form.name.trim() || !form.titel.trim() || !form.branche.trim()) {
+      showAlert("Fehler", "Bitte mindestens Kundenname, Projekttitel und Branche angeben.");
       return;
     }
     setSaving(true);
@@ -74,7 +74,7 @@ export default function WebsiteReferenzenScreen() {
         beschreibung: form.beschreibung.trim() || null,
         url: form.url.trim() || null,
         url_label: form.url_label.trim() || form.url.trim().replace(/^https?:\/\//, "").replace(/\/$/, "") || null,
-        tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
+        tags: [("Branche:" + form.branche.trim()), ...form.tags.split(",").map((t) => t.trim()).filter(Boolean)],
         bild_url: form.bild_url.trim() || null,
         umgebung_bild_url: form.umgebung_bild_url.trim() || null,
         sort_order: Number(form.sort_order) || 0,
@@ -170,11 +170,11 @@ export default function WebsiteReferenzenScreen() {
             {input("Kundenname *", "name", { placeholder: "z.B. MUSTER AG", autoCapitalize: "characters" })}
             {input("Projekttitel *", "titel", { placeholder: "z.B. Unternehmenswebseite" })}
             {input("Beschreibung", "beschreibung", { placeholder: "1–2 Sätze zum Projekt", multiline: true, numberOfLines: 3 })}
-            {input("Webseite (URL)", "url", { placeholder: "https://…", autoCapitalize: "none", keyboardType: "url" })}
+            {input("Branche *", "branche", { placeholder: "z.B. IT, Handwerk, Medizin" })} {input("Webseite (URL)", "url", { placeholder: "https://…", autoCapitalize: "none", keyboardType: "url" })}
             {input("Link-Anzeigetext", "url_label", { placeholder: "leer = aus URL abgeleitet", autoCapitalize: "none" })}
             {input("Tags (mit Komma getrennt)", "tags", { placeholder: "Webdesign, Frontend" })}
             {input("Screenshot-Bild (URL oder /img/…)", "bild_url", { placeholder: "/img/referenzen/kunde.webp", autoCapitalize: "none" })}
-            {input("Umgebungs-Bild (leer = Screenshot unscharf)", "umgebung_bild_url", { placeholder: "/img/umgebung/buero.webp", autoCapitalize: "none" })}
+
             {input("Sortierung (klein = weiter oben)", "sort_order", { keyboardType: "number-pad" })}
             <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
               <TouchableOpacity
@@ -246,3 +246,4 @@ export default function WebsiteReferenzenScreen() {
     </ScreenContainer>
   );
 }
+

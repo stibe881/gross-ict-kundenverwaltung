@@ -19,6 +19,22 @@ const {
   overlayHeader = false,
 } = Astro.props;
 const headerClass = ["site-header", theme === "light" ? "light" : "", overlayHeader ? "overlay" : ""].filter(Boolean).join(" ");
+
+let partners = [];
+try {
+  const res = await fetch('https://bvluvvyvftygnxtmboxw.supabase.co/rest/v1/marketing_settings?key=eq.website_partners&select=value', {
+    headers: {
+      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHV2dnl2ZnR5Z254dG1ib3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyMzU1NTQsImV4cCI6MjA4NTgxMTU1NH0.sw1wb1pLj9Ne-ZoGbQcR6mA5yDHe2PZbImEzt76lP-o',
+      'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHV2dnl2ZnR5Z254dG1ib3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyMzU1NTQsImV4cCI6MjA4NTgxMTU1NH0.sw1wb1pLj9Ne-ZoGbQcR6mA5yDHe2PZbImEzt76lP-o'
+    }
+  });
+  const data = await res.json();
+  if (data && data[0] && data[0].value) {
+    partners = JSON.parse(data[0].value);
+  }
+} catch(e) {
+  console.error(e);
+}
 ---
 <!doctype html>
 <html lang="de">
@@ -43,6 +59,8 @@ const headerClass = ["site-header", theme === "light" ? "light" : "", overlayHea
       
       sessionStorage.setItem('area', area);
       document.documentElement.classList.add('area-' + area);
+        const targetUrl = area === 'ict' ? '/ict-services' : '/webdesign';
+        document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('a.dynamic-logo-link').forEach(link => link.href = targetUrl));
     </script>
     <style>
       html.area-webdesign #nav-webdesign { display: none !important; }
@@ -51,6 +69,49 @@ const headerClass = ["site-header", theme === "light" ? "light" : "", overlayHea
       html.area-ict #nav-ict { display: none !important; }
       html.area-ict #nav-ref-webdesign { display: none !important; }
       html.area-ict #nav-rechner { display: none !important; }
+
+      .partners-marquee {
+        overflow: hidden;
+        white-space: nowrap;
+        background: #F4F7FC; /* Heller Hintergrund für ICT/Default */
+        padding: 40px 0;
+        display: flex;
+      }
+      .partners-track {
+        display: flex;
+        gap: 80px;
+        align-items: center;
+        animation: scroll-partners 30s linear infinite;
+        padding-left: 80px; /* Offset to prevent jump */
+      }
+      .partners-track img {
+        height: 45px;
+        object-fit: contain;
+        filter: grayscale(100%) opacity(0.5);
+        transition: all 0.3s;
+      }
+      .partners-track img:hover {
+        filter: grayscale(0%) opacity(1);
+      }
+      @keyframes scroll-partners {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+      
+      /* Anpassung für dunkle Themes / Webdesign Bereich */
+      html.area-webdesign .partners-marquee, 
+      :root[data-theme="overlay"] .partners-marquee { 
+        background: var(--bg); 
+        border-top: 1px solid var(--line);
+      }
+      html.area-webdesign .partners-track img,
+      :root[data-theme="overlay"] .partners-track img { 
+        filter: grayscale(100%) brightness(2) opacity(0.4); 
+      }
+      html.area-webdesign .partners-track img:hover,
+      :root[data-theme="overlay"] .partners-track img:hover { 
+        filter: grayscale(0%) brightness(1) opacity(1); 
+      }
     </style>
   </head>
   <body>
@@ -58,7 +119,7 @@ const headerClass = ["site-header", theme === "light" ? "light" : "", overlayHea
     {!noChrome && (
       <header class={headerClass}>
         <div class="inner">
-          <a href="/" aria-label="Zur Startseite">
+          <a href="/" class="dynamic-logo-link" aria-label="Zur Startseite">
             <img class="brand-logo" src="/assets/logo.webp" alt="Gross ICT" />
           </a>
           <nav class="site-nav" aria-label="Hauptnavigation">
@@ -77,11 +138,21 @@ const headerClass = ["site-header", theme === "light" ? "light" : "", overlayHea
     <main id="main">
       <slot />
     </main>
+
+    {!noChrome && partners.length > 0 && (
+      <div class="partners-marquee">
+        <div class="partners-track">
+          {partners.map(p => <img src={p.logoUrl} alt={p.name} title={p.name} />)}
+          {partners.map(p => <img src={p.logoUrl} alt={p.name} title={p.name} aria-hidden="true" />)}
+        </div>
+      </div>
+    )}
+
     {!noChrome && (
       <footer class="site-footer">
         <div class="container inner">
           <div>
-            <a href="/" aria-label="Zur Startseite"><img class="brand-logo" src="/assets/logo.webp" alt="Gross ICT" /></a>
+            <a href="/" class="dynamic-logo-link" aria-label="Zur Startseite"><img class="brand-logo" src="/assets/logo.webp" alt="Gross ICT" /></a>
             <p class="fine" style="margin-top: 10px">Web- &amp; Appdesign und ICT Services für die Zentralschweiz</p>
             <p class="fine" style="margin-top: 4px">Neuhushof 3, 6144 Zell · <a href="tel:+41415623416">+41 41 562 34 16</a> · <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a></p>
           </div>

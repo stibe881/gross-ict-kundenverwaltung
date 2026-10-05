@@ -1,4 +1,4 @@
----
+﻿---
 import Base from "../layouts/Base.astro";
 ---
 <Base
@@ -31,21 +31,80 @@ import Base from "../layouts/Base.astro";
         <fieldset class="group card" id="grp-type">
           <legend class="step-title"><span>02</span> Was brauchen Sie?</legend>
           <div class="choices" role="radiogroup" aria-label="Webseitentyp">
-            <label class="choice"><input type="radio" name="wtype" value="1500" checked> <span class="t">Landing Page</span> <span class="d">1–3 Seiten · CHF 1'500</span></label>
-            <label class="choice"><input type="radio" name="wtype" value="3500"> <span class="t">Unternehmenswebseite</span> <span class="d">5–15 Seiten · CHF 3'500</span></label>
-            <label class="choice"><input type="radio" name="wtype" value="8000"> <span class="t">Web-Applikation</span> <span class="d">individuell · ab CHF 8'000</span></label>
-            <label class="choice"><input type="radio" name="wtype" value="12000"> <span class="t">E-Commerce / Webshop</span> <span class="d">CHF 12'000</span></label>
+            <label class="choice"><input type="radio" name="wtype" value="1500" checked>
+              <span class="t">Landing Page</span>
+              <span class="d">1-3 Seiten · CHF 1'500</span>
+              <ul class="c-feat">
+                <li>Perfekt für Kampagnen &amp; Start-ups</li>
+                <li>Fokus auf Conversion &amp; Leads</li>
+                <li>Kontakt- &amp; Anfrage-Formular</li>
+              </ul>
+            </label>
+            <label class="choice"><input type="radio" name="wtype" value="3500">
+              <span class="t">Unternehmenswebseite</span>
+              <span class="d">5-15 Seiten · CHF 3'500</span>
+              <ul class="c-feat">
+                <li>Professioneller Web-Auftritt</li>
+                <li>Dienstleistungen, Team &amp; Referenzen</li>
+                <li>Vollständiges Content Management</li>
+              </ul>
+            </label>
+            <label class="choice"><input type="radio" name="wtype" value="8000">
+              <span class="t">Web-Applikation</span>
+              <span class="d">individuell · ab CHF 8'000</span>
+              <ul class="c-feat">
+                <li>Massgeschneiderte Portal-Lösungen</li>
+                <li>Benutzer-Logins &amp; Dashboards</li>
+                <li>Komplexe Datenbank-Anbindungen</li>
+              </ul>
+            </label>
+            <label class="choice"><input type="radio" name="wtype" value="12000">
+              <span class="t">E-Commerce / Webshop</span>
+              <span class="d">CHF 12'000</span>
+              <ul class="c-feat">
+                <li>Leistungsstarker Online-Shop</li>
+                <li>Zahlungsmittel (Twint, Kreditkarte)</li>
+                <li>Bestell- &amp; Lagerverwaltung</li>
+              </ul>
+            </label>
           </div>
         </fieldset>
 
         <fieldset class="group card" id="grp-wedding" hidden>
-          <legend class="step-title"><span>02</span> Welches Hochzeitspaket?</legend>
-          <div class="choices" role="radiogroup" aria-label="Hochzeitspaket">
-            <label class="choice"><input type="radio" name="wpaket" value="500" checked> <span class="t">«Save the Date»</span> <span class="d">Basic · CHF 500</span></label>
-            <label class="choice"><input type="radio" name="wpaket" value="950"> <span class="t">«Der grosse Tag»</span> <span class="d">Premium · CHF 950</span></label>
-            <label class="choice"><input type="radio" name="wpaket" value="1500"> <span class="t">«Für die Ewigkeit»</span> <span class="d">Deluxe · CHF 1'500</span></label>
-          </div>
-        </fieldset>
+            <legend class="step-title"><span>02</span> Welches Hochzeitspaket?</legend>
+            <div class="choices" role="radiogroup" aria-label="Hochzeitspaket">
+              <label class="choice"><input type="radio" name="wpaket" value="500" checked>
+                <span class="t">�Save the Date�</span>
+                <span class="d">Basic � CHF 500</span>
+                <ul class="c-feat">
+                  <li>Einseiter (One-Pager)</li>
+                  <li>Countdown zum Fest</li>
+                  <li>Hochzeitsdatum &amp; Ort</li>
+                  <li>Einfaches RSVP-Formular</li>
+                </ul>
+              </label>
+              <label class="choice"><input type="radio" name="wpaket" value="950">
+                <span class="t">�Der grosse Tag�</span>
+                <span class="d">Premium � CHF 950</span>
+                <ul class="c-feat">
+                  <li>Mehrseitige Webseite</li>
+                  <li>Erweitertes RSVP (Men�wahl, etc.)</li>
+                  <li>Ablaufplan &amp; Tagesprogramm</li>
+                  <li>Anreise &amp; �bernachtungstipps</li>
+                </ul>
+              </label>
+              <label class="choice"><input type="radio" name="wpaket" value="1500">
+                <span class="t">�F�r die Ewigkeit�</span>
+                <span class="d">Deluxe � CHF 1'500</span>
+                <ul class="c-feat">
+                  <li>Alles aus dem Premium-Paket</li>
+                  <li>G�stebuch-Funktion</li>
+                  <li>E-Mail Auto-Responder</li>
+                  <li>Fotogalerie-Upload f�r G�ste</li>
+                </ul>
+              </label>
+            </div>
+          </fieldset>
 
         <fieldset class="group card">
           <legend class="step-title"><span>03</span> Sprachen</legend>
@@ -87,17 +146,60 @@ import Base from "../layouts/Base.astro";
         <fieldset class="group card">
           <legend class="step-title"><span>05</span> Hosting</legend>
           <div class="choices" role="radiogroup" aria-label="Hosting">
-            <label class="choice"><input type="radio" name="hosting" value="0"> <span class="t">Kein Hosting</span> <span class="d">Sie hosten selbst</span></label>
-            <label class="choice"><input type="radio" name="hosting" value="189" checked> <span class="t">Hosting bei Gross ICT</span> <span class="d">CHF 189/Jahr · Schweizer Server</span></label>
+            <label class="choice"><input type="radio" name="hosting" value="0">
+              <span class="t">Kein Hosting</span>
+              <span class="d">Sie hosten selbst</span>
+              <ul class="c-feat">
+                <li>Eigenes Hosting-Setup</li>
+                <li>Selbständige Domain-Verwaltung</li>
+                <li>Kein Infrastruktur-Support</li>
+              </ul>
+            </label>
+            <label class="choice"><input type="radio" name="hosting" value="189" checked>
+              <span class="t">Hosting bei Gross ICT</span>
+              <span class="d">CHF 189/Jahr · Schweizer Server</span>
+              <ul class="c-feat">
+                <li>Premium Schweizer Server (100% SSD)</li>
+                <li>Kostenloses SSL-Zertifikat</li>
+                <li>Automatische Backups inklusive</li>
+                <li>E-Mail Accounts inklusive</li>
+              </ul>
+            </label>
           </div>
         </fieldset>
 
         <fieldset class="group card">
           <legend class="step-title"><span>06</span> Wartung &amp; Betreuung</legend>
           <div class="choices" role="radiogroup" aria-label="Wartungsvertrag">
-            <label class="choice"><input type="radio" name="care" value="0" checked> <span class="t">Keine Wartung</span> <span class="d">CHF 0/Monat</span></label>
-            <label class="choice"><input type="radio" name="care" value="49"> <span class="t">Basic</span> <span class="d">CHF 49/Monat</span></label>
-            <label class="choice"><input type="radio" name="care" value="210"> <span class="t">Pro</span> <span class="d">CHF 210/Monat</span></label>
+            <label class="choice"><input type="radio" name="care" value="0" checked>
+              <span class="t">Keine Wartung</span>
+              <span class="d">CHF 0/Monat</span>
+              <ul class="c-feat">
+                <li>Updates auf eigene Gefahr</li>
+                <li>Support nach Aufwand</li>
+                <li>Sicherheitsrisiko beim Kunden</li>
+              </ul>
+            </label>
+            <label class="choice"><input type="radio" name="care" value="49">
+              <span class="t">Basic</span>
+              <span class="d">CHF 49/Monat</span>
+              <ul class="c-feat">
+                <li>Monatliche System-Updates</li>
+                <li>Sicherheits-Monitoring</li>
+                <li>Tägliche Backups</li>
+                <li>E-Mail-Support</li>
+              </ul>
+            </label>
+            <label class="choice"><input type="radio" name="care" value="210">
+              <span class="t">Pro</span>
+              <span class="d">CHF 210/Monat</span>
+              <ul class="c-feat">
+                <li>Wöchentliche Updates &amp; Checks</li>
+                <li>Uptime-Monitoring 24/7</li>
+                <li>Priorisierter Telefon-Support</li>
+                <li>Inkl. 2h Content-Anpassungen</li>
+              </ul>
+            </label>
           </div>
         </fieldset>
       </div>
@@ -179,38 +281,22 @@ import Base from "../layouts/Base.astro";
   .choice:has(input:focus-visible) { outline: 3px solid var(--gold); outline-offset: 2px; }
   .choice input { position: absolute; opacity: 0; }
   .choice .t { font-weight: 700; }
-  .choice .d { font-size: 12.5px; color: var(--muted); }
+  .c-feat { margin: 8px 0 0 16px; padding: 0; font-size: 13px; color: var(--muted); line-height: 1.6; font-weight: 400; } .c-feat li { margin-bottom: 4px; } .choice .d { font-size: 12.5px; color: var(--muted); }
 
-  .extras { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-top: 12px; }
+  .extras { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-top: 12px; }
   @media (max-width: 640px) { .extras { grid-template-columns: 1fr; } }
   .extra {
-    display: flex; align-items: center; gap: 10px;
-    font-size: 14px; font-weight: 500; color: var(--text);
-    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
-    padding: 11px 13px; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 14.5px; font-weight: 600; color: var(--text);
+    background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; cursor: pointer; transition: all 0.2s;
   }
-  .extra:has(input:checked) { border-color: var(--gold); background: rgba(217, 169, 106, 0.1); }
-  .extra input {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    border: 1.5px solid var(--faint);
-    border-radius: 4px;
-    margin: 0;
-    cursor: pointer;
-    background-color: transparent;
-    transition: all 0.2s;
-  }
-  .extra input:checked {
-    background-color: var(--gold);
-    border-color: var(--gold);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3 7.5L5.5 10L11 4' stroke='%23221A0E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-position: center;
-    background-size: 100%;
-    background-repeat: no-repeat;
-  }
-  .extra span { margin-left: auto; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .extra:hover { border-color: var(--faint); transform: translateY(-2px); }
+  .extra:has(input:checked) { border-color: var(--gold); background: rgba(229, 169, 61, 0.08); box-shadow: 0 4px 14px rgba(229, 169, 61, 0.1); }
+  .extra:has(input:focus-visible) { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .extra input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+  .extra span { font-size: 13px; color: var(--muted); font-weight: 500; white-space: nowrap; transition: color 0.2s; }
+  .extra:has(input:checked) span { color: var(--gold); }
 
   .calc-summary { position: sticky; top: 20px; }
   .summary-card {
@@ -341,3 +427,7 @@ import Base from "../layouts/Base.astro";
     }
   });
 </script>
+
+
+
+

@@ -1,23 +1,138 @@
 ---
 import Base from "../layouts/Base.astro";
-import ContactForm from "../components/ContactForm.astro";
 ---
 <Base
-  title="Kontakt — Gross ICT | IT-Support & Web-Agentur in Zell LU"
+  title="Kontakt - Gross ICT | IT-Support & Web-Agentur in Zell LU"
   description="Nehmen Sie Kontakt mit Gross ICT auf. Wir beraten Sie gerne unverbindlich zu Webdesign, App-Entwicklung und ICT Services."
   active="kontakt"
 >
+  <style>
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start; }
+    @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; gap: 40px; } }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+    .hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    /* Label (13px * 1.65 Zeilenhoehe + 5px Abstand): Kacheln beginnen auf Hoehe der Oberkante des ersten Feldes */
+    .cards-col { display: flex; flex-direction: column; gap: 24px; margin-top: 26px; }
+    .ccard { background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: flex; flex-direction: row; align-items: center; gap: 16px; text-align: left; text-decoration: none; box-shadow: 0 4px 24px rgba(0,0,0,0.1); transition: all 0.2s; }
+    .ccard:hover { border-color: var(--gold); transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.15); }
+    .ccard .icon { width: 56px; height: 56px; flex: none; border-radius: 50%; background: var(--bg); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--gold); }
+    .ccard p.label { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin: 0; }
+    .ccard p.val { font-size: 18px; font-weight: 700; color: var(--text); margin: 0; }
+  </style>
+
   <div class="page-header" style="padding: 120px 24px 60px; max-width: 1240px; margin: 0 auto;">
     <p class="mono">Kontakt</p>
-    <h1 class="anton anton-title" style="margin-top: 14px">Schreiben Sie uns</h1>
+    <h1 class="anton anton-title" style="margin-top: 14px">Schreiben<br/><span style="color: var(--gold); font-style: italic;">Sie uns.</span></h1>
     <p style="color: var(--muted); font-size: 18px; margin-top: 16px; max-width: 600px;">
-      Egal ob neues Webprojekt, IT-Notfall oder einfach eine unverbindliche Beratung — wir sind für Sie da.
+      Egal ob neues Webprojekt, IT-Notfall oder einfach eine unverbindliche Beratung - wir sind für Sie da.
     </p>
   </div>
 
   <section class="section" style="padding-top: 0;">
     <div class="container">
-      <ContactForm />
+      <div class="two-col">
+        <div>
+          <h2 class="anton" style="font-size: 32px; margin-bottom: 16px; letter-spacing: 0.5px;">Projekt anfragen</h2>
+          <p style="color: var(--muted); font-size: 16px; margin-bottom: 24px;">Erzählen Sie uns kurz, was Sie vorhaben - Sie erhalten innert eines Arbeitstags eine persönliche Antwort von Stefan Gross.</p>
+
+          <form id="contact-form">
+            <div class="form-grid">
+              <div>
+                <label for="c-name">Name *</label>
+                <input id="c-name" type="text" name="name" required autocomplete="name" />
+              </div>
+              <div>
+                <label for="c-email">E-Mail *</label>
+                <input id="c-email" type="email" name="email" required autocomplete="email" />
+              </div>
+            </div>
+            <div class="form-grid">
+              <div>
+                <label for="c-phone">Telefon</label>
+                <input id="c-phone" type="tel" name="phone" autocomplete="tel" />
+              </div>
+              <div>
+                <label for="c-company">Firma</label>
+                <input id="c-company" type="text" name="company" autocomplete="organization" />
+              </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+              <label for="c-msg">Ihr Vorhaben</label>
+              <textarea id="c-msg" name="message" rows="4"></textarea>
+            </div>
+            <div class="hp-field" aria-hidden="true">
+              <label for="c-web">Website</label>
+              <input id="c-web" name="website" type="text" tabindex="-1" autocomplete="off" />
+            </div>
+            <div style="display: flex; gap: 12px; align-items: flex-start; margin-bottom: 24px;">
+              <input type="checkbox" id="dsgvo" required style="margin-top: 4px; width: 16px; height: 16px; accent-color: var(--gold);" />
+              <label for="dsgvo" style="font-size: 13.5px; color: var(--muted); font-weight: 400; line-height: 1.5; margin: 0;">Ich habe die <a href="/datenschutz" style="text-decoration: underline; color: var(--text);">Datenschutzerklärung</a> gelesen und bin einverstanden.</label>
+            </div>
+            <button type="submit" class="btn" style="background: var(--gold); color: #2C2621; width: 100%;">Anfrage senden</button>
+            <p id="contact-status" role="status" aria-live="polite" style="margin-top: 12px; font-weight: 600; font-size: 14px; display: none;"></p>
+          </form>
+        </div>
+
+        <div class="cards-col">
+          <a href="tel:+41415623416" class="ccard">
+            <div class="icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            </div>
+            <div>
+              <p class="label">Telefon</p>
+              <p class="val">+41 41 562 34 16</p>
+            </div>
+          </a>
+          <a href="mailto:info@gross-ict.ch" class="ccard">
+            <div class="icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            </div>
+            <div>
+              <p class="label">E-Mail</p>
+              <p class="val">info@gross-ict.ch</p>
+            </div>
+          </a>
+          <a href="https://maps.google.com/?q=Neuhushof+3,+6144+Zell" target="_blank" rel="noopener" class="ccard">
+            <div class="icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            </div>
+            <div>
+              <p class="label">Standort</p>
+              <p class="val">Neuhushof 3, 6144 Zell</p>
+            </div>
+          </a>
+        </div>
+      </div>
     </div>
   </section>
+
+  <script>
+    const form = document.getElementById('contact-form') as HTMLFormElement | null;
+    const status = document.getElementById('contact-status');
+    if (form && status) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        status.style.display = 'block';
+        status.style.color = 'var(--muted)';
+        status.textContent = 'Wird gesendet...';
+        const data = Object.fromEntries(new FormData(form).entries());
+        try {
+          const res = await fetch("https://bvluvvyvftygnxtmboxw.supabase.co/functions/v1/contact-form", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          const out = await res.json().catch(() => ({}));
+          if (!res.ok || (out as any).error) throw new Error();
+          status.style.color = '#4ADE80';
+          status.textContent = 'Vielen Dank! Wir melden uns innert eines Arbeitstags.';
+          form.reset();
+        } catch {
+          status.style.color = '#F87171';
+          status.textContent = 'Senden fehlgeschlagen - rufen Sie uns gerne an: +41 41 562 34 16.';
+        }
+      });
+    }
+  </script>
 </Base>

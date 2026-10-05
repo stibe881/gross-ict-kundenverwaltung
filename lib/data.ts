@@ -4352,6 +4352,25 @@ export async function setMarketingSetting(key: string, value: string) {
     if (error) throw new Error(error.message);
 }
 
+export interface WebsitePartner {
+    id: string;
+    name: string;
+    logoUrl: string;
+}
+
+export async function getWebsitePartners(): Promise<WebsitePartner[]> {
+    const settings = await getMarketingSettings();
+    try {
+        return JSON.parse(settings["website_partners"] || "[]");
+    } catch (e) {
+        return [];
+    }
+}
+
+export async function setWebsitePartners(partners: WebsitePartner[]) {
+    await setMarketingSetting("website_partners", JSON.stringify(partners));
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── ACCOUNTING BUDGET ────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════

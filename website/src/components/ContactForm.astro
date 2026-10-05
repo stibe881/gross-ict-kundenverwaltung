@@ -72,18 +72,18 @@ const uid = theme;
     border: 1px solid var(--line);
     border-radius: 16px;
   }
-  .contact-card.light {
+  .contact-card.light, html.area-ict .contact-card {
     background: #FFFFFF;
     border-color: #E6EAF0;
     box-shadow: 0 22px 44px rgba(16,42,80,0.1);
     color: var(--ict-ink);
   }
-  .contact-card.light .section-title { color: var(--ict-ink); }
+  .contact-card.light .section-title, html.area-ict .contact-card .section-title { color: var(--ict-ink); }
   @media (max-width: 860px) {
     .contact-card { grid-template-columns: 1fr; padding: 28px; }
   }
   .intro { color: var(--muted); font-size: 15px; max-width: 420px; margin-top: 8px; }
-  .intro.on-light { color: var(--ict-muted); }
+  .intro.on-light, html.area-ict .intro { color: var(--ict-muted); }
   .contact-address {
     font-style: normal;
     margin-top: 18px;
@@ -97,10 +97,10 @@ const uid = theme;
   .form-status { margin-top: 10px; font-size: 14px; font-weight: 600; min-height: 20px; }
   .form-status.ok { color: #4ADE80; }
   .form-status.err { color: #F87171; }
-  .contact-card.light .form-status.ok { color: #2E6B3F; }
-  .contact-card.light .form-status.err { color: #A33A2A; }
+  .contact-card.light .form-status.ok, html.area-ict .contact-card .form-status.ok { color: #2E6B3F; }
+  .contact-card.light .form-status.err, html.area-ict .contact-card .form-status.err { color: #A33A2A; }
   .form-fine { font-size: 11.5px; margin-top: 8px; color: var(--faint); }
-  .contact-card.light .form-fine { color: var(--ict-muted); }
+  .contact-card.light .form-fine, html.area-ict .contact-card .form-fine { color: var(--ict-muted); }
 </style>
 
 <script>

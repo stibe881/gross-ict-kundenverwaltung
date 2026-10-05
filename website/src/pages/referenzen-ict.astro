@@ -20,6 +20,7 @@ const referenzen = [
   title="ICT Referenzen — Gross ICT"
   description="Entdecken Sie unsere bisherigen ICT und Support Projekte."
   active="ict"
+  theme="light"
 >
   <div class="page-header" style="padding: 120px 24px 60px; max-width: 1240px; margin: 0 auto;">
     <p class="mono">Portfolio</p>
@@ -34,13 +35,7 @@ const referenzen = [
       {referenzen.map((r) => (
         <div class="ref-row" data-reveal>
           <div class="szene">
-            <img class={`bg ${r.env ? "" : "blurred"}`} src={r.env ?? r.shot} alt="" loading="lazy" />
-            <div class="shade"></div>
-            <div class="mon">
-              <div class="frame"><img src={r.shot} alt={r.alt} loading="lazy" /></div>
-              <div class="fuss"></div>
-              <div class="sockel"></div>
-            </div>
+            <img class="bg" src={r.shot} alt={r.alt} loading="lazy" />
           </div>
           <div>
             <p class="mono ref-kunde" style="font-size: 12.5px; letter-spacing: 2.5px">{r.kunde}</p>

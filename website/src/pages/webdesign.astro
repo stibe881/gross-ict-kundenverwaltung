@@ -104,13 +104,7 @@ const referenzen = [
       {referenzen.slice(0, 3).map((r) => (
         <div class="ref-row" data-reveal>
           <div class="szene">
-            <img class="bg blurred" src={r.env ?? r.shot} alt="" loading="lazy" />
-            <div class="desk"></div>
-            <div class="mon">
-              <div class="frame"><img src={r.shot} alt={r.alt} loading="lazy" /></div>
-              <div class="fuss"></div>
-              <div class="sockel"></div>
-            </div>
+            <img class="bg" src={r.shot} alt={r.alt} loading="lazy" />
           </div>
           <div>
             <p class="mono ref-kunde" style="font-size: 12.5px; letter-spacing: 2.5px">{r.kunde}</p>
