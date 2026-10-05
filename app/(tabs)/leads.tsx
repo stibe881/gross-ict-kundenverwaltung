@@ -1031,6 +1031,7 @@ export default function LeadsScreen() {
         }}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leadDetail"] });
         }}
       />
 
@@ -1064,6 +1065,7 @@ export default function LeadsScreen() {
           onClose={() => {
             setSelectedLead(null);
             queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leadDetail"] });
           }}
           onEdit={() => {
             setEditingLead(selectedLead);
@@ -1182,6 +1184,7 @@ function ConvertLeadModal({
       }
 
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leadDetail"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       if (shouldCreateQuote) {
         queryClient.invalidateQueries({ queryKey: ["quotes"] });
@@ -1284,7 +1287,7 @@ function ConvertLeadModal({
 
 
 function LeadDetailsModal({
-  lead,
+  lead: leadProp,
   onClose,
   onEdit,
   onConvert,
@@ -1297,6 +1300,16 @@ function LeadDetailsModal({
   const colors = useColors();
   const router = useRouter();
   const queryClient = useQueryClient();
+
+  // Immer den frischen Stand aus der Datenbank anzeigen — Änderungen
+  // (Notizen aus Website-Check, Verlustgrund, Priorität, ...) erscheinen
+  // so sofort, ohne das Fenster neu öffnen zu müssen.
+  const { data: freshLead } = useQuery({
+    queryKey: ["leadDetail", leadProp.id],
+    queryFn: () => Data.getLeadById(leadProp.id),
+    initialData: leadProp,
+  });
+  const lead = freshLead || leadProp;
   const [newActivity, setNewActivity] = useState("");
   const [currentUserName, setCurrentUserName] = useState("Admin");
   const [currentStatus, setCurrentStatus] = useState(lead.status);
@@ -1485,6 +1498,7 @@ function LeadDetailsModal({
       });
       refetchActivities();
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leadDetail"] });
       setAiDraft(null);
       showAlert("Gespeichert", "Der Gesprächseinstieg steht jetzt in den Notizen des Leads — auch im Anruf-Modus sichtbar.");
     } catch (e: any) {
@@ -1501,6 +1515,7 @@ function LeadDetailsModal({
         try {
           const quote = await Data.createQuoteFromLead(lead);
           queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leadDetail"] });
           queryClient.invalidateQueries({ queryKey: ["quotes"] });
           queryClient.invalidateQueries({ queryKey: ["customers"] });
           onClose();
@@ -1533,6 +1548,7 @@ function LeadDetailsModal({
       });
       refetchActivities();
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leadDetail"] });
     } catch (e: any) {
       showAlert("Fehler", e.message);
     }
@@ -1577,6 +1593,7 @@ function LeadDetailsModal({
       });
       refetchActivities();
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leadDetail"] });
       setWebCheck(null);
       showAlert("Übernommen", "Die Analyse wurde in den Notizen gespeichert.");
     } catch (e: any) {
@@ -1650,6 +1667,7 @@ function LeadDetailsModal({
       }
       refetchActivities();
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leadDetail"] });
     },
   });
 
@@ -2071,6 +2089,7 @@ function LeadDetailsModal({
                           await Data.updateLead(lead.id, { quote_id: null });
                           setLinkedQuoteId(null);
                           queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leadDetail"] });
                         }}
                       >
                         <Text className="text-xs font-semibold text-error">Entfernen</Text>
@@ -2099,6 +2118,7 @@ function LeadDetailsModal({
                                   });
                                   refetchActivities();
                                   queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leadDetail"] });
                                 }}
                               >
                                 <Text className="text-sm font-semibold text-foreground">{q.quote_number}</Text>
@@ -2771,6 +2791,7 @@ function CallModeModal({ visible, onClose, colors }: { visible: boolean; onClose
         user_name: "Anruf-Modus",
       });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leadDetail"] });
       queryClient.invalidateQueries({ queryKey: ["weeklyContacts"] });
       setDone(done + 1);
       setIndex(index + 1);

@@ -2719,6 +2719,16 @@ export async function getLeads() {
     return data || [];
 }
 
+export async function getLeadById(id: string) {
+    const { data, error } = await supabase
+        .from("leads")
+        .select("*, lead_reminders(*)")
+        .eq("id", id)
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
 export async function createLead(lead: {
     name: string;
     company?: string;
