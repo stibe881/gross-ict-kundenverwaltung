@@ -152,3 +152,16 @@ export async function initializePushNotifications(): Promise<void> {
     await getPushToken();
   }
 }
+
+/**
+ * Setzt die Zahl auf dem App-Icon (iOS-Badge; auf Android je nach Launcher).
+ * count = 0 entfernt den Badge. Web und Expo Go werden übersprungen.
+ */
+export async function setAppBadge(count: number): Promise<void> {
+  if (Platform.OS === "web" || isExpoGo) return;
+  try {
+    await Notifications.setBadgeCountAsync(Math.max(0, Math.floor(count)));
+  } catch (e) {
+    console.log("[Push] Badge konnte nicht gesetzt werden:", e);
+  }
+}

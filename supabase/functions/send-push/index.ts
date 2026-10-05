@@ -132,6 +132,23 @@ serve(async (req) => {
       console.warn("[send-push] Could not save notifications to DB:", dbErr);
     }
 
+    // Ungelesene pro Empfänger zählen (inkl. der soeben eingefügten), damit
+    // das App-Icon-Badge auch bei geschlossener App die richtige Zahl zeigt
+    const idColumn = recipientType === "customer" ? "customer_portal_user_id" : "user_id";
+    const badgeByUser = new Map<string, number>();
+    await Promise.all(filteredUsers.map(async (u: any) => {
+      try {
+        const { count } = await supabaseAdmin
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .eq(idColumn, u.id)
+          .eq("is_read", false);
+        badgeByUser.set(u.id, count || 0);
+      } catch (_e) {
+        // ohne Zählung einfach keinen Badge mitsenden
+      }
+    }));
+
     // Expand comma-separated tokens into individual messages
     const messages: any[] = [];
     for (const u of filteredUsers) {
@@ -139,12 +156,14 @@ serve(async (req) => {
       const tokens = u.push_token.split(',').map((t: string) => t.trim()).filter(Boolean);
       for (const token of tokens) {
         if (token.startsWith("ExponentPushToken")) {
+          const badge = badgeByUser.get(u.id);
           messages.push({
             to: token,
             sound: "default",
             title,
             body,
             data: data || {},
+            ...(typeof badge === "number" ? { badge } : {}),
           });
         }
       }

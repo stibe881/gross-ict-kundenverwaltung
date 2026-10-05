@@ -369,7 +369,8 @@ export async function getAllProducts() {
 }
 
 export async function createProduct(product: any) {
-    const { data, error } = await supabase
+    // purchase_price ist noch nicht in den generierten Typen -> db-Alias (supabase as any)
+    const { data, error } = await db
         .from("products")
         .insert([{
             name: product.name,

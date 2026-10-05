@@ -7,6 +7,7 @@ import { formatDateTime } from "@/lib/format";
 import { router } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { setAppBadge } from "@/lib/push-notifications";
 
 export default function AdminNotificationsScreen() {
     const colors = useColors();
@@ -73,6 +74,12 @@ export default function AdminNotificationsScreen() {
     };
 
     const unreadCount = notifications.filter((n: any) => !n.is_read).length;
+
+    // App-Icon-Badge sofort nachführen, wenn hier gelesen/alle gelesen wird
+    useEffect(() => {
+        if (!isLoading) setAppBadge(unreadCount);
+    }, [unreadCount, isLoading]);
+
     const displayedNotifications = showUnreadOnly
         ? notifications.filter((n: any) => !n.is_read)
         : notifications;

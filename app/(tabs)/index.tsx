@@ -17,6 +17,7 @@ import { useGlobalRefresh } from "@/hooks/use-global-refresh";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { supabase } from "@/lib/supabase";
+import { setAppBadge } from "@/lib/push-notifications";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { CustomerFormModal } from "@/components/customer-form-modal";
@@ -93,6 +94,11 @@ export default function DashboardScreen() {
     enabled: !!user,
     refetchInterval: 30000,
   });
+
+  // App-Icon-Badge mit der Anzahl ungelesener Benachrichtigungen synchron halten
+  useEffect(() => {
+    setAppBadge(unreadCount);
+  }, [unreadCount]);
 
   // Load current user's roles for RBAC
   const { data: userProfile } = useQuery({
