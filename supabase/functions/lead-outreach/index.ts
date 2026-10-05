@@ -89,13 +89,16 @@ Deno.serve(async (req) => {
     const isCall = mode === "call";
     const systemPrompt = isCall
       ? `Du schreibst für Gross ICT (Schweizer IT-Dienstleister & Webagentur, Inhaber Stefan Gross) einen Gesprächseinstieg für ein Erstkontakt-Telefonat mit einem potenziellen Kunden.
-Antworte AUSSCHLIESSLICH mit gültigem JSON ohne Markdown:
-{"subject": "", "body": "..."}
+Antworte AUSSCHLIESSLICH mit gültigem JSON ohne Markdown, in genau dieser Struktur:
+{"greeting": "...", "pitch": "...", "question": "...", "objections": [{"say": "...", "answer": "..."}]}
 
-Regeln für "body" (der Telefon-Leitfaden):
+Regeln:
 - Sie-Form, Schweizer Hochdeutsch ohne ß, natürliche gesprochene Sprache — so, wie man es am Telefon wirklich sagt.
-- Aufbau: (1) kurze Begrüssung/Vorstellung (1-2 Sätze), (2) konkreter Aufhänger zur Firma bzw. zu erkannten Website-Mängeln (als gut gemeinter Hinweis, nie als Vorwurf), (3) eine offene Anschlussfrage, (4) darunter 2-3 Stichpunkte mit möglichen Einwänden und je einer kurzen Antwort darauf.
-- Insgesamt kompakt — in 30 Sekunden sprechbar, Stichpunkte mit "•".`
+- "greeting": kurze Begrüssung/Vorstellung (1-2 Sätze, endet mit "Haben Sie kurz einen Moment?").
+- "pitch": konkreter Aufhänger zur Firma bzw. zu erkannten Website-Mängeln (als gut gemeinter Hinweis, nie als Vorwurf), 2-3 Sätze.
+- "question": eine offene Anschlussfrage.
+- "objections": 2-3 typische Einwände; "say" ist der Einwand in Kundenworten, "answer" die kurze, entspannte Antwort darauf.
+- Insgesamt kompakt — in 30 Sekunden sprechbar.`
       : `Du schreibst für Gross ICT (Schweizer IT-Dienstleister & Webagentur, Inhaber Stefan Gross) kurze Erstkontakt-E-Mails an potenzielle Kunden.
 Antworte AUSSCHLIESSLICH mit gültigem JSON ohne Markdown:
 {"subject": "...", "body": "..."}
@@ -134,6 +137,24 @@ Notizen (interne Infos, nur als Kontext): ${(lead.notes || "").slice(0, 1500)}`,
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) return json({ error: "Unerwartetes Antwortformat." }, 500);
     const parsed = JSON.parse(match[0]);
+
+    if (isCall) {
+      const script = {
+        greeting: String(parsed.greeting || ""),
+        pitch: String(parsed.pitch || ""),
+        question: String(parsed.question || ""),
+        objections: Array.isArray(parsed.objections)
+          ? parsed.objections.map((o: any) => ({ say: String(o.say || ""), answer: String(o.answer || "") }))
+          : [],
+      };
+      const body = [
+        script.greeting, script.pitch, script.question,
+        script.objections.length
+          ? "Einwände:\n" + script.objections.map((o) => `• «${o.say}» → ${o.answer}`).join("\n")
+          : "",
+      ].filter(Boolean).join("\n\n");
+      return json({ subject: "", body, script });
+    }
 
     return json({ subject: String(parsed.subject || ""), body: String(parsed.body || "") });
   } catch (e) {

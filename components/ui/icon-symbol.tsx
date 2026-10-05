@@ -26,6 +26,8 @@ const MAPPING = {
   "doc.text.fill": "description",
   "envelope.fill": "email",
   "message.fill": "chat",
+  "bubble.left.fill": "chat-bubble",
+  "arrow.turn.down.right": "subdirectory-arrow-right",
   "gear": "settings",
   "plus.circle.fill": "add-circle",
   "magnifyingglass": "search",

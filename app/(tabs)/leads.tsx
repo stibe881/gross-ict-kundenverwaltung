@@ -1339,7 +1339,40 @@ function LeadDetailsModal({
 
   // Erstkontakt (KI): E-Mail-Entwurf oder Telefon-Einstieg
   const [aiMode, setAiMode] = useState<"email" | "call">(lead.email ? "email" : "call");
-  const [aiDraft, setAiDraft] = useState<{ subject: string; body: string } | null>(null);
+  const [aiDraft, setAiDraft] = useState<{ subject: string; body: string; script?: any } | null>(null);
+
+  // Gespeicherten Telefon-Einstieg beim Öffnen wiederherstellen
+  const callScriptLoaded = useRef(false);
+  useEffect(() => {
+    if (callScriptLoaded.current || aiDraft) return;
+    if ((lead as any).call_script) {
+      callScriptLoaded.current = true;
+      setAiMode("call");
+      setAiDraft({ subject: "", body: "", script: (lead as any).call_script });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(lead as any).call_script]);
+
+  // Änderungen am Telefon-Einstieg automatisch am Lead speichern
+  useEffect(() => {
+    if (aiMode !== "call" || !aiDraft?.script) return;
+    const t = setTimeout(() => {
+      Data.saveLeadCallScript(lead.id, aiDraft.script);
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiDraft, aiMode]);
+
+  // Telefon-Leitfaden aus den strukturierten Abschnitten zu Text zusammensetzen
+  const composeCallScript = (script: any) =>
+    [
+      script.greeting,
+      script.pitch,
+      script.question,
+      (script.objections || []).length
+        ? "Einwände:\n" + script.objections.map((o: any) => `• «${o.say}» → ${o.answer}`).join("\n")
+        : "",
+    ].filter(Boolean).join("\n\n");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSending, setAiSending] = useState(false);
 
@@ -1446,7 +1479,7 @@ function LeadDetailsModal({
         body: { action: "generate", leadId: lead.id, mode: aiMode },
       });
       if (error || data?.error) throw new Error(data?.error || error?.message || "Generierung fehlgeschlagen");
-      setAiDraft({ subject: data.subject || "", body: data.body || "" });
+      setAiDraft({ subject: data.subject || "", body: data.body || "", script: data.script || null });
     } catch (e: any) {
       showAlert("Fehler", e.message);
     } finally {
@@ -1484,11 +1517,13 @@ function LeadDetailsModal({
 
   // Telefon-Einstieg in den Notizen festhalten
   const handleSaveCallScript = async () => {
-    if (!aiDraft?.body.trim()) return;
+    if (!aiDraft) return;
+    const text = (aiDraft.script ? composeCallScript(aiDraft.script) : aiDraft.body).trim();
+    if (!text) return;
     try {
       const stamp = new Date().toLocaleDateString("de-CH");
       await Data.updateLead(lead.id, {
-        notes: `${lead.notes ? lead.notes + "\n\n" : ""}[${stamp}] Telefon-Einstieg (KI):\n${aiDraft.body.trim()}`,
+        notes: `${lead.notes ? lead.notes + "\n\n" : ""}[${stamp}] Telefon-Einstieg (KI):\n${text}`,
       });
       await Data.addLeadActivity({
         lead_id: lead.id,
@@ -2244,7 +2279,12 @@ function LeadDetailsModal({
                         onPress={() => {
                           if (aiMode !== m.key) {
                             setAiMode(m.key);
-                            setAiDraft(null);
+                            // Beim Wechsel auf Telefon: gespeicherten Einstieg wieder anzeigen
+                            setAiDraft(
+                              m.key === "call" && (lead as any).call_script
+                                ? { subject: "", body: "", script: (lead as any).call_script }
+                                : null
+                            );
                           }
                         }}
                         activeOpacity={0.8}
@@ -2291,14 +2331,88 @@ function LeadDetailsModal({
                         placeholderTextColor={colors.muted}
                       />
                     )}
-                    <TextInput
-                      value={aiDraft.body}
-                      onChangeText={(v) => setAiDraft({ ...aiDraft, body: v })}
-                      multiline
-                      className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
-                      style={{ minHeight: 160, textAlignVertical: "top" }}
-                      placeholderTextColor={colors.muted}
-                    />
+                    {aiMode === "call" && aiDraft.script ? (
+                      /* Telefon-Leitfaden strukturiert: Schritt für Schritt editierbar */
+                      <View className="gap-2.5">
+                        {[
+                          { key: "greeting", label: "1 · Begrüssung" },
+                          { key: "pitch", label: "2 · Aufhänger" },
+                          { key: "question", label: "3 · Offene Frage" },
+                        ].map((sec) => (
+                          <View key={sec.key}>
+                            <Text className="text-[10px] font-bold uppercase mb-1" style={{ color: "#8B5CF6", letterSpacing: 0.5 }}>
+                              {sec.label}
+                            </Text>
+                            <TextInput
+                              value={aiDraft.script[sec.key] || ""}
+                              onChangeText={(v) => setAiDraft({ ...aiDraft, script: { ...aiDraft.script, [sec.key]: v } })}
+                              multiline
+                              className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                              style={{ minHeight: 54, textAlignVertical: "top", fontSize: 14, lineHeight: 20 }}
+                              placeholderTextColor={colors.muted}
+                            />
+                          </View>
+                        ))}
+                        {(aiDraft.script.objections || []).length > 0 && (
+                          <View>
+                            <Text className="text-[10px] font-bold uppercase mb-1" style={{ color: "#8B5CF6", letterSpacing: 0.5 }}>
+                              Einwände & Antworten
+                            </Text>
+                            <View className="gap-2">
+                              {aiDraft.script.objections.map((o: any, idx: number) => {
+                                const updObjection = (field: "say" | "answer", v: string) =>
+                                  setAiDraft({
+                                    ...aiDraft,
+                                    script: {
+                                      ...aiDraft.script,
+                                      objections: aiDraft.script.objections.map((x: any, i: number) =>
+                                        i === idx ? { ...x, [field]: v } : x
+                                      ),
+                                    },
+                                  });
+                                return (
+                                  <View key={idx} className="bg-background border border-border rounded-lg p-2.5 gap-1.5">
+                                    <View className="flex-row items-center gap-1.5">
+                                      <IconSymbol name="bubble.left.fill" size={11} color="#FB923C" />
+                                      <Text className="text-[10px] font-bold text-muted uppercase">Kunde sagt</Text>
+                                    </View>
+                                    <TextInput
+                                      value={o.say}
+                                      onChangeText={(v) => updObjection("say", v)}
+                                      multiline
+                                      className="text-foreground"
+                                      style={{ fontSize: 13.5, fontStyle: "italic", color: "#FB923C", padding: 0, lineHeight: 19 }}
+                                      placeholderTextColor={colors.muted}
+                                    />
+                                    <View className="flex-row items-center gap-1.5 mt-0.5">
+                                      <IconSymbol name="arrow.turn.down.right" size={11} color="#22C55E" />
+                                      <Text className="text-[10px] font-bold text-muted uppercase">Ihre Antwort</Text>
+                                    </View>
+                                    <TextInput
+                                      value={o.answer}
+                                      onChangeText={(v) => updObjection("answer", v)}
+                                      multiline
+                                      className="text-foreground"
+                                      style={{ fontSize: 13.5, padding: 0, lineHeight: 19 }}
+                                      placeholderTextColor={colors.muted}
+                                    />
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          </View>
+                        )}
+                      </View>
+                    ) : (
+                      <TextInput
+                        value={aiDraft.body}
+                        onChangeText={(v) => setAiDraft({ ...aiDraft, body: v })}
+                        multiline
+                        className="bg-background border border-border rounded-lg px-3 py-2 text-foreground"
+                        style={{ minHeight: 160, textAlignVertical: "top" }}
+                        placeholderTextColor={colors.muted}
+                      />
+                    )}
                     {aiMode === "email" ? (
                       <TouchableOpacity
                         className="py-2.5 rounded-lg items-center bg-primary"

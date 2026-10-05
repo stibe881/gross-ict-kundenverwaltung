@@ -2837,6 +2837,16 @@ export async function saveLeadWebCheck(leadId: string, result: any) {
     } catch (_) { /* Migration 20261015 fehlt noch → still ignorieren */ }
 }
 
+// Telefon-Einstieg (KI) am Lead speichern — bleibt über Schliessen/Öffnen erhalten
+export async function saveLeadCallScript(leadId: string, script: any) {
+    try {
+        await (supabase as any)
+            .from("leads")
+            .update({ call_script: script })
+            .eq("id", leadId);
+    } catch (_) { /* Migration 20261017 fehlt noch → still ignorieren */ }
+}
+
 // Wochenziel: protokollierte Kontakte (Aktivitäten) seit Montag
 export async function getWeeklyContactStats() {
     const now = new Date();
