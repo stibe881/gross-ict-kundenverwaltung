@@ -1207,22 +1207,39 @@ export default function AccountingScreen() {
 
           {yearExpenses.length > 0 ? (
             <>
-              {/* Kennzahlen der gefilterten Ansicht */}
+              {/* Kennzahlen der gefilterten Ansicht (nur manuelle Buchungen) */}
               <View className="flex-row gap-2">
                 <View className="flex-1 bg-surface rounded-xl border border-border p-3 items-center">
                   <Text className="text-lg font-bold text-success">{formatCurrency(filteredIncome)}</Text>
-                  <Text className="text-[10px] font-semibold text-muted uppercase">Einnahmen</Text>
+                  <Text className="text-[10px] font-semibold text-muted uppercase text-center">Einnahmen (Buchungen)</Text>
                 </View>
                 <View className="flex-1 bg-surface rounded-xl border border-border p-3 items-center">
                   <Text className="text-lg font-bold text-error">{formatCurrency(filteredExpense)}</Text>
-                  <Text className="text-[10px] font-semibold text-muted uppercase">Ausgaben</Text>
+                  <Text className="text-[10px] font-semibold text-muted uppercase text-center">Ausgaben (Buchungen)</Text>
                 </View>
                 <View className="flex-1 bg-surface rounded-xl border border-border p-3 items-center">
                   <Text className="text-lg font-bold" style={{ color: filteredSaldo >= 0 ? "#22C55E" : "#EF4444" }}>
                     {formatCurrency(filteredSaldo)}
                   </Text>
-                  <Text className="text-[10px] font-semibold text-muted uppercase">Saldo</Text>
+                  <Text className="text-[10px] font-semibold text-muted uppercase text-center">Saldo (Buchungen)</Text>
                 </View>
+              </View>
+
+              {/* Jahres-Saldo inkl. bezahlter Rechnungen (ganzes Jahr, unabhängig von Filtern) */}
+              <View className="bg-surface rounded-xl border border-border px-4 py-3">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-xs text-muted">Rechnungseinnahmen {selectedYear}</Text>
+                  <Text className="text-sm font-semibold text-success">{formatCurrency(invoicesRevenue)}</Text>
+                </View>
+                <View className="flex-row items-center justify-between mt-1.5 pt-1.5 border-t border-border">
+                  <Text className="text-xs font-semibold text-foreground">Jahres-Saldo inkl. Rechnungen</Text>
+                  <Text className="text-base font-bold" style={{ color: profit >= 0 ? "#22C55E" : "#EF4444" }}>
+                    {formatCurrency(profit)}
+                  </Text>
+                </View>
+                <Text className="text-[10px] text-muted mt-1">
+                  Bezahlte Rechnungen + Einnahme-Buchungen − alle Ausgaben des Jahres (wie Übersicht)
+                </Text>
               </View>
 
               {/* Suche */}
