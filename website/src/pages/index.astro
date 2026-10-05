@@ -8,7 +8,7 @@ import Base from "../layouts/Base.astro";
 >
   <div class="split">
     <!-- Linke Welt: Web- und Appdesign -->
-    <section class="half half-web" aria-label="Web- und Appdesign">
+    <a href="/webdesign" class="half half-web" aria-label="Web- und Appdesign" style="text-decoration: none;">
       <div class="glow g1" aria-hidden="true"></div>
       <div class="dots" aria-hidden="true"></div>
 
@@ -38,13 +38,12 @@ import Base from "../layouts/Base.astro";
 
       <div class="content">
         <h1>WEB- UND<br />APPDESIGN</h1>
-        <p>Webseiten, Web-Apps und Mobile Apps — zum Festpreis, rechtssicher nach revDSG, barrierefrei nach WCAG.</p>
-        <a class="discover" href="/webdesign">ENTDECKEN</a>
+        <p class="hover-text">Webseiten, Web-Apps und Mobile Apps — zum Festpreis, rechtssicher nach revDSG, barrierefrei nach WCAG.</p>
       </div>
-    </section>
+    </a>
 
     <!-- Rechte Welt: ICT Services -->
-    <section class="half half-ict" aria-label="ICT Services">
+    <a href="/ict-services" class="half half-ict" aria-label="ICT Services" style="text-decoration: none;">
       <div class="glow g2" aria-hidden="true"></div>
       <div class="gridlines" aria-hidden="true"></div>
 
@@ -66,10 +65,9 @@ import Base from "../layouts/Base.astro";
 
       <div class="content">
         <h1>ICT SERVICES</h1>
-        <p>Zuverlässiger IT-Support, Netzwerk, Security und Cloud-Lösungen für KMU.</p>
-        <a class="discover filled" href="/ict-services">ENTDECKEN</a>
+        <p class="hover-text">Zuverlässiger IT-Support, Netzwerk, Security und Cloud-Lösungen für KMU.</p>
       </div>
-    </section>
+    </a>
 
     <!-- Freigestelltes Logo oben Mitte -->
     <a class="home-logo" href="/webdesign" aria-label="Gross ICT">
@@ -191,22 +189,34 @@ import Base from "../layouts/Base.astro";
     line-height: 1.18;
     color: #fff;
   }
-  .content p { font-size: 17px; color: rgba(255,255,255,0.93); }
-  .discover {
-    display: inline-flex;
-    margin-top: 8px;
-    padding: 15px 48px;
-    border: 1.5px solid #fff;
-    border-radius: 999px;
-    font-family: "Sora", sans-serif;
-    font-size: 13px;
-    font-weight: 800;
-    letter-spacing: 2.5px;
-    color: #fff;
+  .content p.hover-text {
+    font-size: 17px;
+    color: rgba(255,255,255,0.93);
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(10px);
+    transition: all 0.4s ease;
+    overflow: hidden;
   }
-  .discover:hover { background: rgba(255,255,255,0.14); color: #fff; text-decoration: none; }
-  .discover.filled { background: #F2F5FA; color: #0B3E73; border-color: #F2F5FA; }
-  .discover.filled:hover { background: #fff; color: #0B3E73; }
+  .half:hover .content p.hover-text,
+  .half:focus-within .content p.hover-text {
+    opacity: 1;
+    max-height: 100px;
+    transform: translateY(0);
+    padding-top: 16px;
+  }
+  
+  @media (max-width: 900px) {
+    /* Auf dem Smartphone direkt anzeigen, da es keinen echten Hover gibt */
+    .content p.hover-text {
+      opacity: 1;
+      max-height: 200px;
+      transform: translateY(0);
+      padding-top: 12px;
+    }
+  }
 
   .home-logo { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); z-index: 2; }
   .home-logo img {

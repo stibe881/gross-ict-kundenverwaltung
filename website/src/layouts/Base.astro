@@ -30,10 +30,28 @@ const headerClass = ["site-header", theme === "light" ? "light" : "", overlayHea
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
     <link rel="preload" href="/fonts/anton-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <script>
+      let area = sessionStorage.getItem('area');
+      const p = window.location.pathname;
+      if (p.includes('webdesign') || p.includes('rechner') || p.includes('referenzen-webdesign')) area = 'webdesign';
+      else if (p.includes('ict') || p.includes('referenzen-ict')) area = 'ict';
+      if (!area) area = 'webdesign'; // Default Fallback, falls jemand direkt auf /kontakt geht
+      
+      sessionStorage.setItem('area', area);
+      document.documentElement.classList.add('area-' + area);
+    </script>
+    <style>
+      html.area-webdesign #nav-webdesign { display: none !important; }
+      html.area-webdesign #nav-ref-ict { display: none !important; }
+      
+      html.area-ict #nav-ict { display: none !important; }
+      html.area-ict #nav-ref-webdesign { display: none !important; }
+      html.area-ict #nav-rechner { display: none !important; }
+    </style>
   </head>
   <body>
     <a class="skip-link" href="#main">Zum Inhalt springen</a>
@@ -44,9 +62,13 @@ const headerClass = ["site-header", theme === "light" ? "light" : "", overlayHea
             <img class="brand-logo" src="/assets/logo.webp" alt="Gross ICT" />
           </a>
           <nav class="site-nav" aria-label="Hauptnavigation">
-            <a href="/webdesign" aria-current={active === "webdesign" ? "page" : undefined}>Web- &amp; Appdesign</a>
-            <a href="/ict-services" aria-current={active === "ict" ? "page" : undefined}>ICT Services</a>
-            <a href="/rechner" aria-current={active === "rechner" ? "page" : undefined}>Preisrechner</a>
+            <a id="nav-webdesign" href="/webdesign">Web- &amp; Appdesign</a>
+            <a id="nav-ict" href="/ict-services">ICT Services</a>
+            <a id="nav-ref-webdesign" href="/referenzen-webdesign" aria-current={active === "referenzen-webdesign" ? "page" : undefined}>Referenzen</a>
+            <a id="nav-ref-ict" href="/referenzen-ict" aria-current={active === "referenzen-ict" ? "page" : undefined}>Referenzen</a>
+            <a id="nav-rechner" href="/rechner" aria-current={active === "rechner" ? "page" : undefined}>Preisrechner</a>
+            <a href="/support" aria-current={active === "support" ? "page" : undefined}>Support</a>
+            <a href="/kontakt" aria-current={active === "kontakt" ? "page" : undefined}>Kontakt</a>
             <a class="btn-login" href="https://portal.gross-ict.ch">Kunden-Login</a>
           </nav>
         </div>

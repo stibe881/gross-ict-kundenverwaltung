@@ -101,12 +101,11 @@ const referenzen = [
     <div class="container">
       <p class="mono">Referenzen</p>
       <h2 class="anton anton-title" style="margin: 14px 0 56px">Ausgewählte<br />Arbeiten</h2>
-      <div id="ref-liste">
-      {referenzen.map((r) => (
+      {referenzen.slice(0, 3).map((r) => (
         <div class="ref-row" data-reveal>
           <div class="szene">
-            <img class={`bg ${r.env ? "" : "blurred"}`} src={r.env ?? r.shot} alt="" loading="lazy" />
-            <div class="shade"></div>
+            <img class="bg blurred" src={r.env ?? r.shot} alt="" loading="lazy" />
+            <div class="desk"></div>
             <div class="mon">
               <div class="frame"><img src={r.shot} alt={r.alt} loading="lazy" /></div>
               <div class="fuss"></div>
@@ -117,13 +116,15 @@ const referenzen = [
             <p class="mono ref-kunde" style="font-size: 12.5px; letter-spacing: 2.5px">{r.kunde}</p>
             <h3 class="ref-titel" set:html={r.titel} />
             <p class="ref-text">{r.text}</p>
-            <a class="ref-link" href={r.url}>{r.urlLabel} ansehen ↗</a>
+            <a class="ref-link" href={r.url} target="_blank" rel="noopener noreferrer">{r.urlLabel} ansehen ↗</a>
             <div class="ref-tags">
               {r.tags.map((t) => <span class="tag">{t}</span>)}
             </div>
           </div>
         </div>
       ))}
+      <div style="text-align: center; margin-top: 48px;" data-reveal>
+        <a class="btn btn-outline" href="/referenzen-webdesign">Alle Webdesign-Referenzen ansehen</a>
       </div>
 
       <template id="ref-tpl">

@@ -88,8 +88,14 @@ const referenzen = [
     <div class="container">
       {referenzen.map((r) => (
         <div class="ref-row" data-reveal>
-          <div class="szene" style="background: transparent; height: auto;">
-            <img class={`bg ${!r.env ? "blurred" : ""}`} style="position: relative; width: 100%; height: auto; border-radius: 12px; filter: none; transform: none; display: block;" src={r.env ?? r.shot} alt={r.alt} loading="lazy" />
+          <div class="szene">
+            <img class="bg blurred" src={r.env ?? r.shot} alt="" loading="lazy" />
+            <div class="desk"></div>
+            <div class="mon">
+              <div class="frame"><img src={r.shot} alt={r.alt} loading="lazy" /></div>
+              <div class="fuss"></div>
+              <div class="sockel"></div>
+            </div>
           </div>
           <div>
             <p class="mono ref-kunde" style="font-size: 12.5px; letter-spacing: 2.5px">{r.kunde}</p>

@@ -175,7 +175,7 @@ import Base from "../layouts/Base.astro";
     background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px;
     padding: 14px 16px; cursor: pointer; font-size: 15px;
   }
-  .choice:has(input:checked) { border-color: var(--magenta); background: rgba(192,24,143,0.1); }
+  .choice:has(input:checked) { border-color: var(--gold); background: rgba(217, 169, 106, 0.1); }
   .choice:has(input:focus-visible) { outline: 3px solid var(--gold); outline-offset: 2px; }
   .choice input { position: absolute; opacity: 0; }
   .choice .t { font-weight: 700; }
@@ -189,8 +189,27 @@ import Base from "../layouts/Base.astro";
     background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
     padding: 11px 13px; cursor: pointer;
   }
-  .extra:has(input:checked) { border-color: var(--magenta); background: rgba(192,24,143,0.1); }
-  .extra input { width: 16px; height: 16px; accent-color: #C0188F; }
+  .extra:has(input:checked) { border-color: var(--gold); background: rgba(217, 169, 106, 0.1); }
+  .extra input {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--faint);
+    border-radius: 4px;
+    margin: 0;
+    cursor: pointer;
+    background-color: transparent;
+    transition: all 0.2s;
+  }
+  .extra input:checked {
+    background-color: var(--gold);
+    border-color: var(--gold);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3 7.5L5.5 10L11 4' stroke='%23221A0E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-position: center;
+    background-size: 100%;
+    background-repeat: no-repeat;
+  }
   .extra span { margin-left: auto; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 
   .calc-summary { position: sticky; top: 20px; }
@@ -208,7 +227,7 @@ import Base from "../layouts/Base.astro";
   .summary-card .discount dd { color: #2E6B3F; }
   .summary-card .total { border-top: 2px solid #221A0E; border-bottom: none; margin-top: 6px; padding-top: 13px; }
   .summary-card .total dt { color: #221A0E; font-weight: 800; }
-  .summary-card .total dd { font-family: "Anton", sans-serif; font-weight: 400; font-size: 26px; letter-spacing: 0.5px; color: #B4238B; }
+  .summary-card .total dd { font-family: "Anton", sans-serif; font-weight: 400; font-size: 26px; letter-spacing: 0.5px; color: #96652A; }
   .btn-dark-pill { background: #221A0E; color: #F6F1E7; }
   .btn-dark-pill:hover { background: #3A2E1C; color: #F6F1E7; }
   .btn-call { background: transparent; border: 1.5px solid #221A0E; color: #221A0E; }
