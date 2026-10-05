@@ -42,7 +42,12 @@ const STAGE_META: Record<LeadStatus, { label: string; color: string }> = {
 };
 const ACTIVE_STAGES: LeadStatus[] = ["new", "contacted", "qualified", "proposal"];
 const STAGE_ORDER: LeadStatus[] = ["new", "contacted", "qualified", "proposal", "won"];
-const RATING_EMOJI: Record<string, string> = { hot: "🔥", warm: "🌤", cold: "❄️" };
+// Einstufung als Icons (statt Emojis), in App-Farben
+const RATING_META: Record<string, { icon: string; color: string; label: string }> = {
+  hot: { icon: "flame.fill", color: "#EF4444", label: "Heiss" },
+  warm: { icon: "sun.max.fill", color: "#F59E0B", label: "Warm" },
+  cold: { icon: "snowflake", color: "#38BDF8", label: "Kalt" },
+};
 const LOST_REASONS = [
   { key: "zu_teuer", label: "Zu teuer" },
   { key: "konkurrenz", label: "Konkurrenz" },
@@ -241,8 +246,17 @@ export default function LeadsScreen() {
       >
         {/* Kopf: Firma + Prioritäts-Punkt */}
         <View className="flex-row items-center justify-between gap-2">
+          {(() => {
+            const meta = RATING_META[lead.rating || suggestRating(lead)];
+            if (!meta) return null;
+            // Gedimmt = automatischer Score-Vorschlag (keine manuelle Einstufung)
+            return (
+              <View style={{ opacity: lead.rating ? 1 : 0.4 }}>
+                <IconSymbol name={meta.icon as any} size={13} color={meta.color} />
+              </View>
+            );
+          })()}
           <Text className="text-[14.5px] font-bold text-foreground flex-1" numberOfLines={1}>
-            {lead.rating ? `${RATING_EMOJI[lead.rating] || ""} ` : `≈${RATING_EMOJI[suggestRating(lead)]} `}
             {lead.company || lead.name || "–"}
           </Text>
           <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: getPriorityColor(lead.priority) }} />
@@ -511,7 +525,7 @@ export default function LeadsScreen() {
             <KpiTile
               label="Gewichtete Prognose"
               value={fmtChf(weightedValue)}
-              sub="nach Einstufung 🔥 70% · 🌤 40% · ❄️ 15%"
+              sub="nach Einstufung: Heiss 70% · Warm 40% · Kalt 15%"
               color="#4ADE80"
             />
             <KpiTile

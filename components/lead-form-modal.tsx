@@ -744,21 +744,27 @@ export function LeadFormModal({
                   <Text className="text-xs font-semibold text-muted mb-1.5">EINSTUFUNG</Text>
                   <View className="flex-row gap-2">
                     {[
-                      { key: "", label: "Keine" },
-                      { key: "hot", label: "🔥 Heiss" },
-                      { key: "warm", label: "🌤 Warm" },
-                      { key: "cold", label: "❄️ Kalt" },
-                    ].map((r) => (
-                      <TouchableOpacity
-                        key={r.key}
-                        className={`px-3 py-1.5 rounded-full border ${formData.rating === r.key ? "bg-primary border-primary" : "bg-background border-border"}`}
-                        onPress={() => setFormData({ ...formData, rating: r.key })}
-                      >
-                        <Text className={`text-xs font-semibold ${formData.rating === r.key ? "text-background" : "text-foreground"}`}>
-                          {r.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                      { key: "", label: "Keine", icon: null as string | null, color: "" },
+                      { key: "hot", label: "Heiss", icon: "flame.fill", color: "#EF4444" },
+                      { key: "warm", label: "Warm", icon: "sun.max.fill", color: "#F59E0B" },
+                      { key: "cold", label: "Kalt", icon: "snowflake", color: "#38BDF8" },
+                    ].map((r) => {
+                      const active = formData.rating === r.key;
+                      return (
+                        <TouchableOpacity
+                          key={r.key}
+                          className={`flex-row items-center gap-1.5 px-3 py-1.5 rounded-full border ${active ? "bg-primary border-primary" : "bg-background border-border"}`}
+                          onPress={() => setFormData({ ...formData, rating: r.key })}
+                        >
+                          {r.icon ? (
+                            <IconSymbol name={r.icon as any} size={13} color={active ? colors.background : r.color} />
+                          ) : null}
+                          <Text className={`text-xs font-semibold ${active ? "text-background" : "text-foreground"}`}>
+                            {r.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 </View>
 

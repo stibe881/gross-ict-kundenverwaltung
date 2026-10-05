@@ -122,6 +122,7 @@ const MAPPING = {
   "camera.fill": "photo-camera",
   "paintbrush.fill": "brush",
   "flame.fill": "local-fire-department",
+  "snowflake": "ac-unit",
   "heart.fill": "favorite",
   "list.bullet.rectangle": "view-list",
   "mountain.fill": "landscape",
