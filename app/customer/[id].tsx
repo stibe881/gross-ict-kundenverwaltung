@@ -115,6 +115,16 @@ export default function CustomerDetailScreen() {
     enabled: !!id,
   });
 
+  const [showTouchpointForm, setShowTouchpointForm] = useState(false);
+  const [tpChannel, setTpChannel] = useState("phone");
+  const [tpNote, setTpNote] = useState("");
+  const [tpSaving, setTpSaving] = useState(false);
+  const { data: lastTouchpoint } = useQuery({
+    queryKey: ["lastTouchpoint", id],
+    queryFn: () => Data.getLastTouchpoint(id as string),
+    enabled: !!id,
+  });
+
   const { data: timeline = [] } = useQuery({
     queryKey: ["customerTimeline", id],
     queryFn: () => Data.getCustomerTimeline(id as string),
@@ -377,9 +387,9 @@ export default function CustomerDetailScreen() {
     if (activeTab === "timeline") {
       if (timeline.length === 0) return renderEmpty("Noch keine Aktivitäten", "clock.fill");
       const categoryColor = (c: string) =>
-        c === "invoice" ? "#EF4444" : c === "contract" ? "#6366F1" : c === "quote" ? "#F59E0B" : c === "ticket" ? "#0EA5E9" : "#14B8A6";
+        c === "invoice" ? "#EF4444" : c === "contract" ? "#6366F1" : c === "quote" ? "#F59E0B" : c === "ticket" ? "#0EA5E9" : c === "touchpoint" ? "#22C55E" : "#14B8A6";
       const categoryLabel = (c: string) =>
-        c === "invoice" ? "Rechnung" : c === "contract" ? "Vertrag" : c === "quote" ? "Angebot" : c === "ticket" ? "Ticket" : "Projekt";
+        c === "invoice" ? "Rechnung" : c === "contract" ? "Vertrag" : c === "quote" ? "Angebot" : c === "ticket" ? "Ticket" : c === "touchpoint" ? "Kontakt" : "Projekt";
       return (
         <View>
           {timeline.map((ev: Data.TimelineEvent, idx: number) => (
@@ -1706,6 +1716,81 @@ export default function CustomerDetailScreen() {
                     </TouchableOpacity>
                   </View>
                 )}
+
+                {/* Kontakt festhalten: setzt die Inaktivitäts-Frist zurück */}
+                <View className="mt-3 pt-3 border-t border-border">
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-xs text-muted flex-1 mr-2">
+                      {lastTouchpoint
+                        ? `Letzter Kontaktvermerk: ${formatDate(lastTouchpoint.touched_at)} · ${Data.touchpointChannelLabel(lastTouchpoint.channel)}`
+                        : "Noch kein Kontakt vermerkt"}
+                    </Text>
+                    <TouchableOpacity
+                      className="px-3 py-1.5 rounded-lg bg-primary"
+                      onPress={() => setShowTouchpointForm(!showTouchpointForm)}
+                      activeOpacity={0.8}
+                    >
+                      <Text className="text-xs font-semibold" style={{ color: colors.background }}>Kontakt festhalten</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {showTouchpointForm && (
+                    <View className="mt-3 gap-2.5">
+                      <View className="flex-row flex-wrap gap-2">
+                        {Data.TOUCHPOINT_CHANNELS.map((ch) => {
+                          const active = tpChannel === ch.value;
+                          return (
+                            <TouchableOpacity
+                              key={ch.value}
+                              className="px-3 py-1.5 rounded-full border"
+                              style={{
+                                backgroundColor: active ? colors.primary : colors.background,
+                                borderColor: active ? colors.primary : colors.border,
+                              }}
+                              onPress={() => setTpChannel(ch.value)}
+                              activeOpacity={0.8}
+                            >
+                              <Text className="text-xs font-semibold" style={{ color: active ? colors.background : colors.foreground }}>
+                                {ch.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                      <TextInput
+                        className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                        value={tpNote}
+                        onChangeText={setTpNote}
+                        placeholder="Notiz (optional), z.B. «Nach Offerte gefragt»"
+                        placeholderTextColor={colors.muted}
+                      />
+                      <TouchableOpacity
+                        className="bg-primary rounded-lg py-2.5 items-center"
+                        disabled={tpSaving}
+                        onPress={async () => {
+                          setTpSaving(true);
+                          try {
+                            await Data.logCustomerTouchpoint(id as string, tpChannel, tpNote);
+                            queryClient.invalidateQueries({ queryKey: ["lastTouchpoint", id] });
+                            queryClient.invalidateQueries({ queryKey: ["customerTimeline", id] });
+                            queryClient.invalidateQueries({ queryKey: ["todayFeed"] });
+                            setShowTouchpointForm(false);
+                            setTpNote("");
+                            showToast("Kontakt vermerkt – Inaktivitäts-Frist beginnt neu");
+                          } catch (e: any) {
+                            showAlert("Fehler", e.message);
+                          } finally {
+                            setTpSaving(false);
+                          }
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text className="text-sm font-semibold" style={{ color: colors.background }}>
+                          {tpSaving ? "Speichert..." : "Kontakt speichern"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
               </View>
 
               {/* ── Tab Navigation ── */}

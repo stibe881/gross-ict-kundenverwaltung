@@ -348,7 +348,8 @@ export default function DashboardScreen() {
   const fmtChf = (v?: number) => `CHF ${Math.round(v || 0).toLocaleString("de-CH")}`;
   const kpiCards = [
     { id: "tickets", label: "Offene Tickets", value: stats ? String(stats.openTickets) : "–", sub: `${stats?.overdueTickets || 0} überfällig`, color: "#FB923C", route: "/tickets?filter=open" },
-    { id: "accounting", label: "Offene Rechnungen", value: stats ? fmtChf(stats.openInvoiceSum) : "–", sub: `${stats?.openInvoiceCount || 0} Rechnungen · ${stats?.overdueInvoiceCount || 0} überfällig`, color: "#F87171", route: "/accounting?tab=invoices&filter=unpaid" },
+    // Rot nur, wenn mindestens eine Rechnung überfällig ist — sonst orange
+    { id: "accounting", label: "Offene Rechnungen", value: stats ? fmtChf(stats.openInvoiceSum) : "–", sub: `${stats?.openInvoiceCount || 0} Rechnungen · ${stats?.overdueInvoiceCount || 0} überfällig`, color: (stats?.overdueInvoiceCount || 0) > 0 ? "#F87171" : "#FB923C", route: "/accounting?tab=invoices&filter=unpaid" },
     { id: "accounting", label: `Umsatz ${monthName}`, value: stats ? fmtChf(stats.monthRevenue) : "–", sub: `${stats?.monthPaidCount || 0} Zahlungen eingegangen`, color: "#4ADE80", route: "/accounting?tab=overview" },
     { id: "projects", label: "Aktive Projekte", value: stats ? String(stats.activeProjects) : "–", sub: `${stats?.projectsEndingSoon || 0} enden diese Woche`, color: "#22D3EE", route: "/projects?filter=in_progress" },
   ].filter((k) => tileAllowed(k.id));

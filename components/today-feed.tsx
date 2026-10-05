@@ -259,6 +259,22 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
     refetchInterval: 120000,
   });
 
+  const handleContactedInactive = (customerId: string, name: string) => {
+    showConfirm(
+      "Kontakt festhalten",
+      `Haben Sie ${name} heute kontaktiert (z.B. Telefon oder WhatsApp)? Der Kontakt wird im Kunden-Dossier und in der Timeline vermerkt, und die Inaktivitäts-Frist beginnt neu. Kanal und Notiz können Sie im Dossier unter «Inaktivitäts-Erinnerung» genauer festhalten.`,
+      async () => {
+        try {
+          await Data.logCustomerTouchpoint(customerId, "other", "Aus «Heute wichtig» vermerkt");
+          refetch();
+        } catch (e: any) {
+          showAlert("Fehler", e.message);
+        }
+      },
+      "Festhalten"
+    );
+  };
+
   const handleSnoozeInactive = (customerId: string, name: string) => {
     showConfirm(
       "Später erinnern",
@@ -371,6 +387,14 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
             </View>
             {(item as any).inactiveCustomerId ? (
               <View style={{ flexDirection: "row", gap: 6 }}>
+                <TouchableOpacity
+                  onPress={() => handleContactedInactive((item as any).inactiveCustomerId, item.title)}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  activeOpacity={0.7}
+                  style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: "#22C55E20", alignItems: "center", justifyContent: "center" }}
+                >
+                  <IconSymbol name="hand.wave.fill" size={14} color="#22C55E" />
+                </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => handleSnoozeInactive((item as any).inactiveCustomerId, item.title)}
                   hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}

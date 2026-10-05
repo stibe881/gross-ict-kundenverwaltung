@@ -940,7 +940,7 @@ export async function getCustomerQuotes(customerId: string) {
 export interface TimelineEvent {
     id: string;
     date: string;
-    category: "invoice" | "contract" | "quote" | "ticket" | "project";
+    category: "invoice" | "contract" | "quote" | "ticket" | "project" | "touchpoint";
     title: string;
     subtitle?: string;
     user_name?: string;
@@ -1031,6 +1031,22 @@ export async function getCustomerTimeline(customerId: string): Promise<TimelineE
             category: "project",
             title: `Projekt ${p.project_number || ""} erstellt`.replace("  ", " "),
             subtitle: p.title,
+        });
+    }
+
+    // Manuelle Kontaktvermerke (Tabelle existiert erst nach Migration 20261014)
+    const touchRes = await (supabase as any)
+        .from("customer_touchpoints")
+        .select("id, channel, note, touched_at, created_at, user_name")
+        .eq("customer_id", customerId);
+    for (const tp of (touchRes.data as any[]) || []) {
+        events.push({
+            id: `tp-${tp.id}`,
+            date: tp.created_at || tp.touched_at,
+            category: "touchpoint",
+            title: `Kontakt per ${touchpointChannelLabel(tp.channel)}`,
+            subtitle: tp.note || undefined,
+            user_name: tp.user_name || undefined,
         });
     }
 
@@ -5381,11 +5397,13 @@ export async function getInactiveCustomers() {
     oldest.setMonth(oldest.getMonth() - maxMonths);
     const oldestIso = oldest.toISOString();
 
-    const [invoicesRes, ticketsRes] = await Promise.all([
+    const [invoicesRes, ticketsRes, touchRes] = await Promise.all([
         supabase.from("invoices").select("customer_id, invoice_date").gte("invoice_date", oldestIso.split("T")[0]),
         supabase.from("tickets").select("customer_id, created_at").gte("created_at", oldestIso),
+        // Manuelle Kontaktvermerke zählen ebenfalls als Aktivität
+        (supabase as any).from("customer_touchpoints").select("customer_id, touched_at").gte("touched_at", oldestIso.split("T")[0]),
     ]);
-    // Letzte Aktivität (Rechnung oder Ticket) pro Kunde
+    // Letzte Aktivität (Rechnung, Ticket oder Kontaktvermerk) pro Kunde
     const lastActivity = new Map<string, number>();
     for (const i of (invoicesRes.data as any[]) || []) {
         if (!i.customer_id) continue;
@@ -5396,6 +5414,11 @@ export async function getInactiveCustomers() {
         if (!t.customer_id) continue;
         const ts = new Date(t.created_at).getTime();
         if (ts > (lastActivity.get(t.customer_id) || 0)) lastActivity.set(t.customer_id, ts);
+    }
+    for (const tp of (touchRes.data as any[]) || []) {
+        if (!tp.customer_id) continue;
+        const ts = new Date(tp.touched_at).getTime();
+        if (ts > (lastActivity.get(tp.customer_id) || 0)) lastActivity.set(tp.customer_id, ts);
     }
 
     return customers
@@ -5434,6 +5457,44 @@ export async function muteInactiveReminder(customerId: string) {
         .update({ inactive_muted: true })
         .eq("id", customerId);
     if (error) throw new Error(error.message);
+}
+
+// ── Kontaktvermerke: manuellen Kundenkontakt festhalten ──
+export const TOUCHPOINT_CHANNELS = [
+    { value: "phone", label: "Telefon" },
+    { value: "whatsapp", label: "WhatsApp" },
+    { value: "email", label: "E-Mail" },
+    { value: "in_person", label: "Vor Ort" },
+    { value: "other", label: "Sonstiges" },
+] as const;
+
+export function touchpointChannelLabel(value: string) {
+    return TOUCHPOINT_CHANNELS.find((c) => c.value === value)?.label || "Kontakt";
+}
+
+export async function logCustomerTouchpoint(customerId: string, channel: string, note?: string) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
+    const userName = (user?.user_metadata as any)?.name || user?.email || null;
+    const { error } = await (supabase as any).from("customer_touchpoints").insert({
+        customer_id: customerId,
+        channel,
+        note: note?.trim() || null,
+        user_name: userName,
+    });
+    if (error) throw new Error(error.message);
+}
+
+export async function getLastTouchpoint(customerId: string) {
+    const { data } = await (supabase as any)
+        .from("customer_touchpoints")
+        .select("*")
+        .eq("customer_id", customerId)
+        .order("touched_at", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    return data || null;
 }
 
 // Inaktivitäts-Erinnerung konfigurieren (Kunden-Dossier):
