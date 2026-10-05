@@ -278,7 +278,7 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
   const handleMuteInactive = (customerId: string, name: string) => {
     showConfirm(
       "Nicht mehr erinnern",
-      `Für ${name} nie mehr an die Inaktivität erinnern? (Lässt sich nur per Datenbank rückgängig machen.)`,
+      `Für ${name} nie mehr an die Inaktivität erinnern? Sie können das im Kunden-Dossier unter «Inaktivitäts-Erinnerung» jederzeit wieder einschalten.`,
       async () => {
         try {
           await Data.muteInactiveReminder(customerId);
