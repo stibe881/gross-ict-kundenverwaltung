@@ -7,6 +7,7 @@ import * as Data from "@/lib/data";
 import { useColors } from "@/hooks/use-colors";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { LinkedRecord } from "@/components/linked-records";
+import { showAlert, showConfirm } from "@/lib/alert";
 
 // "Heute"-Feed: was jetzt Aufmerksamkeit braucht – über alle Module hinweg.
 // allowed() filtert nach Rolle (gleiche IDs wie die Dashboard-Kacheln).
@@ -14,7 +15,7 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
   const colors = useColors();
   const router = useRouter();
 
-  const { data: items = [] } = useQuery({
+  const { data: items = [], refetch } = useQuery({
     // rolesKey sorgt dafür, dass der Feed neu lädt, sobald die Rollen geladen sind
     queryKey: ["todayFeed", rolesKey],
     queryFn: async (): Promise<LinkedRecord[]> => {
@@ -179,7 +180,8 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
               title: c.name,
               subtitle: "Seit 6 Monaten keine Rechnung und kein Ticket – Lebenszeichen senden",
               route: `/customer/${c.id}`,
-            });
+              inactiveCustomerId: c.id,
+            } as any);
           }
         } catch (_) { /* optional */ }
       }
@@ -256,6 +258,38 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
     },
     refetchInterval: 120000,
   });
+
+  const handleSnoozeInactive = (customerId: string, name: string) => {
+    showConfirm(
+      "Später erinnern",
+      `${name} für 3 Monate aus «Heute wichtig» ausblenden? Danach erscheint die Erinnerung wieder, falls der Kunde weiterhin inaktiv ist.`,
+      async () => {
+        try {
+          await Data.snoozeInactiveReminder(customerId, 3);
+          refetch();
+        } catch (e: any) {
+          showAlert("Fehler", e.message);
+        }
+      },
+      "In 3 Monaten erinnern"
+    );
+  };
+
+  const handleMuteInactive = (customerId: string, name: string) => {
+    showConfirm(
+      "Nicht mehr erinnern",
+      `Für ${name} nie mehr an die Inaktivität erinnern? (Lässt sich nur per Datenbank rückgängig machen.)`,
+      async () => {
+        try {
+          await Data.muteInactiveReminder(customerId);
+          refetch();
+        } catch (e: any) {
+          showAlert("Fehler", e.message);
+        }
+      },
+      "Nicht mehr erinnern"
+    );
+  };
 
   return (
     <View
@@ -335,7 +369,28 @@ export function TodayFeed({ allowed, isWide, rolesKey }: { allowed: (tileId: str
                 {item.subtitle}
               </Text>
             </View>
-            <IconSymbol name="chevron.right" size={13} color={colors.muted} />
+            {(item as any).inactiveCustomerId ? (
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                <TouchableOpacity
+                  onPress={() => handleSnoozeInactive((item as any).inactiveCustomerId, item.title)}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  activeOpacity={0.7}
+                  style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: colors.border + "60", alignItems: "center", justifyContent: "center" }}
+                >
+                  <IconSymbol name="clock.arrow.circlepath" size={14} color={colors.muted} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleMuteInactive((item as any).inactiveCustomerId, item.title)}
+                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                  activeOpacity={0.7}
+                  style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: colors.border + "60", alignItems: "center", justifyContent: "center" }}
+                >
+                  <IconSymbol name="bell.slash.fill" size={14} color={colors.muted} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <IconSymbol name="chevron.right" size={13} color={colors.muted} />
+            )}
           </TouchableOpacity>
         ))
       )}

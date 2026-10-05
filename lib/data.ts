@@ -5364,20 +5364,56 @@ export async function getAbcClasses(): Promise<Record<string, { cls: "A" | "B" |
 export async function getInactiveCustomers() {
     const cutoff = new Date(Date.now() - 180 * 86400000).toISOString();
     const cutoffDate = cutoff.split("T")[0];
+    const today = new Date().toISOString().split("T")[0];
     const [customersRes, invoicesRes, ticketsRes] = await Promise.all([
-        supabase.from("customers").select("id, company_name, first_name, last_name, created_at").eq("status", "active"),
+        (supabase as any).from("customers")
+            .select("id, company_name, first_name, last_name, created_at, inactive_snooze_until, inactive_muted")
+            .eq("status", "active"),
         supabase.from("invoices").select("customer_id").gte("invoice_date", cutoffDate),
         supabase.from("tickets").select("customer_id").gte("created_at", cutoff),
     ]);
+    let customers: any[] = (customersRes.data as any[]) || [];
+    if (customersRes.error) {
+        // Migration 20261013 noch nicht eingespielt → ohne Erinnerungs-Steuerung weiterarbeiten
+        const fallback = await supabase.from("customers")
+            .select("id, company_name, first_name, last_name, created_at")
+            .eq("status", "active");
+        customers = (fallback.data as any[]) || [];
+    }
     const recent = new Set<string>();
     for (const i of (invoicesRes.data as any[]) || []) if (i.customer_id) recent.add(i.customer_id);
     for (const t of (ticketsRes.data as any[]) || []) if (t.customer_id) recent.add(t.customer_id);
-    return ((customersRes.data as any[]) || [])
-        .filter((c) => !recent.has(c.id) && new Date(c.created_at).getTime() < Date.now() - 180 * 86400000)
+    return customers
+        .filter((c) =>
+            !recent.has(c.id) &&
+            new Date(c.created_at).getTime() < Date.now() - 180 * 86400000 &&
+            c.inactive_muted !== true &&
+            (!c.inactive_snooze_until || c.inactive_snooze_until <= today)
+        )
         .map((c) => ({
             id: c.id,
             name: c.company_name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Kunde",
         }));
+}
+
+// Inaktivitäts-Erinnerung: später erneut erinnern (Standard: in 3 Monaten)
+export async function snoozeInactiveReminder(customerId: string, months = 3) {
+    const until = new Date();
+    until.setMonth(until.getMonth() + months);
+    const { error } = await (supabase as any)
+        .from("customers")
+        .update({ inactive_snooze_until: until.toISOString().split("T")[0] })
+        .eq("id", customerId);
+    if (error) throw new Error(error.message);
+}
+
+// Inaktivitäts-Erinnerung für diesen Kunden dauerhaft stummschalten
+export async function muteInactiveReminder(customerId: string) {
+    const { error } = await (supabase as any)
+        .from("customers")
+        .update({ inactive_muted: true })
+        .eq("id", customerId);
+    if (error) throw new Error(error.message);
 }
 
 // ── (11) Cross-Selling-Analyse (KI) ──
