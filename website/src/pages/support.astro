@@ -1,11 +1,21 @@
 ---
 import Base from "../layouts/Base.astro";
 
-const faqs = [
+// FAQ je Bereich: Webdesign-Besucher sehen Fragen zu Webprojekten,
+// ICT-Besucher die Support-Fragen (Umschaltung über html.area-*).
+const faqsIct = [
   { q: "Wie schnell können Sie bei einem Ausfall helfen?", a: "Bei kritischen Ausfällen (Server down, Netzwerk weg) reagieren wir während der Geschäftszeiten in der Regel innert 1-2 Stunden. Per Fernwartung oft noch schneller." },
   { q: "Arbeiten Sie mit einem Ticket-System?", a: "Ja, für die interne Nachverfolgung. Sie müssen sich aber in keinem Portal einloggen - ein einfacher Anruf oder eine E-Mail reicht, und wir kümmern uns um den Rest." },
   { q: "Bieten Sie auch Support ausserhalb der Geschäftszeiten?", a: "Standard-Supportzeiten sind Mo-Fr 08:00 - 17:30 Uhr. Für Server-Wartungen oder kritische Updates arbeiten wir nach Absprache auch am Wochenende oder abends." },
   { q: "Kann ich als Nicht-Kunde Hilfe anfordern?", a: "Selbstverständlich. Wir helfen auch im Notfall bei Umgebungen, die wir nicht selbst aufgebaut haben. Die Abrechnung erfolgt in diesem Fall nach Aufwand." }
+];
+
+const faqsWeb = [
+  { q: "Wie lange dauert es, bis meine Webseite online ist?", a: "Eine Landing Page ist meist in 2-3 Wochen live, eine Unternehmenswebseite in 4-6 Wochen - abhängig davon, wie schnell Inhalte wie Texte und Bilder bereitstehen." },
+  { q: "Was kostet eine Webseite?", a: "Der Einstieg liegt bei CHF 1'500 für eine Landing Page. Den genauen Festpreis für Ihr Projekt berechnen Sie in zwei Minuten mit unserem Preisrechner - unverbindlich und ohne Angabe von Kontaktdaten." },
+  { q: "Kann ich Inhalte später selbst anpassen?", a: "Ja - mit der CMS-Option pflegen Sie Texte und Bilder selbst, ganz ohne Programmierkenntnisse. Alternativ übernehmen wir Anpassungen im Rahmen eines Wartungspakets." },
+  { q: "Ist meine Webseite rechtssicher und barrierefrei?", a: "Impressum und Datenschutzerklärung nach revDSG gehören bei uns zur Grundausstattung, und wir bauen nach den Richtlinien für Barrierefreiheit (WCAG 2.1)." },
+  { q: "Betreuen Sie die Webseite auch nach dem Livegang?", a: "Ja - Hosting auf Schweizer Servern, Updates und laufende Anpassungen: Mit einem Wartungspaket ab CHF 49/Monat bleiben wir auch nach dem Start dran." }
 ];
 
 const downloads = [
@@ -52,6 +62,9 @@ const downloads = [
     .faq-desc { font-size: 16px; color: var(--muted); max-width: 320px; margin: 0; }
     
     .faq-list { display: flex; flex-direction: column; }
+    /* Bereichsabhängige FAQ: Webdesign-Besucher sehen Web-Fragen, ICT-Besucher Support-Fragen */
+    html.area-webdesign .faq-list.faq-ict { display: none; }
+    html.area-ict .faq-list.faq-web { display: none; }
     .faq-item { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 24px 32px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; overflow: hidden; }
     .faq-item:hover { border-color: var(--gold); }
     .faq-item-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
@@ -206,8 +219,21 @@ const downloads = [
           </div>
           <p class="faq-desc">Etwas nicht dabei? Greifen Sie zum Hörer — wir antworten lieber persönlich.</p>
         </div>
-        <div class="faq-list">
-          {faqs.map(faq => (
+        <div class="faq-list faq-web">
+          {faqsWeb.map(faq => (
+            <div class="faq-item" onclick="this.classList.toggle('open')">
+              <div class="faq-item-header">
+                <h3>{faq.q}</h3>
+                <span class="plus">+</span>
+              </div>
+              <div class="faq-answer">
+                <p>{faq.a}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div class="faq-list faq-ict">
+          {faqsIct.map(faq => (
             <div class="faq-item" onclick="this.classList.toggle('open')">
               <div class="faq-item-header">
                 <h3>{faq.q}</h3>
