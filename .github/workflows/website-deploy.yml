@@ -1,0 +1,42 @@
+# Website (gross-ict.ch) bauen und auf den Hetzner-Webspace laden.
+# Wird NUR manuell ausgelöst (Actions → "Website deployen" → Run workflow).
+# Der Portal-Ordner (public_html/portal) bleibt unangetastet.
+name: Website deployen
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Website bauen
+        working-directory: website
+        run: |
+          npm ci || npm install
+          npm run build
+
+      - name: Auf Webspace laden (rsync)
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_PATH_WEBSITE: ${{ secrets.DEPLOY_PATH_WEBSITE }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          DEST="${DEPLOY_PATH_WEBSITE:-public_html}"
+          echo "Ziel: $DEST (portal/ und .well-known/ bleiben unberührt)"
+          rsync -avz --delete \
+            --exclude 'portal' \
+            --exclude '.well-known' \
+            -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT:-22} -o StrictHostKeyChecking=no" \
+            website/dist/ "$DEPLOY_USER@$DEPLOY_HOST:$DEST/"

@@ -1,0 +1,152 @@
+---
+import Base from "../layouts/Base.astro";
+import ContactForm from "../components/ContactForm.astro";
+---
+<Base
+  title="Webdesign — Gross ICT | Webseiten ab CHF 1'500"
+  description="Webseiten, Web-Applikationen und Mobile Apps aus Zell LU. Festpreise, rechtssicher nach revDSG, barrierefrei nach WCAG 2.1."
+  active="webdesign"
+>
+  <section class="hero hero-pink">
+    <div class="glow" style="background: rgba(255,255,255,0.12)"></div>
+    <div class="container">
+      <p class="kicker" style="color: #FBD9F2">WEBDESIGN · ZENTRALSCHWEIZ</p>
+      <h1>Webseiten, die für Sie arbeiten.</h1>
+      <p class="lead">
+        Vom Einzelunternehmen bis zum KMU: Wir bauen Ihren Auftritt neu — suchmaschinenfreundlich,
+        selbst pflegbar und zum Festpreis. Rechtssicher nach revDSG, barrierefrei nach WCAG 2.1.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-white" href="#kontakt">Projekt anfragen</a>
+        <a class="btn btn-outline" href="/rechner">Preis berechnen</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="trust-band">
+    <div class="container inner">
+      <span>✓ Rechtssicher nach revDSG &amp; UWG</span>
+      <span>✓ Barrierefrei nach WCAG 2.1 AA</span>
+      <span>✓ Hosting in der Schweiz</span>
+      <span>✓ Festpreise ohne Überraschungen</span>
+    </div>
+  </div>
+
+  <section class="section" id="pakete">
+    <div class="container">
+      <h2 class="section-title">Unsere Webdesign-Leistungen</h2>
+      <p class="section-sub">Drei klare Angebote — vom Webauftritt bis zur eigenen App.</p>
+      <div class="grid grid-3" style="margin-top: 34px">
+        <article class="card offer">
+          <div class="icon-chip" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E879C9" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M7 20h10"/></svg>
+          </div>
+          <h3>Webseiten</h3>
+          <p>Ihr neuer Auftritt zum Festpreis: suchmaschinenfreundlich, wartbar, Inhalte selbst pflegen — inkl. Impressum und Datenschutzerklärung nach Schweizer Recht.</p>
+          <p class="price">ab CHF 1'500</p>
+        </article>
+        <article class="card offer">
+          <div class="icon-chip" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E879C9" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg>
+          </div>
+          <h3>Web-Applikationen</h3>
+          <p>Individuelle Lösungen wie Kundenportale, Buchungssysteme oder interne Tools — massgeschneidert auf Ihre Abläufe.</p>
+          <p class="price">ab CHF 15'000</p>
+        </article>
+        <article class="card offer">
+          <div class="icon-chip" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E879C9" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+          </div>
+          <h3>Mobile Apps</h3>
+          <p>iOS und Android, nativ oder Cross-Platform — von der Idee bis in den App Store, inklusive Betrieb und Updates.</p>
+          <p class="price">ab CHF 20'000</p>
+        </article>
+      </div>
+
+      <div class="grid grid-2" style="margin-top: 24px">
+        <article class="card special special-npo">
+          <p class="kicker" style="color: var(--pink)">VEREINE &amp; NPO</p>
+          <h3>25% Rabatt auf Webprojekte</h3>
+          <p>Weil Freiwilligenarbeit Unterstützung verdient — faire Preise für Vereine und gemeinnützige Organisationen.</p>
+        </article>
+        <article class="card special special-wedding">
+          <p class="kicker" style="color: var(--gold)">HOCHZEITSPAARE</p>
+          <h3>Hochzeits-Webseiten ab CHF 500</h3>
+          <p>Von Save-the-Date bis zur Deluxe-Variante mit Fotogalerie und Online-Anmeldung für Ihre Gäste.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <h2 class="section-title">So läuft Ihr Projekt</h2>
+      <div class="grid grid-4" style="margin-top: 30px">
+        <article class="card step">
+          <p class="num">1</p>
+          <h3>Kennenlernen</h3>
+          <p>Kostenloses Erstgespräch: Ziele, Inhalte, Budget — unverbindlich und ehrlich.</p>
+        </article>
+        <article class="card step">
+          <p class="num">2</p>
+          <h3>Design</h3>
+          <p>Sie erhalten einen Gestaltungsvorschlag und geben Feedback, bis es passt.</p>
+        </article>
+        <article class="card step">
+          <p class="num">3</p>
+          <h3>Umsetzung</h3>
+          <p>Entwicklung, Texte, Fotos, SEO — und die rechtssichere Basis gleich mit.</p>
+        </article>
+        <article class="card step">
+          <p class="num">4</p>
+          <h3>Betreuung</h3>
+          <p>Hosting, Updates und Anpassungen — wir bleiben auch nach dem Livegang dran.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <ContactForm accent="pink" />
+    </div>
+  </section>
+</Base>
+
+<style>
+  .kicker { font-size: 11.5px; font-weight: 700; letter-spacing: 2px; }
+  .offer { display: flex; flex-direction: column; gap: 14px; }
+  .offer h3 { font-size: 20px; }
+  .offer p { font-size: 14.5px; color: var(--muted); }
+  .offer .price {
+    margin-top: auto;
+    font-family: "Sora", sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--pink);
+  }
+  .icon-chip {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: rgba(232,121,201,0.16);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .special { display: flex; flex-direction: column; gap: 10px; padding: 28px; }
+  .special h3 { font-size: 21px; color: #fff; }
+  .special p { font-size: 14.5px; color: #C6CBDA; }
+  .special-npo {
+    background: linear-gradient(135deg, rgba(232,121,201,0.14), rgba(139,47,201,0.14));
+    border-color: rgba(232,121,201,0.35);
+  }
+  .special-wedding {
+    background: linear-gradient(135deg, rgba(217,169,106,0.14), rgba(232,121,201,0.10));
+    border-color: rgba(217,169,106,0.4);
+  }
+  .step { display: flex; flex-direction: column; gap: 8px; padding: 24px; background: var(--surface-2); }
+  .step .num { font-family: "Sora", sans-serif; font-size: 26px; font-weight: 800; color: var(--pink); }
+  .step h3 { font-size: 16px; }
+  .step p { font-size: 13.5px; color: var(--faint); }
+</style>

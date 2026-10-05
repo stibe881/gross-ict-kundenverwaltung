@@ -1,0 +1,34 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Barrierefreiheit — Gross ICT" description="Erklärung zur Barrierefreiheit der Website gross-ict.ch nach WCAG 2.1.">
+  <section class="section">
+    <div class="container" style="max-width: 760px">
+      <h1 class="section-title">Erklärung zur Barrierefreiheit</h1>
+      <div class="card legal-text" style="margin-top: 24px">
+        <p>
+          Gross ICT ist bestrebt, diese Website für alle Menschen zugänglich zu machen. Wir orientieren
+          uns an den <strong>Web Content Accessibility Guidelines (WCAG) 2.1, Stufe AA</strong>.
+        </p>
+        <h2>Umgesetzte Massnahmen</h2>
+        <p>
+          Semantische HTML-Struktur mit Landmarken und Überschriften-Hierarchie, vollständige Bedienbarkeit
+          per Tastatur mit sichtbarem Fokus, «Zum Inhalt springen»-Link, ausreichende Farbkontraste,
+          beschriftete Formularfelder, Statusmeldungen für Screenreader und responsive Darstellung bis
+          hinunter zu kleinen Bildschirmen.
+        </p>
+        <h2>Rückmeldungen</h2>
+        <p>
+          Stossen Sie auf eine Barriere? Melden Sie sich bitte unter
+          <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a> oder
+          <a href="tel:+41415623416">+41 41 562 34 16</a> — wir beheben das Problem so rasch wie möglich.
+        </p>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .legal-text h2 { font-size: 17px; margin: 22px 0 8px; }
+  .legal-text p { color: var(--muted); font-size: 14.5px; margin-bottom: 10px; }
+</style>

@@ -1,0 +1,124 @@
+---
+// Kontaktformular → Supabase Edge Function contact-form → Lead im CRM.
+interface Props {
+  accent?: "pink" | "blue";
+  heading?: string;
+  intro?: string;
+  messageLabel?: string;
+}
+const {
+  accent = "pink",
+  heading = "Projekt anfragen",
+  intro = "Erzählen Sie uns kurz, was Sie vorhaben — Sie erhalten innert eines Arbeitstags eine persönliche Antwort von Stefan Gross.",
+  messageLabel = "Ihr Vorhaben",
+} = Astro.props;
+const btnClass = accent === "blue" ? "btn btn-blue" : "btn btn-pink";
+---
+<div class="card contact-card" id="kontakt">
+  <div>
+    <h2 class="section-title">{heading}</h2>
+    <p class="section-sub" style="max-width: 420px">{intro}</p>
+    <address style="font-style: normal; margin-top: 18px; color: var(--muted); font-size: 14.5px; line-height: 2">
+      📞 <a href="tel:+41415623416">+41 41 562 34 16</a><br />
+      ✉️ <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a><br />
+      📍 Neuhushof 3, 6144 Zell LU
+    </address>
+  </div>
+  <form class="contact-form" method="post" novalidate>
+    <div class="grid grid-2" style="gap: 12px">
+      <div>
+        <label for={`cf-name-${accent}`}>Name *</label>
+        <input id={`cf-name-${accent}`} name="name" type="text" required autocomplete="name" />
+      </div>
+      <div>
+        <label for={`cf-email-${accent}`}>E-Mail *</label>
+        <input id={`cf-email-${accent}`} name="email" type="email" required autocomplete="email" />
+      </div>
+      <div>
+        <label for={`cf-phone-${accent}`}>Telefon</label>
+        <input id={`cf-phone-${accent}`} name="phone" type="tel" autocomplete="tel" />
+      </div>
+      <div>
+        <label for={`cf-company-${accent}`}>Firma</label>
+        <input id={`cf-company-${accent}`} name="company" type="text" autocomplete="organization" />
+      </div>
+    </div>
+    <div style="margin-top: 12px">
+      <label for={`cf-msg-${accent}`}>{messageLabel}</label>
+      <textarea id={`cf-msg-${accent}`} name="message" rows="4"></textarea>
+    </div>
+    <!-- Honeypot: für Menschen unsichtbar, Bots füllen es aus -->
+    <div class="hp-field" aria-hidden="true">
+      <label for={`cf-web-${accent}`}>Website</label>
+      <input id={`cf-web-${accent}`} name="website" type="text" tabindex="-1" autocomplete="off" />
+    </div>
+    <button type="submit" class={btnClass} style="width: 100%; margin-top: 16px">Anfrage senden</button>
+    <p class="form-status" role="status" aria-live="polite"></p>
+    <p class="fine" style="color: var(--faint); font-size: 11.5px; margin-top: 8px">
+      Ihre Anfrage landet direkt in unserem System — keine Sammel-Postfächer, keine Umwege.
+      Hinweise zum Datenschutz finden Sie in der <a href="/datenschutz">Datenschutzerklärung</a>.
+    </p>
+  </form>
+</div>
+
+<style>
+  .contact-card {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr;
+    gap: 44px;
+    padding: 44px;
+  }
+  @media (max-width: 860px) {
+    .contact-card { grid-template-columns: 1fr; padding: 28px; }
+  }
+  .hp-field {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .form-status { margin-top: 10px; font-size: 14px; font-weight: 600; min-height: 20px; }
+  .form-status.ok { color: #4ADE80; }
+  .form-status.err { color: #F87171; }
+</style>
+
+<script>
+  const FUNCTION_URL = "https://bvluvvyvftygnxtmboxw.supabase.co/functions/v1/contact-form";
+
+  document.querySelectorAll<HTMLFormElement>(".contact-form").forEach((form) => {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const status = form.querySelector<HTMLElement>(".form-status")!;
+      const btn = form.querySelector<HTMLButtonElement>("button[type=submit]")!;
+      const data = Object.fromEntries(new FormData(form).entries());
+
+      if (!data.name || !data.email) {
+        status.textContent = "Bitte Name und E-Mail ausfüllen.";
+        status.className = "form-status err";
+        return;
+      }
+
+      btn.disabled = true;
+      status.textContent = "Wird gesendet…";
+      status.className = "form-status";
+      try {
+        const res = await fetch(FUNCTION_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const out = await res.json().catch(() => ({}));
+        if (!res.ok || out.error) throw new Error(out.error || "Senden fehlgeschlagen");
+        status.textContent = "Vielen Dank! Wir melden uns innert eines Arbeitstags.";
+        status.className = "form-status ok";
+        form.reset();
+      } catch (err) {
+        status.textContent = "Senden fehlgeschlagen — rufen Sie uns gerne an: +41 41 562 34 16.";
+        status.className = "form-status err";
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+</script>

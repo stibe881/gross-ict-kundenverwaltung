@@ -1,0 +1,297 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base
+  title="Preisrechner — Gross ICT | Webseite in 2 Minuten kalkulieren"
+  description="Berechnen Sie den Festpreis für Ihre neue Webseite: Kundentyp, Umfang, Sprachen, Zusatzleistungen, Hosting und Wartung — transparent und unverbindlich."
+  active="rechner"
+>
+  <section class="hero hero-pink" style="padding: 64px 0 70px">
+    <div class="glow" style="background: rgba(255,255,255,0.12)"></div>
+    <div class="container">
+      <p class="kicker" style="color: #FBD9F2">PREISRECHNER</p>
+      <h1>Was kostet Ihre Webseite?</h1>
+      <p class="lead">In zwei Minuten zum transparenten Festpreis — unverbindlich, ohne Angabe von Kontaktdaten.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container calc-layout">
+      <div class="calc-steps">
+
+        <div class="card">
+          <h2 class="step-title"><span>01</span> Wer sind Sie?</h2>
+          <div class="choices" role="radiogroup" aria-label="Kundentyp">
+            <label class="choice"><input type="radio" name="ctype" value="kmu" checked> <span class="t">Unternehmen / KMU</span> <span class="d">Standardpreise</span></label>
+            <label class="choice"><input type="radio" name="ctype" value="verein"> <span class="t">Verein / Organisation</span> <span class="d">25% Rabatt</span></label>
+            <label class="choice"><input type="radio" name="ctype" value="privat"> <span class="t">Privatperson</span> <span class="d">50% Rabatt</span></label>
+            <label class="choice"><input type="radio" name="ctype" value="hochzeit"> <span class="t">Hochzeitspaar</span> <span class="d">Spezialpakete</span></label>
+          </div>
+        </div>
+
+        <div class="card" id="grp-type">
+          <h2 class="step-title"><span>02</span> Was brauchen Sie?</h2>
+          <div class="choices" role="radiogroup" aria-label="Webseitentyp">
+            <label class="choice"><input type="radio" name="wtype" value="1500" checked> <span class="t">Landing Page</span> <span class="d">1–3 Seiten · CHF 1'500</span></label>
+            <label class="choice"><input type="radio" name="wtype" value="3500"> <span class="t">Unternehmenswebseite</span> <span class="d">5–15 Seiten · CHF 3'500</span></label>
+            <label class="choice"><input type="radio" name="wtype" value="8000"> <span class="t">Web-Applikation</span> <span class="d">individuell · ab CHF 8'000</span></label>
+            <label class="choice"><input type="radio" name="wtype" value="12000"> <span class="t">E-Commerce / Webshop</span> <span class="d">CHF 12'000</span></label>
+          </div>
+        </div>
+
+        <div class="card" id="grp-wedding" hidden>
+          <h2 class="step-title"><span>02</span> Welches Hochzeitspaket?</h2>
+          <div class="choices" role="radiogroup" aria-label="Hochzeitspaket">
+            <label class="choice"><input type="radio" name="wpaket" value="500" checked> <span class="t">«Save the Date»</span> <span class="d">Basic · CHF 500</span></label>
+            <label class="choice"><input type="radio" name="wpaket" value="950"> <span class="t">«Der grosse Tag»</span> <span class="d">Premium · CHF 950</span></label>
+            <label class="choice"><input type="radio" name="wpaket" value="1500"> <span class="t">«Für die Ewigkeit»</span> <span class="d">Deluxe · CHF 1'500</span></label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="step-title"><span>03</span> Sprachen</h2>
+          <p class="hint">Erste Sprache inklusive, jede weitere +CHF 600.</p>
+          <label for="langs" style="margin-top: 10px">Anzahl Sprachen</label>
+          <select id="langs">
+            <option value="1" selected>1 Sprache (inklusive)</option>
+            <option value="2">2 Sprachen (+CHF 600)</option>
+            <option value="3">3 Sprachen (+CHF 1'200)</option>
+            <option value="4">4 Sprachen (+CHF 1'800)</option>
+          </select>
+        </div>
+
+        <div class="card" id="grp-extras">
+          <h2 class="step-title"><span>04</span> Zusatzleistungen</h2>
+          <div class="extras" id="extras-std">
+            <label class="extra"><input type="checkbox" value="800" data-label="Logo-Design"> Logo-Design <span>+CHF 800</span></label>
+            <label class="extra"><input type="checkbox" value="400" data-label="Professionelle Texte"> Professionelle Texte <span>+CHF 400</span></label>
+            <label class="extra"><input type="checkbox" value="900" data-label="Foto-Shooting"> Foto-Shooting <span>+CHF 900</span></label>
+            <label class="extra"><input type="checkbox" value="650" data-label="Drohnenaufnahmen"> Drohnenaufnahmen <span>+CHF 650</span></label>
+            <label class="extra"><input type="checkbox" value="1400" data-label="CMS (Inhalte selbst pflegen)"> CMS — Inhalte selbst pflegen <span>+CHF 1'400</span></label>
+            <label class="extra"><input type="checkbox" value="350" data-label="Custom-Animationen"> Custom-Animationen <span>+CHF 350</span></label>
+            <label class="extra"><input type="checkbox" value="800" data-label="SEO Pro"> SEO Pro <span>+CHF 800</span></label>
+            <label class="extra"><input type="checkbox" value="1500" data-label="API-Anbindung"> API-Anbindung <span>+CHF 1'500</span></label>
+            <label class="extra"><input type="checkbox" value="150" data-label="Cookie-Banner"> Cookie-Banner <span>+CHF 150</span></label>
+            <label class="extra"><input type="checkbox" value="250" data-label="Rechtsdokumente (Impressum/Datenschutz)"> Rechtsdokumente <span>+CHF 250</span></label>
+            <label class="extra"><input type="checkbox" value="80" data-label="Custom-Domain"> Custom-Domain <span>+CHF 80</span></label>
+          </div>
+          <div class="extras" id="extras-wedding" hidden>
+            <label class="extra"><input type="checkbox" value="350" data-label="Hochzeitslogo"> Hochzeitslogo <span>+CHF 350</span></label>
+            <label class="extra"><input type="checkbox" value="250" data-label="E-Mail-Mailing an Gäste"> E-Mail-Mailing an Gäste <span>+CHF 250</span></label>
+            <label class="extra"><input type="checkbox" value="150" data-label="QR-Code-Paket"> QR-Code-Paket <span>+CHF 150</span></label>
+            <label class="extra"><input type="checkbox" value="250" data-label="Backend-Verwaltung"> Backend-Verwaltung <span>+CHF 250</span></label>
+            <label class="extra"><input type="checkbox" value="200" data-label="Digitaler Sitzplan"> Digitaler Sitzplan <span>+CHF 200</span></label>
+            <label class="extra"><input type="checkbox" value="100" data-label="Spotify-Playlist"> Spotify-Playlist <span>+CHF 100</span></label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="step-title"><span>05</span> Hosting</h2>
+          <div class="choices" role="radiogroup" aria-label="Hosting">
+            <label class="choice"><input type="radio" name="hosting" value="0"> <span class="t">Kein Hosting</span> <span class="d">Sie hosten selbst</span></label>
+            <label class="choice"><input type="radio" name="hosting" value="189" checked> <span class="t">Hosting bei Gross ICT</span> <span class="d">CHF 189/Jahr · Schweizer Server</span></label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="step-title"><span>06</span> Wartung &amp; Betreuung</h2>
+          <div class="choices" role="radiogroup" aria-label="Wartungsvertrag">
+            <label class="choice"><input type="radio" name="care" value="0" checked> <span class="t">Keine Wartung</span> <span class="d">CHF 0/Monat</span></label>
+            <label class="choice"><input type="radio" name="care" value="49"> <span class="t">Basic</span> <span class="d">CHF 49/Monat</span></label>
+            <label class="choice"><input type="radio" name="care" value="210"> <span class="t">Pro</span> <span class="d">CHF 210/Monat</span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ergebnis -->
+      <aside class="calc-summary" aria-label="Preisübersicht">
+        <div class="card summary-card">
+          <h2 style="font-size: 19px">Ihr Festpreis</h2>
+          <dl>
+            <div class="row"><dt>Grundpreis</dt><dd id="s-base">CHF 1'500</dd></div>
+            <div class="row"><dt>Sprachen</dt><dd id="s-langs">CHF 0</dd></div>
+            <div class="row"><dt>Zusatzleistungen</dt><dd id="s-extras">CHF 0</dd></div>
+            <div class="row discount" id="row-discount" hidden><dt id="s-disc-label">Rabatt</dt><dd id="s-discount">−CHF 0</dd></div>
+            <div class="row total"><dt>Einmalig</dt><dd id="s-once">CHF 1'500</dd></div>
+            <div class="row"><dt>Hosting</dt><dd id="s-hosting">CHF 189/Jahr</dd></div>
+            <div class="row"><dt>Wartung</dt><dd id="s-care">CHF 0/Monat</dd></div>
+          </dl>
+          <button type="button" class="btn btn-pink" id="btn-offer" style="width: 100%; margin-top: 18px">Festpreis-Angebot anfordern</button>
+          <a class="btn btn-outline" href="tel:+41415623416" style="width: 100%; margin-top: 10px; border-color: var(--border); color: var(--text)">Oder anrufen: 041 562 34 16</a>
+
+          <form id="offer-form" hidden style="margin-top: 18px; border-top: 1px solid var(--border); padding-top: 16px">
+            <div style="display: grid; gap: 10px">
+              <div>
+                <label for="of-name">Name *</label>
+                <input id="of-name" name="name" type="text" required autocomplete="name">
+              </div>
+              <div>
+                <label for="of-email">E-Mail *</label>
+                <input id="of-email" name="email" type="email" required autocomplete="email">
+              </div>
+              <div>
+                <label for="of-phone">Telefon</label>
+                <input id="of-phone" name="phone" type="tel" autocomplete="tel">
+              </div>
+              <div class="hp-field" aria-hidden="true">
+                <label for="of-web">Website</label>
+                <input id="of-web" name="website" type="text" tabindex="-1" autocomplete="off">
+              </div>
+              <button type="submit" class="btn btn-gold">Konfiguration senden</button>
+              <p class="form-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        </div>
+      </aside>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .kicker { font-size: 11.5px; font-weight: 700; letter-spacing: 2px; }
+  .calc-layout { display: grid; grid-template-columns: 1.8fr 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 920px) { .calc-layout { grid-template-columns: 1fr; } }
+  .calc-steps { display: flex; flex-direction: column; gap: 20px; }
+  .step-title { font-size: 18px; margin-bottom: 14px; }
+  .step-title span { color: var(--pink); margin-right: 8px; font-size: 14px; letter-spacing: 1px; }
+  .hint { font-size: 13.5px; color: var(--faint); }
+  .choices { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  @media (max-width: 640px) { .choices { grid-template-columns: 1fr; } }
+  .choice {
+    display: flex; flex-direction: column; gap: 2px;
+    background: var(--bg); border: 1.5px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; cursor: pointer; font-size: 15px;
+  }
+  .choice:has(input:checked) { border-color: var(--pink); background: rgba(232,121,201,0.08); }
+  .choice:has(input:focus-visible) { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .choice input { position: absolute; opacity: 0; }
+  .choice .t { font-weight: 700; }
+  .choice .d { font-size: 12.5px; color: var(--muted); }
+  .extras { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+  @media (max-width: 640px) { .extras { grid-template-columns: 1fr; } }
+  .extra {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 14px; font-weight: 500; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 11px 13px; cursor: pointer;
+  }
+  .extra:has(input:checked) { border-color: var(--pink); background: rgba(232,121,201,0.08); }
+  .extra input { width: 16px; height: 16px; accent-color: #E879C9; }
+  .extra span { margin-left: auto; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .calc-summary { position: sticky; top: 20px; }
+  .summary-card dl { margin: 14px 0 0; }
+  .summary-card .row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; font-size: 14.5px; }
+  .summary-card dt { color: var(--muted); }
+  .summary-card dd { margin: 0; font-weight: 600; }
+  .summary-card .discount dd { color: #4ADE80; }
+  .summary-card .total { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 12px; }
+  .summary-card .total dt { color: var(--text); font-weight: 700; }
+  .summary-card .total dd { font-family: "Sora", sans-serif; font-size: 22px; font-weight: 700; color: var(--pink); }
+  .hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .form-status { font-size: 13.5px; font-weight: 600; min-height: 18px; margin: 0; }
+  .form-status.ok { color: #4ADE80; }
+  .form-status.err { color: #F87171; }
+</style>
+
+<script>
+  const FUNCTION_URL = "https://bvluvvyvftygnxtmboxw.supabase.co/functions/v1/contact-form";
+  const chf = (n: number) => "CHF " + Math.round(n).toLocaleString("de-CH");
+
+  const el = (id: string) => document.getElementById(id)!;
+  const radio = (name: string) =>
+    (document.querySelector(`input[name="${name}"]:checked`) as HTMLInputElement | null)?.value || "0";
+
+  function state() {
+    const ctype = radio("ctype");
+    const wedding = ctype === "hochzeit";
+    const base = wedding ? Number(radio("wpaket")) : Number(radio("wtype"));
+    const langs = Number((el("langs") as HTMLSelectElement).value) || 1;
+    const langCost = (langs - 1) * 600;
+    const extrasBox = wedding ? el("extras-wedding") : el("extras-std");
+    const picked = [...extrasBox.querySelectorAll<HTMLInputElement>("input:checked")];
+    const extras = picked.reduce((s, c) => s + Number(c.value), 0);
+    const discountPct = ctype === "verein" ? 0.25 : ctype === "privat" ? 0.5 : 0;
+    const gross = base + langCost + extras;
+    const discount = wedding ? 0 : gross * discountPct;
+    return {
+      ctype, wedding, base, langs, langCost, extras,
+      pickedLabels: picked.map((c) => c.dataset.label || ""),
+      discountPct, discount,
+      once: gross - discount,
+      hosting: Number(radio("hosting")),
+      care: Number(radio("care")),
+    };
+  }
+
+  function recalc() {
+    const s = state();
+    el("grp-type").hidden = s.wedding;
+    el("grp-wedding").hidden = !s.wedding;
+    el("extras-std").hidden = s.wedding;
+    el("extras-wedding").hidden = !s.wedding;
+    el("s-base").textContent = chf(s.base);
+    el("s-langs").textContent = chf(s.langCost);
+    el("s-extras").textContent = chf(s.extras);
+    const dRow = el("row-discount");
+    dRow.hidden = s.discount <= 0;
+    el("s-disc-label").textContent = s.ctype === "verein" ? "Vereins-Rabatt (25%)" : "Privat-Rabatt (50%)";
+    el("s-discount").textContent = "−" + chf(s.discount);
+    el("s-once").textContent = chf(s.once);
+    el("s-hosting").textContent = s.hosting ? chf(s.hosting) + "/Jahr" : "—";
+    el("s-care").textContent = s.care ? chf(s.care) + "/Monat" : "—";
+  }
+
+  document.querySelectorAll("input, select").forEach((i) => i.addEventListener("change", recalc));
+  recalc();
+
+  el("btn-offer").addEventListener("click", () => {
+    const f = el("offer-form");
+    f.hidden = false;
+    (el("of-name") as HTMLInputElement).focus();
+  });
+
+  el("offer-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget as HTMLFormElement;
+    const status = form.querySelector<HTMLElement>(".form-status")!;
+    const data = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+    if (!data.name || !data.email) {
+      status.textContent = "Bitte Name und E-Mail ausfüllen.";
+      status.className = "form-status err";
+      return;
+    }
+    const s = state();
+    const typeLabel = s.wedding
+      ? `Hochzeitspaket CHF ${s.base}`
+      : { 1500: "Landing Page", 3500: "Unternehmenswebseite", 8000: "Web-Applikation", 12000: "E-Commerce/Webshop" }[s.base] || `CHF ${s.base}`;
+    data.message = [
+      "Festpreis-Anfrage aus dem Webseitenrechner:",
+      `Kundentyp: ${s.ctype}`,
+      `Typ: ${typeLabel}`,
+      `Sprachen: ${s.langs}`,
+      s.pickedLabels.length ? `Zusatzleistungen: ${s.pickedLabels.join(", ")}` : "Zusatzleistungen: keine",
+      s.discount > 0 ? `Rabatt: −${Math.round(s.discountPct * 100)}%` : "",
+      `Einmalig: ${chf(s.once)}`,
+      `Hosting: ${s.hosting ? chf(s.hosting) + "/Jahr" : "keines"}`,
+      `Wartung: ${s.care ? chf(s.care) + "/Monat" : "keine"}`,
+    ].filter(Boolean).join("\n");
+
+    status.textContent = "Wird gesendet…";
+    status.className = "form-status";
+    try {
+      const res = await fetch(FUNCTION_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok || out.error) throw new Error(out.error || "fehlgeschlagen");
+      status.textContent = "Danke! Ihr Festpreis-Angebot kommt innert eines Arbeitstags.";
+      status.className = "form-status ok";
+      form.reset();
+    } catch {
+      status.textContent = "Senden fehlgeschlagen — rufen Sie uns an: 041 562 34 16.";
+      status.className = "form-status err";
+    }
+  });
+</script>
