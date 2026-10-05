@@ -144,9 +144,16 @@ export default function CustomersScreen() {
               </View>
             )}
             <View className="flex-1">
-            <Text className="text-lg font-semibold text-foreground mb-1">
-              {displayName}
-            </Text>
+            <View className="flex-row items-center gap-2 mb-1">
+              <Text className="text-lg font-semibold text-foreground" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {displayName}
+              </Text>
+              {abcOf(item.id) ? (
+                <View style={{ width: 22, height: 22, borderRadius: 7, backgroundColor: ABC_COLORS[abcOf(item.id)!] + "25", alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ fontSize: 11.5, fontWeight: "800", color: ABC_COLORS[abcOf(item.id)!] }}>{abcOf(item.id)}</Text>
+                </View>
+              ) : null}
+            </View>
             {item.email && (
               <Text className="text-sm text-muted mb-1">{item.email}</Text>
             )}
@@ -168,11 +175,6 @@ export default function CustomersScreen() {
           </View>
           </View>
           <View className="flex-row items-center gap-3">
-            {abcOf(item.id) ? (
-              <View style={{ width: 24, height: 24, borderRadius: 7, backgroundColor: ABC_COLORS[abcOf(item.id)!] + "25", alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ fontSize: 12, fontWeight: "800", color: ABC_COLORS[abcOf(item.id)!] }}>{abcOf(item.id)}</Text>
-              </View>
-            ) : null}
             <View
               className={`px-3 py-1 rounded-full ${item.status === "active" ? "bg-success" : "bg-muted"
                 }`}
@@ -379,6 +381,7 @@ export default function CustomersScreen() {
                   {/* Kopfzeile */}
                   <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                     <Text style={{ flex: 3, fontSize: 10.5, fontWeight: "700", letterSpacing: 1, color: colors.muted }}>KUNDE</Text>
+                    <Text style={{ width: 70, fontSize: 10.5, fontWeight: "700", letterSpacing: 1, color: colors.muted }}>KLASSE</Text>
                     <Text style={{ flex: 1.6, fontSize: 10.5, fontWeight: "700", letterSpacing: 1, color: colors.muted }}>TAGS</Text>
                     <Text style={{ flex: 1.2, fontSize: 10.5, fontWeight: "700", letterSpacing: 1, color: colors.muted }}>ORT</Text>
                     <Text style={{ flex: 1.6, fontSize: 10.5, fontWeight: "700", letterSpacing: 1, color: colors.muted }}>VERTRÄGE / TICKETS</Text>
@@ -404,14 +407,18 @@ export default function CustomersScreen() {
                             </View>
                           )}
                           <View style={{ minWidth: 0, flex: 1 }}>
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                              <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{name}</Text>
-                              {abcOf(item.id) ? (
-                                <Text style={{ fontSize: 10.5, fontWeight: "800", color: ABC_COLORS[abcOf(item.id)!] }}>{abcOf(item.id)}</Text>
-                              ) : null}
-                            </View>
+                            <Text style={{ fontSize: 13.5, fontWeight: "600", color: colors.foreground }} numberOfLines={1}>{name}</Text>
                             {item.email ? <Text style={{ fontSize: 11.5, color: colors.muted }} numberOfLines={1}>{item.email}</Text> : null}
                           </View>
+                        </View>
+                        <View style={{ width: 70 }}>
+                          {abcOf(item.id) ? (
+                            <View style={{ width: 26, height: 26, borderRadius: 8, backgroundColor: ABC_COLORS[abcOf(item.id)!] + "25", alignItems: "center", justifyContent: "center" }}>
+                              <Text style={{ fontSize: 13, fontWeight: "800", color: ABC_COLORS[abcOf(item.id)!] }}>{abcOf(item.id)}</Text>
+                            </View>
+                          ) : (
+                            <Text style={{ fontSize: 12, color: colors.muted }}>–</Text>
+                          )}
                         </View>
                         <View style={{ flex: 1.6, flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
                           {(item.tags || []).length > 0 ? (item.tags as string[]).slice(0, 3).map((tag) => (
