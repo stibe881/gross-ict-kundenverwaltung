@@ -50,7 +50,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
-    buildNumber: "205",
+    buildNumber: "206",
     "infoPlist": {
       "ITSAppUsesNonExemptEncryption": false,
       "NSFaceIDUsageDescription": "Wir nutzen Face ID für den schnellen Login."
