@@ -121,25 +121,59 @@ import Base from "../layouts/Base.astro";
         <fieldset class="group card" id="grp-extras">
           <legend class="step-title"><span>04</span> Zusatzleistungen</legend>
           <div class="extras" id="extras-std">
-            <label class="extra"><input type="checkbox" value="800" data-label="Logo-Design"> Logo-Design <span>+CHF 800</span></label>
-            <label class="extra"><input type="checkbox" value="400" data-label="Professionelle Texte"> Professionelle Texte <span>+CHF 400</span></label>
-            <label class="extra"><input type="checkbox" value="900" data-label="Foto-Shooting"> Foto-Shooting <span>+CHF 900</span></label>
-            <label class="extra"><input type="checkbox" value="650" data-label="Drohnenaufnahmen"> Drohnenaufnahmen <span>+CHF 650</span></label>
-            <label class="extra"><input type="checkbox" value="1400" data-label="CMS (Inhalte selbst pflegen)"> CMS — Inhalte selbst pflegen <span>+CHF 1'400</span></label>
-            <label class="extra"><input type="checkbox" value="350" data-label="Custom-Animationen"> Custom-Animationen <span>+CHF 350</span></label>
-            <label class="extra"><input type="checkbox" value="800" data-label="SEO Pro"> SEO Pro <span>+CHF 800</span></label>
-            <label class="extra"><input type="checkbox" value="1500" data-label="API-Anbindung"> API-Anbindung <span>+CHF 1'500</span></label>
-            <label class="extra"><input type="checkbox" value="150" data-label="Cookie-Banner"> Cookie-Banner <span>+CHF 150</span></label>
-            <label class="extra"><input type="checkbox" value="250" data-label="Rechtsdokumente (Impressum/Datenschutz)"> Rechtsdokumente <span>+CHF 250</span></label>
-            <label class="extra"><input type="checkbox" value="80" data-label="Custom-Domain"> Custom-Domain <span>+CHF 80</span></label>
+            <label class="extra"><input type="checkbox" value="800" data-label="Logo-Design">
+              <span class="x-info"><span class="x-t">Logo-Design</span><span class="x-d">Wort-/Bildmarke mit allen Dateien für Web und Druck</span></span>
+              <span class="x-p">+CHF 800</span></label>
+            <label class="extra"><input type="checkbox" value="400" data-label="Professionelle Texte">
+              <span class="x-info"><span class="x-t">Professionelle Texte</span><span class="x-d">Wir schreiben Ihre Seitentexte — klar und verkaufsstark</span></span>
+              <span class="x-p">+CHF 400</span></label>
+            <label class="extra"><input type="checkbox" value="900" data-label="Foto-Shooting">
+              <span class="x-info"><span class="x-t">Foto-Shooting</span><span class="x-d">Profi-Fotos von Team, Räumen und Arbeit — bei Ihnen vor Ort</span></span>
+              <span class="x-p">+CHF 900</span></label>
+            <label class="extra"><input type="checkbox" value="650" data-label="Drohnenaufnahmen">
+              <span class="x-info"><span class="x-t">Drohnenaufnahmen</span><span class="x-d">Luftbilder und -videos von Standort und Umgebung</span></span>
+              <span class="x-p">+CHF 650</span></label>
+            <label class="extra"><input type="checkbox" value="1400" data-label="CMS (Inhalte selbst pflegen)">
+              <span class="x-info"><span class="x-t">CMS — Inhalte selbst pflegen</span><span class="x-d">Texte und Bilder ändern Sie künftig selbst, ohne Agentur</span></span>
+              <span class="x-p">+CHF 1'400</span></label>
+            <label class="extra"><input type="checkbox" value="350" data-label="Custom-Animationen">
+              <span class="x-info"><span class="x-t">Custom-Animationen</span><span class="x-d">Bewegte Elemente und Übergänge für einen lebendigen Auftritt</span></span>
+              <span class="x-p">+CHF 350</span></label>
+            <label class="extra"><input type="checkbox" value="800" data-label="SEO Pro">
+              <span class="x-info"><span class="x-t">SEO Pro</span><span class="x-d">Vertiefte Suchmaschinen-Optimierung mit Keyword-Recherche</span></span>
+              <span class="x-p">+CHF 800</span></label>
+            <label class="extra"><input type="checkbox" value="1500" data-label="API-Anbindung">
+              <span class="x-info"><span class="x-t">API-Anbindung</span><span class="x-d">Verbindung zu Drittsystemen wie Shop, Buchung oder ERP</span></span>
+              <span class="x-p">+CHF 1'500</span></label>
+            <label class="extra"><input type="checkbox" value="150" data-label="Cookie-Banner">
+              <span class="x-info"><span class="x-t">Cookie-Banner</span><span class="x-d">Rechtskonforme Einwilligung für Cookies und Statistik</span></span>
+              <span class="x-p">+CHF 150</span></label>
+            <label class="extra"><input type="checkbox" value="250" data-label="Rechtsdokumente (Impressum/Datenschutz)">
+              <span class="x-info"><span class="x-t">Rechtsdokumente</span><span class="x-d">Impressum und Datenschutzerklärung nach Schweizer Recht</span></span>
+              <span class="x-p">+CHF 250</span></label>
+            <label class="extra"><input type="checkbox" value="80" data-label="Custom-Domain">
+              <span class="x-info"><span class="x-t">Custom-Domain</span><span class="x-d">Registrierung und Einrichtung Ihrer Wunschadresse</span></span>
+              <span class="x-p">+CHF 80</span></label>
           </div>
           <div class="extras" id="extras-wedding" hidden>
-            <label class="extra"><input type="checkbox" value="350" data-label="Hochzeitslogo"> Hochzeitslogo <span>+CHF 350</span></label>
-            <label class="extra"><input type="checkbox" value="250" data-label="E-Mail-Mailing an Gäste"> E-Mail-Mailing an Gäste <span>+CHF 250</span></label>
-            <label class="extra"><input type="checkbox" value="150" data-label="QR-Code-Paket"> QR-Code-Paket <span>+CHF 150</span></label>
-            <label class="extra"><input type="checkbox" value="250" data-label="Backend-Verwaltung"> Backend-Verwaltung <span>+CHF 250</span></label>
-            <label class="extra"><input type="checkbox" value="200" data-label="Digitaler Sitzplan"> Digitaler Sitzplan <span>+CHF 200</span></label>
-            <label class="extra"><input type="checkbox" value="100" data-label="Spotify-Playlist"> Spotify-Playlist <span>+CHF 100</span></label>
+            <label class="extra"><input type="checkbox" value="350" data-label="Hochzeitslogo">
+              <span class="x-info"><span class="x-t">Hochzeitslogo</span><span class="x-d">Euer Monogramm für Webseite und Einladungen</span></span>
+              <span class="x-p">+CHF 350</span></label>
+            <label class="extra"><input type="checkbox" value="250" data-label="E-Mail-Mailing an Gäste">
+              <span class="x-info"><span class="x-t">E-Mail-Mailing an Gäste</span><span class="x-d">Save-the-Date und Neuigkeiten direkt an alle Gäste</span></span>
+              <span class="x-p">+CHF 250</span></label>
+            <label class="extra"><input type="checkbox" value="150" data-label="QR-Code-Paket">
+              <span class="x-info"><span class="x-t">QR-Code-Paket</span><span class="x-d">QR-Codes für Einladungen, die direkt zur Seite führen</span></span>
+              <span class="x-p">+CHF 150</span></label>
+            <label class="extra"><input type="checkbox" value="250" data-label="Backend-Verwaltung">
+              <span class="x-info"><span class="x-t">Backend-Verwaltung</span><span class="x-d">Anmeldungen und Gästeliste bequem online verwalten</span></span>
+              <span class="x-p">+CHF 250</span></label>
+            <label class="extra"><input type="checkbox" value="200" data-label="Digitaler Sitzplan">
+              <span class="x-info"><span class="x-t">Digitaler Sitzplan</span><span class="x-d">Jeder Gast findet seinen Platz online</span></span>
+              <span class="x-p">+CHF 200</span></label>
+            <label class="extra"><input type="checkbox" value="100" data-label="Spotify-Playlist">
+              <span class="x-info"><span class="x-t">Spotify-Playlist</span><span class="x-d">Musikwünsche der Gäste landen in eurer Playlist</span></span>
+              <span class="x-p">+CHF 100</span></label>
           </div>
         </fieldset>
 
@@ -295,8 +329,12 @@ import Base from "../layouts/Base.astro";
   .extra:has(input:checked) { border-color: var(--gold); background: rgba(229, 169, 61, 0.08); box-shadow: 0 4px 14px rgba(229, 169, 61, 0.1); }
   .extra:has(input:focus-visible) { outline: 3px solid var(--gold); outline-offset: 2px; }
   .extra input { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
-  .extra span { font-size: 13px; color: var(--muted); font-weight: 500; white-space: nowrap; transition: color 0.2s; }
-  .extra:has(input:checked) span { color: var(--gold); }
+  .extra { gap: 14px; }
+  .extra .x-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .extra .x-t { font-size: 14.5px; font-weight: 700; color: var(--text); }
+  .extra .x-d { font-size: 12.5px; font-weight: 500; color: var(--muted); line-height: 1.45; }
+  .extra .x-p { font-size: 13px; color: var(--muted); font-weight: 600; white-space: nowrap; transition: color 0.2s; margin-left: auto; }
+  .extra:has(input:checked) .x-p { color: var(--gold); }
 
   .calc-summary { position: sticky; top: 20px; }
   .summary-card {
