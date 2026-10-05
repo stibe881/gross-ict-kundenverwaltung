@@ -29,6 +29,19 @@ import { scheduleReminderNotification, cancelReminderNotification } from "@/lib/
 
 type LeadStatus = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
 
+// Zentrale Phasen-Definition fürs Akquise-Dashboard
+const STAGE_META: Record<LeadStatus, { label: string; color: string }> = {
+  new: { label: "Neu", color: "#C19A6B" },
+  contacted: { label: "Kontaktiert", color: "#0EA5E9" },
+  qualified: { label: "Qualifiziert", color: "#F59E0B" },
+  proposal: { label: "Angebot", color: "#8B5CF6" },
+  won: { label: "Gewonnen", color: "#22C55E" },
+  lost: { label: "Verloren", color: "#EF4444" },
+};
+const ACTIVE_STAGES: LeadStatus[] = ["new", "contacted", "qualified", "proposal"];
+const STAGE_ORDER: LeadStatus[] = ["new", "contacted", "qualified", "proposal", "won"];
+const RATING_EMOJI: Record<string, string> = { hot: "🔥", warm: "🌤", cold: "❄️" };
+
 export default function LeadsScreen() {
   const router = useRouter();
   const colors = useColors();
@@ -41,14 +54,15 @@ export default function LeadsScreen() {
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<string>("az");
-  const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>({});
+  const [sortBy, setSortBy] = useState<string>("date");
+  const [mobileStage, setMobileStage] = useState<LeadStatus>("new");
   const { refreshing, onRefresh } = useGlobalRefresh();
+  const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads"],
     queryFn: Data.getLeads,
-    refetchInterval: 5000, // Automatischer Refresh alle 5 Sekunden
+    refetchInterval: 5000,
   });
 
   // Deep-Link aus Heute-Feed/Push: /leads?leadId=... öffnet den Lead direkt
@@ -69,29 +83,10 @@ export default function LeadsScreen() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
   });
 
-  const getStatusLabel = (status: LeadStatus) => {
-    const labels: Record<LeadStatus, string> = {
-      new: "Neu",
-      contacted: "Kontaktiert",
-      qualified: "Qualifiziert",
-      proposal: "Angebot",
-      won: "Gewonnen",
-      lost: "Verloren",
-    };
-    return labels[status];
-  };
-
-  const getStatusColor = (status: LeadStatus) => {
-    const colorMap: Record<LeadStatus, string> = {
-      new: colors.primary,
-      contacted: "#17A2B8",
-      qualified: colors.warning,
-      proposal: "#6C757D",
-      won: colors.success,
-      lost: colors.error,
-    };
-    return colorMap[status];
-  };
+  const getStatusLabel = (status: LeadStatus) => STAGE_META[status]?.label || status;
+  const getStatusColor = (status: LeadStatus) => STAGE_META[status]?.color || colors.muted;
+  const getPriorityLabel = (p: string) => ({ low: "Tief", medium: "Mittel", high: "Hoch" }[p] || "Mittel");
+  const getPriorityColor = (p: string) => ({ low: "#6B7280", medium: "#F59E0B", high: "#EF4444" }[p] || "#F59E0B");
 
   const filteredLeads = leads.filter((l: any) => {
     if (priorityFilter !== "all" && (l.priority || "medium") !== priorityFilter) return false;
@@ -109,7 +104,7 @@ export default function LeadsScreen() {
     return [...list].sort((a, b) => {
       switch (sortBy) {
         case "name":
-          return (a.name || "").localeCompare(b.name || "", "de");
+          return (a.name || a.company || "").localeCompare(b.name || b.company || "", "de");
         case "value":
           return (b.value || 0) - (a.value || 0);
         case "priority": {
@@ -123,83 +118,286 @@ export default function LeadsScreen() {
     });
   };
 
-  const hasReminder = (l: any) => l.lead_reminders?.some((r: any) => !r.is_processed);
+  const byStage = (stage: LeadStatus) => sortLeads(filteredLeads.filter((l: any) => l.status === stage));
+  const stageSum = (stage: LeadStatus) =>
+    filteredLeads.filter((l: any) => l.status === stage).reduce((s: number, l: any) => s + (l.value || 0), 0);
 
-  const groupedLeads = {
-    new: sortLeads(filteredLeads.filter((l: any) => l.status === "new" && !hasReminder(l))),
-    contacted: sortLeads(filteredLeads.filter((l: any) => l.status === "contacted" && !hasReminder(l))),
-    qualified: sortLeads(filteredLeads.filter((l: any) => l.status === "qualified" && !hasReminder(l))),
-    proposal: sortLeads(filteredLeads.filter((l: any) => l.status === "proposal" && !hasReminder(l))),
-  };
-
-  const totalCounts = {
-    new: filteredLeads.filter((l: any) => l.status === "new" && !hasReminder(l)).length,
-    contacted: filteredLeads.filter((l: any) => l.status === "contacted" && !hasReminder(l)).length,
-    qualified: filteredLeads.filter((l: any) => l.status === "qualified" && !hasReminder(l)).length,
-    proposal: filteredLeads.filter((l: any) => l.status === "proposal" && !hasReminder(l)).length,
-  };
-
-  const totalValue = filteredLeads.reduce((sum: number, lead: any) => sum + (lead.value || 0), 0);
+  // ── KPIs ──
+  const activeLeads = filteredLeads.filter((l: any) => ACTIVE_STAGES.includes(l.status));
+  const pipelineValue = activeLeads.reduce((s: number, l: any) => s + (l.value || 0), 0);
 
   // Gewichtete Pipeline: Wert × Abschlusswahrscheinlichkeit aus der Einstufung
-  // (🔥 heiss 70%, 🌤 warm 40%, ❄️ kalt 15%, ohne Einstufung 30%)
   const RATING_WEIGHTS: Record<string, number> = { hot: 0.7, warm: 0.4, cold: 0.15 };
-  const weightedValue = filteredLeads.reduce((sum: number, lead: any) => {
+  const weightedValue = activeLeads.reduce((sum: number, lead: any) => {
     const w = RATING_WEIGHTS[lead.rating || ""] ?? 0.3;
     return sum + (lead.value || 0) * w;
   }, 0);
 
-  const getPriorityLabel = (p: string) => ({ low: "Tief", medium: "Mittel", high: "Hoch" }[p] || "Mittel");
-  const getPriorityColor = (p: string) => ({ low: "#6B7280", medium: "#F59E0B", high: "#EF4444" }[p] || "#F59E0B");
+  const wonLeads = filteredLeads.filter((l: any) => l.status === "won");
+  const lostLeads = filteredLeads.filter((l: any) => l.status === "lost");
+  const closedTotal = wonLeads.length + lostLeads.length;
+  const winRate = closedTotal > 0 ? Math.round((wonLeads.length / closedTotal) * 100) : 0;
+  const wonValue = wonLeads.reduce((s: number, l: any) => s + (l.value || 0), 0);
+  const lostValue = lostLeads.reduce((s: number, l: any) => s + (l.value || 0), 0);
 
-  const { isWide, containerStyle, contentPadding } = useResponsiveLayout();
+  // "Heute dran": fällige Erinnerungen + überfällige nächste Aktionen aktiver Leads
+  const endOfToday = new Date(new Date().setHours(23, 59, 59, 999));
+  const todayStr = new Date().toISOString().split("T")[0];
+  const dueList = activeLeads
+    .map((l: any) => {
+      const pending = (l.lead_reminders || [])
+        .filter((r: any) => !r.is_processed)
+        .sort((a: any, b: any) => new Date(a.remind_at).getTime() - new Date(b.remind_at).getTime());
+      const dueReminder = pending.find((r: any) => new Date(r.remind_at) <= endOfToday);
+      const actionDue = l.next_action && l.next_action_date && l.next_action_date <= todayStr;
+      if (!dueReminder && !actionDue) return null;
+      const when = dueReminder ? new Date(dueReminder.remind_at) : new Date(`${l.next_action_date}T09:00:00`);
+      return {
+        lead: l,
+        text: dueReminder ? dueReminder.note || "Wiedervorlage" : l.next_action,
+        when,
+        overdue: when < new Date(new Date().setHours(0, 0, 0, 0)),
+      };
+    })
+    .filter(Boolean)
+    .sort((a: any, b: any) => a.when.getTime() - b.when.getTime());
+
+  // Neue Website-Anfragen (Posteingang)
+  const websiteInbox = sortLeads(
+    filteredLeads.filter((l: any) => l.source === "website" && l.status === "new")
+  );
+
+  const nextStage = (status: LeadStatus): LeadStatus | null => {
+    const idx = STAGE_ORDER.indexOf(status);
+    if (idx < 0 || idx >= STAGE_ORDER.length - 1) return null;
+    return STAGE_ORDER[idx + 1];
+  };
+
+  const fmtChf = (v: number) => `CHF ${Math.round(v).toLocaleString("de-CH")}`;
+
+  // ── Wiederverwendbare Lead-Karte ──
+  const renderLeadCard = (lead: any) => {
+    const pending = (lead.lead_reminders || [])
+      .filter((r: any) => !r.is_processed)
+      .sort((a: any, b: any) => new Date(a.remind_at).getTime() - new Date(b.remind_at).getTime());
+    const nextReminder = pending[0];
+    const reminderOverdue = nextReminder && new Date(nextReminder.remind_at) < new Date(new Date().setHours(0, 0, 0, 0));
+    const actionOverdue = lead.next_action_date && lead.next_action_date < todayStr;
+    const target = nextStage(lead.status);
+
+    return (
+      <TouchableOpacity
+        key={lead.id}
+        className="bg-background rounded-xl border border-border p-3"
+        activeOpacity={0.7}
+        onPress={() => setSelectedLead(lead)}
+      >
+        {/* Kopf: Firma + Prioritäts-Punkt */}
+        <View className="flex-row items-center justify-between gap-2">
+          <Text className="text-[14.5px] font-bold text-foreground flex-1" numberOfLines={1}>
+            {lead.rating ? `${RATING_EMOJI[lead.rating] || ""} ` : ""}
+            {lead.company || lead.name || "–"}
+          </Text>
+          <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: getPriorityColor(lead.priority) }} />
+        </View>
+        {lead.company && lead.name ? (
+          <Text className="text-xs text-muted mt-0.5" numberOfLines={1}>
+            {lead.name}{lead.position ? ` · ${lead.position}` : ""}
+          </Text>
+        ) : null}
+
+        <View className="flex-row items-center justify-between mt-1.5">
+          <Text className="text-sm font-bold" style={{ color: "#4ADE80" }}>
+            {fmtChf(lead.value || 0)}
+          </Text>
+          {lead.source ? (
+            <Text className="text-[10px] text-muted uppercase">
+              {{ website: "Website", empfehlung: "Empfehlung", messe: "Messe", kaltakquise: "Kaltakquise", social_media: "Social Media" }[lead.source as string] || lead.source}
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Nächster Schritt */}
+        {nextReminder ? (
+          <View className="flex-row items-center gap-1.5 mt-2 rounded-lg px-2 py-1.5" style={{ backgroundColor: (reminderOverdue ? "#EF4444" : colors.primary) + "15" }}>
+            <IconSymbol name="bell.fill" size={11} color={reminderOverdue ? "#EF4444" : colors.primary} />
+            <Text className="text-[11px] font-semibold flex-1" style={{ color: reminderOverdue ? "#EF4444" : colors.primary }} numberOfLines={1}>
+              {new Date(nextReminder.remind_at).toLocaleDateString("de-CH")}{nextReminder.note ? ` · ${nextReminder.note}` : ""}
+            </Text>
+          </View>
+        ) : lead.next_action ? (
+          <View className="flex-row items-center gap-1.5 mt-2">
+            <IconSymbol name="calendar" size={11} color={actionOverdue ? "#EF4444" : colors.muted} />
+            <Text className="text-[11px] flex-1" style={{ color: actionOverdue ? "#EF4444" : colors.muted }} numberOfLines={1}>
+              {lead.next_action}{lead.next_action_date ? ` (bis ${new Date(lead.next_action_date).toLocaleDateString("de-CH")})` : ""}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Schnellaktionen */}
+        <View className="flex-row items-center gap-1.5 mt-2.5 pt-2.5" style={{ borderTopWidth: 1, borderTopColor: colors.border + "60" }}>
+          {target ? (
+            <TouchableOpacity
+              className="flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg flex-1 justify-center"
+              style={{ backgroundColor: getStatusColor(target) + "18" }}
+              onPress={() => updateLeadStatus.mutate({ id: lead.id, status: target })}
+              activeOpacity={0.7}
+            >
+              <Text className="text-[11px] font-bold" style={{ color: getStatusColor(target) }} numberOfLines={1}>
+                → {getStatusLabel(target)}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity
+            className="w-8 h-8 rounded-lg items-center justify-center"
+            style={{ backgroundColor: colors.border + "60" }}
+            onPress={() => { setEditingLead(lead); setShowAddModal(true); }}
+            activeOpacity={0.7}
+          >
+            <IconSymbol name="pencil" size={13} color={colors.foreground} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="w-8 h-8 rounded-lg items-center justify-center"
+            style={{ backgroundColor: "#22C55E18" }}
+            onPress={() => setConvertingLead(lead)}
+            activeOpacity={0.7}
+          >
+            <IconSymbol name="person.crop.circle.badge.plus" size={14} color="#22C55E" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="w-8 h-8 rounded-lg items-center justify-center"
+            style={{ backgroundColor: "#EF444415" }}
+            onPress={() =>
+              showConfirm(
+                "Lead löschen",
+                `Möchten Sie "${lead.company || lead.name}" wirklich löschen?`,
+                () => deleteLead.mutate(lead.id),
+                "Löschen"
+              )
+            }
+            activeOpacity={0.7}
+          >
+            <IconSymbol name="trash" size={13} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // ── KPI-Kachel ──
+  const KpiTile = ({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) => (
+    <View
+      className="bg-surface rounded-xl border border-border px-4 py-3.5"
+      style={{ flex: 1, minWidth: isWide ? 170 : "47%" }}
+    >
+      <Text className="text-[11px] text-muted mb-1">{label}</Text>
+      <Text className="text-xl font-bold" style={{ color }}>{value}</Text>
+      <Text className="text-[11px] text-muted mt-0.5" numberOfLines={1}>{sub}</Text>
+    </View>
+  );
+
+  const stageChipsMobile: LeadStatus[] = [...ACTIVE_STAGES, "won", "lost"];
 
   return (
     <ScreenContainer>
-      <ScrollView 
-        className="flex-1" 
+      <ScrollView
+        className="flex-1"
         contentContainerStyle={{ padding: contentPadding }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={containerStyle}>
-          {/* Header */}
+          {/* ── Kopfzeile ── */}
           <View className="flex-row items-center justify-between mb-4">
             <View className="flex-row items-center gap-3 flex-1">
               <BackButton />
               <View>
                 <Text className="text-2xl font-bold text-foreground">Akquise</Text>
-                <Text className="text-xs text-muted">
-                  {totalCounts.new + totalCounts.contacted + totalCounts.qualified + totalCounts.proposal} in der Pipeline · CHF {totalValue.toLocaleString("de-CH")}
-                </Text>
-                <Text className="text-xs font-semibold" style={{ color: "#22C55E" }}>
-                  Gewichtete Prognose: CHF {Math.round(weightedValue).toLocaleString("de-CH")}
-                </Text>
+                <Text className="text-xs text-muted">Ihr Vertriebs-Cockpit</Text>
               </View>
             </View>
-            <TouchableOpacity
-              className="bg-surface border border-border w-10 h-10 rounded-full items-center justify-center mr-2"
-              activeOpacity={0.8}
-              onPress={() => setShowCallMode(true)}
-            >
-              <IconSymbol name="phone.fill" size={17} color="#0EA5E9" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="bg-surface border border-border w-10 h-10 rounded-full items-center justify-center mr-2"
-              activeOpacity={0.8}
-              onPress={() => setShowCrossSell(true)}
-            >
-              <IconSymbol name="sparkles" size={17} color="#8B5CF6" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="bg-primary w-10 h-10 rounded-full items-center justify-center"
-              activeOpacity={0.8}
-              onPress={() => setShowAddModal(true)}
-            >
-              <IconSymbol name="plus" size={22} color={colors.background} />
-            </TouchableOpacity>
+            {isWide ? (
+              <View className="flex-row items-center gap-2">
+                <TouchableOpacity
+                  className="flex-row items-center gap-1.5 bg-surface border border-border px-3.5 py-2 rounded-xl"
+                  activeOpacity={0.8}
+                  onPress={() => setShowCallMode(true)}
+                >
+                  <IconSymbol name="phone.fill" size={14} color="#0EA5E9" />
+                  <Text className="text-sm font-semibold text-foreground">Anruf-Modus</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-row items-center gap-1.5 bg-surface border border-border px-3.5 py-2 rounded-xl"
+                  activeOpacity={0.8}
+                  onPress={() => setShowCrossSell(true)}
+                >
+                  <IconSymbol name="sparkles" size={14} color="#8B5CF6" />
+                  <Text className="text-sm font-semibold text-foreground">KI-Potenzial</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-row items-center gap-1.5 bg-primary px-4 py-2 rounded-xl"
+                  activeOpacity={0.8}
+                  onPress={() => setShowAddModal(true)}
+                >
+                  <IconSymbol name="plus" size={15} color={colors.background} />
+                  <Text className="text-sm font-bold" style={{ color: colors.background }}>Neuer Lead</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View className="flex-row items-center gap-2">
+                <TouchableOpacity
+                  className="bg-surface border border-border w-10 h-10 rounded-full items-center justify-center"
+                  activeOpacity={0.8}
+                  onPress={() => setShowCallMode(true)}
+                >
+                  <IconSymbol name="phone.fill" size={17} color="#0EA5E9" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="bg-surface border border-border w-10 h-10 rounded-full items-center justify-center"
+                  activeOpacity={0.8}
+                  onPress={() => setShowCrossSell(true)}
+                >
+                  <IconSymbol name="sparkles" size={17} color="#8B5CF6" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="bg-primary w-10 h-10 rounded-full items-center justify-center"
+                  activeOpacity={0.8}
+                  onPress={() => setShowAddModal(true)}
+                >
+                  <IconSymbol name="plus" size={22} color={colors.background} />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
-          {/* Suchfeld */}
+          {/* ── KPI-Zeile ── */}
+          <View className="flex-row flex-wrap gap-2.5 mb-4">
+            <KpiTile
+              label="Pipeline"
+              value={fmtChf(pipelineValue)}
+              sub={`${activeLeads.length} aktive Leads`}
+              color="#C19A6B"
+            />
+            <KpiTile
+              label="Gewichtete Prognose"
+              value={fmtChf(weightedValue)}
+              sub="nach Einstufung 🔥 70% · 🌤 40% · ❄️ 15%"
+              color="#4ADE80"
+            />
+            <KpiTile
+              label="Abschlussquote"
+              value={closedTotal > 0 ? `${winRate}%` : "–"}
+              sub={`${wonLeads.length} gewonnen · ${lostLeads.length} verloren`}
+              color={winRate >= 50 ? "#4ADE80" : "#FB923C"}
+            />
+            <KpiTile
+              label="Heute dran"
+              value={String(dueList.length)}
+              sub="fällige Follow-ups & Aktionen"
+              color={dueList.length > 0 ? "#FB923C" : "#4ADE80"}
+            />
+          </View>
+
+          {/* ── Suche & Filter ── */}
           <View className="mb-3 bg-surface rounded-xl flex-row items-center px-3 py-2.5 border border-border gap-2">
             <IconSymbol name="magnifyingglass" size={16} color={colors.muted} />
             <TextInput
@@ -216,189 +414,58 @@ export default function LeadsScreen() {
             )}
           </View>
 
-
-          {/* Priorität + Sortierung */}
-          <View className="mb-4">
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, alignItems: "center" }}>
-              {[
-                { key: "all", label: "Alle", color: colors.primary },
-                { key: "high", label: "Hoch", color: "#EF4444" },
-                { key: "medium", label: "Mittel", color: "#F59E0B" },
-                { key: "low", label: "Tief", color: "#6B7280" },
-              ].map((f) => {
-                const active = priorityFilter === f.key;
-                return (
-                  <TouchableOpacity
-                    key={f.key}
-                    className="px-3 py-1.5 rounded-full border"
-                    style={{
-                      backgroundColor: active ? f.color : colors.surface,
-                      borderColor: active ? f.color : colors.border,
-                    }}
-                    onPress={() => setPriorityFilter(f.key)}
-                    activeOpacity={0.8}
-                  >
-                    <Text className="text-xs font-semibold" style={{ color: active ? "#fff" : colors.foreground }}>
-                      {f.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-              <View style={{ width: 1, height: 18, backgroundColor: colors.border, marginHorizontal: 2 }} />
-              <IconSymbol name="arrow.up.arrow.down" size={14} color={colors.muted} />
-              {[
-                { key: "date", label: "Neueste" },
-                { key: "name", label: "A-Z" },
-                { key: "value", label: "Wert" },
-                { key: "priority", label: "Priorität" },
-              ].map((s) => {
-                const active = sortBy === s.key;
-                return (
-                  <TouchableOpacity
-                    key={s.key}
-                    className="px-3 py-1.5 rounded-full border"
-                    style={{
-                      backgroundColor: active ? colors.primary + "15" : colors.surface,
-                      borderColor: active ? colors.primary : colors.border,
-                    }}
-                    onPress={() => setSortBy(s.key)}
-                    activeOpacity={0.8}
-                  >
-                    <Text className="text-xs font-semibold" style={{ color: active ? colors.primary : colors.foreground }}>
-                      {s.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+          <View className="flex-row flex-wrap items-center gap-2 mb-4">
+            {[
+              { key: "all", label: "Alle", color: colors.primary },
+              { key: "high", label: "Hoch", color: "#EF4444" },
+              { key: "medium", label: "Mittel", color: "#F59E0B" },
+              { key: "low", label: "Tief", color: "#6B7280" },
+            ].map((f) => {
+              const active = priorityFilter === f.key;
+              return (
+                <TouchableOpacity
+                  key={f.key}
+                  className="px-3 py-1.5 rounded-full border"
+                  style={{
+                    backgroundColor: active ? f.color : colors.surface,
+                    borderColor: active ? f.color : colors.border,
+                  }}
+                  onPress={() => setPriorityFilter(f.key)}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-xs font-semibold" style={{ color: active ? "#fff" : colors.foreground }}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+            <View style={{ width: 1, height: 18, backgroundColor: colors.border, marginHorizontal: 2 }} />
+            <IconSymbol name="arrow.up.arrow.down" size={14} color={colors.muted} />
+            {[
+              { key: "date", label: "Neueste" },
+              { key: "name", label: "A-Z" },
+              { key: "value", label: "Wert" },
+              { key: "priority", label: "Priorität" },
+            ].map((s) => {
+              const active = sortBy === s.key;
+              return (
+                <TouchableOpacity
+                  key={s.key}
+                  className="px-3 py-1.5 rounded-full border"
+                  style={{
+                    backgroundColor: active ? colors.primary + "15" : colors.surface,
+                    borderColor: active ? colors.primary : colors.border,
+                  }}
+                  onPress={() => setSortBy(s.key)}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-xs font-semibold" style={{ color: active ? colors.primary : colors.foreground }}>
+                    {s.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-          {/* Website-Anfragen Kachel */}
-          {!isLoading && (() => {
-            const websiteLeads = sortLeads(filteredLeads.filter((l: any) => l.source === 'website' && l.status === 'new' && !l.lead_reminders?.some((r: any) => !r.is_processed)));
-            if (websiteLeads.length === 0) return null;
-            return (
-              <View className="bg-surface rounded-xl p-4 border border-border mb-4" style={{ minHeight: 140, maxHeight: 220 }}>
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center gap-2">
-                    <IconSymbol name="globe" size={18} color={colors.primary} />
-                    <Text className="text-sm font-semibold text-foreground">Website-Anfragen</Text>
-                  </View>
-                  <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '20' }}>
-                    <Text className="text-xs font-semibold" style={{ color: colors.primary }}>{websiteLeads.length}</Text>
-                  </View>
-                </View>
-                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={websiteLeads.length > 3}>
-                  <View className="gap-2">
-                    {websiteLeads.map((lead: any) => (
-                      <TouchableOpacity
-                        key={lead.id}
-                        className="flex-row items-center bg-background rounded-lg px-3 py-2 border border-border"
-                        activeOpacity={0.7}
-                        onPress={() => setSelectedLead(lead)}
-                      >
-                        <View className="flex-1 mr-2">
-                          <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{lead.company || lead.name || '-'}</Text>
-                          {lead.company && lead.name && <Text className="text-xs text-muted" numberOfLines={1}>{lead.name}</Text>}
-                        </View>
-                        <Text className="text-xs font-semibold text-success mr-3">
-                          CHF {(lead.value || 0).toLocaleString('de-CH')}
-                        </Text>
-                        <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: getPriorityColor(lead.priority) + '20' }}>
-                          <Text className="text-[10px] font-semibold" style={{ color: getPriorityColor(lead.priority) }}>
-                            {getPriorityLabel(lead.priority)}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          className="ml-2 w-7 h-7 rounded-md items-center justify-center"
-                          style={{ backgroundColor: '#EF444415' }}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          activeOpacity={0.6}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            showConfirm(
-                              "Lead löschen",
-                              `Möchten Sie "${lead.company || lead.name}" wirklich löschen?`,
-                              async () => {
-                                try {
-                                  await Data.deleteLead(lead.id);
-                                  queryClient.invalidateQueries({ queryKey: ["leads"] });
-                                } catch (err: any) {
-                                  showAlert("Fehler", err.message);
-                                }
-                              },
-                              "Löschen"
-                            );
-                          }}
-                        >
-                          <IconSymbol name="trash" size={14} color="#EF4444" />
-                        </TouchableOpacity>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
-              </View>
-            );
-          })()}
-
-          {/* Follow up (Terminierungen) Kachel */}
-          {!isLoading && (() => {
-            const followUpLeads = filteredLeads.filter((l: any) => 
-               l.lead_reminders?.some((r: any) => !r.is_processed)
-            );
-            // Sort by earliest reminder
-            followUpLeads.sort((a: any, b: any) => {
-               const aDates = a.lead_reminders.filter((r:any) => !r.is_processed).map((r:any) => new Date(r.remind_at).getTime());
-               const bDates = b.lead_reminders.filter((r:any) => !r.is_processed).map((r:any) => new Date(r.remind_at).getTime());
-               return Math.min(...aDates) - Math.min(...bDates);
-            });
-            if (followUpLeads.length === 0) return null;
-            return (
-              <View className="bg-surface rounded-xl p-4 border border-border mb-4" style={{ minHeight: 140, maxHeight: 220 }}>
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center gap-2">
-                    <IconSymbol name="bell.fill" size={18} color={colors.primary} />
-                    <Text className="text-sm font-semibold text-foreground">Follow up</Text>
-                  </View>
-                  <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + '20' }}>
-                    <Text className="text-xs font-semibold" style={{ color: colors.primary }}>{followUpLeads.length}</Text>
-                  </View>
-                </View>
-                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={followUpLeads.length > 3}>
-                  <View className="gap-2">
-                    {followUpLeads.map((lead: any) => {
-                      const pendingReminders = lead.lead_reminders?.filter((r: any) => !r.is_processed)
-                        .sort((a: any, b: any) => new Date(a.remind_at).getTime() - new Date(b.remind_at).getTime()) || [];
-                      const nextReminder = pendingReminders[0];
-                      const rDate = new Date(nextReminder.remind_at);
-                      const isOverdue = rDate < new Date(new Date().setHours(0,0,0,0));
-                      const itemColor = isOverdue ? colors.error : colors.primary;
-
-                      return (
-                      <TouchableOpacity
-                        key={lead.id}
-                        className="flex-row items-center bg-background rounded-lg px-3 py-2 border border-border"
-                        activeOpacity={0.7}
-                        onPress={() => setSelectedLead(lead)}
-                      >
-                        <View className="flex-1 mr-2">
-                          <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{lead.company || lead.name || '-'}</Text>
-                          {nextReminder?.note ? <Text className="text-xs text-muted" numberOfLines={1}>{nextReminder.note}</Text> : null}
-                        </View>
-                        <Text className="text-xs font-semibold mr-3" style={{ color: itemColor }}>
-                          {rDate.getDate().toString().padStart(2, '0')}.{(rDate.getMonth() + 1).toString().padStart(2, '0')}.{rDate.getFullYear()}
-                        </Text>
-                        <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: getPriorityColor(lead.priority) + '20' }}>
-                          <Text className="text-[10px] font-semibold" style={{ color: getPriorityColor(lead.priority) }}>
-                            {getPriorityLabel(lead.priority)}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    )})}
-                  </View>
-                </ScrollView>
-              </View>
-            );
-          })()}
 
           {isLoading ? (
             <View className="flex-1 items-center justify-center py-12">
@@ -406,400 +473,300 @@ export default function LeadsScreen() {
             </View>
           ) : (
             <>
-              {/* Pipeline-Stages */}
-              <View style={isWide ? { flexDirection: 'row', flexWrap: 'wrap', gap: 16 } : { gap: 16 }}>
-                {(Object.keys(groupedLeads) as Array<keyof typeof groupedLeads>).map((stage) => (
-                  <View key={stage} className="bg-surface rounded-xl p-4 border border-border" style={isWide ? { flex: 1, minWidth: '45%' } : undefined}>
+              {/* ── Heute dran ── */}
+              {dueList.length > 0 && (
+                <View className="bg-surface rounded-xl border border-border mb-4 overflow-hidden">
+                  <View className="flex-row items-center justify-between px-4 py-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border + "80" }}>
+                    <View className="flex-row items-center gap-2">
+                      <IconSymbol name="flame.fill" size={15} color="#FB923C" />
+                      <Text className="text-sm font-bold text-foreground">Heute dran</Text>
+                    </View>
+                    <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FB923C20" }}>
+                      <Text className="text-xs font-bold" style={{ color: "#FB923C" }}>{dueList.length}</Text>
+                    </View>
+                  </View>
+                  {(dueList as any[]).slice(0, 8).map((d: any, idx: number) => (
                     <TouchableOpacity
-                      className="flex-row items-center justify-between"
-                      style={{ marginBottom: isWide || expandedStages[stage] ? 12 : 0 }}
-                      activeOpacity={isWide ? 1 : 0.7}
-                      onPress={() => {
-                        if (!isWide) {
-                          setExpandedStages(prev => ({ ...prev, [stage]: !prev[stage] }));
-                        }
-                      }}
+                      key={d.lead.id}
+                      className="flex-row items-center px-4 py-2.5"
+                      style={{ borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: colors.border + "50" }}
+                      onPress={() => setSelectedLead(d.lead)}
+                      activeOpacity={0.7}
                     >
-                      <View className="flex-row items-center gap-2">
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: getStatusColor(stage) }} />
-                        <Text className="text-base font-bold text-foreground">
-                          {getStatusLabel(stage)}
+                      <View className="flex-1 mr-2">
+                        <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                          {d.lead.company || d.lead.name}
                         </Text>
+                        <Text className="text-xs text-muted" numberOfLines={1}>{d.text}</Text>
                       </View>
-                      <View className="flex-row items-center gap-2">
-                        <View
-                          className="px-3 py-1 rounded-full"
-                          style={{ backgroundColor: getStatusColor(stage) + "20" }}
+                      <Text className="text-xs font-bold mr-2" style={{ color: d.overdue ? "#EF4444" : "#FB923C" }}>
+                        {d.overdue ? "überfällig" : d.when.toLocaleDateString("de-CH")}
+                      </Text>
+                      {(d.lead.phone || d.lead.mobile) ? (
+                        <TouchableOpacity
+                          className="w-8 h-8 rounded-lg items-center justify-center"
+                          style={{ backgroundColor: "#0EA5E918" }}
+                          onPress={() => Linking.openURL(`tel:${(d.lead.phone || d.lead.mobile).replace(/\s/g, "")}`)}
+                          activeOpacity={0.7}
                         >
-                          <Text
-                            className="text-sm font-semibold"
-                            style={{ color: getStatusColor(stage) }}
-                          >
-                            {totalCounts[stage]}
-                          </Text>
-                        </View>
-                        {!isWide && (
-                          <IconSymbol 
-                            name={expandedStages[stage] ? "chevron.up" : "chevron.down"} 
-                            size={18} 
-                            color={colors.muted} 
-                          />
-                        )}
+                          <IconSymbol name="phone.fill" size={13} color="#0EA5E9" />
+                        </TouchableOpacity>
+                      ) : null}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* ── Posteingang: neue Website-Anfragen ── */}
+              {websiteInbox.length > 0 && (
+                <View className="bg-surface rounded-xl border border-border mb-4 overflow-hidden">
+                  <View className="flex-row items-center justify-between px-4 py-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border + "80" }}>
+                    <View className="flex-row items-center gap-2">
+                      <IconSymbol name="globe" size={15} color={colors.primary} />
+                      <Text className="text-sm font-bold text-foreground">Website-Anfragen</Text>
+                    </View>
+                    <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: colors.primary + "20" }}>
+                      <Text className="text-xs font-bold" style={{ color: colors.primary }}>{websiteInbox.length}</Text>
+                    </View>
+                  </View>
+                  {websiteInbox.slice(0, 6).map((lead: any, idx: number) => (
+                    <TouchableOpacity
+                      key={lead.id}
+                      className="flex-row items-center px-4 py-2.5"
+                      style={{ borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: colors.border + "50" }}
+                      activeOpacity={0.7}
+                      onPress={() => setSelectedLead(lead)}
+                    >
+                      <View className="flex-1 mr-2">
+                        <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{lead.company || lead.name || "–"}</Text>
+                        {lead.company && lead.name ? <Text className="text-xs text-muted" numberOfLines={1}>{lead.name}</Text> : null}
+                      </View>
+                      <Text className="text-xs font-semibold mr-2" style={{ color: "#4ADE80" }}>
+                        {fmtChf(lead.value || 0)}
+                      </Text>
+                      <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: getPriorityColor(lead.priority) + "20" }}>
+                        <Text className="text-[10px] font-semibold" style={{ color: getPriorityColor(lead.priority) }}>
+                          {getPriorityLabel(lead.priority)}
+                        </Text>
                       </View>
                     </TouchableOpacity>
+                  ))}
+                </View>
+              )}
 
-                    {(isWide || expandedStages[stage]) && (
-                      groupedLeads[stage].length > 0 ? (
-                      <ScrollView
-                        style={groupedLeads[stage].length > 10 ? { maxHeight: 600 } : undefined}
-                        nestedScrollEnabled
-                        showsVerticalScrollIndicator={groupedLeads[stage].length > 10}
-                      >
-                        <View className="gap-2">
-                          {groupedLeads[stage].map((lead: any) => (
-                            <TouchableOpacity
-                              key={lead.id}
-                              className="bg-background rounded-lg p-3 border border-border"
-                              activeOpacity={0.7}
-                              onPress={() => setSelectedLead(lead)}
-                            >
-                              <View className="flex-row items-center justify-between mb-1">
-                                <Text className="text-base font-semibold text-foreground">
-                                  {lead.rating === "hot" ? "🔥 " : lead.rating === "warm" ? "🌤 " : lead.rating === "cold" ? "❄️ " : ""}
-                                  {lead.company || lead.name || "-"}
-                                </Text>
-                                <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: getPriorityColor(lead.priority) + '20' }}>
-                                  <Text className="text-xs font-semibold" style={{ color: getPriorityColor(lead.priority) }}>
-                                    {getPriorityLabel(lead.priority)}
-                                  </Text>
-                                </View>
-                              </View>
-                              {lead.name && lead.company ? <Text className="text-sm text-muted mb-2">{lead.name}{lead.position ? ` · ${lead.position}` : ''}</Text> : null}
-                              {lead.next_action ? (
-                                <Text
-                                  className="text-xs mb-1"
-                                  style={{
-                                    color: lead.next_action_date && lead.next_action_date < new Date().toISOString().split("T")[0]
-                                      ? colors.error
-                                      : colors.muted,
-                                  }}
-                                  numberOfLines={1}
-                                >
-                                  Nächste Aktion: {lead.next_action}
-                                  {lead.next_action_date ? ` (bis ${new Date(lead.next_action_date).toLocaleDateString("de-CH")})` : ""}
-                                </Text>
-                              ) : null}
-                              <Text className="text-sm font-semibold text-success">
-                                CHF {(lead.value || 0).toLocaleString("de-CH")}
-                              </Text>
-                              
-                              {(() => {
-                                const pendingReminders = lead.lead_reminders?.filter((r: any) => !r.is_processed)
-                                  .sort((a: any, b: any) => new Date(a.remind_at).getTime() - new Date(b.remind_at).getTime()) || [];
-                                if (pendingReminders.length > 0) {
-                                  const nextReminder = pendingReminders[0];
-                                  const rDate = new Date(nextReminder.remind_at);
-                                  const dateStr = `${rDate.getDate().toString().padStart(2, '0')}.${(rDate.getMonth() + 1).toString().padStart(2, '0')}.${rDate.getFullYear()}`;
-                                  
-                                  const today = new Date();
-                                  today.setHours(0, 0, 0, 0);
-                                  const isOverdue = rDate < today;
-                                  
-                                  const itemColor = isOverdue ? colors.error : colors.primary;
-                                  
-                                  return (
-                                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8, padding: 6, borderRadius: 6, backgroundColor: itemColor + "15", borderWidth: 1, borderColor: itemColor + "30" }}>
-                                      <IconSymbol name="calendar" size={12} color={itemColor} />
-                                      <Text style={{ fontSize: 12, fontWeight: "600", color: itemColor, flex: 1 }} numberOfLines={1}>
-                                        {dateStr}{nextReminder.note ? ` - ${nextReminder.note}` : ''}
-                                      </Text>
-                                    </View>
-                                  );
-                                }
-                                return null;
-                              })()}
-
-                              <View className="flex-row gap-2 mt-2">
-                                <TouchableOpacity
-                                  className="flex-1 bg-primary/20 py-1 rounded"
-                                  onPress={() => {
-                                    setEditingLead(lead);
-                                    setShowAddModal(true);
-                                  }}
-                                  activeOpacity={0.7}
-                                >
-                                  <Text className="text-primary text-xs font-semibold text-center">
-                                    Bearbeiten
-                                  </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                  className="flex-1 bg-success/20 py-1 rounded"
-                                  onPress={() => setConvertingLead(lead)}
-                                  activeOpacity={0.7}
-                                >
-                                  <Text className="text-success text-xs font-semibold text-center">
-                                    Als Kunde
-                                  </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                  className="flex-1 bg-error/20 py-1 rounded"
-                                  onPress={() => {
-                                    showConfirm(
-                                      "Lead löschen",
-                                      `Möchten Sie "${lead.name}" wirklich löschen?`,
-                                      () => deleteLead.mutate(lead.id)
-                                    );
-                                  }}
-                                  activeOpacity={0.7}
-                                >
-                                  <Text className="text-error text-xs font-semibold text-center">
-                                    Löschen
-                                  </Text>
-                                </TouchableOpacity>
-                              </View>
-                            </TouchableOpacity>
-                          ))}
+              {/* ── Pipeline ── */}
+              {isWide ? (
+                /* Desktop: Kanban-Board */
+                <View style={{ flexDirection: "row", gap: 12, alignItems: "flex-start" }}>
+                  {ACTIVE_STAGES.map((stage) => {
+                    const list = byStage(stage);
+                    return (
+                      <View key={stage} className="bg-surface rounded-2xl border border-border p-3" style={{ flex: 1 }}>
+                        <View className="flex-row items-center justify-between mb-0.5">
+                          <View className="flex-row items-center gap-2">
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: getStatusColor(stage) }} />
+                            <Text className="text-sm font-bold text-foreground">{getStatusLabel(stage)}</Text>
+                          </View>
+                          <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: getStatusColor(stage) + "20" }}>
+                            <Text className="text-xs font-bold" style={{ color: getStatusColor(stage) }}>{list.length}</Text>
+                          </View>
                         </View>
-                      </ScrollView>
-                    ) : (
-                      <Text className="text-sm text-muted text-center py-2">
-                        Keine Leads in dieser Phase
-                      </Text>
-                    ))}
-                  </View>
-                ))}
-              </View>
-
-              {/* Gewonnen/Verloren */}
-              <View className={isWide ? "flex-row gap-3 mt-4" : "flex-col gap-3 mt-4"}>
-                {/* Gewonnen Box */}
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <TouchableOpacity
-                    className="flex-row items-center justify-between"
-                    style={{ marginBottom: isWide || expandedStages["won"] ? 16 : 0 }}
-                    activeOpacity={isWide ? 1 : 0.7}
-                    onPress={() => {
-                      if (!isWide) {
-                        setExpandedStages(prev => ({ ...prev, won: !prev.won }));
-                      }
-                    }}
-                  >
-                    <View>
-                      <Text className="text-base font-semibold text-foreground">Gewonnen</Text>
-                      <Text className="text-xs text-muted mt-1">Erfolgreich abgeschlossen</Text>
-                    </View>
-                    <View className="flex-row items-center gap-2">
-                      <View className="px-2 py-1 rounded-full bg-success">
-                        <Text className="text-xs font-semibold text-white">
-                          {filteredLeads.filter((l: any) => l.status === "won").length}
-                        </Text>
+                        <Text className="text-[11px] text-muted mb-2.5 ml-4">{fmtChf(stageSum(stage))}</Text>
+                        {list.length > 0 ? (
+                          <View className="gap-2">{list.map(renderLeadCard)}</View>
+                        ) : (
+                          <View className="rounded-xl border border-dashed items-center py-6" style={{ borderColor: colors.border }}>
+                            <Text className="text-xs text-muted">Keine Leads</Text>
+                          </View>
+                        )}
                       </View>
-                      {!isWide && (
-                        <IconSymbol 
-                          name={expandedStages["won"] ? "chevron.up" : "chevron.down"} 
-                          size={18} 
-                          color={colors.muted} 
-                        />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                  
-                  {(isWide || expandedStages["won"]) && filteredLeads.filter((l: any) => l.status === "won").length > 0 && (
-                    <ScrollView nestedScrollEnabled style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
-                      <View className="gap-2">
-                        {sortLeads(filteredLeads.filter((l: any) => l.status === "won")).map((lead: any) => (
-                           <TouchableOpacity
-                             key={lead.id}
-                             className="bg-background rounded-lg p-3 border border-border"
-                             activeOpacity={0.7}
-                             onPress={() => setSelectedLead(lead)}
-                           >
-                             <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
-                               {lead.company || lead.name || "-"}
-                             </Text>
-                             <Text className="text-xs text-success mt-1">
-                               CHF {(lead.value || 0).toLocaleString("de-CH")}
-                             </Text>
-                           </TouchableOpacity>
-                        ))}
-                      </View>
-                    </ScrollView>
-                  )}
+                    );
+                  })}
                 </View>
-
-                {/* Verloren Box */}
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <TouchableOpacity
-                    className="flex-row items-center justify-between"
-                    style={{ marginBottom: isWide || expandedStages["lost"] ? 16 : 0 }}
-                    activeOpacity={isWide ? 1 : 0.7}
-                    onPress={() => {
-                      if (!isWide) {
-                        setExpandedStages(prev => ({ ...prev, lost: !prev.lost }));
-                      }
-                    }}
-                  >
-                    <View>
-                      <Text className="text-base font-semibold text-foreground">Verloren</Text>
-                      <Text className="text-xs text-muted mt-1">Nicht erfolgreich</Text>
-                    </View>
-                    <View className="flex-row items-center gap-2">
-                      <View className="px-2 py-1 rounded-full bg-error">
-                        <Text className="text-xs font-semibold text-white">
-                          {filteredLeads.filter((l: any) => l.status === "lost").length}
-                        </Text>
-                      </View>
-                      {!isWide && (
-                        <IconSymbol 
-                          name={expandedStages["lost"] ? "chevron.up" : "chevron.down"} 
-                          size={18} 
-                          color={colors.muted} 
-                        />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-
-                  {(isWide || expandedStages["lost"]) && filteredLeads.filter((l: any) => l.status === "lost").length > 0 && (
-                    <ScrollView nestedScrollEnabled style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
-                      <View className="gap-2">
-                        {sortLeads(filteredLeads.filter((l: any) => l.status === "lost")).map((lead: any) => (
-                           <TouchableOpacity
-                             key={lead.id}
-                             className="bg-background rounded-lg p-3 border border-border opacity-70"
-                             activeOpacity={0.7}
-                             onPress={() => setSelectedLead(lead)}
-                           >
-                             <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
-                               {lead.company || lead.name || "-"}
-                             </Text>
-                             <Text className="text-xs text-muted mt-1">
-                               CHF {(lead.value || 0).toLocaleString("de-CH")}
-                             </Text>
-                           </TouchableOpacity>
-                        ))}
-                      </View>
-                    </ScrollView>
-                  )}
-                </View>
-              </View>
-
-          {/* Auswertung */}
-          {!isLoading && filteredLeads.length > 0 && (() => {
-            const pipelineData = [
-              { label: "Neu", count: totalCounts.new, color: colors.muted },
-              { label: "Kontaktiert", count: totalCounts.contacted, color: colors.primary },
-              { label: "Qualifiziert", count: totalCounts.qualified, color: colors.warning },
-              { label: "Angebot", count: totalCounts.proposal, color: "#9333EA" },
-            ];
-            const pipelineTotal = pipelineData.reduce((s, d) => s + d.count, 0);
-
-            const wonCount = filteredLeads.filter((l: any) => l.status === "won").length;
-            const lostCount = filteredLeads.filter((l: any) => l.status === "lost").length;
-            const closedTotal = wonCount + lostCount;
-            const winRate = closedTotal > 0 ? Math.round((wonCount / closedTotal) * 100) : 0;
-            const wonValue = filteredLeads.filter((l: any) => l.status === "won").reduce((s: number, l: any) => s + (l.value || 0), 0);
-            const lostValue = filteredLeads.filter((l: any) => l.status === "lost").reduce((s: number, l: any) => s + (l.value || 0), 0);
-
-            const resultData = [
-              { label: "Gewonnen", count: wonCount, color: colors.success, value: wonValue },
-              { label: "Verloren", count: lostCount, color: colors.error, value: lostValue },
-            ];
-
-            const renderDonut = (data: { label: string; count: number; color: string }[], total: number, centerText: string, centerSub: string) => {
-              const size = 120;
-              const strokeWidth = 14;
-              const radius = (size - strokeWidth) / 2;
-              const circumference = 2 * Math.PI * radius;
-              let accumulated = 0;
-
-              return (
-                <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-                  <Circle cx={size / 2} cy={size / 2} r={radius} stroke="#333" strokeWidth={strokeWidth} fill="none" />
-                  <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
-                    {data.map((segment, i) => {
-                      const pct = total > 0 ? segment.count / total : 0;
-                      const dashLength = pct * circumference;
-                      const offset = accumulated * circumference;
-                      accumulated += pct;
-                      if (pct === 0) return null;
+              ) : (
+                /* Mobil: Phasen-Chips + Liste */
+                <View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-3">
+                    {stageChipsMobile.map((stage) => {
+                      const count = filteredLeads.filter((l: any) => l.status === stage).length;
+                      const active = mobileStage === stage;
                       return (
-                        <Circle
-                          key={i}
-                          cx={size / 2}
-                          cy={size / 2}
-                          r={radius}
-                          stroke={segment.color}
-                          strokeWidth={strokeWidth}
-                          fill="none"
-                          strokeDasharray={`${dashLength} ${circumference - dashLength}`}
-                          strokeDashoffset={-offset}
-                          strokeLinecap="round"
-                        />
+                        <TouchableOpacity
+                          key={stage}
+                          className="flex-row items-center gap-1.5 px-3.5 py-2 rounded-full border"
+                          style={{
+                            backgroundColor: active ? getStatusColor(stage) + "20" : colors.surface,
+                            borderColor: active ? getStatusColor(stage) : colors.border,
+                          }}
+                          onPress={() => setMobileStage(stage)}
+                          activeOpacity={0.8}
+                        >
+                          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: getStatusColor(stage) }} />
+                          <Text className="text-xs font-bold" style={{ color: active ? getStatusColor(stage) : colors.foreground }}>
+                            {getStatusLabel(stage)} ({count})
+                          </Text>
+                        </TouchableOpacity>
                       );
                     })}
-                  </G>
-                </Svg>
-              );
-            };
-
-            return (
-              <View style={isWide ? { flexDirection: 'row', gap: 16, marginBottom: 16 } : { gap: 16, marginBottom: 16 }}>
-                {/* Pipeline Verteilung */}
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-sm font-semibold text-foreground mb-3">Pipeline-Verteilung</Text>
-                  <View className="flex-row items-center gap-4">
-                    <View style={{ position: 'relative', width: 120, height: 120 }}>
-                      {renderDonut(pipelineData, pipelineTotal, String(pipelineTotal), 'Aktiv')}
-                      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
-                        <Text className="text-xl font-bold text-foreground">{pipelineTotal}</Text>
-                        <Text className="text-xs text-muted">Aktiv</Text>
+                  </ScrollView>
+                  <View className="gap-2">
+                    {byStage(mobileStage).length > 0 ? (
+                      byStage(mobileStage).map(renderLeadCard)
+                    ) : (
+                      <View className="rounded-xl border border-dashed items-center py-8" style={{ borderColor: colors.border }}>
+                        <Text className="text-sm text-muted">Keine Leads in «{getStatusLabel(mobileStage)}»</Text>
                       </View>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* ── Gewonnen / Verloren (Desktop-Zusammenfassung) ── */}
+              {isWide && (wonLeads.length > 0 || lostLeads.length > 0) && (
+                <View className="flex-row gap-3 mt-4">
+                  <View className="flex-1 bg-surface rounded-xl border border-border p-4">
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-row items-center gap-2">
+                        <IconSymbol name="checkmark.circle.fill" size={16} color="#22C55E" />
+                        <Text className="text-sm font-bold text-foreground">Gewonnen</Text>
+                      </View>
+                      <Text className="text-sm font-bold" style={{ color: "#22C55E" }}>{fmtChf(wonValue)}</Text>
                     </View>
-                    <View className="flex-1 gap-2">
-                      {pipelineData.map((d) => (
-                        <View key={d.label} className="flex-row items-center justify-between">
-                          <View className="flex-row items-center gap-2">
-                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: d.color }} />
-                            <Text className="text-xs text-muted">{d.label}</Text>
-                          </View>
-                          <Text className="text-xs font-semibold text-foreground">{d.count}</Text>
-                        </View>
+                    <View className="gap-1.5 mt-3">
+                      {sortLeads(wonLeads).slice(0, 5).map((lead: any) => (
+                        <TouchableOpacity key={lead.id} className="flex-row items-center justify-between" onPress={() => setSelectedLead(lead)} activeOpacity={0.7}>
+                          <Text className="text-xs text-foreground flex-1 mr-2" numberOfLines={1}>{lead.company || lead.name}</Text>
+                          <Text className="text-xs font-semibold" style={{ color: "#22C55E" }}>{fmtChf(lead.value || 0)}</Text>
+                        </TouchableOpacity>
                       ))}
+                      {wonLeads.length > 5 ? <Text className="text-[11px] text-muted">+{wonLeads.length - 5} weitere</Text> : null}
+                    </View>
+                  </View>
+                  <View className="flex-1 bg-surface rounded-xl border border-border p-4">
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-row items-center gap-2">
+                        <IconSymbol name="xmark.circle.fill" size={16} color="#EF4444" />
+                        <Text className="text-sm font-bold text-foreground">Verloren</Text>
+                      </View>
+                      <Text className="text-sm font-bold" style={{ color: "#EF4444" }}>{fmtChf(lostValue)}</Text>
+                    </View>
+                    <View className="gap-1.5 mt-3" style={{ opacity: 0.75 }}>
+                      {sortLeads(lostLeads).slice(0, 5).map((lead: any) => (
+                        <TouchableOpacity key={lead.id} className="flex-row items-center justify-between" onPress={() => setSelectedLead(lead)} activeOpacity={0.7}>
+                          <Text className="text-xs text-foreground flex-1 mr-2" numberOfLines={1}>{lead.company || lead.name}</Text>
+                          <Text className="text-xs font-semibold text-muted">{fmtChf(lead.value || 0)}</Text>
+                        </TouchableOpacity>
+                      ))}
+                      {lostLeads.length > 5 ? <Text className="text-[11px] text-muted">+{lostLeads.length - 5} weitere</Text> : null}
                     </View>
                   </View>
                 </View>
+              )}
 
-                {/* Abschlussquote */}
-                <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
-                  <Text className="text-sm font-semibold text-foreground mb-3">Abschlussquote</Text>
-                  <View className="flex-row items-center gap-4">
-                    <View style={{ position: 'relative', width: 120, height: 120 }}>
-                      {renderDonut(resultData, closedTotal, `${winRate}%`, 'Gewonnen')}
-                      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
-                        <Text className="text-xl font-bold" style={{ color: winRate >= 50 ? colors.success : colors.error }}>{winRate}%</Text>
-                        <Text className="text-xs text-muted">Quote</Text>
+              {/* ── Auswertung ── */}
+              {filteredLeads.length > 0 && (() => {
+                const pipelineData = ACTIVE_STAGES.map((stage) => ({
+                  label: getStatusLabel(stage),
+                  count: filteredLeads.filter((l: any) => l.status === stage).length,
+                  color: getStatusColor(stage),
+                }));
+                const pipelineTotal = pipelineData.reduce((s, d) => s + d.count, 0);
+                const resultData = [
+                  { label: "Gewonnen", count: wonLeads.length, color: "#22C55E", value: wonValue },
+                  { label: "Verloren", count: lostLeads.length, color: "#EF4444", value: lostValue },
+                ];
+
+                const renderDonut = (data: { label: string; count: number; color: string }[], total: number) => {
+                  const size = 120;
+                  const strokeWidth = 14;
+                  const radius = (size - strokeWidth) / 2;
+                  const circumference = 2 * Math.PI * radius;
+                  let accumulated = 0;
+                  return (
+                    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+                      <Circle cx={size / 2} cy={size / 2} r={radius} stroke={colors.border} strokeWidth={strokeWidth} fill="none" />
+                      <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
+                        {data.map((segment, i) => {
+                          const pct = total > 0 ? segment.count / total : 0;
+                          const dashLength = pct * circumference;
+                          const offset = accumulated * circumference;
+                          accumulated += pct;
+                          if (pct === 0) return null;
+                          return (
+                            <Circle
+                              key={i}
+                              cx={size / 2}
+                              cy={size / 2}
+                              r={radius}
+                              stroke={segment.color}
+                              strokeWidth={strokeWidth}
+                              fill="none"
+                              strokeDasharray={`${dashLength} ${circumference - dashLength}`}
+                              strokeDashoffset={-offset}
+                              strokeLinecap="round"
+                            />
+                          );
+                        })}
+                      </G>
+                    </Svg>
+                  );
+                };
+
+                return (
+                  <View style={isWide ? { flexDirection: "row", gap: 16, marginTop: 16 } : { gap: 16, marginTop: 16 }}>
+                    <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                      <Text className="text-sm font-semibold text-foreground mb-3">Pipeline-Verteilung</Text>
+                      <View className="flex-row items-center gap-4">
+                        <View style={{ position: "relative", width: 120, height: 120 }}>
+                          {renderDonut(pipelineData, pipelineTotal)}
+                          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center" }}>
+                            <Text className="text-xl font-bold text-foreground">{pipelineTotal}</Text>
+                            <Text className="text-xs text-muted">Aktiv</Text>
+                          </View>
+                        </View>
+                        <View className="flex-1 gap-2">
+                          {pipelineData.map((d) => (
+                            <View key={d.label} className="flex-row items-center justify-between">
+                              <View className="flex-row items-center gap-2">
+                                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: d.color }} />
+                                <Text className="text-xs text-muted">{d.label}</Text>
+                              </View>
+                              <Text className="text-xs font-semibold text-foreground">{d.count}</Text>
+                            </View>
+                          ))}
+                        </View>
                       </View>
                     </View>
-                    <View className="flex-1 gap-3">
-                      {resultData.map((d) => (
-                        <View key={d.label}>
-                          <View className="flex-row items-center gap-2 mb-1">
-                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: d.color }} />
-                            <Text className="text-xs text-muted">{d.label}</Text>
-                            <Text className="text-xs font-semibold text-foreground">{d.count}</Text>
+
+                    <View className="flex-1 bg-surface rounded-xl p-4 border border-border">
+                      <Text className="text-sm font-semibold text-foreground mb-3">Abschlussquote</Text>
+                      <View className="flex-row items-center gap-4">
+                        <View style={{ position: "relative", width: 120, height: 120 }}>
+                          {renderDonut(resultData, closedTotal)}
+                          <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center" }}>
+                            <Text className="text-xl font-bold" style={{ color: winRate >= 50 ? "#22C55E" : "#EF4444" }}>{winRate}%</Text>
+                            <Text className="text-xs text-muted">Quote</Text>
                           </View>
-                          <Text className="text-xs font-semibold" style={{ color: d.color, marginLeft: 18 }}>
-                            CHF {(d as any).value.toLocaleString('de-CH')}
-                          </Text>
                         </View>
-                      ))}
+                        <View className="flex-1 gap-3">
+                          {resultData.map((d) => (
+                            <View key={d.label}>
+                              <View className="flex-row items-center gap-2 mb-1">
+                                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: d.color }} />
+                                <Text className="text-xs text-muted">{d.label}</Text>
+                                <Text className="text-xs font-semibold text-foreground">{d.count}</Text>
+                              </View>
+                              <Text className="text-xs font-semibold" style={{ color: d.color, marginLeft: 18 }}>
+                                CHF {(d as any).value.toLocaleString("de-CH")}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
                     </View>
                   </View>
-                </View>
-              </View>
-            );
-          })()}
-
+                );
+              })()}
             </>
           )}
         </View>
@@ -1092,6 +1059,54 @@ function LeadDetailsModal({
 
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Website-Check: bestehende Analyse-Funktion erneut auf den Lead anwenden
+  const [webCheckLoading, setWebCheckLoading] = useState(false);
+  const [webCheck, setWebCheck] = useState<any | null>(null);
+
+  const runWebCheck = async () => {
+    if (!lead.website) return;
+    setWebCheckLoading(true);
+    try {
+      const { data, error } = await Data.supabase.functions.invoke("analyze-website", {
+        body: { url: lead.website },
+      });
+      if (error) throw new Error(error.message || "Analyse fehlgeschlagen");
+      setWebCheck(data);
+    } catch (e: any) {
+      showAlert("Fehler", "Die Website konnte nicht analysiert werden: " + e.message);
+    } finally {
+      setWebCheckLoading(false);
+    }
+  };
+
+  const applyWebCheck = async () => {
+    if (!webCheck) return;
+    try {
+      const stamp = new Date().toLocaleDateString("de-CH");
+      const summary = [
+        `[${stamp}] Website neu analysiert:`,
+        `SSL ${webCheck.sslValid ? "✓" : "✗"} · Impressum ${webCheck.hasImpressum ? "✓" : "✗"} · Datenschutz ${webCheck.hasPrivacy ? "✓" : "✗"} · Mobil ${webCheck.isResponsive ? "✓" : "✗"}`,
+        webCheck.notes || "",
+      ].filter(Boolean).join("\n");
+      await Data.updateLead(lead.id, {
+        notes: `${lead.notes ? lead.notes + "\n\n" : ""}${summary}`,
+        ...(webCheck.priority ? { priority: webCheck.priority } : {}),
+      });
+      await Data.addLeadActivity({
+        lead_id: lead.id,
+        type: "system",
+        content: "Website neu analysiert – Ergebnis in Notizen übernommen",
+        user_name: currentUserName,
+      });
+      refetchActivities();
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      setWebCheck(null);
+      showAlert("Übernommen", "Die Analyse wurde in den Notizen gespeichert.");
+    } catch (e: any) {
+      showAlert("Fehler", e.message);
+    }
+  };
+
   // Echten Benutzernamen laden
   useEffect(() => {
     Data.supabase.auth.getSession().then(({ data: { session } }) => {
@@ -1283,7 +1298,21 @@ function LeadDetailsModal({
         <View className="bg-background rounded-t-3xl" style={Platform.OS === 'web' ? { maxWidth: 700, width: '100%', borderRadius: 24, maxHeight: '85%' } : { maxHeight: '90%' }}>
           {/* Header */}
           <View className="flex-row items-center justify-between p-4 border-b border-border">
-            <Text className="text-2xl font-bold text-foreground">Lead-Details</Text>
+            <View className="flex-1 mr-2">
+              <Text className="text-xl font-bold text-foreground" numberOfLines={1}>
+                {lead.company || lead.name || "Lead"}
+              </Text>
+              <View className="flex-row items-center gap-2 mt-0.5">
+                <View className="px-2 py-0.5 rounded" style={{ backgroundColor: getStatusColor(currentStatus) + "20" }}>
+                  <Text className="text-[10px] font-bold" style={{ color: getStatusColor(currentStatus) }}>
+                    {getStatusLabel(currentStatus).toUpperCase()}
+                  </Text>
+                </View>
+                <Text className="text-xs font-semibold" style={{ color: "#4ADE80" }}>
+                  CHF {(lead.value || 0).toLocaleString("de-CH")}
+                </Text>
+              </View>
+            </View>
             <View className="flex-row items-center justify-end gap-4">
               {onEdit && (
                 <TouchableOpacity
@@ -1345,15 +1374,75 @@ function LeadDetailsModal({
               {lead.website && (
                 <View>
                   <Text className="text-sm text-muted mb-1">Website</Text>
-                  <TouchableOpacity 
-                    onPress={() => {
-                      const url = lead.website.startsWith('http') ? lead.website : `https://${lead.website}`;
-                      Linking.openURL(url);
-                    }} 
-                    activeOpacity={0.7}
-                  >
-                    <Text className="text-base text-primary">{lead.website}</Text>
-                  </TouchableOpacity>
+                  <View className="flex-row items-center justify-between gap-2">
+                    <TouchableOpacity
+                      className="flex-1"
+                      onPress={() => {
+                        const url = lead.website.startsWith('http') ? lead.website : `https://${lead.website}`;
+                        Linking.openURL(url);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text className="text-base text-primary" numberOfLines={1}>{lead.website}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg"
+                      style={{ backgroundColor: "#8B5CF618", opacity: webCheckLoading ? 0.6 : 1 }}
+                      onPress={runWebCheck}
+                      disabled={webCheckLoading}
+                      activeOpacity={0.8}
+                    >
+                      {webCheckLoading ? (
+                        <ActivityIndicator size="small" color="#8B5CF6" />
+                      ) : (
+                        <IconSymbol name="sparkles" size={13} color="#8B5CF6" />
+                      )}
+                      <Text className="text-xs font-bold" style={{ color: "#8B5CF6" }}>Neu analysieren</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {webCheck && (
+                    <View className="bg-surface rounded-xl border border-border p-4 mt-3">
+                      <Text className="text-sm font-bold text-foreground mb-2">Website-Check</Text>
+                      <View className="flex-row flex-wrap gap-2 mb-2">
+                        {[
+                          { label: "SSL", ok: !!webCheck.sslValid },
+                          { label: "Impressum", ok: !!webCheck.hasImpressum },
+                          { label: "Datenschutz", ok: !!webCheck.hasPrivacy },
+                          { label: "Mobil-optimiert", ok: !!webCheck.isResponsive },
+                        ].map((c) => (
+                          <View
+                            key={c.label}
+                            className="flex-row items-center gap-1 px-2.5 py-1 rounded-full"
+                            style={{ backgroundColor: (c.ok ? "#22C55E" : "#EF4444") + "18" }}
+                          >
+                            <IconSymbol name={c.ok ? "checkmark.circle.fill" : "xmark.circle.fill"} size={12} color={c.ok ? "#22C55E" : "#EF4444"} />
+                            <Text className="text-[11px] font-semibold" style={{ color: c.ok ? "#22C55E" : "#EF4444" }}>{c.label}</Text>
+                          </View>
+                        ))}
+                      </View>
+                      {webCheck.notes ? (
+                        <Text className="text-xs text-muted" style={{ lineHeight: 18 }}>{webCheck.notes}</Text>
+                      ) : null}
+                      <View className="flex-row gap-2 mt-3">
+                        <TouchableOpacity
+                          className="flex-1 py-2 rounded-lg border border-border items-center"
+                          onPress={() => setWebCheck(null)}
+                          activeOpacity={0.7}
+                        >
+                          <Text className="text-xs font-semibold text-muted">Verwerfen</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          className="flex-1 py-2 rounded-lg items-center"
+                          style={{ backgroundColor: colors.primary }}
+                          onPress={applyWebCheck}
+                          activeOpacity={0.8}
+                        >
+                          <Text className="text-xs font-bold" style={{ color: colors.background }}>In Notizen übernehmen</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
                 </View>
               )}
 

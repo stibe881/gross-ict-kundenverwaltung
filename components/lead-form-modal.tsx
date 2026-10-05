@@ -217,6 +217,41 @@ export function LeadFormModal({
     }
   };
 
+  // Analyse direkt aus dem Website-Feld (auch beim Bearbeiten): füllt nur leere Felder
+  const analyzeFromField = async () => {
+    const url = formData.website.trim();
+    if (!url) {
+      showAlert("Hinweis", "Bitte zuerst eine Website eintragen.");
+      return;
+    }
+    setAnalyzing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-website", {
+        body: { url },
+      });
+      if (error || !data) throw new Error(error?.message || "Analyse fehlgeschlagen");
+      setFormData((prev) => ({
+        ...prev,
+        website: data.url || url,
+        company: prev.company || data.title || "",
+        email: prev.email || data.email || "",
+        phone: prev.phone || data.phone || "",
+        address: prev.address || data.address || "",
+        zip: prev.zip || data.zip || "",
+        city: prev.city || data.city || "",
+        priority: data.priority || prev.priority,
+        notes: data.notes
+          ? (prev.notes ? `${prev.notes}\n\n${data.notes}` : data.notes)
+          : prev.notes,
+      }));
+      showAlert("Analyse abgeschlossen", "Leere Felder wurden ergänzt, der Website-Check steht in den Notizen.");
+    } catch (e: any) {
+      showAlert("Fehler", "Die Website konnte nicht analysiert werden: " + e.message);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const addProduct = (product: any) => {
     const existing = selectedProducts.find((p) => p.product_id === product.id);
     if (existing) {
@@ -376,24 +411,32 @@ export function LeadFormModal({
           </View>
 
           {step === 1 && !lead ? (
-            <View className="p-6 gap-6" style={{ minHeight: 350 }}>
-              <View>
-                <Text className="text-lg font-semibold text-foreground mb-2">
-                  Website analysieren (Optional)
+            <View className="p-6 gap-5" style={{ minHeight: 380 }}>
+              <View className="items-center">
+                <View
+                  className="items-center justify-center mb-3"
+                  style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#8B5CF618" }}
+                >
+                  <IconSymbol name="globe" size={30} color="#8B5CF6" />
+                </View>
+                <Text className="text-lg font-bold text-foreground mb-1 text-center">
+                  Mit Website-Analyse starten
                 </Text>
-                <Text className="text-sm text-muted">
-                  Geben Sie die Website des potenziellen Kunden ein. Unser System analysiert diese auf Sicherheit, Rechtskonformität und Modernität und füllt den Lead automatisch aus.
+                <Text className="text-sm text-muted text-center" style={{ lineHeight: 20 }}>
+                  Website eingeben — die KI prüft SSL, Impressum, Datenschutz und Mobil-Optimierung, füllt Firmendaten automatisch aus und liefert einen Gesprächsaufhänger.
                 </Text>
               </View>
-              
+
               <TextInput
-                className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
+                className="bg-surface border border-border rounded-xl px-4 py-3.5 text-foreground text-center"
+                style={{ fontSize: 16 }}
                 placeholder="www.beispiel.ch"
                 placeholderTextColor={colors.muted}
                 value={analysisUrl}
                 onChangeText={setAnalysisUrl}
                 autoCapitalize="none"
                 keyboardType="url"
+                autoFocus={Platform.OS === "web"}
               />
 
               <View className="flex-row gap-3 mt-auto">
@@ -431,47 +474,31 @@ export function LeadFormModal({
             keyboardShouldPersistTaps="handled"
           >
             <View className="gap-4 pb-4">
-              {/* 1. Firma */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Firma
-                </Text>
+              {/* ── Firma & Adresse ── */}
+              <View className="bg-surface rounded-xl border border-border p-4 gap-3">
+                <View className="flex-row items-center gap-2">
+                  <IconSymbol name="building.2.fill" size={15} color={colors.primary} />
+                  <Text className="text-sm font-bold text-foreground">Firma & Adresse</Text>
+                </View>
                 <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="Muster AG"
+                  className="bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="Firma (z.B. Muster AG)"
                   placeholderTextColor={colors.muted}
                   value={formData.company}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, company: text })
-                  }
+                  onChangeText={(text) => setFormData({ ...formData, company: text })}
                 />
-              </View>
-
-              {/* 2. Adresse */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Adresse
-                </Text>
                 <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="Musterstrasse 1"
+                  className="bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="Strasse und Nr."
                   placeholderTextColor={colors.muted}
                   value={formData.address}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, address: text })
-                  }
+                  onChangeText={(text) => setFormData({ ...formData, address: text })}
                 />
-              </View>
-
-              {/* 3. PLZ ORT */}
-              <View className="flex-row gap-3">
-                <View style={{ width: 100 }}>
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    PLZ
-                  </Text>
+                <View className="flex-row gap-3">
                   <TextInput
-                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                    placeholder="8000"
+                    className="bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                    style={{ width: 100 }}
+                    placeholder="PLZ"
                     placeholderTextColor={colors.muted}
                     keyboardType="number-pad"
                     value={formData.zip}
@@ -489,285 +516,246 @@ export function LeadFormModal({
                       }
                     }}
                   />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    Ort
-                  </Text>
                   <TextInput
-                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                    placeholder="Zürich"
+                    className="flex-1 bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="Ort"
                     placeholderTextColor={colors.muted}
                     value={formData.city}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, city: text })
-                    }
+                    onChangeText={(text) => setFormData({ ...formData, city: text })}
                   />
+                </View>
+                <View className="flex-row gap-2">
+                  <TextInput
+                    className="flex-1 bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="Website (www.muster.ch)"
+                    placeholderTextColor={colors.muted}
+                    autoCapitalize="none"
+                    keyboardType="url"
+                    value={formData.website}
+                    onChangeText={(text) => setFormData({ ...formData, website: text })}
+                  />
+                  <TouchableOpacity
+                    className="px-3 rounded-lg items-center justify-center flex-row gap-1.5"
+                    style={{ backgroundColor: "#8B5CF618", opacity: analyzing ? 0.6 : 1 }}
+                    onPress={analyzeFromField}
+                    disabled={analyzing}
+                    activeOpacity={0.8}
+                  >
+                    {analyzing ? (
+                      <ActivityIndicator size="small" color="#8B5CF6" />
+                    ) : (
+                      <IconSymbol name="sparkles" size={14} color="#8B5CF6" />
+                    )}
+                    <Text className="text-xs font-bold" style={{ color: "#8B5CF6" }}>Analysieren</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 
-              {/* 4. Kontaktperson & Position */}
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    Kontaktperson
-                  </Text>
+              {/* ── Kontaktperson ── */}
+              <View className="bg-surface rounded-xl border border-border p-4 gap-3">
+                <View className="flex-row items-center gap-2">
+                  <IconSymbol name="person.fill" size={15} color={colors.primary} />
+                  <Text className="text-sm font-bold text-foreground">Kontaktperson</Text>
+                </View>
+                <View className="flex-row gap-3">
                   <TextInput
-                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                    placeholder="Max Muster"
+                    className="flex-1 bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="Name (Max Muster)"
                     placeholderTextColor={colors.muted}
                     value={formData.name}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, name: text })
-                    }
+                    onChangeText={(text) => setFormData({ ...formData, name: text })}
                   />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    Position
-                  </Text>
                   <TextInput
-                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                    placeholder="z.B. Geschäftsführer"
+                    className="flex-1 bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="Position"
                     placeholderTextColor={colors.muted}
                     value={formData.position}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, position: text })
-                    }
+                    onChangeText={(text) => setFormData({ ...formData, position: text })}
                   />
                 </View>
-              </View>
-
-              {/* 5. E-Mail & Telefon */}
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    E-Mail
-                  </Text>
+                <View className="flex-row gap-3">
                   <TextInput
-                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                    placeholder="max@muster.ch"
+                    className="flex-1 bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="E-Mail"
                     placeholderTextColor={colors.muted}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={formData.email}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, email: text })
-                    }
+                    onChangeText={(text) => setFormData({ ...formData, email: text })}
                   />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    Telefon
-                  </Text>
                   <TextInput
-                    className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                    placeholder="+41 79 123 45 67"
+                    className="flex-1 bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="Telefon"
                     placeholderTextColor={colors.muted}
                     keyboardType="phone-pad"
                     value={formData.phone}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, phone: text })
-                    }
+                    onChangeText={(text) => setFormData({ ...formData, phone: text })}
                   />
                 </View>
               </View>
 
-              {/* 6. Website */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Website
-                </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="www.muster.ch"
-                  placeholderTextColor={colors.muted}
-                  autoCapitalize="none"
-                  value={formData.website}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, website: text })
-                  }
-                />
-              </View>
+              {/* ── Einstufung & Pipeline ── */}
+              <View className="bg-surface rounded-xl border border-border p-4 gap-3.5">
+                <View className="flex-row items-center gap-2">
+                  <IconSymbol name="tag.fill" size={15} color={colors.primary} />
+                  <Text className="text-sm font-bold text-foreground">Einstufung & Pipeline</Text>
+                </View>
 
-              {/* 7. Quelle */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Quelle
-                </Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {[
-                    { key: "", label: "Keine" },
-                    { key: "website", label: "Website" },
-                    { key: "empfehlung", label: "Empfehlung" },
-                    { key: "messe", label: "Messe" },
-                    { key: "kaltakquise", label: "Kaltakquise" },
-                    { key: "social_media", label: "Social Media" },
-                  ].map((sourceOption) => (
-                    <TouchableOpacity
-                      key={sourceOption.key}
-                      className={`px-3 py-1.5 rounded-lg border ${formData.source === sourceOption.key
-                        ? "bg-primary border-primary"
-                        : "bg-surface border-border"
-                        }`}
-                      onPress={() =>
-                        setFormData({ ...formData, source: sourceOption.key })
-                      }
-                    >
-                      <Text
-                        className={`text-xs font-semibold ${formData.source === sourceOption.key
-                          ? "text-background"
-                          : "text-foreground"
-                          }`}
+                <View>
+                  <Text className="text-xs font-semibold text-muted mb-1.5">QUELLE</Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {[
+                      { key: "", label: "Keine" },
+                      { key: "website", label: "Website" },
+                      { key: "empfehlung", label: "Empfehlung" },
+                      { key: "messe", label: "Messe" },
+                      { key: "kaltakquise", label: "Kaltakquise" },
+                      { key: "social_media", label: "Social Media" },
+                    ].map((sourceOption) => (
+                      <TouchableOpacity
+                        key={sourceOption.key}
+                        className={`px-3 py-1.5 rounded-full border ${formData.source === sourceOption.key ? "bg-primary border-primary" : "bg-background border-border"}`}
+                        onPress={() => setFormData({ ...formData, source: sourceOption.key })}
                       >
-                        {sourceOption.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text className={`text-xs font-semibold ${formData.source === sourceOption.key ? "text-background" : "text-foreground"}`}>
+                          {sourceOption.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
-              </View>
 
-              {/* Einstufung & nächste Aktion */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">Einstufung</Text>
-                <View className="flex-row gap-2">
-                  {[
-                    { key: "", label: "Keine" },
-                    { key: "hot", label: "🔥 Heiss" },
-                    { key: "warm", label: "🌤 Warm" },
-                    { key: "cold", label: "❄️ Kalt" },
-                  ].map((r) => (
-                    <TouchableOpacity
-                      key={r.key}
-                      className={`px-3 py-1.5 rounded-lg border ${formData.rating === r.key ? "bg-primary border-primary" : "bg-surface border-border"}`}
-                      onPress={() => setFormData({ ...formData, rating: r.key })}
-                    >
-                      <Text className={`text-xs font-semibold ${formData.rating === r.key ? "text-background" : "text-foreground"}`}>
-                        {r.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">Nächste Aktion</Text>
-                <TextInput
-                  value={formData.nextAction}
-                  onChangeText={(v) => setFormData({ ...formData, nextAction: v })}
-                  placeholder="z.B. Anrufen, Offerte nachfassen…"
-                  placeholderTextColor={colors.muted}
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground mb-2"
-                />
-                <TextInput
-                  value={formData.nextActionDate}
-                  onChangeText={(v) => setFormData({ ...formData, nextActionDate: v })}
-                  placeholder="Bis wann? (DD.MM.YYYY)"
-                  placeholderTextColor={colors.muted}
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                />
-                <Text className="text-xs text-muted mt-1">Überfällige Aktionen erscheinen im Heute-Feed auf der Startseite.</Text>
-              </View>
-
-              {/* 8. Priorität */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Priorität
-                </Text>
-                <View className="flex-row gap-2">
-                  {[
-                    { key: "low", label: "Tief", color: "#6B7280" },
-                    { key: "medium", label: "Mittel", color: "#F59E0B" },
-                    { key: "high", label: "Hoch", color: "#EF4444" },
-                  ].map((p) => (
-                    <TouchableOpacity
-                      key={p.key}
-                      className="flex-1 py-2 rounded-lg border"
-                      style={{
-                        backgroundColor: formData.priority === p.key ? p.color + "20" : undefined,
-                        borderColor: formData.priority === p.key ? p.color : "#374151",
-                      }}
-                      onPress={() => setFormData({ ...formData, priority: p.key })}
-                    >
-                      <Text
-                        className="text-xs font-semibold text-center"
-                        style={{ color: formData.priority === p.key ? p.color : "#9CA3AF" }}
+                <View>
+                  <Text className="text-xs font-semibold text-muted mb-1.5">EINSTUFUNG</Text>
+                  <View className="flex-row gap-2">
+                    {[
+                      { key: "", label: "Keine" },
+                      { key: "hot", label: "🔥 Heiss" },
+                      { key: "warm", label: "🌤 Warm" },
+                      { key: "cold", label: "❄️ Kalt" },
+                    ].map((r) => (
+                      <TouchableOpacity
+                        key={r.key}
+                        className={`px-3 py-1.5 rounded-full border ${formData.rating === r.key ? "bg-primary border-primary" : "bg-background border-border"}`}
+                        onPress={() => setFormData({ ...formData, rating: r.key })}
                       >
-                        {p.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text className={`text-xs font-semibold ${formData.rating === r.key ? "text-background" : "text-foreground"}`}>
+                          {r.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
-              </View>
 
-              {/* 9. Status */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Status
-                </Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {[
-                    { key: "new", label: "Neu" },
-                    { key: "contacted", label: "Kontaktiert" },
-                    { key: "qualified", label: "Qualifiziert" },
-                    { key: "proposal", label: "Angebot" },
-                    { key: "won", label: "Gewonnen" },
-                    { key: "lost", label: "Verloren" },
-                  ].map((statusOption) => (
-                    <TouchableOpacity
-                      key={statusOption.key}
-                      className={`px-3 py-1.5 rounded-lg border ${formData.status === statusOption.key
-                        ? "bg-primary border-primary"
-                        : "bg-surface border-border"
-                        }`}
-                      onPress={() =>
-                        setFormData({ ...formData, status: statusOption.key })
-                      }
-                    >
-                      <Text
-                        className={`text-xs font-semibold ${formData.status === statusOption.key
-                          ? "text-background"
-                          : "text-foreground"
-                          }`}
+                <View>
+                  <Text className="text-xs font-semibold text-muted mb-1.5">PRIORITÄT</Text>
+                  <View className="flex-row gap-2">
+                    {[
+                      { key: "low", label: "Tief", color: "#6B7280" },
+                      { key: "medium", label: "Mittel", color: "#F59E0B" },
+                      { key: "high", label: "Hoch", color: "#EF4444" },
+                    ].map((p) => (
+                      <TouchableOpacity
+                        key={p.key}
+                        className="flex-1 py-2 rounded-lg border"
+                        style={{
+                          backgroundColor: formData.priority === p.key ? p.color + "20" : colors.background,
+                          borderColor: formData.priority === p.key ? p.color : colors.border,
+                        }}
+                        onPress={() => setFormData({ ...formData, priority: p.key })}
                       >
-                        {statusOption.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text
+                          className="text-xs font-semibold text-center"
+                          style={{ color: formData.priority === p.key ? p.color : colors.muted }}
+                        >
+                          {p.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View>
+                  <Text className="text-xs font-semibold text-muted mb-1.5">STATUS (PIPELINE-PHASE)</Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {[
+                      { key: "new", label: "Neu" },
+                      { key: "contacted", label: "Kontaktiert" },
+                      { key: "qualified", label: "Qualifiziert" },
+                      { key: "proposal", label: "Angebot" },
+                      { key: "won", label: "Gewonnen" },
+                      { key: "lost", label: "Verloren" },
+                    ].map((statusOption) => (
+                      <TouchableOpacity
+                        key={statusOption.key}
+                        className={`px-3 py-1.5 rounded-full border ${formData.status === statusOption.key ? "bg-primary border-primary" : "bg-background border-border"}`}
+                        onPress={() => setFormData({ ...formData, status: statusOption.key })}
+                      >
+                        <Text className={`text-xs font-semibold ${formData.status === statusOption.key ? "text-background" : "text-foreground"}`}>
+                          {statusOption.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
               </View>
 
-              {/* 10. Notizen */}
-              <View>
-                <Text className="text-sm font-semibold text-foreground mb-2">
-                  Notizen
+              {/* ── Nächste Aktion & Wiedervorlage ── */}
+              <View className="bg-surface rounded-xl border border-border p-4 gap-3">
+                <View className="flex-row items-center gap-2">
+                  <IconSymbol name="calendar" size={15} color={colors.primary} />
+                  <Text className="text-sm font-bold text-foreground">Nächste Aktion & Wiedervorlage</Text>
+                </View>
+                <View className="flex-row gap-3">
+                  <TextInput
+                    className="flex-1 bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                    value={formData.nextAction}
+                    onChangeText={(v) => setFormData({ ...formData, nextAction: v })}
+                    placeholder="Nächste Aktion (z.B. Anrufen)"
+                    placeholderTextColor={colors.muted}
+                  />
+                  <TextInput
+                    className="bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                    style={{ width: 130 }}
+                    value={formData.nextActionDate}
+                    onChangeText={(v) => setFormData({ ...formData, nextActionDate: v })}
+                    placeholder="TT.MM.JJJJ"
+                    placeholderTextColor={colors.muted}
+                  />
+                </View>
+                <View className="flex-row gap-3">
+                  <TextInput
+                    className="flex-1 bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                    placeholder="Erinnerung: Grund / Notiz"
+                    placeholderTextColor={colors.muted}
+                    value={formData.reminderNote}
+                    onChangeText={(text) => setFormData({ ...formData, reminderNote: text })}
+                  />
+                  <TextInput
+                    className="bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                    style={{ width: 130 }}
+                    placeholder="TT.MM.JJJJ"
+                    placeholderTextColor={colors.muted}
+                    value={formData.reminderDate}
+                    onChangeText={(text) => setFormData({ ...formData, reminderDate: text })}
+                  />
+                </View>
+                <Text className="text-xs text-muted">
+                  Überfällige Aktionen erscheinen im Heute-Feed. Erinnerung (Datum + Notiz) erstellt eine Wiedervorlage mit Benachrichtigung.
                 </Text>
-                <TextInput
-                  className="bg-surface border border-border rounded-lg px-4 py-3 text-foreground"
-                  placeholder="Zusätzliche Informationen..."
-                  placeholderTextColor={colors.muted}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                  value={formData.notes}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, notes: text })
-                  }
-                />
               </View>
 
-              {/* 11. Potenzial */}
+              {/* ── Potenzial ── */}
               <View className="bg-surface rounded-xl p-4 border border-border">
-                <Text className="text-base font-bold text-foreground mb-3">
-                  <IconSymbol name="banknote" size={16} color={colors.foreground} /> Potenzial
-                </Text>
+                <View className="flex-row items-center gap-2 mb-3">
+                  <IconSymbol name="banknote" size={15} color={colors.primary} />
+                  <Text className="text-sm font-bold text-foreground">Potenzial</Text>
+                </View>
 
                 {/* Produkte */}
                 <View className="mb-3">
                   <View className="flex-row items-center justify-between mb-2">
-                    <Text className="text-sm font-semibold text-foreground">
-                      Produkte
-                    </Text>
+                    <Text className="text-xs font-semibold text-muted">PRODUKTE</Text>
                     <TouchableOpacity
                       className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg bg-primary/10"
                       onPress={() => setShowProductPicker(true)}
@@ -841,9 +829,7 @@ export function LeadFormModal({
 
                 {/* Freier Betrag */}
                 <View className="border-t border-border pt-3">
-                  <Text className="text-sm font-semibold text-foreground mb-2">
-                    Freier Betrag
-                  </Text>
+                  <Text className="text-xs font-semibold text-muted mb-2">FREIER BETRAG</Text>
                   <View className="flex-row gap-3">
                     <View style={{ width: 130 }}>
                       <TextInput
@@ -852,9 +838,7 @@ export function LeadFormModal({
                         placeholderTextColor={colors.muted}
                         keyboardType="decimal-pad"
                         value={formData.extraAmount}
-                        onChangeText={(text) =>
-                          setFormData({ ...formData, extraAmount: text })
-                        }
+                        onChangeText={(text) => setFormData({ ...formData, extraAmount: text })}
                       />
                     </View>
                     <View className="flex-1">
@@ -863,9 +847,7 @@ export function LeadFormModal({
                         placeholder="Beschreibung (z.B. Beratung)"
                         placeholderTextColor={colors.muted}
                         value={formData.extraDescription}
-                        onChangeText={(text) =>
-                          setFormData({ ...formData, extraDescription: text })
-                        }
+                        onChangeText={(text) => setFormData({ ...formData, extraDescription: text })}
                       />
                     </View>
                   </View>
@@ -873,53 +855,30 @@ export function LeadFormModal({
 
                 {/* Total */}
                 <View className="border-t border-border mt-3 pt-3 flex-row items-center justify-between">
-                  <Text className="text-sm font-bold text-foreground">
-                    Gesamtpotenzial
-                  </Text>
+                  <Text className="text-sm font-bold text-foreground">Gesamtpotenzial</Text>
                   <Text className="text-lg font-bold text-success">
                     CHF {totalValue.toLocaleString("de-CH", { minimumFractionDigits: 2 })}
                   </Text>
                 </View>
               </View>
 
-              {/* 12. Terminierung */}
-              <View className="bg-surface rounded-xl p-4 border border-border mt-2">
-                <Text className="text-base font-bold text-foreground mb-3">
-                  <IconSymbol name="calendar" size={16} color={colors.foreground} /> Terminierung (optional)
-                </Text>
-                <View className="flex-row gap-3">
-                  <View style={{ width: 140 }}>
-                    <Text className="text-sm font-semibold text-foreground mb-2">
-                      Datum
-                    </Text>
-                    <TextInput
-                      className="bg-background border border-border rounded-lg px-4 py-3 text-foreground"
-                      placeholder="TT.MM.JJJJ"
-                      placeholderTextColor={colors.muted}
-                      value={formData.reminderDate}
-                      onChangeText={(text) =>
-                        setFormData({ ...formData, reminderDate: text })
-                      }
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm font-semibold text-foreground mb-2">
-                      Grund / Notiz
-                    </Text>
-                    <TextInput
-                      className="bg-background border border-border rounded-lg px-4 py-3 text-foreground"
-                      placeholder="z.B. Nochmals anrufen"
-                      placeholderTextColor={colors.muted}
-                      value={formData.reminderNote}
-                      onChangeText={(text) =>
-                        setFormData({ ...formData, reminderNote: text })
-                      }
-                    />
-                  </View>
+              {/* ── Notizen ── */}
+              <View className="bg-surface rounded-xl border border-border p-4 gap-3">
+                <View className="flex-row items-center gap-2">
+                  <IconSymbol name="note.text" size={15} color={colors.primary} />
+                  <Text className="text-sm font-bold text-foreground">Notizen</Text>
                 </View>
-                <Text className="text-xs text-muted mt-2">
-                  Füllen Sie beide Felder aus, um eine automatische Wiedervorlage für diesen Lead zu erstellen.
-                </Text>
+                <TextInput
+                  className="bg-background border border-border rounded-lg px-4 py-3 text-foreground"
+                  placeholder="Zusätzliche Informationen..."
+                  placeholderTextColor={colors.muted}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  style={{ minHeight: 90 }}
+                  value={formData.notes}
+                  onChangeText={(text) => setFormData({ ...formData, notes: text })}
+                />
               </View>
             </View>
           </ScrollView>
