@@ -1,75 +1,112 @@
 ---
 // Kontaktformular → Supabase Edge Function contact-form → Lead im CRM.
+// Helle Papier-Sektion (Invert), Formular rechts, 5/7-Teilung.
 interface Props {
-  accent?: "pink" | "blue";
+  accent?: "clay" | "pine";
   heading?: string;
   intro?: string;
   messageLabel?: string;
 }
 const {
-  accent = "pink",
+  accent = "clay",
   heading = "Projekt anfragen",
-  intro = "Erzählen Sie uns kurz, was Sie vorhaben — Sie erhalten innert eines Arbeitstags eine persönliche Antwort von Stefan Gross.",
+  intro = "Beschreiben Sie kurz, was Sie vorhaben — Sie erhalten innert eines Arbeitstags eine persönliche Antwort von Stefan Gross.",
   messageLabel = "Ihr Vorhaben",
 } = Astro.props;
-const btnClass = accent === "blue" ? "btn btn-blue" : "btn btn-pink";
+const accentColor = accent === "pine" ? "var(--pine)" : "var(--clay)";
 ---
-<div class="card contact-card" id="kontakt">
-  <div>
-    <h2 class="section-title">{heading}</h2>
-    <p class="section-sub" style="max-width: 420px">{intro}</p>
-    <address style="font-style: normal; margin-top: 18px; color: var(--muted); font-size: 14.5px; line-height: 2">
-      📞 <a href="tel:+41415623416">+41 41 562 34 16</a><br />
-      ✉️ <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a><br />
-      📍 Neuhushof 3, 6144 Zell LU
-    </address>
+<section class="paper-section contact-wrap" id="kontakt">
+  <div class="container contact-grid">
+    <div class="contact-left">
+      <p class="label" style={`color: ${accentColor}`}>Kontakt</p>
+      <h2>{heading}</h2>
+      <p class="intro">{intro}</p>
+      <address class="contact-address">
+        <span class="line"><span class="k">Telefon</span><a href="tel:+41415623416">+41 41 562 34 16</a></span>
+        <span class="line"><span class="k">E-Mail</span><a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a></span>
+        <span class="line"><span class="k">Adresse</span>Neuhushof 3, 6144 Zell LU</span>
+      </address>
+    </div>
+    <form class="contact-form" method="post" novalidate>
+      <div class="two">
+        <div>
+          <label for={`cf-name-${accent}`}>Name *</label>
+          <input id={`cf-name-${accent}`} name="name" type="text" required autocomplete="name" />
+        </div>
+        <div>
+          <label for={`cf-email-${accent}`}>E-Mail *</label>
+          <input id={`cf-email-${accent}`} name="email" type="email" required autocomplete="email" />
+        </div>
+        <div>
+          <label for={`cf-phone-${accent}`}>Telefon</label>
+          <input id={`cf-phone-${accent}`} name="phone" type="tel" autocomplete="tel" />
+        </div>
+        <div>
+          <label for={`cf-company-${accent}`}>Firma</label>
+          <input id={`cf-company-${accent}`} name="company" type="text" autocomplete="organization" />
+        </div>
+      </div>
+      <div style="margin-top: 14px">
+        <label for={`cf-msg-${accent}`}>{messageLabel}</label>
+        <textarea id={`cf-msg-${accent}`} name="message" rows="4"></textarea>
+      </div>
+      <!-- Honeypot: für Menschen unsichtbar, Bots füllen es aus -->
+      <div class="hp-field" aria-hidden="true">
+        <label for={`cf-web-${accent}`}>Website</label>
+        <input id={`cf-web-${accent}`} name="website" type="text" tabindex="-1" autocomplete="off" />
+      </div>
+      <button type="submit" class="btn btn-paper-ghost" style="width: 100%; margin-top: 18px">Anfrage senden</button>
+      <p class="form-status" role="status" aria-live="polite"></p>
+      <p class="form-fine">
+        Ihre Anfrage landet direkt in unserem System — keine Sammel-Postfächer, keine Umwege.
+        Hinweise zum Datenschutz finden Sie in der <a href="/datenschutz">Datenschutzerklärung</a>.
+      </p>
+    </form>
   </div>
-  <form class="contact-form" method="post" novalidate>
-    <div class="grid grid-2" style="gap: 12px">
-      <div>
-        <label for={`cf-name-${accent}`}>Name *</label>
-        <input id={`cf-name-${accent}`} name="name" type="text" required autocomplete="name" />
-      </div>
-      <div>
-        <label for={`cf-email-${accent}`}>E-Mail *</label>
-        <input id={`cf-email-${accent}`} name="email" type="email" required autocomplete="email" />
-      </div>
-      <div>
-        <label for={`cf-phone-${accent}`}>Telefon</label>
-        <input id={`cf-phone-${accent}`} name="phone" type="tel" autocomplete="tel" />
-      </div>
-      <div>
-        <label for={`cf-company-${accent}`}>Firma</label>
-        <input id={`cf-company-${accent}`} name="company" type="text" autocomplete="organization" />
-      </div>
-    </div>
-    <div style="margin-top: 12px">
-      <label for={`cf-msg-${accent}`}>{messageLabel}</label>
-      <textarea id={`cf-msg-${accent}`} name="message" rows="4"></textarea>
-    </div>
-    <!-- Honeypot: für Menschen unsichtbar, Bots füllen es aus -->
-    <div class="hp-field" aria-hidden="true">
-      <label for={`cf-web-${accent}`}>Website</label>
-      <input id={`cf-web-${accent}`} name="website" type="text" tabindex="-1" autocomplete="off" />
-    </div>
-    <button type="submit" class={btnClass} style="width: 100%; margin-top: 16px">Anfrage senden</button>
-    <p class="form-status" role="status" aria-live="polite"></p>
-    <p class="fine" style="color: var(--faint); font-size: 11.5px; margin-top: 8px">
-      Ihre Anfrage landet direkt in unserem System — keine Sammel-Postfächer, keine Umwege.
-      Hinweise zum Datenschutz finden Sie in der <a href="/datenschutz">Datenschutzerklärung</a>.
-    </p>
-  </form>
-</div>
+</section>
 
 <style>
-  .contact-card {
+  .contact-wrap { margin-top: 96px; padding: 80px 0 88px; }
+  .contact-grid {
     display: grid;
-    grid-template-columns: 1fr 1.1fr;
-    gap: 44px;
-    padding: 44px;
+    grid-template-columns: 5fr 7fr;
+    gap: 64px;
+    align-items: start;
   }
-  @media (max-width: 860px) {
-    .contact-card { grid-template-columns: 1fr; padding: 28px; }
+  .contact-left { display: flex; flex-direction: column; gap: 16px; }
+  .contact-left h2 { font-size: clamp(30px, 4vw, 46px); }
+  .intro { color: var(--muted-on-paper); font-size: 15.5px; max-width: 400px; }
+  .contact-address {
+    font-style: normal;
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--paper-line);
+  }
+  .contact-address .line {
+    display: flex;
+    gap: 18px;
+    align-items: baseline;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--paper-line);
+    font-size: 15px;
+  }
+  .contact-address .k {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-on-paper);
+    width: 72px;
+    flex-shrink: 0;
+  }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 920px) {
+    .contact-grid { grid-template-columns: 1fr; gap: 40px; }
+    .contact-wrap { margin-top: 64px; padding: 56px 0 64px; }
+  }
+  @media (max-width: 560px) {
+    .two { grid-template-columns: 1fr; }
   }
   .hp-field {
     position: absolute;
@@ -79,8 +116,9 @@ const btnClass = accent === "blue" ? "btn btn-blue" : "btn btn-pink";
     overflow: hidden;
   }
   .form-status { margin-top: 10px; font-size: 14px; font-weight: 600; min-height: 20px; }
-  .form-status.ok { color: #4ADE80; }
-  .form-status.err { color: #F87171; }
+  .form-status.ok { color: var(--pine-deep); }
+  .form-status.err { color: var(--clay-deep); }
+  .form-fine { color: var(--muted-on-paper); font-size: 12px; margin-top: 8px; }
 </style>
 
 <script>

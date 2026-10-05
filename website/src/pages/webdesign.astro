@@ -7,146 +7,187 @@ import ContactForm from "../components/ContactForm.astro";
   description="Webseiten, Web-Applikationen und Mobile Apps aus Zell LU. Festpreise, rechtssicher nach revDSG, barrierefrei nach WCAG 2.1."
   active="webdesign"
 >
-  <section class="hero hero-pink">
-    <div class="glow" style="background: rgba(255,255,255,0.12)"></div>
-    <div class="container">
-      <p class="kicker" style="color: #FBD9F2">WEBDESIGN · ZENTRALSCHWEIZ</p>
-      <h1>Webseiten, die für Sie arbeiten.</h1>
-      <p class="lead">
-        Vom Einzelunternehmen bis zum KMU: Wir bauen Ihren Auftritt neu — suchmaschinenfreundlich,
-        selbst pflegbar und zum Festpreis. Rechtssicher nach revDSG, barrierefrei nach WCAG 2.1.
-      </p>
-      <div class="cta-row">
-        <a class="btn btn-white" href="#kontakt">Projekt anfragen</a>
-        <a class="btn btn-outline" href="/rechner">Preis berechnen</a>
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="hero-main">
+        <p class="label" style="color: var(--clay); filter: brightness(1.3)">Webdesign · Zentralschweiz</p>
+        <h1 class="reveal">Webseiten, die<br />für Sie arbeiten<span class="dot">.</span></h1>
+        <p class="lead">
+          Vom Einzelunternehmen bis zum KMU: Wir bauen Ihren Auftritt neu —
+          auffindbar, selbst pflegbar und zum Festpreis. Mit Impressum,
+          Datenschutzerklärung nach revDSG und Barrierefreiheit nach WCAG 2.1
+          gleich eingebaut.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-brass" href="#kontakt">Projekt anfragen</a>
+          <a class="btn btn-ghost" href="/rechner">Preis berechnen</a>
+        </div>
       </div>
+      <aside class="hero-facts" aria-label="Fakten">
+        <div class="fact"><span class="k">Einstieg</span><span class="v">ab CHF 1'500</span></div>
+        <div class="fact"><span class="k">Preismodell</span><span class="v">Festpreis, vorab vereinbart</span></div>
+        <div class="fact"><span class="k">Recht</span><span class="v">revDSG · UWG · WCAG 2.1 AA</span></div>
+        <div class="fact"><span class="k">Hosting</span><span class="v">Server in der Schweiz</span></div>
+      </aside>
     </div>
   </section>
-
-  <div class="trust-band">
-    <div class="container inner">
-      <span>✓ Rechtssicher nach revDSG &amp; UWG</span>
-      <span>✓ Barrierefrei nach WCAG 2.1 AA</span>
-      <span>✓ Hosting in der Schweiz</span>
-      <span>✓ Festpreise ohne Überraschungen</span>
-    </div>
-  </div>
 
   <section class="section" id="pakete">
     <div class="container">
-      <h2 class="section-title">Unsere Webdesign-Leistungen</h2>
-      <p class="section-sub">Drei klare Angebote — vom Webauftritt bis zur eigenen App.</p>
-      <div class="grid grid-3" style="margin-top: 34px">
-        <article class="card offer">
-          <div class="icon-chip" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E879C9" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M7 20h10"/></svg>
-          </div>
-          <h3>Webseiten</h3>
-          <p>Ihr neuer Auftritt zum Festpreis: suchmaschinenfreundlich, wartbar, Inhalte selbst pflegen — inkl. Impressum und Datenschutzerklärung nach Schweizer Recht.</p>
-          <p class="price">ab CHF 1'500</p>
-        </article>
-        <article class="card offer">
-          <div class="icon-chip" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E879C9" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg>
-          </div>
-          <h3>Web-Applikationen</h3>
-          <p>Individuelle Lösungen wie Kundenportale, Buchungssysteme oder interne Tools — massgeschneidert auf Ihre Abläufe.</p>
-          <p class="price">ab CHF 15'000</p>
-        </article>
-        <article class="card offer">
-          <div class="icon-chip" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E879C9" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
-          </div>
-          <h3>Mobile Apps</h3>
-          <p>iOS und Android, nativ oder Cross-Platform — von der Idee bis in den App Store, inklusive Betrieb und Updates.</p>
-          <p class="price">ab CHF 20'000</p>
-        </article>
+      <div class="section-head">
+        <h2 class="section-title">Leistungen &amp; Preise</h2>
+        <p class="section-note">Drei klare Angebote — jeder Preis gilt, bevor wir anfangen.</p>
       </div>
-
-      <div class="grid grid-2" style="margin-top: 24px">
-        <article class="card special special-npo">
-          <p class="kicker" style="color: var(--pink)">VEREINE &amp; NPO</p>
-          <h3>25% Rabatt auf Webprojekte</h3>
-          <p>Weil Freiwilligenarbeit Unterstützung verdient — faire Preise für Vereine und gemeinnützige Organisationen.</p>
-        </article>
-        <article class="card special special-wedding">
-          <p class="kicker" style="color: var(--gold)">HOCHZEITSPAARE</p>
-          <h3>Hochzeits-Webseiten ab CHF 500</h3>
-          <p>Von Save-the-Date bis zur Deluxe-Variante mit Fotogalerie und Online-Anmeldung für Ihre Gäste.</p>
-        </article>
+      <div class="rows">
+        <a class="row-item hoverable" href="/rechner">
+          <span class="no">01</span>
+          <h3>Webseiten</h3>
+          <p class="desc">Ihr neuer Auftritt zum Festpreis: auffindbar in Suchmaschinen, Inhalte selbst pflegen — inklusive Impressum und Datenschutzerklärung nach Schweizer Recht.</p>
+          <span class="price">ab CHF 1'500</span>
+        </a>
+        <a class="row-item hoverable" href="#kontakt">
+          <span class="no">02</span>
+          <h3>Web-Applikationen</h3>
+          <p class="desc">Kundenportale, Buchungssysteme oder interne Tools — gebaut für Ihre Abläufe, nicht für den Durchschnitt.</p>
+          <span class="price">ab CHF 15'000</span>
+        </a>
+        <a class="row-item hoverable" href="#kontakt">
+          <span class="no">03</span>
+          <h3>Mobile Apps</h3>
+          <p class="desc">iOS und Android, nativ oder Cross-Platform — von der Idee bis in den App Store, inklusive Betrieb und Updates.</p>
+          <span class="price">ab CHF 20'000</span>
+        </a>
       </div>
     </div>
   </section>
 
   <section class="section">
+    <div class="container specials">
+      <article class="special special-npo">
+        <p class="label" style="color: rgba(239,234,227,0.75)">Vereine &amp; NPO</p>
+        <h3>25% Rabatt auf Webprojekte</h3>
+        <p>Weil Freiwilligenarbeit Unterstützung verdient — faire Preise für Vereine und gemeinnützige Organisationen.</p>
+      </article>
+      <article class="special special-wedding">
+        <p class="label" style="color: var(--brass)">Hochzeitspaare</p>
+        <h3>Hochzeits-Webseiten ab CHF 500</h3>
+        <p>Von Save-the-Date bis zur Deluxe-Variante mit Fotogalerie und Online-Anmeldung für Ihre Gäste.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
     <div class="container">
-      <h2 class="section-title">So läuft Ihr Projekt</h2>
-      <div class="grid grid-4" style="margin-top: 30px">
-        <article class="card step">
-          <p class="num">1</p>
+      <div class="section-head">
+        <h2 class="section-title">So läuft Ihr Projekt</h2>
+      </div>
+      <ol class="process">
+        <li>
+          <span class="p-no">1</span>
           <h3>Kennenlernen</h3>
           <p>Kostenloses Erstgespräch: Ziele, Inhalte, Budget — unverbindlich und ehrlich.</p>
-        </article>
-        <article class="card step">
-          <p class="num">2</p>
+        </li>
+        <li>
+          <span class="p-no">2</span>
           <h3>Design</h3>
           <p>Sie erhalten einen Gestaltungsvorschlag und geben Feedback, bis es passt.</p>
-        </article>
-        <article class="card step">
-          <p class="num">3</p>
+        </li>
+        <li>
+          <span class="p-no">3</span>
           <h3>Umsetzung</h3>
           <p>Entwicklung, Texte, Fotos, SEO — und die rechtssichere Basis gleich mit.</p>
-        </article>
-        <article class="card step">
-          <p class="num">4</p>
+        </li>
+        <li>
+          <span class="p-no">4</span>
           <h3>Betreuung</h3>
           <p>Hosting, Updates und Anpassungen — wir bleiben auch nach dem Livegang dran.</p>
-        </article>
-      </div>
+        </li>
+      </ol>
     </div>
   </section>
 
-  <section class="section">
-    <div class="container">
-      <ContactForm accent="pink" />
-    </div>
-  </section>
+  <ContactForm accent="clay" />
 </Base>
 
 <style>
-  .kicker { font-size: 11.5px; font-weight: 700; letter-spacing: 2px; }
-  .offer { display: flex; flex-direction: column; gap: 14px; }
-  .offer h3 { font-size: 20px; }
-  .offer p { font-size: 14.5px; color: var(--muted); }
-  .offer .price {
-    margin-top: auto;
-    font-family: "Sora", sans-serif;
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--pink);
+  .hero { border-bottom: 1px solid var(--line); padding: 88px 0 72px; }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+    gap: 64px;
+    align-items: end;
   }
-  .icon-chip {
-    width: 46px;
-    height: 46px;
-    border-radius: 12px;
-    background: rgba(232,121,201,0.16);
+  .hero-main { display: flex; flex-direction: column; gap: 22px; }
+  .hero h1 { font-size: clamp(42px, 6vw, 84px); }
+  .hero .dot { color: var(--clay); }
+  .lead { max-width: 560px; font-size: 17px; color: var(--muted); }
+  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+  .hero-facts { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+  .fact {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: baseline;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
   }
-  .special { display: flex; flex-direction: column; gap: 10px; padding: 28px; }
-  .special h3 { font-size: 21px; color: #fff; }
-  .special p { font-size: 14.5px; color: #C6CBDA; }
-  .special-npo {
-    background: linear-gradient(135deg, rgba(232,121,201,0.14), rgba(139,47,201,0.14));
-    border-color: rgba(232,121,201,0.35);
+  .fact .k {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
-  .special-wedding {
-    background: linear-gradient(135deg, rgba(217,169,106,0.14), rgba(232,121,201,0.10));
-    border-color: rgba(217,169,106,0.4);
+  .fact .v { text-align: right; }
+  @media (max-width: 920px) {
+    .hero { padding: 56px 0 48px; }
+    .hero-grid { grid-template-columns: 1fr; gap: 36px; }
   }
-  .step { display: flex; flex-direction: column; gap: 8px; padding: 24px; background: var(--surface-2); }
-  .step .num { font-family: "Sora", sans-serif; font-size: 26px; font-weight: 800; color: var(--pink); }
-  .step h3 { font-size: 16px; }
-  .step p { font-size: 13.5px; color: var(--faint); }
+
+  .rows { margin-top: 0; }
+  .section-head + .rows .row-item:first-child { border-top: none; }
+
+  .specials {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .special { padding: 40px 36px 44px; display: flex; flex-direction: column; gap: 12px; }
+  .special h3 { font-size: clamp(22px, 2.6vw, 30px); }
+  .special p { font-size: 14.5px; max-width: 480px; }
+  .special-npo { background: var(--clay); color: rgba(239,234,227,0.88); }
+  .special-npo h3 { color: var(--paper); }
+  .special-wedding { background: var(--ink-2); color: var(--muted); }
+  .special-wedding h3 { color: var(--text); }
+  @media (max-width: 860px) {
+    .specials { grid-template-columns: 1fr; }
+  }
+
+  .process {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 36px;
+    padding-top: 32px;
+  }
+  .process li { display: flex; flex-direction: column; gap: 8px; }
+  .p-no {
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 15px;
+    color: var(--clay);
+    filter: brightness(1.3);
+  }
+  .process h3 { font-size: 18px; }
+  .process p { font-size: 13.5px; color: var(--muted); }
+  @media (max-width: 860px) {
+    .process { grid-template-columns: 1fr 1fr; gap: 28px; }
+  }
+  @media (max-width: 520px) {
+    .process { grid-template-columns: 1fr; }
+  }
 </style>

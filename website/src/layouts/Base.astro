@@ -10,7 +10,7 @@ interface Props {
 }
 const {
   title,
-  description = "Webseiten & ICT-Dienste für die Zentralschweiz — Gross ICT, Zell LU. Webdesign ab CHF 1'500, IT-Support ohne Warteschlange.",
+  description = "Gross ICT, Zell LU — Webseiten zum Festpreis ab CHF 1'500 und IT-Betreuung ohne Warteschlange für die Zentralschweiz.",
   active = "",
   noChrome = false,
 } = Astro.props;
@@ -26,21 +26,18 @@ const {
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <a class="skip-link" href="#main">Zum Inhalt springen</a>
     {!noChrome && (
       <header class="site-header">
         <div class="inner">
-          <a class="brand" href="/">
-            <span class="mark">( )</span>
-            GROSS <span class="mark">·</span> ICT
-          </a>
+          <a class="brand" href="/">Gross<span class="mark">&nbsp;·&nbsp;</span>ICT</a>
           <nav class="site-nav" aria-label="Hauptnavigation">
-            <a class="accent-pink" href="/webdesign" aria-current={active === "webdesign" ? "page" : undefined}>Webdesign</a>
-            <a class="accent-blue" href="/ict-services" aria-current={active === "ict" ? "page" : undefined}>ICT Services</a>
+            <a class="accent-clay" href="/webdesign" aria-current={active === "webdesign" ? "page" : undefined}>Webdesign</a>
+            <a class="accent-pine" href="/ict-services" aria-current={active === "ict" ? "page" : undefined}>ICT Services</a>
             <a href="/rechner" aria-current={active === "rechner" ? "page" : undefined}>Preisrechner</a>
             <a class="btn-login" href="https://portal.gross-ict.ch">Kunden-Login</a>
           </nav>
@@ -54,12 +51,9 @@ const {
       <footer class="site-footer">
         <div class="container inner">
           <div>
-            <a class="brand" href="/" style="font-size: 15px">
-              <span class="mark">( )</span>
-              GROSS <span class="mark">·</span> ICT
-            </a>
-            <p class="fine" style="margin-top: 8px">Webseiten &amp; ICT-Dienste für die Zentralschweiz</p>
-            <p class="fine" style="margin-top: 4px">Neuhushof 3, 6144 Zell LU · <a href="tel:+41415623416">+41 41 562 34 16</a> · <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a></p>
+            <a class="brand" href="/" style="font-size: 16px">Gross<span class="mark">&nbsp;·&nbsp;</span>ICT</a>
+            <p class="fine" style="margin-top: 8px">Webseiten &amp; ICT-Dienste, von Hand gebaut in Zell LU</p>
+            <p class="fine" style="margin-top: 4px">Neuhushof 3, 6144 Zell · <a href="tel:+41415623416">+41 41 562 34 16</a> · <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a></p>
           </div>
           <div class="legal">
             <a href="/impressum">Impressum</a>
