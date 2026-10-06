@@ -15,8 +15,9 @@ import ContactForm from "../components/ContactForm.astro";
       <div class="hero-shade" aria-hidden="true"></div>
       <div class="hero-bottom-shade" aria-hidden="true"></div>
       <div class="hero-text">
-        <p class="anton hero-kicker">ICT Services mit</p>
-        <h1 class="anton hero-big">Weitblick</h1>
+        <p class="anton hero-kicker">Ihr Partner in allen</p>
+        <h1 class="anton hero-big">ICT Fragen</h1>
+        <p class="hero-sub">Massgeschneiderte digitale Lösungen, die Ihr Unternehmen voranbringen</p>
       </div>
       <div class="hero-scroll">
         <a href="#leistungen" aria-label="Zu den Leistungen scrollen">
@@ -162,8 +163,21 @@ import ContactForm from "../components/ContactForm.astro";
     transform: translateY(-55%);
     padding-right: 24px;
   }
-  .hero-kicker { font-size: clamp(22px, 3.2vw, 46px); letter-spacing: 1.5px; color: #F2E8D8; text-shadow: 0 2px 16px rgba(0,0,0,0.45); margin: 0; }
-  .hero-big { font-size: clamp(64px, 11.5vw, 168px); letter-spacing: 2px; color: #FFD79A; text-shadow: 0 4px 26px rgba(0,0,0,0.5); margin: 6px 0 0; }
+  .hero-kicker { font-size: clamp(18px, 2.3vw, 34px); letter-spacing: 1.5px; color: #F2E8D8; text-shadow: 0 2px 16px rgba(0,0,0,0.45); margin: 0; }
+  .hero-big { font-size: clamp(46px, 7.8vw, 112px); letter-spacing: 2px; line-height: 1.04; color: #FFD79A; text-shadow: 0 4px 26px rgba(0,0,0,0.5); margin: 6px 0 0; }
+  .hero-sub {
+    margin: 18px 0 0;
+    max-width: 480px;
+    font-size: clamp(15px, 1.4vw, 19px);
+    font-weight: 500;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+  }
+  @media (max-width: 640px) {
+    .hero-text { padding-right: 36px; }
+    .hero-sub { font-size: 14.5px; max-width: 300px; }
+  }
   .hero-scroll {
     position: absolute;
     left: clamp(44px, 28vw, 420px);
