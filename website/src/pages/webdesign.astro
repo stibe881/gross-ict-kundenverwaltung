@@ -2,8 +2,11 @@
 import Base from "../layouts/Base.astro";
 import ContactForm from "../components/ContactForm.astro";
 
-// Referenzen: zentrale Datenliste (später aus dem CRM speisbar).
-const referenzen = [
+import fs from 'fs';
+import path from 'path';
+
+// Eingebaute Liste als Fallback, falls das CRM beim Build nicht erreichbar ist.
+const fallbackReferenzen = [
   {
     kunde: "GJONI WORK",
     titel: "Reinigungs- & Haus­wartungs­dienste",
@@ -71,6 +74,38 @@ const referenzen = [
     alt: "Webseite des FC Zell auf einem Monitor",
   },
 ];
+
+// «Ausgewählte Arbeiten»: aus dem CRM (website_references), sortiert nach
+// Sortierung aufsteigend — die drei tiefsten Werte erscheinen auf der Seite.
+let referenzen = fallbackReferenzen;
+try {
+  const envPath = path.resolve('../.env');
+  const envStr = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+  const url = envStr.match(/EXPO_PUBLIC_SUPABASE_URL=(.*)/)?.[1]?.trim();
+  const key = envStr.match(/SUPABASE_SERVICE_ROLE_KEY=(.*)/)?.[1]?.trim();
+  if (url && key) {
+    const res = await fetch(`${url}/rest/v1/website_references?select=*&active=eq.true&order=sort_order.asc`, {
+      headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const geladen = data.map((r) => ({
+        kunde: r.name,
+        titel: r.titel,
+        text: r.beschreibung,
+        url: r.url,
+        urlLabel: r.url_label || (r.url ? r.url.replace(/^https?:\/\//, '').replace(/\/$/, '') : ''),
+        tags: (r.tags || []).filter((t) => !t.startsWith('Branche:')),
+        shot: r.bild_url,
+        env: r.umgebung_bild_url || null,
+        alt: `Webseite von ${r.name}`,
+      }));
+      if (geladen.length) referenzen = geladen;
+    }
+  }
+} catch (e) {
+  console.error('Fehler beim Laden der Referenzen:', e);
+}
 ---
 <Base
   title="Web- & Appdesign — Gross ICT | Webseiten ab CHF 1'500"
