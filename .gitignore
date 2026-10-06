@@ -64,3 +64,10 @@ Thumbs.db
 # EAS lokale Build-Credentials (niemals committen!)
 credentials.json
 /credentials/
+
+# SSH-Schluessel gehoeren nie ins Repository
+deploy_key
+deploy_key.pub
+*.pem
+id_rsa*
+id_ed25519*
