@@ -387,6 +387,19 @@ html.area-ict .site-header:not(.overlay) .nav-toggle span { background: #152238;
     padding: 10px 16px 18px;
     margin-top: 6px;
   }
+  /* ICT-Bereich: helle Welt, also helles Panel mit dunkler Schrift */
+  html.area-ict .site-header.overlay .site-nav.open {
+    background: rgba(247, 249, 252, 0.97);
+    box-shadow: 0 18px 40px rgba(21, 34, 56, 0.18);
+  }
+  html.area-ict .site-header.overlay .site-nav.open a {
+    color: #3c4a63;
+    text-shadow: none;
+  }
+  html.area-ict .site-header.overlay .site-nav.open a:hover,
+  html.area-ict .site-header.overlay .site-nav.open a[aria-current="page"] {
+    color: var(--ict-ink);
+  }
 }
 
 /* ── «Weitblick»-Kulisse (nur dunkler Webdesign-Bereich) ──
