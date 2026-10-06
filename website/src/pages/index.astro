@@ -227,6 +227,28 @@ import Base from "../layouts/Base.astro";
   .contact-line a { color: rgba(255,255,255,0.95); }
 
   @media (max-width: 900px) {
+    /* Jede Hälfte zeigt nur einen kleinen Ausschnitt der Nebel-Kachel —
+       feiner skalieren und Dichte zurücknehmen, damit Ströme statt eines
+       flächigen Schleiers sichtbar sind und der Text lesbar bleibt */
+    .nebel {
+      background: linear-gradient(180deg,
+        rgba(245, 248, 252, 0) 0%,
+        rgba(245, 248, 252, 0) 58%,
+        rgba(250, 252, 255, 0.1) 80%,
+        rgba(252, 254, 255, 0.3) 100%);
+    }
+    .nebel::before {
+      background-size: 850px 500px;
+      filter: blur(10px);
+      opacity: 0.85;
+    }
+    .nebel::after {
+      background-size: 560px 300px;
+      filter: blur(4px);
+      opacity: 0.5;
+    }
+    .content h1 { text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55); }
+    .content p.hover-text { text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5); }
     .split { flex-direction: column; }
     .half { padding: 130px 28px 80px; }
     .half-ict { border-left: none; border-top: 1px solid rgba(255,255,255,0.25); padding-top: 90px; }
