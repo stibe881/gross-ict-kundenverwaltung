@@ -291,6 +291,18 @@ try {
         });
       }
 
+      // Hero-Einblendung auch nach Zurück/Vorwärts-Navigation abspielen:
+      // Aus dem BFCache wiederhergestellte Seiten gelten als «fertig
+      // animiert» — darum die CSS-Animationen dort neu starten.
+      window.addEventListener("pageshow", (e) => {
+        if (!e.persisted) return;
+        document.querySelectorAll<HTMLElement>(".hero-text, .hero-scroll").forEach((el) => {
+          el.style.animation = "none";
+          void el.offsetWidth;
+          el.style.animation = "";
+        });
+      });
+
       // Scroll-Reveal für [data-reveal]-Elemente
       const els = document.querySelectorAll("[data-reveal]");
       if ("IntersectionObserver" in window && els.length) {
