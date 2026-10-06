@@ -335,16 +335,46 @@ html.area-ict .site-header:not(.overlay) .nav-toggle span { background: #152238;
 
 @media (max-width: 900px) {
   .nav-toggle { display: block; }
+  /* Weiches Auf- und Zuklappen: Höhe, Deckkraft und leichtes Herabgleiten */
   .site-nav {
-    display: none;
+    display: flex;
     flex-basis: 100%;
     width: 100%;
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
-    padding: 8px 0 16px;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-10px);
+    visibility: hidden;
+    padding: 0;
+    margin-top: 0;
+    transition:
+      max-height 0.4s cubic-bezier(0.3, 0.7, 0.3, 1),
+      opacity 0.28s ease,
+      transform 0.4s cubic-bezier(0.3, 0.7, 0.3, 1),
+      padding 0.4s cubic-bezier(0.3, 0.7, 0.3, 1),
+      margin-top 0.4s cubic-bezier(0.3, 0.7, 0.3, 1),
+      visibility 0s linear 0.4s;
   }
-  .site-nav.open { display: flex; }
+  .site-nav.open {
+    max-height: 560px;
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+    padding: 8px 0 16px;
+    transition:
+      max-height 0.45s cubic-bezier(0.25, 0.8, 0.3, 1),
+      opacity 0.35s ease 0.06s,
+      transform 0.45s cubic-bezier(0.25, 0.8, 0.3, 1),
+      padding 0.45s cubic-bezier(0.25, 0.8, 0.3, 1),
+      margin-top 0.45s cubic-bezier(0.25, 0.8, 0.3, 1),
+      visibility 0s;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .site-nav, .site-nav.open { transition: none; }
+  }
   .site-nav a { padding: 11px 0; font-size: 14px; width: 100%; }
   .site-nav a[aria-current="page"] { border-bottom: none; padding-bottom: 11px; color: var(--gold); }
   .site-header.light .site-nav a[aria-current="page"],
