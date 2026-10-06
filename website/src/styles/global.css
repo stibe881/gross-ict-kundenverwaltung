@@ -368,6 +368,9 @@ html.area-webdesign body::before {
   filter: brightness(0.32) saturate(0.85);
   -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.6) 45%, #000 75%);
   mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.6) 45%, #000 75%);
+  /* Auf Seiten mit Vollbild-Hero blendet ein Scroll-Script die Kulisse
+     weich ein (Variable wird in Base.astro gesetzt); sonst voll sichtbar. */
+  opacity: var(--kulisse-opacity, 1);
 }
 html.area-webdesign main,
 html.area-webdesign .site-footer,

@@ -62,7 +62,10 @@ try {
       
       sessionStorage.setItem('area', area);
       document.documentElement.classList.add('area-' + area);
-        const targetUrl = area === 'ict' ? '/ict-services' : '/webdesign';
+        // Logo-Ziel: auf den Bereichs-Startseiten führt das Logo zur
+        // Farbwelten-Auswahl (/), überall sonst zur jeweiligen Bereichs-Startseite.
+        const aufBereichsStart = /\/(webdesign|ict-services)(\.html)?\/?$/.test(window.location.pathname);
+        const targetUrl = aufBereichsStart ? '/' : (area === 'ict' ? '/ict-services' : '/webdesign');
         document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('a.dynamic-logo-link').forEach(link => link.href = targetUrl));
     </script>
     <style is:global>
@@ -253,6 +256,25 @@ try {
             navToggle.setAttribute("aria-expanded", "false");
           })
         );
+      }
+
+      // Berg-Kulisse: auf Seiten mit Vollbild-Hero (dort ist der Berg schon
+      // gross im Bild) erst beim Herunterscrollen weich einblenden —
+      // und beim Hochscrollen wieder aus.
+      // Nur Seiten mit Vollbild-Foto-Hero (hero-bg) — der Rechner hat z.B.
+      // auch eine .hero-Sektion, aber ohne Bergbild.
+      const kulisseHeroBg = document.querySelector<HTMLElement>(".hero .hero-bg");
+      const kulisseHero = kulisseHeroBg ? (kulisseHeroBg.closest(".hero") as HTMLElement) : null;
+      if (kulisseHero) {
+        const updateKulisse = () => {
+          const start = kulisseHero.offsetHeight * 0.55;
+          const range = window.innerHeight * 0.9;
+          const o = Math.min(1, Math.max(0, (window.scrollY - start) / range));
+          document.documentElement.style.setProperty("--kulisse-opacity", o.toFixed(3));
+        };
+        updateKulisse();
+        window.addEventListener("scroll", updateKulisse, { passive: true });
+        window.addEventListener("resize", updateKulisse, { passive: true });
       }
 
       // Dezenter Hinweis statt Cookie-Banner (die Seite setzt keine Cookies);
