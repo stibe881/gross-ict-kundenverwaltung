@@ -74,7 +74,40 @@ import Base from "../layouts/Base.astro";
           <a href="https://www.edoeb.admin.ch" rel="noopener">www.edoeb.admin.ch</a>) wenden.
         </p>
 
-        <h2>7. Änderungen</h2>
+        <h2>7. Unsere Apps (Apple App Store und Google Play)</h2>
+        <p>
+          Für unsere Apps, die über den Apple App Store und Google Play vertrieben werden, gilt
+          diese Datenschutzerklärung ergänzend wie folgt. Beide Apps zeigen keine Werbung und
+          setzen keine Tracking- oder Analysedienste ein. Sie können jederzeit die Löschung Ihres
+          Kontos und der zugehörigen Daten verlangen — per Mitteilung an
+          <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a>.
+        </p>
+        <h3>CRM-App (Gross ICT Kundenverwaltung und Kundenportal)</h3>
+        <p>
+          Die CRM-App dient unserem Team zur Kundenverwaltung und unseren Kunden als Portal
+          (Tickets, Dokumente, Rechnungen, Offerten). Bearbeitet werden: Konto-Anmeldedaten
+          (E-Mail/Passwort oder Microsoft-Konto), Name und — bei Microsoft-Anmeldung — das
+          Profilbild, Inhalte, die Sie in der App erfassen (z.B. Tickets, Dokumente, Fotos von
+          Belegen), sowie ein Push-Token Ihres Geräts für Benachrichtigungen. Die Daten werden in
+          unserer Datenbank-Infrastruktur (Supabase, siehe Ziffer 4) gespeichert. Kamera und
+          Fotobibliothek werden nur verwendet, wenn Sie aktiv ein Bild oder Dokument hochladen.
+          Face ID/Touch ID wird ausschliesslich lokal auf Ihrem Gerät geprüft; biometrische Daten
+          verlassen das Gerät nicht. Beim Kassieren per Tap to Pay werden Zahlungen durch Stripe
+          verarbeitet; Kartendaten werden ausschliesslich von Stripe bearbeitet und nie bei uns
+          gespeichert (die dafür von iOS verlangten Standort- und Bluetooth-Berechtigungen dienen
+          allein der Zahlungsabwicklung).
+        </p>
+        <h3>Notfall-App (Sonnenberg Notfall)</h3>
+        <p>
+          Die Notfall-App dient der raschen Alarmierung und Information im Notfall. Bearbeitet
+          werden die dafür erforderlichen Angaben (insbesondere Name und Erreichbarkeit der
+          beteiligten Personen) sowie ein Push-Token Ihres Geräts für
+          Notfall-Benachrichtigungen. Die Daten werden ausschliesslich für den Notfall- und
+          Alarmierungszweck verwendet; es werden keine Bewegungsprofile erstellt und keine Daten
+          zu Werbezwecken bearbeitet.
+        </p>
+
+        <h2>8. Änderungen</h2>
         <p>
           Wir können diese Datenschutzerklärung bei Bedarf anpassen; es gilt die jeweils auf dieser
           Seite veröffentlichte Fassung.
@@ -87,5 +120,6 @@ import Base from "../layouts/Base.astro";
 <style>
   .legal-text h2 { font-size: 17px; margin: 22px 0 8px; }
   .legal-text h2:first-child { margin-top: 0; }
+  .legal-text h3 { font-size: 15px; margin: 16px 0 6px; }
   .legal-text p { color: var(--muted); font-size: 14.5px; margin-bottom: 10px; }
 </style>
