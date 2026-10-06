@@ -243,7 +243,7 @@ import Base from "../layouts/Base.astro";
       <!-- Ergebnis -->
       <aside class="calc-summary" aria-label="Preisübersicht">
         <div class="summary-card">
-          <p class="mono" style="color: #96652A">Ihr Festpreis</p>
+          <p class="mono" style="color: #A6791A">Ihr Festpreis</p>
           <dl>
             <div class="row"><dt>Grundpreis</dt><dd id="s-base">CHF 1'500</dd></div>
             <div class="row"><dt>Sprachen</dt><dd id="s-langs">CHF 0</dd></div>
@@ -313,7 +313,7 @@ import Base from "../layouts/Base.astro";
     background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px;
     padding: 14px 16px; cursor: pointer; font-size: 15px;
   }
-  .choice:has(input:checked) { border-color: var(--gold); background: rgba(217, 169, 106, 0.1); }
+  .choice:has(input:checked) { border-color: var(--gold); background: rgba(230, 178, 74, 0.1); }
   .choice:has(input:focus-visible) { outline: 3px solid var(--gold); outline-offset: 2px; }
   .choice input { position: absolute; opacity: 0; }
   .choice .t { font-weight: 700; }
@@ -353,7 +353,7 @@ import Base from "../layouts/Base.astro";
   .summary-card .discount dd { color: #2E6B3F; }
   .summary-card .total { border-top: 2px solid #221A0E; border-bottom: none; margin-top: 6px; padding-top: 13px; }
   .summary-card .total dt { color: #221A0E; font-weight: 800; }
-  .summary-card .total dd { font-family: "Anton", sans-serif; font-weight: 400; font-size: 26px; letter-spacing: 0.5px; color: #96652A; }
+  .summary-card .total dd { font-family: "Anton", sans-serif; font-weight: 400; font-size: 26px; letter-spacing: 0.5px; color: #A6791A; }
   .btn-dark-pill { background: #221A0E; color: #F6F1E7; }
   .btn-dark-pill:hover { background: #3A2E1C; color: #F6F1E7; }
   .btn-call { background: transparent; border: 1.5px solid #221A0E; color: #221A0E; text-align: center; flex-wrap: wrap; row-gap: 0; }

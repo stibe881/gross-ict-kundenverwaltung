@@ -8,19 +8,19 @@
   --text: #EDEFF5;
   --muted: #A9AEBC;
   --faint: #767C90;
-  --gold: #D9A96A;
-  --gold-light: #EBD9BC;
+  --gold: #E6B24A;
+  --gold-light: #F3D894;
   --magenta: #C0188F;
   --violet: #8B2FC9;
   --violet-deep: #4C1D95;
-  --blue-deep: #081831;
-  --blue: #0B5392;
+  --blue-deep: #3A4242;
+  --blue: #A1AAAA;
   --cyan: #38BDF8;
   --ict-bg: #F5F7FA;
   --ict-ink: #152238;
   --ict-muted: #5A6578;
   --grad-web: linear-gradient(135deg, #C0188F 0%, #8B2FC9 55%, #4C1D95 100%);
-  --grad-ict: linear-gradient(135deg, #081831 0%, #0E3B6E 55%, #0B5392 100%);
+  --grad-ict: linear-gradient(135deg, #3A4242 0%, #6E7878 55%, #A1AAAA 100%);
 }
 
 /* Dynamisches Light-Theme für den ICT-Bereich (macht Support/Kontakt/Referenzen passend) */
