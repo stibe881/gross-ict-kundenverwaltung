@@ -65,7 +65,7 @@ try {
         const targetUrl = area === 'ict' ? '/ict-services' : '/webdesign';
         document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('a.dynamic-logo-link').forEach(link => link.href = targetUrl));
     </script>
-    <style>
+    <style is:global>
       html.area-webdesign #nav-webdesign { display: none !important; }
       html.area-webdesign #nav-ref-ict { display: none !important; }
       
@@ -157,10 +157,20 @@ try {
           const marquee = document.getElementById("partners-marquee");
           const track = document.getElementById("partners-track");
           if (!marquee || !track) return;
-          // Bereich der aktuellen Sitzung: Partner ohne Bereich erscheinen überall
-          const area = document.documentElement.classList.contains("area-ict") ? "ict" : "web";
+          // Bereich erst beim Rendern bestimmen: das Bereichs-Script läuft als
+          // Astro-Modul erst nach diesem Inline-Script, darum zusätzlich über
+          // Pfad und sessionStorage absichern. Partner ohne Bereich erscheinen überall.
+          const getArea = () => {
+            const cl = document.documentElement.classList;
+            if (cl.contains("area-ict")) return "ict";
+            if (cl.contains("area-webdesign")) return "web";
+            if (window.location.pathname.includes("ict")) return "ict";
+            try { if (sessionStorage.getItem("area") === "ict") return "ict"; } catch (e) {}
+            return "web";
+          };
 
           const render = (list) => {
+            const area = getArea();
             const logos = (list || []).filter((p) => p && p.logoUrl && (!p.bereich || p.bereich === area));
             if (!logos.length) { marquee.hidden = true; return; }
             // Inhalt so oft wiederholen, dass die Endlosschleife (translateX -50%)
