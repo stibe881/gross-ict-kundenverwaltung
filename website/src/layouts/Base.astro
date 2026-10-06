@@ -275,15 +275,32 @@ try {
       const kulisseHeroBg = document.querySelector<HTMLElement>(".hero .hero-bg");
       const kulisseHero = kulisseHeroBg ? (kulisseHeroBg.closest(".hero") as HTMLElement) : null;
       if (kulisseHero) {
+        // Höchstens ein Update pro Frame, und nur schreiben, wenn sich der
+        // Wert wirklich ändert — sonst invalidiert jedes Scroll-Ereignis die
+        // Styles und das Scrollen stockt auf dem Smartphone. Die Variable
+        // liegt auf body (nicht html), damit möglichst wenig neu berechnet
+        // werden muss; body::before erbt sie von dort.
+        let kulisseWert = "";
+        let kulisseGeplant = false;
         const updateKulisse = () => {
+          kulisseGeplant = false;
           const start = kulisseHero.offsetHeight * 0.55;
           const range = window.innerHeight * 0.9;
-          const o = Math.min(1, Math.max(0, (window.scrollY - start) / range));
-          document.documentElement.style.setProperty("--kulisse-opacity", o.toFixed(3));
+          const o = Math.min(1, Math.max(0, (window.scrollY - start) / range)).toFixed(2);
+          if (o !== kulisseWert) {
+            kulisseWert = o;
+            document.body.style.setProperty("--kulisse-opacity", o);
+          }
+        };
+        const kulisseAnfordern = () => {
+          if (!kulisseGeplant) {
+            kulisseGeplant = true;
+            requestAnimationFrame(updateKulisse);
+          }
         };
         updateKulisse();
-        window.addEventListener("scroll", updateKulisse, { passive: true });
-        window.addEventListener("resize", updateKulisse, { passive: true });
+        window.addEventListener("scroll", kulisseAnfordern, { passive: true });
+        window.addEventListener("resize", kulisseAnfordern, { passive: true });
       }
 
       // Dezenter Hinweis statt Cookie-Banner (die Seite setzt keine Cookies);

@@ -405,6 +405,10 @@ html.area-webdesign body::before {
   /* Auf Seiten mit Vollbild-Hero blendet ein Scroll-Script die Kulisse
      weich ein (Variable wird in Base.astro gesetzt); sonst voll sichtbar. */
   opacity: var(--kulisse-opacity, 1);
+  /* Eigene Compositing-Ebene: Die Deckkraft ändert sich beim Scrollen —
+     ohne diese Zeile würde der gefilterte, maskierte Layer jedes Mal neu
+     gezeichnet und das Scrollen stockte auf dem Smartphone. */
+  will-change: opacity;
 }
 html.area-webdesign main,
 html.area-webdesign .site-footer,
@@ -423,6 +427,7 @@ html.area-ict body::before {
   opacity: calc(var(--kulisse-opacity, 1) * 0.28);
   -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.6) 45%, #000 75%);
   mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.6) 45%, #000 75%);
+  will-change: opacity;
 }
 html.area-ict main,
 html.area-ict .site-footer,
