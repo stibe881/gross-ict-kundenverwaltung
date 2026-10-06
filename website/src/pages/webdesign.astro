@@ -102,9 +102,15 @@ const referenzen = [
       <h2 class="anton anton-title" style="margin: 14px 0 56px">Ausgewählte<br />Arbeiten</h2>
       {referenzen.slice(0, 3).map((r) => (
         <div class="ref-row" data-reveal>
-          <div class="szene">
-            <img class="bg" src={r.shot} alt={r.alt} loading="lazy" />
-          </div>
+          {r.url ? (
+            <a class="szene" href={r.url} target="_blank" rel="noopener noreferrer" aria-label={`${r.kunde}: Webseite öffnen`}>
+              <img class="bg" src={r.shot} alt={r.alt} loading="lazy" />
+            </a>
+          ) : (
+            <div class="szene">
+              <img class="bg" src={r.shot} alt={r.alt} loading="lazy" />
+            </div>
+          )}
           <div>
             <p class="mono ref-kunde" style="font-size: 12.5px; letter-spacing: 2.5px">{r.kunde}</p>
             <h3 class="ref-titel" set:html={r.titel} />
