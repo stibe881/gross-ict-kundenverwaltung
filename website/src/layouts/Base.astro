@@ -298,11 +298,12 @@ try {
       const heroAnimStarten = () => {
         document.documentElement.classList.remove("hero-anim");
         requestAnimationFrame(() => requestAnimationFrame(() => {
-          document.documentElement.classList.add("hero-anim");
+          // kleine Marge: WebKit zeigt die neue Seite teils erst nach den
+          // ersten Frames an — sonst läuft der Fade unsichtbar ab
+          setTimeout(() => document.documentElement.classList.add("hero-anim"), 180);
         }));
       };
-      heroAnimStarten();
-      window.addEventListener("pageshow", (e) => { if (e.persisted) heroAnimStarten(); });
+      window.addEventListener("pageshow", () => heroAnimStarten());
 
       // Scroll-Reveal für [data-reveal]-Elemente
       const els = document.querySelectorAll("[data-reveal]");

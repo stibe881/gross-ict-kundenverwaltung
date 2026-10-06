@@ -204,10 +204,8 @@ import ContactForm from "../components/ContactForm.astro";
     from { opacity: 0; }
     to   { opacity: 1; }
   }
-  @media (prefers-reduced-motion: reduce) {
-    :global(html.js) .hero-text,
-    :global(html.js) .hero-scroll { opacity: 1; animation: none !important; }
-  }
+  /* Hinweis: Die reine Überblendung läuft bewusst auch bei
+     «Bewegung reduzieren» — sie enthält keine Bewegung. */
 
 
   .kicker { margin: 0; font-family: "Sora", sans-serif; font-size: 12.5px; font-weight: 800; letter-spacing: 3px; color: var(--gold); }
