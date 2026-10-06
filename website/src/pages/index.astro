@@ -76,8 +76,8 @@ import Base from "../layouts/Base.astro";
     transition: transform 5s ease, filter 1.1s ease;
     pointer-events: none;
   }
-  .half-web .berg { object-position: 62% center; }
-  .half-ict .berg { object-position: 55% 30%; }
+  .half-web .berg { object-position: 62% center; view-transition-name: berg-web; }
+  .half-ict .berg { object-position: 55% 30%; view-transition-name: berg-ict; }
   .half:hover .berg,
   .half:focus-within .berg {
     transform: scale(1.14);

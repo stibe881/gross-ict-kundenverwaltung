@@ -421,3 +421,31 @@ html.area-ict .cookie-note { background: #fff; border-color: #E6EAF0; box-shadow
 @media (max-width: 600px) {
   .cookie-note { left: 12px; right: 12px; bottom: 12px; max-width: none; }
 }
+
+/* ── Weicher Seitenwechsel (View Transitions) ──
+   Der Berg der gewählten Startseiten-Hälfte morpht beim Navigieren in den
+   Vollbild-Hero der Bereichsseite (und zurück). Browser ohne
+   View-Transitions-Unterstützung wechseln wie bisher direkt. */
+@view-transition {
+  navigation: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}
+::view-transition-group(berg-web),
+::view-transition-group(berg-ict) {
+  animation-duration: 0.7s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+::view-transition-old(berg-web), ::view-transition-new(berg-web),
+::view-transition-old(berg-ict), ::view-transition-new(berg-ict) {
+  animation-duration: 0.7s;
+  height: 100%;
+  object-fit: cover;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.45s;
+}
