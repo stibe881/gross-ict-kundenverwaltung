@@ -185,6 +185,26 @@ import ContactForm from "../components/ContactForm.astro";
     color: #4A5468;
   }
 
+  /* Schriftzug gleitet nach dem Berg-Morph sanft ein, danach der Scroll-Kreis */
+  .hero-text {
+    animation: hero-text-in 0.9s cubic-bezier(0.3, 0, 0.15, 1) 0.8s both;
+  }
+  .hero-scroll {
+    animation: hero-scroll-in 0.8s cubic-bezier(0.3, 0, 0.15, 1) 1.25s both;
+  }
+  @keyframes hero-text-in {
+    from { opacity: 0; transform: translateY(calc(-55% + 30px)); }
+    to   { opacity: 1; transform: translateY(-55%); }
+  }
+  @keyframes hero-scroll-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-text, .hero-scroll { animation: none; }
+  }
+
+
   .kicker { margin: 0; font-family: "Sora", sans-serif; font-size: 12.5px; font-weight: 800; letter-spacing: 3px; color: var(--gold); }
   .intro { padding: 72px 0 0; }
   .intro-title {
