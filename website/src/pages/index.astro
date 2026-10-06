@@ -90,7 +90,13 @@ import Base from "../layouts/Base.astro";
   .nebel {
     position: absolute; inset: 0;
     overflow: hidden;
-    background: linear-gradient(180deg, rgba(226,232,241,0.22) 0%, rgba(226,232,241,0.12) 55%, rgba(232,237,245,0.2) 100%);
+    /* Talnebel: unten ein dichter, heller «Nebelsee», die Gipfel oben
+       bleiben weitgehend frei */
+    background: linear-gradient(180deg,
+      rgba(240, 244, 249, 0.02) 0%,
+      rgba(242, 246, 250, 0.07) 48%,
+      rgba(248, 250, 253, 0.32) 78%,
+      rgba(253, 254, 255, 0.7) 100%);
     transition: opacity 2.2s ease;
     pointer-events: none;
   }
@@ -98,17 +104,25 @@ import Base from "../layouts/Base.astro";
   .nebel::after {
     content: "";
     position: absolute; top: -30%; bottom: -30%; left: -60%; width: 220%;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0045 0.007' numOctaves='5' seed='11'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.94 0 0 0 0 0.96 0 0 0 0 0.98 1.05 0 0 0 -0.22'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23f)'/%3E%3C/svg%3E");
-    background-size: 1000px 1000px;
-    filter: blur(16px);
+    /* Dichte, sonnenhelle Wolkenbänke: grobe Ballen mit hartem Dichte-
+       Kontrast (fast deckend neben fast klar) wie echter Hochnebel */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0016 0.0032' numOctaves='5' seed='23'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.98 0 0 0 0 0.99 0 0 0 0 1 2.9 0 0 0 -1.05'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23f)'/%3E%3C/svg%3E");
+    background-size: 1400px 1150px;
+    filter: blur(9px);
+    /* Bänke sammeln sich in der unteren Bildhälfte, oben lösen sie sich auf */
+    -webkit-mask-image: linear-gradient(180deg, transparent 18%, rgba(0,0,0,0.4) 42%, #000 68%);
+    mask-image: linear-gradient(180deg, transparent 18%, rgba(0,0,0,0.4) 42%, #000 68%);
     animation: nebel-drift 60s ease-in-out infinite alternate;
     transition: opacity 1.2s ease;
   }
   .nebel::after {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0022 0.0036' numOctaves='4' seed='47'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.95 0 0 0 0 0.97 0 0 0 0 0.99 0.95 0 0 0 -0.16'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23g)'/%3E%3C/svg%3E");
-    background-size: 1700px 1700px;
-    filter: blur(26px);
-    opacity: 0.9;
+    /* Feine, ausgefranste Schlieren und Fetzen darüber */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0052 0.011' numOctaves='3' seed='7'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.97 0 0 0 0 0.98 0 0 0 0 1 1.5 0 0 0 -0.52'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-size: 1150px 680px;
+    filter: blur(7px);
+    opacity: 0.6;
+    -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.25) 6%, rgba(0,0,0,0.75) 34%, #000 60%);
+    mask-image: linear-gradient(180deg, rgba(0,0,0,0.25) 6%, rgba(0,0,0,0.75) 34%, #000 60%);
     animation-duration: 90s;
     animation-direction: alternate-reverse;
     transition: opacity 1.9s ease 0.3s;
