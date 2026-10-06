@@ -127,10 +127,10 @@ import Base from "../layouts/Base.astro";
             <label class="extra"><input type="checkbox" value="400" data-label="Professionelle Texte">
               <span class="x-info"><span class="x-t">Professionelle Texte</span><span class="x-d">Wir schreiben Ihre Seitentexte — klar und verkaufsstark</span></span>
               <span class="x-p">+CHF 400</span></label>
-            <label class="extra"><input type="checkbox" value="900" data-label="Foto-Shooting">
+            <label class="extra" data-fuer="kmu verein"><input type="checkbox" value="900" data-label="Foto-Shooting">
               <span class="x-info"><span class="x-t">Foto-Shooting</span><span class="x-d">Profi-Fotos von Team, Räumen und Arbeit — bei Ihnen vor Ort</span></span>
               <span class="x-p">+CHF 900</span></label>
-            <label class="extra"><input type="checkbox" value="650" data-label="Drohnenaufnahmen">
+            <label class="extra" data-fuer="kmu verein"><input type="checkbox" value="650" data-label="Drohnenaufnahmen">
               <span class="x-info"><span class="x-t">Drohnenaufnahmen</span><span class="x-d">Luftbilder und -videos von Standort und Umgebung</span></span>
               <span class="x-p">+CHF 650</span></label>
             <label class="extra"><input type="checkbox" value="1400" data-label="CMS (Inhalte selbst pflegen)">
@@ -139,10 +139,10 @@ import Base from "../layouts/Base.astro";
             <label class="extra"><input type="checkbox" value="350" data-label="Custom-Animationen">
               <span class="x-info"><span class="x-t">Custom-Animationen</span><span class="x-d">Bewegte Elemente und Übergänge für einen lebendigen Auftritt</span></span>
               <span class="x-p">+CHF 350</span></label>
-            <label class="extra"><input type="checkbox" value="800" data-label="SEO Pro">
+            <label class="extra" data-fuer="kmu verein"><input type="checkbox" value="800" data-label="SEO Pro">
               <span class="x-info"><span class="x-t">SEO Pro</span><span class="x-d">Vertiefte Suchmaschinen-Optimierung mit Keyword-Recherche</span></span>
               <span class="x-p">+CHF 800</span></label>
-            <label class="extra"><input type="checkbox" value="1500" data-label="API-Anbindung">
+            <label class="extra" data-fuer="kmu"><input type="checkbox" value="1500" data-label="API-Anbindung">
               <span class="x-info"><span class="x-t">API-Anbindung</span><span class="x-d">Verbindung zu Drittsystemen wie Shop, Buchung oder ERP</span></span>
               <span class="x-p">+CHF 1'500</span></label>
             <label class="extra"><input type="checkbox" value="150" data-label="Cookie-Banner">
@@ -394,7 +394,24 @@ import Base from "../layouts/Base.astro";
     };
   }
 
+  // Zusatzleistungen nach Kundentyp («Wer sind Sie?») filtern: ein Extra ohne
+  // data-fuer gilt für alle Nicht-Hochzeits-Typen; ausgeblendete Extras werden
+  // abgewählt, damit sie nicht mehr in den Preis zählen.
+  function extrasFiltern() {
+    const ctype = radio("ctype");
+    document.querySelectorAll<HTMLElement>("#extras-std .extra").forEach((lab) => {
+      const fuer = (lab.dataset.fuer || "kmu verein privat").split(" ");
+      const zeigen = fuer.includes(ctype);
+      lab.hidden = !zeigen;
+      if (!zeigen) {
+        const input = lab.querySelector<HTMLInputElement>("input");
+        if (input) input.checked = false;
+      }
+    });
+  }
+
   function recalc() {
+    extrasFiltern();
     const s = state();
     el("grp-type").hidden = s.wedding;
     el("grp-wedding").hidden = !s.wedding;
