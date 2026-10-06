@@ -5,6 +5,9 @@ import { defineConfig } from "astro/config";
 export default defineConfig({
   site: "https://gross-ict.ch",
   trailingSlash: "never",
+  // Bereichsseiten werden beim Darüberfahren vorgeladen (data-astro-prefetch),
+  // damit der Berg-Morph beim Klick ohne Ladepause startet.
+  prefetch: true,
   build: {
     format: "file",
   },
