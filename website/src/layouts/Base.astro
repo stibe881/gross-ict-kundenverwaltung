@@ -77,12 +77,15 @@ try {
         overflow: hidden;
         white-space: nowrap;
         background: #F4F7FC; /* Heller Hintergrund für ICT/Default */
-        padding: 36px 0;
+        border-top: 1px solid #E6EAF0;
+        border-bottom: 1px solid #E6EAF0;
+        padding: 44px 0;
         display: flex;
       }
       .partners-marquee[hidden] { display: none; }
-      /* Keine tote Lücke zwischen Laufband und Footer */
-      .partners-marquee + .site-footer { margin-top: 0; }
+      /* Keine tote Lücke zwischen Laufband und Footer
+         (~ statt +, weil dazwischen ein script-Element liegt) */
+      .partners-marquee ~ .site-footer { margin-top: 0; }
       .partners-track {
         display: flex;
         align-items: center;
@@ -91,14 +94,14 @@ try {
       /* Hochgeladene Logos sind Bilddateien mit eigenem Hintergrund in allen
          Grössen — darum einheitliche weisse Karten statt Filter-Spielereien. */
       .partners-track img {
-        height: 64px;
-        width: 160px;
+        height: 92px;
+        width: 210px;
         object-fit: contain;
         background: #fff;
-        border-radius: 12px;
-        padding: 12px 20px;
+        border-radius: 14px;
+        padding: 16px 26px;
         box-sizing: border-box;
-        margin-right: 36px;
+        margin-right: 44px;
         border: 1px solid #E3E8F0;
         transition: transform 0.25s ease;
       }
