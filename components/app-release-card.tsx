@@ -171,7 +171,11 @@ export function AppReleaseCard() {
           disabled={appsBusy}
           onPress={() => trigger("build", "apps")}
         >
-          <IconSymbol name="iphone" size={14} color={colors.foreground} />
+          {triggering === "apps" ? (
+            <ActivityIndicator size="small" color={colors.foreground} />
+          ) : (
+            <IconSymbol name="iphone" size={14} color={colors.foreground} />
+          )}
           <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>Nur Apps</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -180,7 +184,11 @@ export function AppReleaseCard() {
           disabled={crmWebBusy}
           onPress={() => trigger("build", "web")}
         >
-          <IconSymbol name="desktopcomputer" size={14} color={colors.foreground} />
+          {triggering === "web" ? (
+            <ActivityIndicator size="small" color={colors.foreground} />
+          ) : (
+            <IconSymbol name="desktopcomputer" size={14} color={colors.foreground} />
+          )}
           <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>CRM Web</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -189,7 +197,11 @@ export function AppReleaseCard() {
           disabled={websiteBusy}
           onPress={() => trigger("build", "website")}
         >
-          <IconSymbol name="globe" size={14} color={colors.foreground} />
+          {triggering === "website" ? (
+            <ActivityIndicator size="small" color={colors.foreground} />
+          ) : (
+            <IconSymbol name="globe" size={14} color={colors.foreground} />
+          )}
           <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>Webseite</Text>
         </TouchableOpacity>
       </View>
