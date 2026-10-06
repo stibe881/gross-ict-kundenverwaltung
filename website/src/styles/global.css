@@ -354,3 +354,21 @@ html.area-ict .site-header:not(.overlay) .nav-toggle span { background: #152238;
     margin-top: 6px;
   }
 }
+
+/* ── «Weitblick»-Kulisse (nur dunkler Webdesign-Bereich) ──
+   Das Hero-Bergfoto liegt stark abgedunkelt und fixiert am unteren
+   Bildschirmrand hinter allen Inhalten; nach oben blendet es weich ins
+   Seiten-Dunkelblau aus. Der Inhalt scrollt darüber. */
+html.area-webdesign body { position: relative; }
+html.area-webdesign body::before {
+  content: "";
+  position: fixed; left: 0; right: 0; bottom: 0; height: 62vh;
+  z-index: 0; pointer-events: none;
+  background: url("/img/umgebung/sunset.webp") center 32% / cover no-repeat;
+  filter: brightness(0.32) saturate(0.85);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.6) 45%, #000 75%);
+  mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.6) 45%, #000 75%);
+}
+html.area-webdesign main,
+html.area-webdesign .site-footer,
+html.area-webdesign .partners-marquee { position: relative; z-index: 1; }
