@@ -95,11 +95,21 @@ serve(async (req) => {
     if (action === "status") {
       const workflowFile = target === "website" ? WEBSITE_WORKFLOW_FILE : WORKFLOW_FILE;
       const res = await fetch(
-        `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${workflowFile}/runs?per_page=1`,
+        `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${workflowFile}/runs?per_page=10`,
         { headers: githubHeaders() }
       );
       const data = await res.json();
-      const run = data?.workflow_runs?.[0];
+      const runs = data?.workflow_runs || [];
+      // Pro Ziel filtern: app-release.yml setzt run-name "App-Release: <target>".
+      // "all" zählt für Apps UND CRM Web. Läufe ohne Ziel im Titel (alte Läufe)
+      // werden ignoriert, damit der Status nicht alle Knöpfe sperrt.
+      const suffixes =
+        target === "apps" ? [": apps", ": all"] :
+        target === "web" ? [": web", ": all"] :
+        null; // website oder ohne Ziel: neuester Lauf
+      const run = suffixes
+        ? runs.find((r: any) => suffixes.some((s) => String(r.display_title || "").endsWith(s)))
+        : runs[0];
       return new Response(JSON.stringify(run ? {
         status: run.status,           // queued | in_progress | completed
         conclusion: run.conclusion,   // success | failure | null

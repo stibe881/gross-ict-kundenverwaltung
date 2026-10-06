@@ -13,7 +13,8 @@ import { showToast } from "@/components/toast-provider";
 // Branches mergen -> Version erhöhen -> EAS Build -> TestFlight Submit)
 export function AppReleaseCard() {
   const colors = useColors();
-  const [triggering, setTriggering] = useState(false);
+  // Welches Ziel gerade gestartet wird (null = keines)
+  const [triggering, setTriggering] = useState<null | "all" | "apps" | "web" | "website">(null);
 
   const { data: session } = useQuery({
     queryKey: ["currentSession"],
@@ -26,9 +27,19 @@ export function AppReleaseCard() {
   });
   const isAdmin = !!profile?.roles?.includes("admin");
 
-  const { data: status, refetch: refetchStatus } = useQuery({
-    queryKey: ["appReleaseStatus"],
-    queryFn: Data.getAppReleaseStatus,
+  const { data: appsStatus, refetch: refetchAppsStatus } = useQuery({
+    queryKey: ["appReleaseStatus", "apps"],
+    queryFn: () => Data.getAppReleaseStatus("apps"),
+    enabled: isAdmin,
+    refetchInterval: (query) => {
+      const s = query.state.data?.status;
+      return s === "queued" || s === "in_progress" ? 20000 : false;
+    },
+  });
+
+  const { data: crmWebStatus, refetch: refetchCrmWebStatus } = useQuery({
+    queryKey: ["appReleaseStatus", "web"],
+    queryFn: () => Data.getAppReleaseStatus("web"),
     enabled: isAdmin,
     refetchInterval: (query) => {
       const s = query.state.data?.status;
@@ -68,45 +79,44 @@ export function AppReleaseCard() {
       "Update veröffentlichen",
       `Aktualisiert wird: ${targetLabel}.${bumpLabel}${ablauf}`,
       async () => {
-        setTriggering(true);
+        setTriggering(target);
         try {
           await Data.triggerAppRelease(bump, target);
           showToast(target === "website"
             ? "Webseiten-Deploy gestartet — in wenigen Minuten live."
             : "Update gestartet — läuft jetzt automatisch durch.");
           setTimeout(() => {
-            refetchStatus();
+            refetchAppsStatus();
+            refetchCrmWebStatus();
             refetchWebsiteStatus();
           }, 3000);
         } catch (e: any) {
           showAlert("Fehler", e.message || "Update konnte nicht gestartet werden");
         } finally {
-          setTriggering(false);
+          setTriggering(null);
         }
       },
       "Starten"
     );
   };
 
-  const statusInfo = (() => {
-    if (!status || status.status === "none") return null;
-    if (status.status === "queued") return { label: "In Warteschlange…", color: "#f59e0b", running: true };
-    if (status.status === "in_progress") return { label: "Release läuft…", color: "#f59e0b", running: true };
-    if (status.conclusion === "success") return { label: "Letzter Release erfolgreich", color: "#22c55e", running: false };
-    if (status.conclusion === "failure") return { label: "Letzter Release fehlgeschlagen", color: "#ef4444", running: false };
+  // Status pro Ziel aufbereiten (eigene Zeile und eigene Sperre je Knopf)
+  const makeInfo = (s: any, prefix: string, runLabel: string) => {
+    if (!s || s.status === "none") return null;
+    if (s.status === "queued") return { label: `${prefix}: in Warteschlange…`, color: "#f59e0b", running: true };
+    if (s.status === "in_progress") return { label: `${prefix}: ${runLabel}`, color: "#f59e0b", running: true };
+    if (s.conclusion === "success") return { label: `${prefix}: zuletzt erfolgreich`, color: "#22c55e", running: false };
+    if (s.conclusion === "failure") return { label: `${prefix}: zuletzt fehlgeschlagen`, color: "#ef4444", running: false };
     return null;
-  })();
+  };
+  const appsInfo = makeInfo(appsStatus, "Apps", "Release läuft…");
+  const crmWebInfo = makeInfo(crmWebStatus, "CRM Web", "Release läuft…");
+  const websiteInfo = makeInfo(websiteStatus, "Webseite", "Deploy läuft…");
 
-  const websiteInfo = (() => {
-    if (!websiteStatus || websiteStatus.status === "none") return null;
-    if (websiteStatus.status === "queued") return { label: "Webseite: in Warteschlange…", color: "#f59e0b", running: true };
-    if (websiteStatus.status === "in_progress") return { label: "Webseite: Deploy läuft…", color: "#f59e0b", running: true };
-    if (websiteStatus.conclusion === "success") return { label: "Webseite: letzter Deploy erfolgreich", color: "#22c55e", running: false };
-    if (websiteStatus.conclusion === "failure") return { label: "Webseite: letzter Deploy fehlgeschlagen", color: "#ef4444", running: false };
-    return null;
-  })();
-
-  const busy = triggering || !!statusInfo?.running || !!websiteInfo?.running;
+  const appsBusy = triggering === "apps" || triggering === "all" || !!appsInfo?.running;
+  const crmWebBusy = triggering === "web" || triggering === "all" || !!crmWebInfo?.running;
+  const websiteBusy = triggering === "website" || !!websiteInfo?.running;
+  const allBusy = !!triggering || !!appsInfo?.running || !!crmWebInfo?.running;
 
   return (
     <View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 16 }}>
@@ -118,43 +128,35 @@ export function AppReleaseCard() {
         <Text style={{ fontSize: 12, color: colors.muted }}>Version {version} (Build {build})</Text>
       </View>
 
-      {statusInfo && (
-        <TouchableOpacity
-          style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}
-          activeOpacity={0.7}
-          onPress={() => status?.html_url && Linking.openURL(status.html_url)}
-        >
-          {statusInfo.running ? (
-            <ActivityIndicator size="small" color={statusInfo.color} />
-          ) : (
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: statusInfo.color }} />
-          )}
-          <Text style={{ fontSize: 12, color: statusInfo.color, fontWeight: "600" }}>{statusInfo.label}</Text>
-        </TouchableOpacity>
-      )}
-
-      {websiteInfo && (
-        <TouchableOpacity
-          style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}
-          activeOpacity={0.7}
-          onPress={() => websiteStatus?.html_url && Linking.openURL(websiteStatus.html_url)}
-        >
-          {websiteInfo.running ? (
-            <ActivityIndicator size="small" color={websiteInfo.color} />
-          ) : (
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: websiteInfo.color }} />
-          )}
-          <Text style={{ fontSize: 12, color: websiteInfo.color, fontWeight: "600" }}>{websiteInfo.label}</Text>
-        </TouchableOpacity>
+      {[
+        { info: appsInfo, url: appsStatus?.html_url },
+        { info: crmWebInfo, url: crmWebStatus?.html_url },
+        { info: websiteInfo, url: websiteStatus?.html_url },
+      ].map(({ info, url }, i) =>
+        info ? (
+          <TouchableOpacity
+            key={i}
+            style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}
+            activeOpacity={0.7}
+            onPress={() => url && Linking.openURL(url)}
+          >
+            {info.running ? (
+              <ActivityIndicator size="small" color={info.color} />
+            ) : (
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: info.color }} />
+            )}
+            <Text style={{ fontSize: 12, color: info.color, fontWeight: "600" }}>{info.label}</Text>
+          </TouchableOpacity>
+        ) : null
       )}
 
       <TouchableOpacity
-        style={{ backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, opacity: busy ? 0.5 : 1 }}
+        style={{ backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, opacity: allBusy ? 0.5 : 1 }}
         activeOpacity={0.8}
-        disabled={busy}
+        disabled={allBusy}
         onPress={() => trigger("build", "all")}
       >
-        {triggering ? (
+        {triggering === "all" ? (
           <ActivityIndicator size="small" color={colors.background} />
         ) : (
           <IconSymbol name="paperplane.fill" size={16} color={colors.background} />
@@ -164,27 +166,27 @@ export function AppReleaseCard() {
 
       <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
         <TouchableOpacity
-          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy ? 0.5 : 1 }}
+          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: appsBusy ? 0.5 : 1 }}
           activeOpacity={0.8}
-          disabled={busy}
+          disabled={appsBusy}
           onPress={() => trigger("build", "apps")}
         >
           <IconSymbol name="iphone" size={14} color={colors.foreground} />
           <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>Nur Apps</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy ? 0.5 : 1 }}
+          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: crmWebBusy ? 0.5 : 1 }}
           activeOpacity={0.8}
-          disabled={busy}
+          disabled={crmWebBusy}
           onPress={() => trigger("build", "web")}
         >
           <IconSymbol name="desktopcomputer" size={14} color={colors.foreground} />
           <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>CRM Web</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy ? 0.5 : 1 }}
+          style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, opacity: websiteBusy ? 0.5 : 1 }}
           activeOpacity={0.8}
-          disabled={busy}
+          disabled={websiteBusy}
           onPress={() => trigger("build", "website")}
         >
           <IconSymbol name="globe" size={14} color={colors.foreground} />
@@ -195,7 +197,7 @@ export function AppReleaseCard() {
       <TouchableOpacity
         style={{ paddingVertical: 10, alignItems: "center" }}
         activeOpacity={0.7}
-        disabled={busy}
+        disabled={allBusy}
         onPress={() => trigger("patch", "all")}
       >
         <Text style={{ fontSize: 12, color: colors.muted, textDecorationLine: "underline" }}>

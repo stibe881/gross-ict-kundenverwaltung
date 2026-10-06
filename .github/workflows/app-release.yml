@@ -1,4 +1,6 @@
 name: App Release
+# Das Ziel steht im Lauf-Titel, damit die App den Status pro Ziel anzeigen kann
+run-name: "App-Release: ${{ inputs.target || 'all' }}"
 
 # Wird vom Admin-Button in der App ausgelöst (Edge Function trigger-app-update)
 # oder manuell über den Actions-Tab. Führt aus, was sonst manuell nötig ist:

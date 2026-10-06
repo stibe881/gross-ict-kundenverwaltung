@@ -69,8 +69,10 @@ export async function triggerAppRelease(
     return invokeAppUpdate({ action: 'trigger', bump, target });
 }
 
-export async function getAppReleaseStatus() {
-    return invokeAppUpdate({ action: 'status' });
+// Status pro Ziel: "apps" und "web" filtern die Läufe von app-release.yml
+// anhand des Lauf-Titels (ein "all"-Lauf zählt für beide).
+export async function getAppReleaseStatus(target?: "apps" | "web") {
+    return invokeAppUpdate({ action: 'status', ...(target ? { target } : {}) });
 }
 
 // Status des Webseiten-Deploys (Workflow website-deploy.yml)
