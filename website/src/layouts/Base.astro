@@ -53,6 +53,14 @@ try {
     <link rel="preload" href="/fonts/anton-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <script is:inline>
+      // Läuft synchron beim Parsen des Head — garantiert vor dem ersten Bild:
+      // versteckt die Hero-Texte (html.js) und fängt das pagereveal-Ereignis
+      // ab, bevor das gebündelte Modul-Script überhaupt geladen ist.
+      document.documentElement.classList.add('js');
+      window.__heroReveal = null;
+      window.addEventListener('pagereveal', function (e) { window.__heroReveal = e; }, { once: true });
+    </script>
     <script>
       document.documentElement.classList.add('js');
       let area = sessionStorage.getItem('area');
@@ -295,15 +303,80 @@ try {
       // Hero-Einblendung erst mit dem ersten tatsächlich gezeichneten Bild
       // starten (zwei Frames warten) — und nach Zurück/Vorwärts-Navigation
       // aus dem BFCache erneut abspielen.
-      const heroAnimStarten = () => {
-        document.documentElement.classList.remove("hero-anim");
+      // ── TEMPORÄRE DIAGNOSE (wird nach der Fehlersuche entfernt) ──
+      const heroTextEl = document.querySelector<HTMLElement>(".hero-text");
+      let dbgZeilen: string[] = [];
+      let dbgBox: HTMLElement | null = null;
+      const dbgT0 = performance.now();
+      const dbg = (m: string) => {
+        if (!heroTextEl) return;
+        if (!dbgBox) {
+          dbgBox = document.createElement("div");
+          dbgBox.style.cssText = "position:fixed;left:8px;top:8px;z-index:99999;background:rgba(0,0,0,0.85);color:#7CFC00;font:11px/1.5 monospace;padding:6px 9px;border-radius:6px;pointer-events:none;white-space:pre;";
+          document.body.appendChild(dbgBox);
+        }
+        dbgZeilen.push(m + " @" + Math.round(performance.now() - dbgT0) + "ms");
+        dbgBox.textContent = dbgZeilen.join("\n");
+      };
+      dbg("script laeuft, sichtbar=" + document.visibilityState + ", redMotion=" + (window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "ja" : "nein"));
+      if (heroTextEl) {
+        let n = 0;
+        const iv = setInterval(() => {
+          n++;
+          dbg("opacity=" + parseFloat(getComputedStyle(heroTextEl).opacity).toFixed(2) + " klassen=" + document.documentElement.className.replace("area-", ""));
+          if (n >= 8) clearInterval(iv);
+        }, 600);
+      }
+      // ── Ende Diagnose ──
+
+      // Startsignal für die Hero-Einblendung: `pagereveal` feuert exakt beim
+      // ersten tatsächlich dargestellten Frame — `pageshow` dagegen schon
+      // beim Laden, also teils bevor irgendetwas sichtbar ist. Startet der
+      // Fade zu früh, läuft er unsichtbar ab und der Schriftzug «ploppt».
+      // Läuft eine View Transition (Berg-Morph), starten wir den Fade mit
+      // deren erstem Animations-Frame, damit beides zusammen beginnt.
+      let heroGestartet = false;
+      const heroAnimStarten = (sofort: boolean) => {
+        heroGestartet = true;
+        const wurzel = document.documentElement;
+        if (sofort && !wurzel.classList.contains("hero-anim")) {
+          wurzel.classList.add("hero-anim");
+          dbg("hero-anim gesetzt (sofort)");
+          return;
+        }
+        wurzel.classList.remove("hero-anim");
         requestAnimationFrame(() => requestAnimationFrame(() => {
-          // kleine Marge: WebKit zeigt die neue Seite teils erst nach den
-          // ersten Frames an — sonst läuft der Fade unsichtbar ab
-          setTimeout(() => document.documentElement.classList.add("hero-anim"), 180);
+          setTimeout(() => {
+            wurzel.classList.add("hero-anim");
+            dbg("hero-anim gesetzt");
+          }, 120);
         }));
       };
-      window.addEventListener("pageshow", () => heroAnimStarten());
+      const hatPagereveal = "onpagereveal" in window;
+      const mitReveal = (e: any) => {
+        dbg("pagereveal vt=" + (e.viewTransition ? "ja" : "nein"));
+        if (e.viewTransition) {
+          e.viewTransition.ready.then(
+            () => { dbg("vt bereit"); heroAnimStarten(true); },
+            () => heroAnimStarten(true)
+          );
+        } else {
+          heroAnimStarten(true);
+        }
+      };
+      const verpasst = (window as any).__heroReveal;
+      if (verpasst) {
+        mitReveal(verpasst);
+      } else if (hatPagereveal) {
+        window.addEventListener("pagereveal", mitReveal, { once: true });
+      }
+      window.addEventListener("pageshow", (e) => {
+        dbg("pageshow persisted=" + e.persisted);
+        // Auffangnetz: ohne pagereveal-Unterstützung (Firefox) oder falls das
+        // Ereignis vor unserer Registrierung gefeuert hat, hier starten —
+        // und nach Rückkehr aus dem BFCache den Fade erneut abspielen.
+        if (!heroGestartet || e.persisted) heroAnimStarten(false);
+      });
 
       // Scroll-Reveal für [data-reveal]-Elemente
       const els = document.querySelectorAll("[data-reveal]");

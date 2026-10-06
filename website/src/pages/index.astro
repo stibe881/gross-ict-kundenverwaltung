@@ -225,10 +225,14 @@ import Base from "../layouts/Base.astro";
   // morpht in den Hero). Ist der Nebel schon gelichtet (Desktop-Hover),
   // wechselt die Seite direkt mit dem Morph.
   const halves = document.querySelectorAll<HTMLAnchorElement>(".half");
+  // Am PC lichtet sich der Nebel bereits beim Darüberfahren — dort wechselt
+  // der Klick sofort. Die Nebel-zuerst-Choreografie gilt nur für Touch-Geräte.
+  const mitMaus = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   let unterwegs = false;
   halves.forEach((half) => {
     half.addEventListener("click", (e) => {
       if (unterwegs) { e.preventDefault(); return; }
+      if (mitMaus) return;
       const nebel = half.querySelector(".nebel");
       const dicht = nebel && parseFloat(getComputedStyle(nebel).opacity) > 0.12;
       if (!dicht) return;
