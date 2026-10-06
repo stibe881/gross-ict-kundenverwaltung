@@ -120,7 +120,7 @@ export default function WebsitePartnerScreen() {
   return (
     <ScreenContainer>
       <ScrollView style={containerStyle} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-        <BackButton />
+        <BackButton to="/settings" />
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 24, marginTop: 10 }}>
           <Text style={{ fontSize: 24, fontWeight: "800", color: colors.foreground }}>Partner</Text>
           <TouchableOpacity

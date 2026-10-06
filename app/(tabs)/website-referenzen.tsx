@@ -188,7 +188,7 @@ export default function WebsiteReferenzenScreen() {
   return (
     <ScreenContainer>
       <ScrollView style={containerStyle} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-        <BackButton />
+        <BackButton to="/settings" />
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
           <Text style={{ fontSize: 24, fontWeight: "800", color: colors.text }}>Website-Referenzen</Text>
           <TouchableOpacity
