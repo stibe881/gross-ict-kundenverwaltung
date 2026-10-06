@@ -20,13 +20,16 @@ const {
 } = Astro.props;
 const headerClass = ["site-header", theme === "light" ? "light" : "", overlayHeader ? "overlay" : ""].filter(Boolean).join(" ");
 
+// Öffentlicher Anon-Key (nur Lesezugriff gemäss RLS)
+const supaKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHV2dnl2ZnR5Z254dG1ib3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyMzU1NTQsImV4cCI6MjA4NTgxMTU1NH0.sw1wb1pLj9Ne-ZoGbQcR6mA5yDHe2PZbImEzt76lP-o';
+const partnersUrl = 'https://bvluvvyvftygnxtmboxw.supabase.co/rest/v1/marketing_settings?key=eq.website_partners&select=value';
+
+// Build-Zeit-Stand als Fallback; der Browser lädt die aktuelle Liste nach
+// (siehe Script beim Marquee), damit neue Partner ohne Redeploy erscheinen.
 let partners = [];
 try {
-  const res = await fetch('https://bvluvvyvftygnxtmboxw.supabase.co/rest/v1/marketing_settings?key=eq.website_partners&select=value', {
-    headers: {
-      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHV2dnl2ZnR5Z254dG1ib3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyMzU1NTQsImV4cCI6MjA4NTgxMTU1NH0.sw1wb1pLj9Ne-ZoGbQcR6mA5yDHe2PZbImEzt76lP-o',
-      'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHV2dnl2ZnR5Z254dG1ib3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyMzU1NTQsImV4cCI6MjA4NTgxMTU1NH0.sw1wb1pLj9Ne-ZoGbQcR6mA5yDHe2PZbImEzt76lP-o'
-    }
+  const res = await fetch(partnersUrl, {
+    headers: { 'apikey': supaKey, 'Authorization': `Bearer ${supaKey}` }
   });
   const data = await res.json();
   if (data && data[0] && data[0].value) {
@@ -77,15 +80,16 @@ try {
         padding: 40px 0;
         display: flex;
       }
+      .partners-marquee[hidden] { display: none; }
       .partners-track {
         display: flex;
-        gap: 80px;
         align-items: center;
         animation: scroll-partners 30s linear infinite;
-        padding-left: 80px; /* Offset to prevent jump */
       }
       .partners-track img {
         height: 45px;
+        max-width: 160px;
+        margin-right: 80px; /* gleichmässiger Abstand auch am Schlaufen-Übergang */
         object-fit: contain;
         filter: grayscale(100%) opacity(0.5);
         transition: all 0.3s;
@@ -142,13 +146,50 @@ try {
       <slot />
     </main>
 
-    {!noChrome && partners.length > 0 && (
-      <div class="partners-marquee">
-        <div class="partners-track">
-          {partners.map(p => <img src={p.logoUrl} alt={p.name} title={p.name} />)}
-          {partners.map(p => <img src={p.logoUrl} alt={p.name} title={p.name} aria-hidden="true" />)}
-        </div>
+    {!noChrome && (
+      <div class="partners-marquee" id="partners-marquee" hidden>
+        <div class="partners-track" id="partners-track"></div>
       </div>
+    )}
+    {!noChrome && (
+      <script is:inline define:vars={{ initialPartners: partners, supaKey, partnersUrl }}>
+        (() => {
+          const marquee = document.getElementById("partners-marquee");
+          const track = document.getElementById("partners-track");
+          if (!marquee || !track) return;
+          // Bereich der aktuellen Sitzung: Partner ohne Bereich erscheinen überall
+          const area = document.documentElement.classList.contains("area-ict") ? "ict" : "web";
+
+          const render = (list) => {
+            const logos = (list || []).filter((p) => p && p.logoUrl && (!p.bereich || p.bereich === area));
+            if (!logos.length) { marquee.hidden = true; return; }
+            // Inhalt so oft wiederholen, dass die Endlosschleife (translateX -50%)
+            // auch bei wenigen Logos nahtlos und ohne Lücke läuft.
+            let reps = 2;
+            while (logos.length * 220 * reps < window.innerWidth * 2) reps += 2;
+            track.innerHTML = "";
+            for (let r = 0; r < reps; r++) {
+              logos.forEach((p) => {
+                const img = document.createElement("img");
+                img.src = p.logoUrl;
+                img.alt = p.name || "";
+                img.title = p.name || "";
+                img.loading = "lazy";
+                if (r > 0) img.setAttribute("aria-hidden", "true");
+                track.appendChild(img);
+              });
+            }
+            marquee.hidden = false;
+          };
+
+          render(initialPartners);
+          // Aktuelle Liste nachladen, damit CRM-Änderungen ohne Redeploy erscheinen
+          fetch(partnersUrl, { headers: { apikey: supaKey, Authorization: "Bearer " + supaKey } })
+            .then((r) => r.json())
+            .then((d) => { if (d && d[0] && d[0].value) render(JSON.parse(d[0].value)); })
+            .catch(() => {});
+        })();
+      </script>
     )}
 
     {!noChrome && (

@@ -40,6 +40,46 @@ export default function WebsiteReferenzenScreen() {
 
   const set = (key: keyof typeof EMPTY, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
+  // Bereits verwendete Branchen und Tags als Auswahl-Chips anbieten
+  const brancheOptions = Array.from(new Set(
+    refs.map((r) => (r.tags || []).find((t) => t.startsWith("Branche:"))?.replace("Branche:", "").trim())
+      .filter((b): b is string => !!b)
+  ));
+  const tagOptions = Array.from(new Set(
+    refs.flatMap((r) => (r.tags || []).filter((t) => !t.startsWith("Branche:")).map((t) => t.trim()))
+      .filter(Boolean)
+  ));
+  const currentTags = form.tags.split(",").map((t) => t.trim()).filter(Boolean);
+  const toggleTag = (t: string) => {
+    const next = currentTags.includes(t) ? currentTags.filter((x) => x !== t) : [...currentTags, t];
+    set("tags", next.join(", "));
+  };
+
+  const chipRow = (options: string[], isActive: (o: string) => boolean, onPick: (o: string) => void) =>
+    options.length === 0 ? null : (
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: -6, marginBottom: 12 }}>
+        {options.map((o) => {
+          const active = isActive(o);
+          return (
+            <TouchableOpacity
+              key={o}
+              onPress={() => onPick(o)}
+              style={{
+                paddingHorizontal: 11,
+                paddingVertical: 6,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: active ? colors.primary : colors.border,
+                backgroundColor: active ? colors.primary + "22" : colors.background,
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: "600", color: active ? colors.primary : colors.muted }}>{o}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+
   const openNew = () => {
     setEditingId(null);
     setForm({ ...EMPTY, sort_order: String((refs.length + 1) * 10) });
@@ -171,20 +211,17 @@ export default function WebsiteReferenzenScreen() {
             {input("Kundenname *", "name", { placeholder: "z.B. MUSTER AG", autoCapitalize: "characters" })}
             {input("Projekttitel *", "titel", { placeholder: "z.B. Unternehmenswebseite" })}
             {input("Beschreibung", "beschreibung", { placeholder: "1–2 Sätze zum Projekt", multiline: true, numberOfLines: 3 })}
-            {input("Branche *", "branche", { placeholder: "z.B. IT, Handwerk, Medizin" })} {input("Webseite (URL)", "url", { placeholder: "https://…", autoCapitalize: "none", keyboardType: "url" })}
+            {input("Branche *", "branche", { placeholder: "z.B. IT, Handwerk, Medizin" })}
+            {chipRow(brancheOptions, (o) => form.branche.trim() === o, (o) => set("branche", o))}
+            {input("Webseite (URL)", "url", { placeholder: "https://…", autoCapitalize: "none", keyboardType: "url" })}
             {input("Link-Anzeigetext", "url_label", { placeholder: "leer = aus URL abgeleitet", autoCapitalize: "none" })}
             {input("Tags (mit Komma getrennt)", "tags", { placeholder: "Webdesign, Frontend" })}
+            {chipRow(tagOptions, (o) => currentTags.includes(o), toggleTag)}
             <ImageUploadField
-              label="Screenshot der Webseite"
+              label="Bild"
               value={form.bild_url}
               folder="referenzen"
               onChange={(url) => set("bild_url", url)}
-            />
-            <ImageUploadField
-              label="Umgebungsbild (Hintergrund der Szene)"
-              value={form.umgebung_bild_url}
-              folder="referenzen"
-              onChange={(url) => set("umgebung_bild_url", url)}
             />
 
             {input("Sortierung (klein = weiter oben)", "sort_order", { keyboardType: "number-pad" })}

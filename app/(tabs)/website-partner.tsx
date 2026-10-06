@@ -18,7 +18,7 @@ export default function WebsitePartnerScreen() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", logoUrl: "" });
+  const [form, setForm] = useState<{ name: string; logoUrl: string; bereich: "web" | "ict" }>({ name: "", logoUrl: "", bereich: "ict" });
   const [saving, setSaving] = useState(false);
 
   const { data: partners = [] } = useQuery({
@@ -28,7 +28,7 @@ export default function WebsitePartnerScreen() {
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ name: "", logoUrl: "" });
+    setForm({ name: "", logoUrl: "", bereich: "ict" });
     setShowForm(true);
   };
 
@@ -37,6 +37,7 @@ export default function WebsitePartnerScreen() {
     setForm({
       name: p.name,
       logoUrl: p.logoUrl,
+      bereich: p.bereich || "ict",
     });
     setShowForm(true);
   };
@@ -51,13 +52,14 @@ export default function WebsitePartnerScreen() {
       let updatedPartners = [...partners];
       if (editingId) {
         updatedPartners = updatedPartners.map(p => 
-          p.id === editingId ? { ...p, name: form.name.trim(), logoUrl: form.logoUrl.trim() } : p
+          p.id === editingId ? { ...p, name: form.name.trim(), logoUrl: form.logoUrl.trim(), bereich: form.bereich } : p
         );
       } else {
         updatedPartners.push({
           id: Math.random().toString(36).substring(2, 9),
           name: form.name.trim(),
-          logoUrl: form.logoUrl.trim()
+          logoUrl: form.logoUrl.trim(),
+          bereich: form.bereich,
         });
       }
       
@@ -66,7 +68,7 @@ export default function WebsitePartnerScreen() {
       
       setShowForm(false);
       setEditingId(null);
-      setForm({ name: "", logoUrl: "" });
+      setForm({ name: "", logoUrl: "", bereich: "ict" });
       queryClient.invalidateQueries({ queryKey: ["websitePartners"] });
     } catch (e: any) {
       showAlert("Fehler", e.message);
@@ -144,6 +146,30 @@ export default function WebsitePartnerScreen() {
               {editingId ? "Partner bearbeiten" : "Neuer Partner"}
             </Text>
             {input("Name", "name", "z.B. Lenovo")}
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.muted, marginBottom: 5 }}>Bereich</Text>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {([["ict", "ICT Partner"], ["web", "Web Partner"]] as const).map(([value, label]) => (
+                  <TouchableOpacity
+                    key={value}
+                    onPress={() => setForm(f => ({ ...f, bereich: value }))}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: form.bereich === value ? colors.primary : colors.border,
+                      backgroundColor: form.bereich === value ? colors.primary + "22" : colors.background,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: form.bereich === value ? colors.primary : colors.muted }}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
             <ImageUploadField
               label="Logo"
               value={form.logoUrl}
@@ -180,7 +206,9 @@ export default function WebsitePartnerScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground }}>{p.name}</Text>
-              <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>{p.logoUrl}</Text>
+              <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
+                {p.bereich === "web" ? "Web Partner" : p.bereich === "ict" ? "ICT Partner" : "Beide Bereiche"}
+              </Text>
             </View>
             <TouchableOpacity onPress={() => openEdit(p)} style={{ padding: 10 }}>
               <IconSymbol name="pencil" size={18} color={colors.foreground} />

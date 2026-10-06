@@ -4362,6 +4362,9 @@ export interface WebsitePartner {
     id: string;
     name: string;
     logoUrl: string;
+    // "ict" = nur im ICT-Services-Bereich, "web" = nur im Webdesign-Bereich.
+    // Fehlt der Wert (alte Einträge), zeigt die Website den Partner in beiden.
+    bereich?: "web" | "ict";
 }
 
 export async function getWebsitePartners(): Promise<WebsitePartner[]> {
