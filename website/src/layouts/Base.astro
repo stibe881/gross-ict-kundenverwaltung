@@ -77,44 +77,49 @@ try {
         overflow: hidden;
         white-space: nowrap;
         background: #F4F7FC; /* Heller Hintergrund für ICT/Default */
-        padding: 40px 0;
+        padding: 36px 0;
         display: flex;
       }
       .partners-marquee[hidden] { display: none; }
+      /* Keine tote Lücke zwischen Laufband und Footer */
+      .partners-marquee + .site-footer { margin-top: 0; }
       .partners-track {
         display: flex;
         align-items: center;
         animation: scroll-partners 30s linear infinite;
       }
+      /* Hochgeladene Logos sind Bilddateien mit eigenem Hintergrund in allen
+         Grössen — darum einheitliche weisse Karten statt Filter-Spielereien. */
       .partners-track img {
-        height: 45px;
-        max-width: 160px;
-        margin-right: 80px; /* gleichmässiger Abstand auch am Schlaufen-Übergang */
+        height: 64px;
+        width: 160px;
         object-fit: contain;
-        filter: grayscale(100%) opacity(0.5);
-        transition: all 0.3s;
+        background: #fff;
+        border-radius: 12px;
+        padding: 12px 20px;
+        box-sizing: border-box;
+        margin-right: 36px;
+        border: 1px solid #E3E8F0;
+        transition: transform 0.25s ease;
       }
       .partners-track img:hover {
-        filter: grayscale(0%) opacity(1);
+        transform: translateY(-3px);
       }
       @keyframes scroll-partners {
         0% { transform: translateX(0); }
         100% { transform: translateX(-50%); }
       }
-      
-      /* Anpassung für dunkle Themes / Webdesign Bereich */
-      html.area-webdesign .partners-marquee, 
-      :root[data-theme="overlay"] .partners-marquee { 
-        background: var(--bg); 
+
+      /* Dunkler Webdesign-Bereich: Karten leicht abgesetzt, ohne Rahmen */
+      html.area-webdesign .partners-marquee,
+      :root[data-theme="overlay"] .partners-marquee {
+        background: var(--bg);
         border-top: 1px solid var(--line);
       }
       html.area-webdesign .partners-track img,
-      :root[data-theme="overlay"] .partners-track img { 
-        filter: grayscale(100%) brightness(2) opacity(0.4); 
-      }
-      html.area-webdesign .partners-track img:hover,
-      :root[data-theme="overlay"] .partners-track img:hover { 
-        filter: grayscale(0%) brightness(1) opacity(1); 
+      :root[data-theme="overlay"] .partners-track img {
+        border-color: transparent;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
       }
     </style>
   </head>
