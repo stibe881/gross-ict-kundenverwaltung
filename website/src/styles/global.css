@@ -376,6 +376,24 @@ html.area-webdesign main,
 html.area-webdesign .site-footer,
 html.area-webdesign .partners-marquee { position: relative; z-index: 1; }
 
+/* ── Gipfel-Kulisse im hellen ICT-Bereich ──
+   Gleiches Prinzip wie im Webbereich, aber hell und dezent: das
+   Sonnenaufgangs-Bild liegt schwach sichtbar hinter dem Inhalt und
+   blendet nach oben in den hellen Hintergrund aus. */
+html.area-ict body { position: relative; }
+html.area-ict body::before {
+  content: "";
+  position: fixed; left: 0; right: 0; bottom: 0; height: 62vh;
+  z-index: 0; pointer-events: none;
+  background: url("/img/umgebung/ict-gipfel.webp") center 30% / cover no-repeat;
+  opacity: calc(var(--kulisse-opacity, 1) * 0.28);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.6) 45%, #000 75%);
+  mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.6) 45%, #000 75%);
+}
+html.area-ict main,
+html.area-ict .site-footer,
+html.area-ict .partners-marquee { position: relative; z-index: 1; }
+
 /* ── Cookie-Hinweis (dezent, unten links) ── */
 .cookie-note {
   position: fixed; left: 18px; bottom: 18px; z-index: 90;
