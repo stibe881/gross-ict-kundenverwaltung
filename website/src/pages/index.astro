@@ -98,23 +98,25 @@ import Base from "../layouts/Base.astro";
   .nebel::after {
     content: "";
     position: absolute; top: -30%; bottom: -30%; left: -60%; width: 220%;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='800'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.009' numOctaves='4' seed='11'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.94 0 0 0 0 0.96 0 0 0 0 0.98 0.9 0 0 0 -0.12'/%3E%3C/filter%3E%3Crect width='800' height='800' filter='url(%23f)'/%3E%3C/svg%3E");
-    background-size: 900px 900px;
-    filter: blur(14px);
-    animation: nebel-drift 55s ease-in-out infinite alternate;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0045 0.007' numOctaves='5' seed='11'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.94 0 0 0 0 0.96 0 0 0 0 0.98 1.05 0 0 0 -0.22'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23f)'/%3E%3C/svg%3E");
+    background-size: 1000px 1000px;
+    filter: blur(16px);
+    animation: nebel-drift 60s ease-in-out infinite alternate;
     transition: opacity 1.2s ease;
   }
   .nebel::after {
-    background-size: 1500px 1500px;
-    filter: blur(22px);
-    opacity: 0.85;
-    animation-duration: 80s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0022 0.0036' numOctaves='4' seed='47'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.95 0 0 0 0 0.97 0 0 0 0 0.99 0.95 0 0 0 -0.16'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-size: 1700px 1700px;
+    filter: blur(26px);
+    opacity: 0.9;
+    animation-duration: 90s;
     animation-direction: alternate-reverse;
     transition: opacity 1.9s ease 0.3s;
   }
   @keyframes nebel-drift {
-    from { transform: translateX(-6%) translateY(-2%); }
-    to   { transform: translateX(6%) translateY(2%); }
+    0%   { transform: translate(-6%, -2%) scale(1); }
+    50%  { transform: translate(0.5%, 0.8%) scale(1.07); }
+    100% { transform: translate(6%, 2%) scale(1); }
   }
   /* Aufklaren: erst die nahe Schwade, dann die ferne, zuletzt der Schleier */
   .half:hover .nebel::before,
@@ -212,6 +214,8 @@ import Base from "../layouts/Base.astro";
     .split { flex-direction: column; }
     .half { padding: 130px 28px 80px; }
     .half-ict { border-left: none; border-top: 1px solid rgba(255,255,255,0.25); padding-top: 90px; }
+    /* Logo mittig auf der Nahtstelle der beiden Berghälften */
+    .home-logo { top: calc(50% - 44px); transform: translate(-50%, -50%); }
     .home-logo img { height: 56px; }
     .contact-line { position: static; padding: 18px 16px 26px; background: #0B0E1A; color: rgba(255,255,255,0.92); font-size: 14.5px; }
   }
