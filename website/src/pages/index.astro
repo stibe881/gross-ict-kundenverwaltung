@@ -95,8 +95,8 @@ import Base from "../layouts/Base.astro";
     background: linear-gradient(180deg,
       rgba(245, 248, 252, 0) 0%,
       rgba(245, 248, 252, 0) 52%,
-      rgba(250, 252, 255, 0.16) 76%,
-      rgba(252, 254, 255, 0.46) 100%);
+      rgba(250, 252, 255, 0.11) 76%,
+      rgba(252, 254, 255, 0.32) 100%);
     transition: opacity 2.2s ease;
     pointer-events: none;
   }
@@ -115,32 +115,38 @@ import Base from "../layouts/Base.astro";
     -webkit-mask-image: linear-gradient(180deg, transparent 4%, rgba(0,0,0,0.45) 30%, #000 58%);
     mask-image: linear-gradient(180deg, transparent 4%, rgba(0,0,0,0.45) 30%, #000 58%);
     animation: nebel-drift 60s ease-in-out infinite alternate;
-    transition: opacity 1.2s ease;
+    opacity: 0.82;
+    background-position: 0 0;
+    /* Beim Aufklaren ziehen die Schwaden seitlich weg (background-position),
+       während sie sich auflösen — wie Nebel, den der Wind verweht */
+    transition: opacity 1.4s ease, background-position 2.8s ease;
   }
   .nebel::after {
     /* Feine, scharf ausgefranste Fetzen an den Rändern der Ströme */
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.014' numOctaves='3' seed='31'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.98 0 0 0 0 0.99 0 0 0 0 1 2 0 0 0 -0.85'/%3E%3C/filter%3E%3Crect width='900' height='900' filter='url(%23g)'/%3E%3C/svg%3E");
     background-size: 1050px 540px;
     filter: blur(6px);
-    opacity: 0.6;
+    opacity: 0.48;
+    background-position: 0 0;
     -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.2) 2%, rgba(0,0,0,0.7) 26%, #000 52%);
     mask-image: linear-gradient(180deg, rgba(0,0,0,0.2) 2%, rgba(0,0,0,0.7) 26%, #000 52%);
     animation-duration: 90s;
     animation-direction: alternate-reverse;
-    transition: opacity 1.9s ease 0.3s;
+    transition: opacity 2s ease 0.2s, background-position 3s ease;
   }
   @keyframes nebel-drift {
     0%   { transform: rotate(-14deg) translate(-6%, -2%) scale(1); }
     50%  { transform: rotate(-14deg) translate(0.5%, 0.8%) scale(1.07); }
     100% { transform: rotate(-14deg) translate(6%, 2%) scale(1); }
   }
-  /* Aufklaren: erst die nahe Schwade, dann die ferne, zuletzt der Schleier */
+  /* Aufklaren: die nahe Schwade zieht nach links weg, die ferne nach
+     rechts — beide dünnen dabei aus, zuletzt verschwindet der Schleier */
   .half:hover .nebel::before,
   .half:focus-within .nebel::before,
-  .half.klar .nebel::before { opacity: 0; }
+  .half.klar .nebel::before { opacity: 0; background-position: -420px 36px; }
   .half:hover .nebel::after,
   .half:focus-within .nebel::after,
-  .half.klar .nebel::after { opacity: 0; }
+  .half.klar .nebel::after { opacity: 0; background-position: 440px -28px; }
   .half:hover .nebel,
   .half:focus-within .nebel,
   .half.klar .nebel { opacity: 0.03; }
@@ -150,8 +156,8 @@ import Base from "../layouts/Base.astro";
     transition: transform 5s ease, filter 0.9s ease;
   }
   .half.klar .nebel { transition-duration: 1.1s; }
-  .half.klar .nebel::before { transition-duration: 0.7s; }
-  .half.klar .nebel::after { transition-duration: 1s; transition-delay: 0.1s; }
+  .half.klar .nebel::before { transition-duration: 0.9s, 1.2s; }
+  .half.klar .nebel::after { transition-duration: 1s, 1.25s; transition-delay: 0.1s, 0s; }
   @media (prefers-reduced-motion: reduce) {
     .berg { transition: filter 1.1s ease; transform: none; }
     .half:hover .berg, .half:focus-within .berg, .half.klar .berg { transform: none; }
@@ -234,18 +240,18 @@ import Base from "../layouts/Base.astro";
       background: linear-gradient(180deg,
         rgba(245, 248, 252, 0) 0%,
         rgba(245, 248, 252, 0) 58%,
-        rgba(250, 252, 255, 0.1) 80%,
-        rgba(252, 254, 255, 0.3) 100%);
+        rgba(250, 252, 255, 0.07) 80%,
+        rgba(252, 254, 255, 0.2) 100%);
     }
     .nebel::before {
       background-size: 850px 500px;
       filter: blur(10px);
-      opacity: 0.85;
+      opacity: 0.6;
     }
     .nebel::after {
       background-size: 560px 300px;
       filter: blur(4px);
-      opacity: 0.5;
+      opacity: 0.38;
     }
     .content h1 { text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55); }
     .content p.hover-text { text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5); }
