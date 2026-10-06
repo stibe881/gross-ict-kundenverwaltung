@@ -54,6 +54,7 @@ try {
     <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
     <script>
+      document.documentElement.classList.add('js');
       let area = sessionStorage.getItem('area');
       const p = window.location.pathname;
       if (p.includes('webdesign') || p.includes('rechner') || p.includes('referenzen-webdesign')) area = 'webdesign';
@@ -291,17 +292,17 @@ try {
         });
       }
 
-      // Hero-Einblendung auch nach Zurück/Vorwärts-Navigation abspielen:
-      // Aus dem BFCache wiederhergestellte Seiten gelten als «fertig
-      // animiert» — darum die CSS-Animationen dort neu starten.
-      window.addEventListener("pageshow", (e) => {
-        if (!e.persisted) return;
-        document.querySelectorAll<HTMLElement>(".hero-text, .hero-scroll").forEach((el) => {
-          el.style.animation = "none";
-          void el.offsetWidth;
-          el.style.animation = "";
-        });
-      });
+      // Hero-Einblendung erst mit dem ersten tatsächlich gezeichneten Bild
+      // starten (zwei Frames warten) — und nach Zurück/Vorwärts-Navigation
+      // aus dem BFCache erneut abspielen.
+      const heroAnimStarten = () => {
+        document.documentElement.classList.remove("hero-anim");
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          document.documentElement.classList.add("hero-anim");
+        }));
+      };
+      heroAnimStarten();
+      window.addEventListener("pageshow", (e) => { if (e.persisted) heroAnimStarten(); });
 
       // Scroll-Reveal für [data-reveal]-Elemente
       const els = document.querySelectorAll("[data-reveal]");
