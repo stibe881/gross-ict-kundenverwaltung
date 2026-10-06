@@ -9,6 +9,7 @@ import Base from "../layouts/Base.astro";
   <div class="split">
     <!-- Linke Welt: Web- und Appdesign -->
     <a href="/webdesign" class="half half-web" aria-label="Web- und Appdesign" style="text-decoration: none;">
+      <img class="berg" src="/img/umgebung/sunset.webp" alt="" aria-hidden="true" />
       <div class="glow g1" aria-hidden="true"></div>
       <div class="dots" aria-hidden="true"></div>
 
@@ -44,6 +45,7 @@ import Base from "../layouts/Base.astro";
 
     <!-- Rechte Welt: ICT Services -->
     <a href="/ict-services" class="half half-ict" aria-label="ICT Services" style="text-decoration: none;">
+      <img class="berg" src="/img/umgebung/ict-gipfel.webp" alt="" aria-hidden="true" />
       <div class="glow g2" aria-hidden="true"></div>
       <div class="gridlines" aria-hidden="true"></div>
 
@@ -104,6 +106,26 @@ import Base from "../layouts/Base.astro";
   }
   .half-web { background: var(--grad-web); }
   .half-ict { background: var(--grad-ict); border-left: 1px solid rgba(255,255,255,0.25); }
+
+  /* Berg-Hintergrund je Bereich: durch den Farbverlauf eingefärbt,
+     beim Darüberfahren langsamer Zoom und klarer sichtbar */
+  .berg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0.4;
+    transform: scale(1.06);
+    transition: transform 5s ease, opacity 0.7s ease;
+    pointer-events: none;
+  }
+  .half-web .berg { object-position: 62% center; }
+  .half-ict .berg { object-position: 55% 30%; }
+  .half:hover .berg,
+  .half:focus-within .berg { opacity: 0.58; transform: scale(1.14); }
+  @media (prefers-reduced-motion: reduce) {
+    .berg { transition: opacity 0.7s ease; transform: none; }
+    .half:hover .berg, .half:focus-within .berg { transform: none; }
+  }
 
   .glow { position: absolute; border-radius: 50%; pointer-events: none; }
   .g1 { width: 540px; height: 540px; background: rgba(255,255,255,0.15); filter: blur(90px); top: -140px; left: -120px; }
@@ -188,6 +210,7 @@ import Base from "../layouts/Base.astro";
     letter-spacing: 3px;
     line-height: 1.18;
     color: #fff;
+    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.45);
   }
   .content p.hover-text {
     font-size: 17px;
