@@ -210,6 +210,17 @@ try {
     )}
 
     {!noChrome && (
+      <div class="cookie-note" id="cookie-note" hidden>
+        <p>
+          <strong>Ohne Tracking unterwegs.</strong> Diese Webseite setzt keine
+          Tracking-Cookies — gespeichert wird nur technisch Nötiges.
+          <a href="/datenschutz">Mehr dazu</a>
+        </p>
+        <button type="button" id="cookie-ok">Alles klar</button>
+      </div>
+    )}
+
+    {!noChrome && (
       <footer class="site-footer">
         <div class="container inner">
           <div>
@@ -242,6 +253,20 @@ try {
             navToggle.setAttribute("aria-expanded", "false");
           })
         );
+      }
+
+      // Dezenter Hinweis statt Cookie-Banner (die Seite setzt keine Cookies);
+      // Bestätigung bleibt im lokalen Speicher, damit er nicht wiederkommt.
+      const cookieNote = document.getElementById("cookie-note");
+      const cookieOk = document.getElementById("cookie-ok");
+      if (cookieNote && cookieOk) {
+        let seen = false;
+        try { seen = localStorage.getItem("cookieHinweisOk") === "1"; } catch (e) {}
+        if (!seen) cookieNote.hidden = false;
+        cookieOk.addEventListener("click", () => {
+          try { localStorage.setItem("cookieHinweisOk", "1"); } catch (e) {}
+          cookieNote.hidden = true;
+        });
       }
 
       // Scroll-Reveal für [data-reveal]-Elemente
