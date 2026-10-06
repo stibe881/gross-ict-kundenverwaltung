@@ -128,7 +128,8 @@ const config: ExpoConfig = {
       {
         android: {
           buildArchs: ["armeabi-v7a", "arm64-v8a"],
-          minSdkVersion: 24,
+          // Stripe Terminal (Tap to Pay) verlangt mindestens Android 8 (API 26)
+          minSdkVersion: 26,
         },
       },
     ],
