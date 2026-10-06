@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, Text, View, TouchableOpacity, TextInput } from "react-native";
+import { ScrollView, Text, View, TouchableOpacity, TextInput, Image } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { BackButton } from "@/components/back-button";
@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
+import { ImageUploadField } from "@/components/image-upload-field";
 
 export default function WebsitePartnerScreen() {
   const colors = useColors();
@@ -42,7 +43,7 @@ export default function WebsitePartnerScreen() {
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.logoUrl.trim()) {
-      showAlert("Fehler", "Bitte Name und Logo URL angeben.");
+      showAlert("Fehler", "Bitte Name angeben und ein Logo hochladen.");
       return;
     }
     setSaving(true);
@@ -143,7 +144,12 @@ export default function WebsitePartnerScreen() {
               {editingId ? "Partner bearbeiten" : "Neuer Partner"}
             </Text>
             {input("Name", "name", "z.B. Lenovo")}
-            {input("Logo URL", "logoUrl", "/img/partner/lenovo.svg")}
+            <ImageUploadField
+              label="Logo"
+              value={form.logoUrl}
+              folder="partner"
+              onChange={(url) => setForm(f => ({ ...f, logoUrl: url }))}
+            />
             
             <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
               <TouchableOpacity
@@ -165,8 +171,12 @@ export default function WebsitePartnerScreen() {
 
         {partners.map(p => (
           <View key={p.id} style={{ backgroundColor: colors.surface, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 12, flexDirection: "row", alignItems: "center" }}>
-            <View style={{ width: 40, height: 40, backgroundColor: colors.background, borderRadius: 8, alignItems: "center", justifyContent: "center", marginRight: 16, borderWidth: 1, borderColor: colors.border }}>
-              <IconSymbol name="building.2.fill" size={20} color={colors.muted} />
+            <View style={{ width: 40, height: 40, backgroundColor: colors.background, borderRadius: 8, alignItems: "center", justifyContent: "center", marginRight: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
+              {p.logoUrl.startsWith("http") ? (
+                <Image source={{ uri: p.logoUrl }} style={{ width: 36, height: 36 }} resizeMode="contain" />
+              ) : (
+                <IconSymbol name="building.2.fill" size={20} color={colors.muted} />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 16, fontWeight: "700", color: colors.foreground }}>{p.name}</Text>

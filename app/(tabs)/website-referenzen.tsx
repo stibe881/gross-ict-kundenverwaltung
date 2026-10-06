@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
+import { ImageUploadField } from "@/components/image-upload-field";
 
 const EMPTY = { branche: "",
   name: "",
@@ -173,7 +174,18 @@ export default function WebsiteReferenzenScreen() {
             {input("Branche *", "branche", { placeholder: "z.B. IT, Handwerk, Medizin" })} {input("Webseite (URL)", "url", { placeholder: "https://…", autoCapitalize: "none", keyboardType: "url" })}
             {input("Link-Anzeigetext", "url_label", { placeholder: "leer = aus URL abgeleitet", autoCapitalize: "none" })}
             {input("Tags (mit Komma getrennt)", "tags", { placeholder: "Webdesign, Frontend" })}
-            {input("Screenshot-Bild (URL oder /img/…)", "bild_url", { placeholder: "/img/referenzen/kunde.webp", autoCapitalize: "none" })}
+            <ImageUploadField
+              label="Screenshot der Webseite"
+              value={form.bild_url}
+              folder="referenzen"
+              onChange={(url) => set("bild_url", url)}
+            />
+            <ImageUploadField
+              label="Umgebungsbild (Hintergrund der Szene)"
+              value={form.umgebung_bild_url}
+              folder="referenzen"
+              onChange={(url) => set("umgebung_bild_url", url)}
+            />
 
             {input("Sortierung (klein = weiter oben)", "sort_order", { keyboardType: "number-pad" })}
             <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>

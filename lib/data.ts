@@ -4377,6 +4377,43 @@ export async function setWebsitePartners(partners: WebsitePartner[]) {
     await setMarketingSetting("website_partners", JSON.stringify(partners));
 }
 
+// Bild für Website-Inhalte (Partner-Logos, Referenz-Bilder) in den öffentlichen
+// Storage-Bucket "website-bilder" laden und die öffentliche URL zurückgeben.
+export async function uploadWebsiteImage(folder: string, uri: string, mimeType?: string): Promise<string> {
+    const contentType = mimeType || "image/jpeg";
+    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : contentType.includes("svg") ? "svg" : "jpg";
+    const path = `${folder}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    let fileData: FormData;
+    if (uri.startsWith("data:")) {
+        // Web: data URI aus dem Image-Picker → zuverlässig per XHR in einen Blob wandeln
+        const blob = await new Promise<Blob>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.onload = () => resolve(xhr.response);
+            xhr.onerror = () => reject(new Error("Bild konnte nicht gelesen werden"));
+            xhr.responseType = "blob";
+            xhr.open("GET", uri, true);
+            xhr.send(null);
+        });
+        const formData = new FormData();
+        formData.append("", blob, `bild.${ext}`);
+        fileData = formData;
+    } else {
+        // Native: Datei-URI direkt anhängen
+        const formData = new FormData();
+        formData.append("", { uri, name: `bild.${ext}`, type: contentType } as any);
+        fileData = formData;
+    }
+
+    const { error } = await supabase.storage
+        .from("website-bilder")
+        .upload(path, fileData, { contentType, upsert: true });
+    if (error) throw new Error(error.message);
+
+    const { data } = supabase.storage.from("website-bilder").getPublicUrl(path);
+    return data.publicUrl;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── ACCOUNTING BUDGET ────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════

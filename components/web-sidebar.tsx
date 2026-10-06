@@ -1,4 +1,5 @@
 import { ScrollView, Text, View, TouchableOpacity, Image } from "react-native";
+import { UserAvatar } from "@/components/user-avatar";
 import { useRouter, usePathname } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -198,15 +199,14 @@ export function WebSidebar() {
                         activeOpacity={0.7}
                     >
                         <View>
-                            {(userProfile as any)?.avatar_url ? (
-                                <Image source={{ uri: (userProfile as any).avatar_url }} style={{ width: 34, height: 34, borderRadius: 17 }} />
-                            ) : (
-                            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" }}>
-                                <Text style={{ fontWeight: "700", fontSize: 14, color: colors.background }}>
-                                    {userName.charAt(0).toUpperCase()}
-                                </Text>
-                            </View>
-                            )}
+                            <UserAvatar
+                                userId={sessionData?.user?.id}
+                                avatarUrl={(userProfile as any)?.avatar_url}
+                                initials={userName.charAt(0).toUpperCase()}
+                                size={34}
+                                backgroundColor={colors.primary}
+                                textColor={colors.background}
+                            />
                             <View style={{ position: "absolute", right: -1, bottom: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: "#4ADE80", borderWidth: 2, borderColor: colors.surface }} />
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
