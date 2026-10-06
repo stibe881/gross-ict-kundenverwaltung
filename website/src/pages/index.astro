@@ -83,42 +83,49 @@ import Base from "../layouts/Base.astro";
     transform: scale(1.14);
     filter: saturate(1) brightness(1) blur(0);
   }
-  /* Nebel: mehrere weichgezeichnete Schwaden, die langsam driften —
-     löst sich beim Darüberfahren (bzw. Antippen) auf */
+  /* Nebel aus fraktalem Rauschen (SVG-Turbulenz): zwei gegenläufig
+     ziehende Schwaden-Ebenen über einem zarten Grundschleier. Beim
+     Aufklaren lösen sich die Ebenen gestaffelt auf, während sie
+     weiterziehen — wie Nebel, der sich verzieht. */
   .nebel {
     position: absolute; inset: 0;
     overflow: hidden;
-    background: linear-gradient(180deg, rgba(226,232,241,0.28) 0%, rgba(226,232,241,0.16) 55%, rgba(232,237,245,0.26) 100%);
-    transition: opacity 1.2s ease;
+    background: linear-gradient(180deg, rgba(226,232,241,0.22) 0%, rgba(226,232,241,0.12) 55%, rgba(232,237,245,0.2) 100%);
+    transition: opacity 2.2s ease;
     pointer-events: none;
   }
   .nebel::before,
   .nebel::after {
     content: "";
-    position: absolute; top: -25%; bottom: -25%; left: -55%; width: 210%;
-    background-image:
-      radial-gradient(42% 56% at 18% 38%, rgba(238,242,248,0.85), transparent 70%),
-      radial-gradient(34% 46% at 52% 68%, rgba(228,234,243,0.72), transparent 70%),
-      radial-gradient(46% 58% at 84% 28%, rgba(241,244,250,0.78), transparent 70%);
-    filter: blur(28px);
-    animation: nebel-drift 48s ease-in-out infinite alternate;
+    position: absolute; top: -30%; bottom: -30%; left: -60%; width: 220%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='800'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.009' numOctaves='4' seed='11'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.94 0 0 0 0 0.96 0 0 0 0 0.98 0.9 0 0 0 -0.12'/%3E%3C/filter%3E%3Crect width='800' height='800' filter='url(%23f)'/%3E%3C/svg%3E");
+    background-size: 900px 900px;
+    filter: blur(14px);
+    animation: nebel-drift 55s ease-in-out infinite alternate;
+    transition: opacity 1.2s ease;
   }
   .nebel::after {
-    background-image:
-      radial-gradient(38% 50% at 30% 72%, rgba(233,238,246,0.7), transparent 70%),
-      radial-gradient(32% 42% at 68% 42%, rgba(243,246,251,0.72), transparent 70%),
-      radial-gradient(28% 38% at 92% 78%, rgba(229,235,244,0.62), transparent 70%);
-    filter: blur(34px);
-    animation-duration: 70s;
+    background-size: 1500px 1500px;
+    filter: blur(22px);
+    opacity: 0.85;
+    animation-duration: 80s;
     animation-direction: alternate-reverse;
+    transition: opacity 1.9s ease 0.3s;
   }
   @keyframes nebel-drift {
-    from { transform: translateX(-5%) translateY(-1.5%); }
-    to   { transform: translateX(5%) translateY(1.5%); }
+    from { transform: translateX(-6%) translateY(-2%); }
+    to   { transform: translateX(6%) translateY(2%); }
   }
+  /* Aufklaren: erst die nahe Schwade, dann die ferne, zuletzt der Schleier */
+  .half:hover .nebel::before,
+  .half:focus-within .nebel::before,
+  .half.klar .nebel::before { opacity: 0; }
+  .half:hover .nebel::after,
+  .half:focus-within .nebel::after,
+  .half.klar .nebel::after { opacity: 0; }
   .half:hover .nebel,
   .half:focus-within .nebel,
-  .half.klar .nebel { opacity: 0.04; }
+  .half.klar .nebel { opacity: 0.03; }
   .half.klar .berg {
     transform: scale(1.14);
     filter: saturate(1) brightness(1) blur(0);
@@ -202,7 +209,7 @@ import Base from "../layouts/Base.astro";
     .half { padding: 130px 28px 80px; }
     .half-ict { border-left: none; border-top: 1px solid rgba(255,255,255,0.25); padding-top: 90px; }
     .home-logo img { height: 56px; }
-    .contact-line { position: static; padding: 18px 16px 26px; background: var(--bg); font-size: 14.5px; }
+    .contact-line { position: static; padding: 18px 16px 26px; background: #0B0E1A; color: rgba(255,255,255,0.92); font-size: 14.5px; }
   }
 </style>
 
