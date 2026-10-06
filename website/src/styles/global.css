@@ -121,7 +121,7 @@ a:hover { color: var(--gold-light); text-decoration: underline; }
   margin: 0 auto;
 }
 .brand-logo { display: block; height: 34px; width: auto; }
-.site-header:not(.light) .brand-logo { filter: brightness(1.45) drop-shadow(0 2px 8px rgba(0,0,0,0.5)); }
+.site-header:not(.light) .brand-logo { filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); }
 .site-nav { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; }
 .site-nav a {
   font-family: "Sora", sans-serif;
@@ -298,7 +298,7 @@ html.area-ict .contact-card input:focus, html.area-ict .contact-card textarea:fo
 .site-footer a { color: var(--muted); font-size: 13.5px; }
 .site-footer .legal { display: flex; gap: 26px; flex-wrap: wrap; }
 .site-footer .fine { color: var(--faint); font-size: 13px; }
-.site-footer .brand-logo { height: 28px; filter: brightness(1.45); }
+.site-footer .brand-logo { height: 28px; }
 
 /* Rechtsseiten */
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 32px; }
