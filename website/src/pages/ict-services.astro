@@ -6,16 +6,31 @@ import ContactForm from "../components/ContactForm.astro";
   title="ICT Services — Gross ICT | IT-Betreuung ohne Warteschlange"
   description="IT-Support, Cloud, Cyber-Sicherheit, Netzwerk und Server für KMU in der Zentralschweiz — persönlich und vor Ort."
   active="ict"
-  theme="light"
+  overlayHeader
 >
   <div class="ict-page">
-    <!-- Hero mit Serverraum-Foto -->
+    <!-- Vollbild-Hero: Sonnenaufgang am Gipfel (gleicher Aufbau wie Webbereich) -->
     <section class="hero">
-      <img class="hero-bg" src="/img/umgebung/ict.webp" alt="" />
+      <img class="hero-bg" src="/img/umgebung/ict-gipfel.webp" alt="" />
       <div class="hero-shade" aria-hidden="true"></div>
-      <div class="container hero-inner">
+      <div class="hero-bottom-shade" aria-hidden="true"></div>
+      <div class="hero-text">
+        <p class="anton hero-kicker">ICT Services mit</p>
+        <h1 class="anton hero-big">Weitblick</h1>
+      </div>
+      <div class="hero-scroll">
+        <a href="#leistungen" aria-label="Zu den Leistungen scrollen">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#2A1D12" stroke-width="2.4" aria-hidden="true"><path d="M3 6l5 5 5-5"/></svg>
+        </a>
+        <span>LEISTUNGEN</span>
+      </div>
+    </section>
+
+    <!-- Einstieg (ehemaliger Hero-Text) -->
+    <section class="intro" id="leistungen">
+      <div class="container">
         <p class="kicker">ICT SERVICES · ZENTRALSCHWEIZ</p>
-        <h1>Ihre Zukunft mit<br />verlässlicher ICT</h1>
+        <h2 class="intro-title">Ihre Zukunft mit verlässlicher ICT</h2>
         <p class="lead">
           Massgeschneiderte IT-Dienstleistungen für Ihr Unternehmen: Cloud-Lösungen,
           IT-Sicherheit, Netzwerktechnik und Betreuung ohne Warteschlange.
@@ -24,7 +39,7 @@ import ContactForm from "../components/ContactForm.astro";
       </div>
     </section>
 
-    <!-- Überlappende Leistungs-Karten -->
+    <!-- Leistungs-Karten -->
     <section class="cards-wrap">
       <div class="container cards">
         <article class="scard" data-reveal>
@@ -118,28 +133,72 @@ import ContactForm from "../components/ContactForm.astro";
 <style>
   .ict-page { background: var(--ict-bg); color: var(--ict-ink); margin-bottom: -84px; padding-bottom: 84px; }
 
-  .hero { position: relative; overflow: hidden; }
+  /* Vollbild-Hero wie im Webbereich; Verlauf endet im hellen ICT-Hintergrund */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+    background: #140E0A;
+  }
   .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  @media (max-width: 900px) {
+    .hero-bg { object-position: 62% center; }
+  }
   .hero-shade {
     position: absolute; inset: 0;
-    background: linear-gradient(100deg, rgba(8,24,49,0.94) 0%, rgba(10,32,62,0.78) 48%, rgba(12,58,105,0.42) 100%);
+    background: linear-gradient(100deg, rgba(14,9,6,0.62) 0%, rgba(14,9,6,0.30) 48%, rgba(14,9,6,0.04) 100%);
   }
-  .hero-inner { position: relative; padding-top: 96px; padding-bottom: 170px; }
+  .hero-bottom-shade {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 52vh;
+    background: linear-gradient(180deg, rgba(245,247,250,0) 0%, rgba(245,247,250,0.35) 55%, #F5F7FA 100%);
+  }
+  .hero-text {
+    position: absolute;
+    left: clamp(44px, 28vw, 420px);
+    top: 50%;
+    transform: translateY(-55%);
+    padding-right: 24px;
+  }
+  .hero-kicker { font-size: clamp(22px, 3.2vw, 46px); letter-spacing: 1.5px; color: #F2E8D8; text-shadow: 0 2px 16px rgba(0,0,0,0.45); margin: 0; }
+  .hero-big { font-size: clamp(64px, 11.5vw, 168px); letter-spacing: 2px; color: #FFD79A; text-shadow: 0 4px 26px rgba(0,0,0,0.5); margin: 6px 0 0; }
+  .hero-scroll {
+    position: absolute;
+    left: clamp(44px, 28vw, 420px);
+    bottom: 58px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .hero-scroll a {
+    display: flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: #F6F1E7;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  }
+  .hero-scroll a:hover { background: #fff; }
+  .hero-scroll span {
+    font-family: "Sora", sans-serif;
+    font-size: 13px; font-weight: 700; letter-spacing: 2.5px;
+    color: #4A5468;
+  }
+
   .kicker { margin: 0; font-family: "Sora", sans-serif; font-size: 12.5px; font-weight: 800; letter-spacing: 3px; color: var(--gold); }
-  .hero h1 {
+  .intro { padding: 72px 0 0; }
+  .intro-title {
     margin: 18px 0 0;
     font-size: clamp(32px, 4.6vw, 52px);
     font-weight: 800;
     line-height: 1.12;
     letter-spacing: 1px;
-    color: #FFFFFF;
+    color: var(--ict-ink);
     text-transform: uppercase;
     max-width: 720px;
   }
-  .lead { margin: 20px 0 0; font-size: 17px; line-height: 1.65; color: rgba(255,255,255,0.92); max-width: 540px; }
-  .hero .btn { margin-top: 30px; }
+  .lead { margin: 20px 0 0; font-size: 17px; line-height: 1.65; color: var(--ict-muted); max-width: 540px; }
+  .intro .btn { margin-top: 30px; }
 
-  .cards-wrap { position: relative; margin-top: -96px; }
+  .cards-wrap { position: relative; margin-top: 56px; }
   .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
   @media (max-width: 920px) { .cards { grid-template-columns: 1fr; } }
   .scard {
