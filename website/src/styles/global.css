@@ -436,16 +436,18 @@ html.area-ict .cookie-note { background: #fff; border-color: #E6EAF0; box-shadow
 }
 ::view-transition-group(berg-web),
 ::view-transition-group(berg-ict) {
-  animation-duration: 0.7s;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  animation-duration: 1.3s;
+  animation-timing-function: cubic-bezier(0.3, 0, 0.15, 1);
 }
 ::view-transition-old(berg-web), ::view-transition-new(berg-web),
 ::view-transition-old(berg-ict), ::view-transition-new(berg-ict) {
-  animation-duration: 0.7s;
+  animation-duration: 1.3s;
+  animation-timing-function: cubic-bezier(0.3, 0, 0.15, 1);
   height: 100%;
   object-fit: cover;
 }
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 0.45s;
+  animation-duration: 0.9s;
+  animation-timing-function: ease-in-out;
 }
