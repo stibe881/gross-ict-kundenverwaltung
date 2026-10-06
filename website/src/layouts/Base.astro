@@ -372,10 +372,10 @@ try {
       }
       window.addEventListener("pageshow", (e) => {
         dbg("pageshow persisted=" + e.persisted);
-        // Auffangnetz: ohne pagereveal-Unterstützung (Firefox) oder falls das
-        // Ereignis vor unserer Registrierung gefeuert hat, hier starten —
-        // und nach Rückkehr aus dem BFCache den Fade erneut abspielen.
-        if (!heroGestartet || e.persisted) heroAnimStarten(false);
+        // Auffangnetz nur ohne pagereveal-Unterstützung (Firefox) — der
+        // Head-Fänger garantiert sonst, dass pagereveal nicht verpasst wird.
+        // Nach Rückkehr aus dem BFCache den Fade erneut abspielen.
+        if ((!hatPagereveal && !heroGestartet) || e.persisted) heroAnimStarten(false);
       });
 
       // Scroll-Reveal für [data-reveal]-Elemente
