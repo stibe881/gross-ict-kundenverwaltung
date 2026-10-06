@@ -5956,14 +5956,28 @@ export interface WebsiteReference {
     sort_order: number;
     active: boolean;
     customer_id: string | null;
+    bereich?: "web" | "ict";
 }
 
-export async function getWebsiteReferences(): Promise<WebsiteReference[]> {
-    const { data, error } = await db
+export async function getWebsiteReferences(bereich?: "web" | "ict"): Promise<WebsiteReference[]> {
+    let query = db
         .from("website_references")
         .select("*")
         .order("sort_order", { ascending: true });
-    if (error) throw error;
+    if (bereich) query = query.eq("bereich", bereich);
+    const { data, error } = await query;
+    if (error) {
+        // Solange die bereich-Migration noch nicht ausgeführt ist, ohne Filter laden
+        if (bereich && String(error.message || "").includes("bereich")) {
+            const { data: alle, error: e2 } = await db
+                .from("website_references")
+                .select("*")
+                .order("sort_order", { ascending: true });
+            if (e2) throw e2;
+            return bereich === "web" ? (alle || []) : [];
+        }
+        throw error;
+    }
     return data || [];
 }
 

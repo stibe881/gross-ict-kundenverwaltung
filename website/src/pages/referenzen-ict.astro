@@ -1,20 +1,38 @@
 ---
 import Base from "../layouts/Base.astro";
 import ContactForm from "../components/ContactForm.astro";
+import fs from 'fs';
+import path from 'path';
 
-const referenzen = [
-  {
-    kunde: "BEISPIEL AG",
-    titel: "Server-Migration & Cloud",
-    text: "Komplette Migration der lokalen Server-Infrastruktur in eine hochverfügbare Cloud-Lösung. Inklusive Modern Workplace Setup für 50 Mitarbeiter.",
-    url: "#",
-    urlLabel: "Details",
-    tags: ["Microsoft 365", "Cloud", "Migration", "Netzwerk"],
-    shot: "/img/umgebung/ict.webp",
-    env: "/img/umgebung/office.webp",
-    alt: "ICT Infrastruktur in einem modernen Büro"
+// ICT-Referenzen aus dem CRM (website_references, Bereich «ict»),
+// sortiert nach Sortierung aufsteigend.
+let referenzen = [];
+try {
+  const envPath = path.resolve('../.env');
+  const envStr = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+  const url = envStr.match(/EXPO_PUBLIC_SUPABASE_URL=(.*)/)?.[1]?.trim();
+  const key = envStr.match(/SUPABASE_SERVICE_ROLE_KEY=(.*)/)?.[1]?.trim();
+  if (url && key) {
+    const res = await fetch(`${url}/rest/v1/website_references?select=*&active=eq.true&order=sort_order.asc`, {
+      headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+    });
+    if (res.ok) {
+      const data = (await res.json()).filter((r) => r.bereich === 'ict');
+      referenzen = data.map((r) => ({
+        kunde: r.name,
+        titel: r.titel,
+        text: r.beschreibung,
+        url: r.url,
+        urlLabel: r.url_label || (r.url ? r.url.replace(/^https?:\/\//, '').replace(/\/$/, '') : ''),
+        tags: (r.tags || []).filter((t) => !t.startsWith('Branche:')),
+        shot: r.bild_url,
+        alt: `Projekt für ${r.name}`,
+      }));
+    }
   }
-];
+} catch (e) {
+  console.error('Fehler beim Laden der ICT-Referenzen:', e);
+}
 ---
 <Base
   title="ICT Referenzen — Gross ICT"
@@ -32,6 +50,9 @@ const referenzen = [
 
   <section class="section" id="referenzen-list" style="padding-top: 0;">
     <div class="container">
+      {referenzen.length === 0 && (
+        <p style="color: var(--muted); padding: 24px 0 48px;">Referenzen folgen in Kürze.</p>
+      )}
       {referenzen.map((r) => (
         <div class="ref-row" data-reveal>
           {r.url && r.url !== "#" ? (
@@ -47,7 +68,9 @@ const referenzen = [
             <p class="mono ref-kunde" style="font-size: 12.5px; letter-spacing: 2.5px">{r.kunde}</p>
             <h3 class="ref-titel" set:html={r.titel} />
             <p class="ref-text">{r.text}</p>
-            <a class="ref-link" href={r.url} target="_blank" rel="noopener noreferrer">{r.urlLabel} ansehen ↗</a>
+            {r.url && r.url !== "#" && (
+              <a class="ref-link" href={r.url} target="_blank" rel="noopener noreferrer">{r.urlLabel} ansehen ↗</a>
+            )}
             <div class="ref-tags">
               {r.tags.map((t) => <span class="tag">{t}</span>)}
             </div>

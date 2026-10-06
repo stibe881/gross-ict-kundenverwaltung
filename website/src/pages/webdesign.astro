@@ -88,7 +88,7 @@ try {
       headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
     });
     if (res.ok) {
-      const data = await res.json();
+      const data = (await res.json()).filter((r) => !r.bereich || r.bereich === 'web');
       const geladen = data.map((r) => ({
         kunde: r.name,
         titel: r.titel,

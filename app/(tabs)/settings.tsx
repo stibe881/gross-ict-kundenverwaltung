@@ -147,6 +147,14 @@ export default function SettingsScreen() {
       route: "/website-referenzen",
     },
     {
+      id: "ict-referenzen",
+      title: "ICT-Referenzen",
+      subtitle: "Referenzen für ICT Services pflegen",
+      icon: "globe",
+      color: "#3B82F6",
+      route: "/ict-referenzen",
+    },
+    {
       id: "website-partner",
       title: "Partner",
       subtitle: "Partner-Logos für den Footer verwalten",
