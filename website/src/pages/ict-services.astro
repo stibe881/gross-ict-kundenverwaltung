@@ -131,7 +131,9 @@ import ContactForm from "../components/ContactForm.astro";
 </Base>
 
 <style>
-  .ict-page { background: var(--ict-bg); color: var(--ict-ink); margin-bottom: -84px; padding-bottom: 84px; }
+  /* Hintergrund transparent, damit die fixe Gipfel-Kulisse (body::before)
+     beim Herunterscrollen durchscheint — die helle Farbe kommt vom body. */
+  .ict-page { background: transparent; color: var(--ict-ink); margin-bottom: -84px; padding-bottom: 84px; }
 
   /* Vollbild-Hero wie im Webbereich; Verlauf endet im hellen ICT-Hintergrund */
   .hero {
