@@ -129,7 +129,11 @@ import Base from "../layouts/Base.astro";
   .half.klar .berg {
     transform: scale(1.14);
     filter: saturate(1) brightness(1) blur(0);
+    transition: transform 5s ease, filter 0.9s ease;
   }
+  .half.klar .nebel { transition-duration: 1.1s; }
+  .half.klar .nebel::before { transition-duration: 0.7s; }
+  .half.klar .nebel::after { transition-duration: 1s; transition-delay: 0.1s; }
   @media (prefers-reduced-motion: reduce) {
     .berg { transition: filter 1.1s ease; transform: none; }
     .half:hover .berg, .half:focus-within .berg, .half.klar .berg { transform: none; }
@@ -214,17 +218,23 @@ import Base from "../layouts/Base.astro";
 </style>
 
 <script>
-  // Auf Geräten ohne Maus: erster Tipp lichtet den Nebel, danach öffnet
-  // sich die Seite automatisch. Am Desktop übernimmt das der Hover.
+  // Eine durchgehende Bewegung: Ist beim Klick noch Nebel da, löst er sich
+  // zuerst vollständig auf — erst dann wechselt die Seite (und der Berg
+  // morpht in den Hero). Ist der Nebel schon gelichtet (Desktop-Hover),
+  // wechselt die Seite direkt mit dem Morph.
   const halves = document.querySelectorAll<HTMLAnchorElement>(".half");
-  const hatHover = window.matchMedia("(hover: hover)").matches;
+  let unterwegs = false;
   halves.forEach((half) => {
     half.addEventListener("click", (e) => {
-      if (hatHover || half.classList.contains("klar")) return;
+      if (unterwegs) { e.preventDefault(); return; }
+      const nebel = half.querySelector(".nebel");
+      const dicht = nebel && parseFloat(getComputedStyle(nebel).opacity) > 0.12;
+      if (!dicht) return;
       e.preventDefault();
+      unterwegs = true;
       halves.forEach((h) => h.classList.remove("klar"));
       half.classList.add("klar");
-      setTimeout(() => { window.location.href = half.href; }, 1000);
+      setTimeout(() => { window.location.href = half.href; }, 1200);
     });
   });
 </script>
