@@ -99,6 +99,9 @@ export async function getBusinessCard(email: string): Promise<any | null> {
 
 // Portal: Ansprechpartner-Karte (erste hinterlegte Visitenkarte eines Mitarbeiters)
 export async function getPortalContactCard(): Promise<any | null> {
+    // Bevorzugt per Funktion (Portal-Kunden haben keinen Zugriff auf die users-Tabelle)
+    const rpc = await db.rpc("get_portal_contact_card");
+    if (!rpc.error && rpc.data) return rpc.data as any;
     const { data, error } = await supabase
         .from("users")
         .select("business_card")
@@ -2527,6 +2530,20 @@ export async function toggleCustomerPortal(customerId: string, hasPortal: boolea
 
 // ==================== BENUTZER / MITARBEITER ====================
 
+// IBANs liegen in user_bank (sichtbar nur für Besitzer, Admin und «finanzen»).
+// Fehlt die Tabelle noch (Migration 20261024 nicht ausgeführt), bleibt die
+// IBAN aus users.iban unverändert.
+async function mitIbans<T extends { id: string; iban?: string | null }>(users: T[]): Promise<T[]> {
+    try {
+        const { data, error } = await db.from("user_bank").select("user_id, iban");
+        if (error || !data) return users;
+        const map = new Map<string, string>(data.map((r: any) => [r.user_id, r.iban || ""]));
+        return users.map((u) => (map.has(u.id) ? { ...u, iban: map.get(u.id) } : u));
+    } catch {
+        return users;
+    }
+}
+
 export async function getAllUsers() {
     const { data, error } = await supabase
         .from("users")
@@ -2539,11 +2556,11 @@ export async function getAllUsers() {
     }
     
     // Filter out dummy or auto-created portal users that shouldn't appear in the employee list
-    return (data || []).filter(u => {
+    return mitIbans((data || []).filter(u => {
         // App User without roles is typically from Apple TestFlight SSO
         if (u.name === "App User" && (!u.roles || u.roles.length === 0)) return false;
         return true;
-    });
+    }));
 }
 
 export async function getUserProfile(id: string) {
@@ -2554,7 +2571,8 @@ export async function getUserProfile(id: string) {
         .single();
 
     if (error && error.code !== "PGRST116") throw new Error(error.message);
-    return data;
+    if (!data) return data;
+    return (await mitIbans([data as any]))[0];
 }
 
 // Eigene Push-Einstellungen speichern (RLS: Benutzer darf nur die eigene Zeile ändern)
@@ -2614,14 +2632,21 @@ export async function updateUserRoles(userId: string, roles: string[]) {
 }
 
 export async function updateUserProfileAndRoles(userId: string, updates: { roles: string[]; address?: string; postal_code?: string; city?: string; iban: string; push_preferences?: Record<string, boolean>; read_only?: boolean }) {
+    const { iban, ...rest } = updates;
+    const userUpdates: Record<string, any> = { ...rest };
+    // IBAN gehört nach user_bank; ohne die Tabelle (Migration fehlt) wie bisher in users
+    const { error: ibanError } = await db
+        .from("user_bank")
+        .upsert({ user_id: userId, iban: iban || null, updated_at: new Date().toISOString() } as any, { onConflict: "user_id" });
+    if (ibanError) userUpdates.iban = iban;
     const { data, error } = await supabase
         .from("users")
-        .update(updates as any)
+        .update(userUpdates as any)
         .eq("id", userId)
         .select()
         .single();
     if (error) throw new Error(error.message);
-    return data;
+    return data ? { ...data, iban } : data;
 }
 
 export async function updateUserProfile(userId: string, updates: any) {
@@ -3164,7 +3189,7 @@ export async function getAllEmployees() {
         .order("name", { ascending: true });
     
     if (error) throw new Error(error.message);
-    return data || [];
+    return mitIbans(data || []);
 }
 
 export async function getAllExpenses() {
