@@ -6,6 +6,7 @@ import Base from "../layouts/Base.astro";
   description="Gross ICT aus Zell LU: Web- und Appdesign zum Festpreis ab CHF 1'500 und ICT Services ohne Warteschlange für KMU in der Zentralschweiz."
   noChrome
 >
+  <h1 class="sr-only">Gross ICT — Web- &amp; Appdesign und ICT Services in der Zentralschweiz</h1>
   <div class="split">
     <!-- Linke Welt: Web- und Appdesign -->
     <a href="/webdesign" class="half half-web" aria-label="Web- und Appdesign" style="text-decoration: none;" data-astro-prefetch>
@@ -13,7 +14,7 @@ import Base from "../layouts/Base.astro";
       <div class="nebel" aria-hidden="true"></div>
 
       <div class="content">
-        <h1>WEB- UND<br />APPDESIGN</h1>
+        <h2>WEB- UND<br />APPDESIGN</h2>
         <p class="hover-text">Webseiten, Web-Apps und Mobile Apps — zum Festpreis, rechtssicher nach revDSG, barrierefrei nach WCAG.</p>
       </div>
     </a>
@@ -24,7 +25,7 @@ import Base from "../layouts/Base.astro";
       <div class="nebel" aria-hidden="true"></div>
 
       <div class="content">
-        <h1>ICT SERVICES</h1>
+        <h2>ICT SERVICES</h2>
         <p class="hover-text">Zuverlässiger IT-Support, Netzwerk, Security und Cloud-Lösungen für KMU.</p>
       </div>
     </a>
@@ -42,6 +43,7 @@ import Base from "../layouts/Base.astro";
 </Base>
 
 <style>
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
   .split {
     position: relative;
     display: flex;
@@ -174,7 +176,7 @@ import Base from "../layouts/Base.astro";
     max-width: 460px;
     text-align: center;
   }
-  .content h1 {
+  .content h2 {
     font-size: clamp(30px, 3.6vw, 48px);
     font-weight: 800;
     letter-spacing: 3px;
@@ -253,7 +255,7 @@ import Base from "../layouts/Base.astro";
       filter: blur(4px);
       opacity: 0.38;
     }
-    .content h1 { text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55); }
+    .content h2 { text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55); }
     .content p.hover-text { text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5); }
     .split { flex-direction: column; }
     .half { padding: 130px 28px 80px; }

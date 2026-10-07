@@ -11,6 +11,7 @@ interface Props {
   noChrome?: boolean;
   theme?: "dark" | "light";
   overlayHeader?: boolean;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
 const {
   title,
@@ -19,7 +20,54 @@ const {
   noChrome = false,
   theme = "dark",
   overlayHeader = false,
+  jsonLd = [],
 } = Astro.props;
+
+// Kanonische Adresse (ohne .html, ohne Slash am Ende) — verhindert, dass
+// www-/Nicht-www- oder .html-Varianten als Duplikate gewertet werden.
+const SITE = "https://gross-ict.ch";
+const pfad = Astro.url.pathname.replace(/(^|\/)index(\.html)?$/, "$1").replace(/\.html$/, "").replace(/\/+$/, "");
+const canonical = SITE + (pfad || "/");
+const ogImage = SITE + "/img/og-gross-ict.jpg";
+
+// Strukturierte Daten für Suchmaschinen und KI-Assistenten: wer die Firma
+// ist, wo sie sitzt, wann sie erreichbar ist und was sie anbietet.
+const organisation = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": ["LocalBusiness", "ProfessionalService"],
+      "@id": SITE + "/#firma",
+      name: "Gross ICT",
+      url: SITE + "/",
+      logo: SITE + "/assets/logo.webp",
+      image: ogImage,
+      description: "Web- und Appdesign sowie ICT Services (IT-Support, Netzwerk, Sicherheit, Cloud) für Unternehmen, Vereine und Privatpersonen in der Zentralschweiz.",
+      telephone: "+41 41 562 34 16",
+      email: "info@gross-ict.ch",
+      identifier: "CHE-142.161.164",
+      founder: { "@type": "Person", name: "Stefan Gross" },
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "Neuhushof 3",
+        postalCode: "6144",
+        addressLocality: "Zell",
+        addressRegion: "LU",
+        addressCountry: "CH",
+      },
+      areaServed: { "@type": "AdministrativeArea", name: "Zentralschweiz" },
+      openingHoursSpecification: [{
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        opens: "08:00",
+        closes: "17:30",
+      }],
+      knowsLanguage: "de-CH",
+    },
+    { "@type": "WebSite", "@id": SITE + "/#website", url: SITE + "/", name: "Gross ICT", inLanguage: "de-CH", publisher: { "@id": SITE + "/#firma" } },
+  ],
+};
+const jsonLdListe = [organisation, ...(Array.isArray(jsonLd) ? jsonLd : [jsonLd])];
 const headerClass = ["site-header", theme === "light" ? "light" : "", overlayHeader ? "overlay" : ""].filter(Boolean).join(" ");
 
 // Öffentlicher Anon-Key (nur Lesezugriff gemäss RLS)
@@ -51,6 +99,18 @@ try {
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:site_name" content="Gross ICT" />
+    <meta property="og:locale" content="de_CH" />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <link rel="canonical" href={canonical} />
+    {jsonLdListe.map((d) => <script type="application/ld+json" set:html={JSON.stringify(d)} />)}
     <link rel="icon" href="/favicon.png" type="image/png" />
     <link rel="preload" href="/fonts/anton-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />

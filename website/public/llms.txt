@@ -1,0 +1,26 @@
+# Gross ICT
+
+> Gross ICT aus Zell LU (Kanton Luzern) baut Webseiten, Web-Apps und Mobile Apps zum Festpreis und betreut die IT von KMU in der Zentralschweiz — mit Support ohne Warteschleife, Netzwerk, Sicherheit und Cloud. Inhaber: Stefan Gross.
+
+Gross ICT hat zwei Bereiche. Die Preise der Webprojekte lassen sich im Preisrechner selbst zusammenstellen; für ICT Services gilt ein monatlicher Fixpreis mit definierten Reaktionszeiten.
+
+## Web- & Appdesign
+- [Web- & Appdesign](https://gross-ict.ch/webdesign): Webseiten, Web-Applikationen und Mobile Apps, rechtssicher nach revDSG und barrierefrei nach WCAG
+- [Referenzen Webdesign](https://gross-ict.ch/referenzen-webdesign): ausgeführte Webprojekte, filterbar nach Branche
+- [Preisrechner](https://gross-ict.ch/rechner): Festpreis für Webseiten in zwei Minuten berechnen, ohne Kontaktdaten
+- [Wer wir sind (Web- & Appdesign)](https://gross-ict.ch/wer-wir-sind-webdesign): Arbeitsweise und Kontakt
+
+## ICT Services
+- [ICT Services](https://gross-ict.ch/ict-services): Cloud (Microsoft 365), Cyber-Sicherheit, Managed IT-Services, Server, Netzwerk, Geräte und Lizenzen
+- [Referenzen ICT](https://gross-ict.ch/referenzen-ict): ICT-Projekte
+- [Support & Helpdesk](https://gross-ict.ch/support): Support per Telefon, E-Mail, Remote oder vor Ort; häufige Fragen; Remote-Support-Download
+- [Wer wir sind (ICT Services)](https://gross-ict.ch/wer-wir-sind-ict): Arbeitsweise und Kontakt
+
+## Kontakt und Rechtliches
+- [Kontakt](https://gross-ict.ch/kontakt): Telefon +41 41 562 34 16, E-Mail info@gross-ict.ch
+- Adresse: Gross ICT, Neuhushof 3, 6144 Zell LU, Schweiz
+- Erreichbarkeit: Montag bis Freitag 08:00–17:30 Uhr
+- UID: CHE-142.161.164
+- [Impressum](https://gross-ict.ch/impressum)
+- [Datenschutzerklärung](https://gross-ict.ch/datenschutz)
+- [Barrierefreiheit](https://gross-ict.ch/barrierefreiheit)

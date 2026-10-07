@@ -1,3 +1,37 @@
+# Gross ICT — öffentliche Inhalte dürfen von Suchmaschinen und KI-Assistenten
+# gelesen und zitiert werden.
 User-agent: *
 Allow: /
-Sitemap: https://gross-ict.ch/sitemap-index.xml
+
+# KI-Assistenten und KI-Suche (explizit willkommen)
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+Sitemap: https://gross-ict.ch/sitemap.xml

@@ -18,6 +18,16 @@ const faqsWeb = [
   { q: "Betreuen Sie die Webseite auch nach dem Livegang?", a: "Ja - Hosting, Updates und laufende Anpassungen: Mit einem Wartungspaket ab CHF 49/Monat bleiben wir auch nach dem Start dran." }
 ];
 
+const faqSeite = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [...faqsWeb, ...faqsIct].map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: f.a },
+  })),
+};
+
 const downloads = [
   { name: "Windows", desc: "Für Windows 10/11", url: "/Downloads/Support/GrossICT-Support.exe", icon: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>`, color: "rgba(255,255,255,0.1)" },
   { name: "macOS", desc: "Für macOS 12+", url: "https://anydesk.com/de/downloads/thank-you?dv=mac_dmg", icon: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="4" width="20" height="12" rx="2"></rect><path d="M12 16v4"></path><path d="M8 20h8"></path></svg>`, color: "rgba(255,255,255,0.1)" },
@@ -25,7 +35,7 @@ const downloads = [
   { name: "Android", desc: "Für Android-Geräte", url: "https://play.google.com/store/apps/details?id=com.anydesk.anydeskandroid", icon: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M17 14v1a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1"></path><path d="M12 5V2"></path><path d="M8.2 4.2l-1.4-1.4"></path><path d="M15.8 4.2l1.4-1.4"></path><circle cx="12" cy="10" r="4"></circle></svg>`, color: "rgba(255,255,255,0.1)" }
 ];
 ---
-<Base title="Support & Helpdesk — Gross ICT" description="Schneller IT-Support. Ticket erstellen oder Remote-Support herunterladen." active="support">
+<Base title="Support & Helpdesk — Gross ICT" description="Schneller IT-Support. Ticket erstellen oder Remote-Support herunterladen." active="support" jsonLd={faqSeite}>
   
   <style>
     .sup-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 60px; align-items: start; }
