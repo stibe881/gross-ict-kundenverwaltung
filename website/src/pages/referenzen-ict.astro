@@ -3,6 +3,7 @@ import Base from "../layouts/Base.astro";
 import ContactForm from "../components/ContactForm.astro";
 import fs from 'fs';
 import path from 'path';
+import { optimiertesBild } from '../lib/bild';
 
 // ICT-Referenzen aus dem CRM (website_references, Bereich «ict»),
 // sortiert nach Sortierung aufsteigend.
@@ -18,16 +19,16 @@ try {
     });
     if (res.ok) {
       const data = (await res.json()).filter((r) => r.bereich === 'ict');
-      referenzen = data.map((r) => ({
+      referenzen = await Promise.all(data.map(async (r) => ({
         kunde: r.name,
         titel: r.titel,
         text: r.beschreibung,
         url: r.url,
         urlLabel: r.url_label || (r.url ? r.url.replace(/^https?:\/\//, '').replace(/\/$/, '') : ''),
         tags: (r.tags || []).filter((t) => !t.startsWith('Branche:')),
-        shot: r.bild_url,
+        shot: await optimiertesBild(r.bild_url),
         alt: `Projekt für ${r.name}`,
-      }));
+      })));
     }
   }
 } catch (e) {

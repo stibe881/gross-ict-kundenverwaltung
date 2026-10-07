@@ -8,6 +8,8 @@ export default defineConfig({
   // Bereichsseiten werden beim Darüberfahren vorgeladen (data-astro-prefetch),
   // damit der Berg-Morph beim Klick ohne Ladepause startet.
   prefetch: true,
+  // CRM-Bilder aus dem Supabase-Speicher dürfen beim Build optimiert werden
+  image: { domains: ["bvluvvyvftygnxtmboxw.supabase.co"] },
   build: {
     format: "file",
   },

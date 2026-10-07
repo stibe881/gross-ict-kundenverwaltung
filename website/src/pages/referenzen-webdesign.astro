@@ -3,6 +3,7 @@ import Base from "../layouts/Base.astro";
 import ContactForm from "../components/ContactForm.astro";
 import fs from 'fs';
 import path from 'path';
+import { optimiertesBild } from "../lib/bild";
 
 let referenzen = [];
 try {
@@ -17,7 +18,7 @@ try {
     });
     if (res.ok) {
       const data = (await res.json()).filter((r) => !r.bereich || r.bereich === 'web');
-      referenzen = data.map(r => {
+      referenzen = await Promise.all(data.map(async (r) => {
         const brancheTag = (r.tags || []).find(t => t.startsWith('Branche:'));
         const branche = brancheTag ? brancheTag.replace('Branche:', '').trim() : 'Sonstige';
         const visibleTags = (r.tags || []).filter(t => !t.startsWith('Branche:'));
@@ -31,11 +32,11 @@ try {
           urlLabel: r.url_label || (r.url ? r.url.replace(/^https?:\/\//, '').replace(/\/$/, '') : ''),
           tags: visibleTags,
           branche: branche,
-          shot: r.bild_url,
+          shot: await optimiertesBild(r.bild_url),
           env: r.umgebung_bild_url || '/img/umgebung/office.webp',
           alt: `Webseite von ${r.name}`,
         };
-      });
+      }));
     }
   }
 } catch(e) {

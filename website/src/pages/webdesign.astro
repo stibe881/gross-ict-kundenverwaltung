@@ -4,6 +4,7 @@ import ContactForm from "../components/ContactForm.astro";
 
 import fs from 'fs';
 import path from 'path';
+import { optimiertesBild } from '../lib/bild';
 
 // Eingebaute Liste als Fallback, falls das CRM beim Build nicht erreichbar ist.
 const fallbackReferenzen = [
@@ -89,17 +90,17 @@ try {
     });
     if (res.ok) {
       const data = (await res.json()).filter((r) => !r.bereich || r.bereich === 'web');
-      const geladen = data.map((r) => ({
+      const geladen = await Promise.all(data.map(async (r) => ({
         kunde: r.name,
         titel: r.titel,
         text: r.beschreibung,
         url: r.url,
         urlLabel: r.url_label || (r.url ? r.url.replace(/^https?:\/\//, '').replace(/\/$/, '') : ''),
         tags: (r.tags || []).filter((t) => !t.startsWith('Branche:')),
-        shot: r.bild_url,
+        shot: await optimiertesBild(r.bild_url),
         env: r.umgebung_bild_url || null,
         alt: `Webseite von ${r.name}`,
-      }));
+      })));
       if (geladen.length) referenzen = geladen;
     }
   }
@@ -108,7 +109,7 @@ try {
 }
 ---
 <Base
-  title="Web- & Appdesign — Gross ICT | Webseiten ab CHF 1'500"
+  title="Web- & Appdesign — Gross ICT | Webseiten ab CHF 500"
   description="Webseiten, Web-Applikationen und Mobile Apps aus Zell LU. Festpreise, rechtssicher nach revDSG, barrierefrei nach WCAG 2.1."
   active="webdesign"
   overlayHeader
