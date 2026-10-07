@@ -243,7 +243,7 @@ import Base from "../layouts/Base.astro";
       <!-- Ergebnis -->
       <aside class="calc-summary" aria-label="Preisübersicht">
         <div class="summary-card">
-          <p class="mono" style="color: #A6791A">Ihr Festpreis</p>
+          <p class="mono" style="color: #8A6100">Ihr Festpreis</p>
           <dl>
             <div class="row"><dt>Grundpreis</dt><dd id="s-base">CHF 1'500</dd></div>
             <div class="row"><dt>Sprachen</dt><dd id="s-langs">CHF 0</dd></div>
@@ -303,7 +303,7 @@ import Base from "../layouts/Base.astro";
     padding: 0 8px;
     margin-left: -8px;
   }
-  .step-title span { color: var(--gold); margin-right: 8px; font-size: 14px; letter-spacing: 1px; }
+  .step-title span { color: var(--gold-text); margin-right: 8px; font-size: 14px; letter-spacing: 1px; }
   .hint { font-size: 13.5px; color: var(--faint); margin-top: 6px; }
 
   .choices { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-top: 12px; }
@@ -339,7 +339,7 @@ import Base from "../layouts/Base.astro";
   .extra .x-t { font-size: 14.5px; font-weight: 700; color: var(--text); }
   .extra .x-d { font-size: 12.5px; font-weight: 500; color: var(--muted); line-height: 1.45; }
   .extra .x-p { font-size: 13px; color: var(--muted); font-weight: 600; white-space: nowrap; transition: color 0.2s; margin-left: auto; }
-  .extra:has(input:checked) .x-p { color: var(--gold); }
+  .extra:has(input:checked) .x-p { color: var(--gold-text); }
 
   .calc-summary { position: sticky; top: 20px; }
   .summary-card {
@@ -356,7 +356,7 @@ import Base from "../layouts/Base.astro";
   .summary-card .discount dd { color: #2E6B3F; }
   .summary-card .total { border-top: 2px solid #221A0E; border-bottom: none; margin-top: 6px; padding-top: 13px; }
   .summary-card .total dt { color: #221A0E; font-weight: 800; }
-  .summary-card .total dd { font-family: "Anton", sans-serif; font-weight: 400; font-size: 26px; letter-spacing: 0.5px; color: #A6791A; }
+  .summary-card .total dd { font-family: "Anton", sans-serif; font-weight: 400; font-size: 26px; letter-spacing: 0.5px; color: #8A6100; }
   .btn-dark-pill { background: #221A0E; color: #F6F1E7; }
   .btn-dark-pill:hover { background: #3A2E1C; color: #F6F1E7; }
   .btn-call { background: transparent; border: 1.5px solid #221A0E; color: #221A0E; text-align: center; flex-wrap: wrap; row-gap: 0; }

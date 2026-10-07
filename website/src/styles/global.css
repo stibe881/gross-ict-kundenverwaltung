@@ -7,9 +7,13 @@
   --line: #2A2B33;
   --text: #EDEFF5;
   --muted: #A9AEBC;
-  --faint: #767C90;
+  --faint: #8C92A5;
   --gold: #E6B24A;
   --gold-light: #F3D894;
+  /* Gold als TEXTfarbe: im dunklen Design das helle Gold, im hellen Design
+     ein dunklerer Bernsteinton (Kontrast ≥ 4,5:1 nach WCAG 1.4.3) */
+  --gold-text: #E6B24A;
+  --gold-text-hover: #F3D894;
   --magenta: #C0188F;
   --violet: #8B2FC9;
   --violet-deep: #4C1D95;
@@ -30,6 +34,8 @@ html.area-ict body {
   --line: #E6EAF0;
   --text: var(--ict-ink);
   --muted: var(--ict-muted); --faint: var(--ict-muted);
+  --gold-text: #8A6100;
+  --gold-text-hover: #5E4200;
 }
 /* Header anpassen, wenn er nicht transparent (overlay) über einem dunklen Hero liegt */
 html.area-ict .site-header:not(.overlay) {
@@ -71,8 +77,13 @@ p { margin: 0; }
   line-height: 0.98;
 }
 
-a { color: var(--gold); text-decoration: none; }
-a:hover { color: var(--gold-light); text-decoration: underline; }
+a { color: var(--gold-text); text-decoration: none; }
+a:hover { color: var(--gold-text-hover); text-decoration: underline; }
+/* Links im Fliesstext nicht nur an der Farbe erkennbar (WCAG 1.4.1) */
+main p a:not(.btn):not(.ref-link), main li a:not(.btn), main dd a, .cookie-note a, .form-fine a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 :focus-visible {
   outline: 3px solid var(--gold);
@@ -102,7 +113,7 @@ a:hover { color: var(--gold-light); text-decoration: underline; }
   font-weight: 700;
   letter-spacing: 3px;
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--gold-text);
 }
 
 /* Header (dunkel; .overlay legt ihn transparent über den Hero,
@@ -375,7 +386,7 @@ html.area-ict .site-header:not(.overlay) .nav-toggle span { background: #152238;
     .site-nav, .site-nav.open { transition: none; }
   }
   .site-nav a { padding: 11px 0; font-size: 14px; width: 100%; }
-  .site-nav a[aria-current="page"] { border-bottom: none; padding-bottom: 11px; color: var(--gold); }
+  .site-nav a[aria-current="page"] { border-bottom: none; padding-bottom: 11px; color: var(--gold-text); }
   .site-header.light .site-nav a[aria-current="page"],
   html.area-ict .site-header:not(.overlay) .site-nav a[aria-current="page"] { color: var(--ict-ink); }
   .site-header .site-nav a.btn-login { width: auto; margin-top: 10px; }
@@ -459,7 +470,7 @@ html.area-ict .partners-marquee { position: relative; z-index: 1; }
 .cookie-note[hidden] { display: none; }
 .cookie-note p { font-size: 13.5px; line-height: 1.55; color: var(--muted); margin: 0; }
 .cookie-note strong { color: var(--text); }
-.cookie-note a { color: var(--gold); }
+.cookie-note a { color: var(--gold-text); }
 .cookie-note button {
   align-self: flex-start;
   background: var(--gold); color: #221A0E; border: 0; cursor: pointer;

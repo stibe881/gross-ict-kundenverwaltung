@@ -141,12 +141,12 @@ const downloads = [
           <form id="support-form">
             <div class="form-grid">
               <div>
-                <label>Firma</label>
-                <input type="text" name="company" />
+                <label for="sup-company">Firma</label>
+                <input id="sup-company" type="text" name="company" />
               </div>
               <div>
-                <label>Anrede *</label>
-                <select name="salutation" required>
+                <label for="sup-salutation">Anrede *</label>
+                <select id="sup-salutation" name="salutation" required>
                   <option value="">Bitte wählen</option>
                   <option value="Frau">Frau</option>
                   <option value="Herr">Herr</option>
@@ -155,27 +155,27 @@ const downloads = [
             </div>
             <div class="form-grid">
               <div>
-                <label>Vorname *</label>
-                <input type="text" name="firstname" required />
+                <label for="sup-firstname">Vorname *</label>
+                <input id="sup-firstname" type="text" name="firstname" required />
               </div>
               <div>
-                <label>Nachname *</label>
-                <input type="text" name="lastname" required />
+                <label for="sup-lastname">Nachname *</label>
+                <input id="sup-lastname" type="text" name="lastname" required />
               </div>
             </div>
             <div class="form-grid">
               <div>
-                <label>Telefon</label>
-                <input type="tel" name="phone" />
+                <label for="sup-phone">Telefon</label>
+                <input id="sup-phone" type="tel" name="phone" />
               </div>
               <div>
-                <label>E-Mail *</label>
-                <input type="email" name="email" required />
+                <label for="sup-email">E-Mail *</label>
+                <input id="sup-email" type="email" name="email" required />
               </div>
             </div>
             <div style="margin-bottom: 16px;">
-              <label>Problembeschreibung *</label>
-              <textarea name="message" rows="4" required></textarea>
+              <label for="sup-message">Problembeschreibung *</label>
+              <textarea id="sup-message" name="message" rows="4" required></textarea>
             </div>
             <div style="display: flex; gap: 12px; align-items: flex-start; margin-bottom: 24px;">
               <input type="checkbox" id="dsgvo" required style="margin-top: 4px; width: 16px; height: 16px; accent-color: var(--gold);" />

@@ -1,7 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 ---
-<Base title="Barrierefreiheit — Gross ICT" description="Erklärung zur Barrierefreiheit der Website gross-ict.ch, orientiert an WCAG 2.1 AA.">
+<Base title="Barrierefreiheit — Gross ICT" description="Erklärung zur Barrierefreiheit der Website gross-ict.ch, orientiert an WCAG 2.2 AA.">
   <section class="section">
     <div class="container" style="max-width: 760px">
       <h1 class="section-title reveal">Erklärung zur Barrierefreiheit</h1>
@@ -14,14 +14,17 @@ import Base from "../layouts/Base.astro";
         </p>
         <h2>Konformitätsstatus</h2>
         <p>
-          Diese Website ist mit den WCAG 2.1 (Stufe AA) <strong>teilweise vereinbar</strong>. Eine
+          Diese Website ist mit den WCAG 2.2 (Stufe AA) <strong>teilweise vereinbar</strong>. Eine
           formelle Prüfung durch eine externe Stelle hat nicht stattgefunden; Grundlage dieser Erklärung
-          ist eine Selbstbewertung.
+          ist eine Selbstbewertung mit einem automatischen Test (axe-core, WCAG 2.0 bis 2.2 A/AA) über
+          alle Seiten in Desktop- und Smartphone-Ansicht sowie eine Durchsicht des Quelltextes.
         </p>
         <h2>Umgesetzte Massnahmen</h2>
         <p>
           Semantische HTML-Struktur mit Landmarken und Überschriften-Hierarchie, Bedienbarkeit per
-          Tastatur mit sichtbarem Fokus, «Zum Inhalt springen»-Link, beschriftete Formularfelder,
+          Tastatur mit sichtbarem Fokus, «Zum Inhalt springen»-Link, mit ihren Beschriftungen verknüpfte
+          Formularfelder, ausreichende Textkontraste (mindestens 4,5:1), Links im Fliesstext zusätzlich
+          unterstrichen, Pause-Schaltfläche für das Partner-Laufband,
           Statusmeldungen für Screenreader (aria-live), Alternativtexte für inhaltstragende Bilder,
           responsive Darstellung bis zu kleinen Bildschirmen sowie Respektieren der Systemeinstellung
           für reduzierte Bewegung (prefers-reduced-motion).
@@ -29,7 +32,9 @@ import Base from "../layouts/Base.astro";
         <h2>Bekannte Einschränkungen</h2>
         <p>
           Einzelne Texte liegen über Foto-Hintergründen; je nach Bildschirmgrösse kann der Kontrast dort
-          stellenweise unter den Empfehlungen liegen. Verlinkte Inhalte Dritter (z.B. App-Stores oder
+          stellenweise unter den Empfehlungen liegen. Die Bedienung nur mit Tastatur, die Nutzung mit
+          Screenreadern und die Vergrösserung auf 400 % wurden bisher nicht systematisch geprüft. Die
+          Apps (CRM und Notfall-App) sind in dieser Erklärung nicht enthalten. Verlinkte Inhalte Dritter (z.B. App-Stores oder
           die Webseiten unserer Referenzkunden) liegen ausserhalb unseres Einflussbereichs. Wir arbeiten
           laufend daran, Barrieren abzubauen.
         </p>
