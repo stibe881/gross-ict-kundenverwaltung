@@ -1,6 +1,8 @@
 ---
 import "../styles/fonts.css";
 import "../styles/global.css";
+import { GA_MEASUREMENT_ID } from "../config";
+const gaId = GA_MEASUREMENT_ID.trim();
 
 interface Props {
   title: string;
@@ -53,6 +55,35 @@ try {
     <link rel="preload" href="/fonts/anton-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin />
+    {gaId && (
+      <script is:inline define:vars={{ gaId }}>
+        // Google Analytics mit Einwilligung (Consent Mode v2): Standardmässig
+        // ist alles verweigert, und das Google-Skript wird erst NACH «Zulassen»
+        // geladen — vorher geht keine Anfrage an Google.
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function () { window.dataLayer.push(arguments); };
+        window.gtag('consent', 'default', {
+          analytics_storage: 'denied', ad_storage: 'denied',
+          ad_user_data: 'denied', ad_personalization: 'denied',
+        });
+        window.gtag('js', new Date());
+        window.gaLaden = function () {
+          if (window.gaGeladen) return;
+          window.gaGeladen = true;
+          var s = document.createElement('script');
+          s.async = true;
+          s.src = 'https://www.googletagmanager.com/gtag/js?id=' + gaId;
+          document.head.appendChild(s);
+          window.gtag('config', gaId, { anonymize_ip: true });
+        };
+        try {
+          if (localStorage.getItem('analyticsConsent') === 'granted') {
+            window.gtag('consent', 'update', { analytics_storage: 'granted' });
+            window.gaLaden();
+          }
+        } catch (e) {}
+      </script>
+    )}
     <script is:inline>
       // Läuft synchron beim Parsen des Head — garantiert vor dem ersten Bild:
       // versteckt die Hero-Texte (html.js) und fängt das pagereveal-Ereignis
@@ -222,14 +253,29 @@ try {
     )}
 
     {!noChrome && (
-      <div class="cookie-note" id="cookie-note" hidden>
-        <p>
-          <strong>Ohne Tracking unterwegs.</strong> Diese Webseite setzt keine
-          Tracking-Cookies — gespeichert wird nur technisch Nötiges.
-          <a href="/datenschutz">Mehr dazu</a>
-        </p>
-        <button type="button" id="cookie-ok">Alles klar</button>
-      </div>
+      gaId ? (
+        <div class="cookie-note" id="cookie-note" data-analytics hidden role="dialog" aria-label="Statistik-Einwilligung">
+          <p>
+            <strong>Statistik, wenn Sie möchten.</strong> Wir würden gerne anonymisierte
+            Besucherstatistiken mit Google Analytics erfassen, um die Webseite zu verbessern —
+            nur mit Ihrer Einwilligung.
+            <a href="/datenschutz">Mehr dazu</a>
+          </p>
+          <div class="cookie-actions">
+            <button type="button" id="cookie-ok">Zulassen</button>
+            <button type="button" id="cookie-no" class="ghost">Ablehnen</button>
+          </div>
+        </div>
+      ) : (
+        <div class="cookie-note" id="cookie-note" hidden>
+          <p>
+            <strong>Ohne Tracking unterwegs.</strong> Diese Webseite setzt keine
+            Tracking-Cookies — gespeichert wird nur technisch Nötiges.
+            <a href="/datenschutz">Mehr dazu</a>
+          </p>
+          <button type="button" id="cookie-ok">Alles klar</button>
+        </div>
+      )
     )}
 
     {!noChrome && (
@@ -243,6 +289,7 @@ try {
           <div class="legal">
             <a href="/impressum">Impressum</a>
             <a href="/datenschutz">Datenschutz</a>
+            {gaId && <a href="#cookie-einstellungen" id="cookie-settings">Cookie-Einstellungen</a>}
             <a href="/barrierefreiheit">Barrierefreiheit</a>
           </div>
           <p class="fine">© {new Date().getFullYear()} Gross ICT, Zell LU</p>
@@ -307,14 +354,48 @@ try {
       // Bestätigung bleibt im lokalen Speicher, damit er nicht wiederkommt.
       const cookieNote = document.getElementById("cookie-note");
       const cookieOk = document.getElementById("cookie-ok");
+      const cookieNo = document.getElementById("cookie-no");
       if (cookieNote && cookieOk) {
-        let seen = false;
-        try { seen = localStorage.getItem("cookieHinweisOk") === "1"; } catch (e) {}
-        if (!seen) cookieNote.hidden = false;
-        cookieOk.addEventListener("click", () => {
-          try { localStorage.setItem("cookieHinweisOk", "1"); } catch (e) {}
-          cookieNote.hidden = true;
-        });
+        const analytics = cookieNote.hasAttribute("data-analytics");
+        const w = window as any;
+        if (analytics) {
+          // Einwilligung für Google Analytics: erst «Zulassen» lädt das Skript,
+          // «Ablehnen» (oder keine Antwort) bedeutet: nichts geht an Google.
+          let antwort: string | null = null;
+          try { antwort = localStorage.getItem("analyticsConsent"); } catch (e) {}
+          if (!antwort) cookieNote.hidden = false;
+          const speichern = (wert: "granted" | "denied") => {
+            try { localStorage.setItem("analyticsConsent", wert); } catch (e) {}
+            if (wert === "granted") {
+              w.gtag?.("consent", "update", { analytics_storage: "granted" });
+              w.gaLaden?.();
+            } else {
+              w.gtag?.("consent", "update", { analytics_storage: "denied" });
+              // Bereits gesetzte Google-Cookies (_ga, _ga_*) entfernen
+              const host = location.hostname;
+              document.cookie.split(";").map((c) => c.split("=")[0].trim()).filter((n) => n === "_ga" || n.startsWith("_ga_")).forEach((n) => {
+                ["", host, "." + host].forEach((d) => {
+                  document.cookie = n + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/" + (d ? "; domain=" + d : "");
+                });
+              });
+            }
+            cookieNote.hidden = true;
+          };
+          cookieOk.addEventListener("click", () => speichern("granted"));
+          cookieNo?.addEventListener("click", () => speichern("denied"));
+          document.getElementById("cookie-settings")?.addEventListener("click", (e) => {
+            e.preventDefault();
+            cookieNote.hidden = false;
+          });
+        } else {
+          let seen = false;
+          try { seen = localStorage.getItem("cookieHinweisOk") === "1"; } catch (e) {}
+          if (!seen) cookieNote.hidden = false;
+          cookieOk.addEventListener("click", () => {
+            try { localStorage.setItem("cookieHinweisOk", "1"); } catch (e) {}
+            cookieNote.hidden = true;
+          });
+        }
       }
 
       // Startsignal für die Hero-Einblendung: `pagereveal` feuert exakt beim

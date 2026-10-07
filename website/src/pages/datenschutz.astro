@@ -1,5 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
+import { GA_MEASUREMENT_ID } from "../config";
+const ga = GA_MEASUREMENT_ID.trim().length > 0;
 ---
 <Base title="Datenschutzerklärung — Gross ICT" description="Datenschutzerklärung der Gross ICT nach Schweizer Datenschutzgesetz (DSG).">
   <section class="section">
@@ -28,14 +30,41 @@ import Base from "../layouts/Base.astro";
           Datenbank-Infrastruktur (Supabase) übermittelt, wenn die Seite Inhalte wie die Referenz-Galerie
           lädt oder Sie ein Formular absenden.
         </p>
-        <p>
-          <strong>Keine Cookies, kein Tracking:</strong> Diese Website setzt keine Cookies ein und verwendet
-          keine Analyse- oder Marketing-Tools. Im Browser wird lediglich Ihre Bereichswahl
-          (Webdesign oder ICT Services) im sogenannten Session-Speicher abgelegt — rein technisch, ohne
-          Wiedererkennung, automatisch gelöscht beim Schliessen des Browsers — sowie, wenn Sie den
-          Hinweis unten links bestätigen, diese Bestätigung im lokalen Speicher Ihres Browsers.
-          Schriften werden lokal von unserem Server geladen; es findet kein Abruf bei Google Fonts statt.
-        </p>
+        {ga ? (
+          <>
+            <p>
+              <strong>Technisch notwendige Speicherung:</strong> Im Browser wird Ihre Bereichswahl
+              (Webdesign oder ICT Services) im sogenannten Session-Speicher abgelegt — rein technisch,
+              ohne Wiedererkennung, automatisch gelöscht beim Schliessen des Browsers — sowie Ihre
+              Entscheidung zur Statistik im lokalen Speicher Ihres Browsers. Schriften werden lokal von
+              unserem Server geladen; es findet kein Abruf bei Google Fonts statt.
+            </p>
+            <p>
+              <strong>Google Analytics (nur mit Ihrer Einwilligung):</strong> Wenn Sie im Hinweis unten
+              links «Zulassen» wählen, verwenden wir Google Analytics 4 der Google Ireland Limited
+              (Gordon House, Barrow Street, Dublin 4, Irland; Mutterkonzern Google LLC, USA), um
+              das Nutzungsverhalten auf dieser Website in aggregierter Form auszuwerten und die Website
+              zu verbessern. Dabei werden Cookies (_ga, _ga_*) gesetzt und Angaben wie aufgerufene
+              Seiten, ungefährer Standort, Gerätetyp, Browser und Verweildauer an Google übermittelt,
+              wobei die IP-Adresse gekürzt wird. Eine Übermittlung in die USA ist möglich; Google
+              ist unter dem Data Privacy Framework zertifiziert. Wählen Sie «Ablehnen» oder treffen Sie
+              keine Wahl, wird das Google-Skript nicht geladen und es werden keine Daten an Google
+              übermittelt. Ihre Entscheidung können Sie jederzeit über den Link
+              «Cookie-Einstellungen» im Seitenfuss ändern und widerrufen; die Cookies werden dann
+              entfernt. Weitere Informationen:
+              <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">policies.google.com/privacy</a>.
+            </p>
+          </>
+        ) : (
+          <p>
+            <strong>Keine Cookies, kein Tracking:</strong> Diese Website setzt keine Cookies ein und verwendet
+            keine Analyse- oder Marketing-Tools. Im Browser wird lediglich Ihre Bereichswahl
+            (Webdesign oder ICT Services) im sogenannten Session-Speicher abgelegt — rein technisch, ohne
+            Wiedererkennung, automatisch gelöscht beim Schliessen des Browsers — sowie, wenn Sie den
+            Hinweis unten links bestätigen, diese Bestätigung im lokalen Speicher Ihres Browsers.
+            Schriften werden lokal von unserem Server geladen; es findet kein Abruf bei Google Fonts statt.
+          </p>
+        )}
 
         <h2>3. Zwecke der Bearbeitung</h2>
         <p>
@@ -79,7 +108,7 @@ import Base from "../layouts/Base.astro";
         <p>
           Für unsere Apps, die über den Apple App Store und Google Play vertrieben werden, gilt
           diese Datenschutzerklärung ergänzend wie folgt. Beide Apps zeigen keine Werbung und
-          setzen keine Tracking- oder Analysedienste ein. Sie können jederzeit die Löschung Ihres
+          setzen keine Tracking- oder Analysedienste ein (die Statistik der Website gilt nicht für die Apps). Sie können jederzeit die Löschung Ihres
           Kontos und der zugehörigen Daten verlangen — per Mitteilung an
           <a href="mailto:info@gross-ict.ch">info@gross-ict.ch</a>.
         </p>

@@ -468,6 +468,11 @@ html.area-ict .partners-marquee { position: relative; z-index: 1; }
   letter-spacing: 1.5px; text-transform: uppercase;
 }
 .cookie-note button:hover { background: var(--gold-light); }
+.cookie-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+/* «Ablehnen» ist gleich gross und gleich gut sichtbar wie «Zulassen» */
+.cookie-note button.ghost { background: transparent; color: var(--text); border: 1.5px solid var(--faint); padding: 7.5px 19px; }
+.cookie-note button.ghost:hover { background: rgba(255, 255, 255, 0.06); border-color: var(--gold); }
+html.area-ict .cookie-note button.ghost:hover { background: rgba(21, 34, 56, 0.05); }
 html.area-ict .cookie-note { background: #fff; border-color: #E6EAF0; box-shadow: 0 18px 44px rgba(21, 34, 56, 0.18); }
 @media (max-width: 600px) {
   .cookie-note { left: 12px; right: 12px; bottom: 12px; max-width: none; }
