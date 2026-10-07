@@ -1,0 +1,46 @@
+---
+import Base from "../layouts/Base.astro";
+import UeberUns from "../components/UeberUns.astro";
+---
+<Base
+  title="Über uns — ICT Services — Gross ICT"
+  description="Gross ICT aus Zell LU betreut die IT von KMU in der Zentralschweiz: Support, Netzwerk, Sicherheit und Cloud — ohne Warteschleife."
+  active="ueber-uns-ict"
+  theme="light"
+>
+  <UeberUns
+    kicker="Über uns · ICT Services"
+    titel="IT, die läuft.<br />Und jemand, der abnimmt."
+    lead="Gross ICT betreut die IT von KMU in der Zentralschweiz: Support, Netzwerk, Sicherheit und Cloud — ohne Warteschleife und zu festen Preisen."
+    werTitel="Ihre IT, ein Ansprechpartner"
+    werText={[
+      "Gross ICT sitzt in Zell LU und wird von Stefan Gross geführt. Wer anruft, spricht mit der Person, die Ihre Systeme kennt — nicht mit einer Hotline, die zuerst nach Ticketnummern fragt.",
+      "Wir betreuen Firmen ohne eigene IT-Abteilung ebenso wie solche, die ihre bestehende entlasten wollen: Arbeitsplätze, Server, Netzwerk, Microsoft 365 und die Absicherung dazu.",
+    ]}
+    prinzipien={[
+      {
+        titel: "Ohne Warteschleife",
+        text: "Telefon, E-Mail, Remote oder vor Ort: Sie sagen uns, wo es brennt, und wir sind dran. Standard-Supportzeiten sind Mo–Fr 08:00–17:30 Uhr, für Wartungen auch abends oder am Wochenende nach Absprache.",
+      },
+      {
+        titel: "Fixpreis und klare Reaktionszeiten",
+        text: "Im Support-Vertrag zahlen Sie einen monatlichen Fixpreis. Definierte Reaktionszeiten (SLA), Wartung und Updates sind inklusive.",
+      },
+      {
+        titel: "Alles im Kundenportal sichtbar",
+        text: "Tickets, Rechnungen und Verträge sehen Sie jederzeit online im Kundenportal — ebenso Ihre Geräte und Lizenzen.",
+      },
+    ]}
+    fakten={[
+      { label: "Inhaber", wert: "Stefan Gross" },
+      { label: "Standort", wert: "Neuhushof 3, 6144 Zell LU" },
+      { label: "Telefon", wert: "+41 41 562 34 16", href: "tel:+41415623416" },
+      { label: "E-Mail", wert: "info@gross-ict.ch", href: "mailto:info@gross-ict.ch" },
+      { label: "Support", wert: "Mo–Fr 08:00–17:30" },
+      { label: "UID", wert: "CHE-142.161.164" },
+    ]}
+    ctaText="Läuft Ihre IT — oder laufen Sie ihr hinterher? Erzählen Sie uns, wo es hakt, wir melden uns."
+    ctaLabel="Beratung anfragen"
+    ctaHref="#kontakt"
+  />
+</Base>

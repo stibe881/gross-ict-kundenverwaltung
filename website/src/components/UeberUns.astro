@@ -1,0 +1,121 @@
+---
+// «Über uns» — gemeinsames Gerüst für beide Welten. Farben kommen aus den
+// CSS-Variablen der jeweiligen Welt (dunkler Abend / heller Morgen), der
+// Inhalt aus den Props der beiden Seiten.
+import ContactForm from "./ContactForm.astro";
+
+interface Fakt { label: string; wert: string; href?: string }
+interface Prinzip { titel: string; text: string }
+interface Props {
+  kicker: string;
+  titel: string;
+  lead: string;
+  werTitel: string;
+  werText: string[];
+  prinzipien: Prinzip[];
+  fakten: Fakt[];
+  ctaText: string;
+  ctaLabel: string;
+  ctaHref: string;
+}
+const { kicker, titel, lead, werTitel, werText, prinzipien, fakten, ctaText, ctaLabel, ctaHref } = Astro.props;
+---
+<div class="page-header" style="padding: 120px 24px 56px; max-width: 1240px; margin: 0 auto;">
+  <p class="mono">{kicker}</p>
+  <h1 class="anton anton-title" style="margin-top: 14px" set:html={titel} />
+  <p class="lead">{lead}</p>
+</div>
+
+<section class="section ueber" style="padding-top: 0;">
+  <div class="container">
+    <div class="zeile" data-reveal>
+      <p class="mono label">Wer dahinter steht</p>
+      <div class="inhalt">
+        <h2 class="anton zeilentitel">{werTitel}</h2>
+        {werText.map((a) => <p class="text">{a}</p>)}
+      </div>
+    </div>
+
+    <div class="zeile" data-reveal>
+      <p class="mono label">Wie wir arbeiten</p>
+      <div class="inhalt">
+        <ol class="prinzipien">
+          {prinzipien.map((p, i) => (
+            <li>
+              <span class="nr mono">{String(i + 1).padStart(2, "0")}</span>
+              <div>
+                <h3>{p.titel}</h3>
+                <p class="text">{p.text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+
+    <div class="zeile" data-reveal>
+      <p class="mono label">Auf einen Blick</p>
+      <div class="inhalt">
+        <dl class="fakten">
+          {fakten.map((f) => (
+            <div>
+              <dt class="mono">{f.label}</dt>
+              <dd>{f.href ? <a href={f.href}>{f.wert}</a> : f.wert}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>
+
+    <div class="zeile cta" data-reveal>
+      <p class="mono label">Der nächste Schritt</p>
+      <div class="inhalt">
+        <p class="text cta-text">{ctaText}</p>
+        <a class="btn btn-gold" href={ctaHref}>{ctaLabel}</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="kontakt" style="background: var(--panel-2);">
+  <div class="container">
+    <ContactForm />
+  </div>
+</section>
+
+<style>
+  .lead { color: var(--muted); font-size: 18px; margin-top: 16px; max-width: 640px; }
+  .zeile {
+    display: grid;
+    grid-template-columns: 3fr 9fr;
+    gap: 40px;
+    padding: 52px 0 58px;
+    border-top: 1px solid var(--line);
+  }
+  .label { margin: 4px 0 0; }
+  .zeilentitel {
+    font-weight: 400;
+    font-size: clamp(28px, 3.6vw, 44px);
+    line-height: 1.1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 20px;
+  }
+  .text { color: var(--muted); font-size: 16px; line-height: 1.75; margin: 0 0 14px; max-width: 640px; }
+  .prinzipien { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 34px; }
+  .prinzipien li { display: grid; grid-template-columns: 56px 1fr; gap: 16px; align-items: start; }
+  .nr { color: var(--gold); font-size: 13px; letter-spacing: 3px; padding-top: 6px; }
+  .prinzipien h3 { font-size: 20px; margin: 0 0 8px; color: var(--text); }
+  .prinzipien .text { margin: 0; }
+  .fakten { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 40px; }
+  .fakten dt { color: var(--gold); font-size: 12px; letter-spacing: 3px; margin: 0 0 6px; }
+  .fakten dd { margin: 0; color: var(--text); font-size: 16px; line-height: 1.55; }
+  .fakten a { color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
+  .fakten a:hover { color: var(--gold); }
+  .cta-text { font-size: 18px; color: var(--text); margin-bottom: 22px; }
+  @media (max-width: 820px) {
+    .zeile { grid-template-columns: 1fr; gap: 18px; padding: 36px 0 42px; }
+    .fakten { grid-template-columns: 1fr; gap: 22px; }
+    .prinzipien li { grid-template-columns: 40px 1fr; gap: 10px; }
+  }
+</style>

@@ -1,0 +1,45 @@
+---
+import Base from "../layouts/Base.astro";
+import UeberUns from "../components/UeberUns.astro";
+---
+<Base
+  title="Über uns — Web- & Appdesign — Gross ICT"
+  description="Gross ICT aus Zell LU baut Webseiten, Web-Apps und Mobile Apps zum Festpreis — und betreut sie auch nach dem Start."
+  active="ueber-uns-webdesign"
+>
+  <UeberUns
+    kicker="Über uns · Web- & Appdesign"
+    titel="Ein Ansprechpartner.<br />Von der Idee bis zum Betrieb."
+    lead="Gross ICT baut Webseiten, Web-Apps und Mobile Apps für Firmen, Vereine und Privatpersonen in der Zentralschweiz — und betreut sie auch nach dem Start."
+    werTitel="Gross ICT aus Zell LU"
+    werText={[
+      "Hinter Gross ICT steht Stefan Gross. Sie sprechen mit der Person, die Ihr Projekt plant und umsetzt — und die erreichbar bleibt, wenn später etwas angepasst werden soll oder nicht läuft.",
+      "Unsere Kundschaft reicht vom Hochzeitspaar mit einer einzigen Seite über Vereine und Selbständige bis zum KMU mit eigenem Kundenportal.",
+    ]}
+    prinzipien={[
+      {
+        titel: "Festpreis vor dem ersten Strich",
+        text: "Sie kennen den Preis, bevor wir anfangen. Im Preisrechner stellen Sie Ihr Projekt in zwei Minuten selbst zusammen — ohne Angabe von Kontaktdaten.",
+      },
+      {
+        titel: "Rechtssicher und barrierefrei",
+        text: "Impressum und Datenschutzerklärung nach Schweizer Recht gehören bei Webseiten dazu. Die Umsetzung folgt dem revDSG und den WCAG-Richtlinien für Barrierefreiheit.",
+      },
+      {
+        titel: "Betrieb, wenn Sie ihn wollen",
+        text: "Hosting, Updates und laufende Anpassungen gibt es als Wartungspaket ab CHF 49 pro Monat. Im Kundenportal behalten Sie Tickets, Rechnungen und Verträge im Blick.",
+      },
+    ]}
+    fakten={[
+      { label: "Inhaber", wert: "Stefan Gross" },
+      { label: "Standort", wert: "Neuhushof 3, 6144 Zell LU" },
+      { label: "Telefon", wert: "+41 41 562 34 16", href: "tel:+41415623416" },
+      { label: "E-Mail", wert: "info@gross-ict.ch", href: "mailto:info@gross-ict.ch" },
+      { label: "Erreichbar", wert: "Mo–Fr 08:00–17:30" },
+      { label: "UID", wert: "CHE-142.161.164" },
+    ]}
+    ctaText="Wissen Sie schon, was Sie brauchen? Rechnen Sie es durch — oder schreiben Sie uns, wo es hakt."
+    ctaLabel="Preis berechnen"
+    ctaHref="/rechner"
+  />
+</Base>
