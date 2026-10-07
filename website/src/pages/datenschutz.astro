@@ -108,6 +108,49 @@ import Base from "../layouts/Base.astro";
           zu Werbezwecken bearbeitet.
         </p>
 
+        <h3>HomePilot App</h3>
+        <p>
+          HomePilot ist die Steuer-App für ein privates, selbst betriebenes Smart-Home-System.
+          Gross ICT entwickelt die App; betrieben wird sie nicht zentral, sondern auf einem
+          eigenen Server (dem «Hub»), den jeder Haushalt selbst besitzt und in den eigenen vier
+          Wänden betreibt. Gross ICT hat keinen Zugriff auf die Daten, die im Betrieb der App
+          anfallen.
+        </p>
+        <p>
+          <strong>Standort, auch im Hintergrund.</strong> HomePilot fragt den Standort auch dann
+          ab, wenn die App geschlossen ist oder gerade nicht benutzt wird («Immer»-Berechtigung).
+          Damit erkennt der eigene Hub, ob ein Familienmitglied zuhause oder unterwegs ist, und
+          kann Heizung, Licht und Alarmanlage automatisch entsprechend schalten. Ausgewertet wird
+          nur bei Bewegung, nicht laufend. Der Standort wird ausschliesslich an den eigenen Hub
+          des Haushalts übermittelt — nie an Gross ICT, nie an einen Server Dritter, nie zu
+          Werbe- oder Analysezwecken.
+        </p>
+        <p><strong>Weitere Daten in der App.</strong></p>
+        <ul>
+          <li>
+            Kamera-Livebilder angeschlossener Überwachungskameras werden auf Abruf angezeigt,
+            nicht von der App gespeichert oder weitergeleitet.
+          </li>
+          <li>
+            Mikrofonaufnahmen entstehen nur zwischen Druck und Loslassen des Durchsage-Knopfs
+            und werden an den eigenen Hub geschickt, der sie auf den Lautsprechern der Wohnung
+            abspielt.
+          </li>
+          <li>
+            Push-Benachrichtigungen laufen über Apple- und Google-Dienste (APNs/FCM) zur
+            Zustellung; Inhalt und Anlass der Meldung bleiben beim eigenen Hub.
+          </li>
+          <li>
+            Konto- und Nutzungsdaten (Name, Passwort-Hash, Zugriffsprotokoll) werden
+            ausschliesslich auf dem Hub des jeweiligen Haushalts gespeichert.
+          </li>
+        </ul>
+        <p>
+          Es gibt keine Cloud-Anbindung Dritter, keine Werbung und keinen Verkauf von
+          Nutzerdaten. Fragen zu einer konkreten HomePilot-Installation richten Sie an die
+          Person, die den jeweiligen Hub betreibt.
+        </p>
+
         <h2>8. Änderungen</h2>
         <p>
           Wir können diese Datenschutzerklärung bei Bedarf anpassen; es gilt die jeweils auf dieser
@@ -123,4 +166,6 @@ import Base from "../layouts/Base.astro";
   .legal-text h2:first-child { margin-top: 0; }
   .legal-text h3 { font-size: 15px; margin: 16px 0 6px; }
   .legal-text p { color: var(--muted); font-size: 14.5px; margin-bottom: 10px; }
+  .legal-text ul { margin: 0 0 10px; padding-left: 20px; }
+  .legal-text li { color: var(--muted); font-size: 14.5px; margin-bottom: 6px; }
 </style>
