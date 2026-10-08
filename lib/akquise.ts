@@ -7,6 +7,8 @@ import { supabase } from "./supabase";
 import { createLead } from "./data";
 import { normDomain, normTelefon, normEmail, berechneScore } from "./akquise-regeln";
 import type { Campaign, Prospect, ComplianceStatus } from "./akquise-regeln";
+// Reine Funktion der Edge Function (Gebiets-Eingabe zerlegen) — Client und Server nutzen dieselbe Logik
+import { gebietAusEingabe } from "../supabase/functions/_shared/gebiet";
 
 export * from "./akquise-regeln";
 
@@ -277,8 +279,29 @@ async function placesAufruf(body: Record<string, unknown>): Promise<any> {
   return data;
 }
 
-export async function placesSuchen(textQuery: string, campaignId: string, pageToken?: string): Promise<{ treffer: PlaceEintrag[]; nextPageToken: string | null }> {
-  return placesAufruf({ action: "suche", textQuery, campaignId, pageToken });
+export interface SuchGebiet {
+  /** Eingabe «Ort oder PLZ», z.B. «Zell LU» oder «6144, 6260» */
+  eingabe: string;
+  /** Umkreis in km; leer oder 0 = nur dieser Ort / diese PLZ */
+  radiusKm: number;
+  /** Mittelpunkt aus der ersten Seite, damit Folgeseiten nicht erneut suchen */
+  zentrum?: { lat: number; lng: number } | null;
+}
+
+export interface PlacesSeite {
+  treffer: PlaceEintrag[];
+  nextPageToken: string | null;
+  /** Anzahl Treffer dieser Seite, die ausserhalb des Gebiets lagen und ausgeblendet wurden */
+  ausgeblendet: number;
+  zentrum: { lat: number; lng: number } | null;
+}
+
+export async function placesSuchen(textQuery: string, campaignId: string, gebiet: SuchGebiet, pageToken?: string): Promise<PlacesSeite> {
+  const { plz, ort } = gebietAusEingabe(gebiet.eingabe);
+  return placesAufruf({
+    action: "suche", textQuery, campaignId, pageToken,
+    gebiet: { plz, ort, radiusKm: gebiet.radiusKm > 0 ? gebiet.radiusKm : 0, zentrum: gebiet.zentrum ?? undefined },
+  });
 }
 
 export async function placeDetails(placeId: string): Promise<PlaceEintrag> {

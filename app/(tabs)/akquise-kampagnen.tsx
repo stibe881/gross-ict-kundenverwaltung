@@ -318,7 +318,12 @@ function KampagnenDetail({ kampagne, colors, userId, onZurueck, onBearbeiten }: 
 // die Google-ID (place_id) — so verlangt es Google.
 
 function PlacesSuche({ colors, kampagne, userId, onVorgemerkt }: { colors: Farben; kampagne: Akq.Campaign; userId?: string; onVorgemerkt: () => void }) {
-  const [suche, setSuche] = useState([kampagne.branchen[0], kampagne.kantone[0]].filter(Boolean).join(" "));
+  // Suchbegriff = Branche; das Gebiet (Ort/PLZ + Umkreis) wird getrennt eingegrenzt
+  const [suche, setSuche] = useState(kampagne.branchen[0] ?? "");
+  const [gebietText, setGebietText] = useState((kampagne.plz_liste ?? "").trim());
+  const [radius, setRadius] = useState(kampagne.radius_km ? String(kampagne.radius_km) : "");
+  const [zentrum, setZentrum] = useState<{ lat: number; lng: number } | null>(null);
+  const [ausgeblendet, setAusgeblendet] = useState(0);
   const [treffer, setTreffer] = useState<Akq.PlaceEintrag[]>([]);
   const [weiter, setWeiter] = useState<string | null>(null);
   const [laedt, setLaedt] = useState(false);
@@ -327,8 +332,11 @@ function PlacesSuche({ colors, kampagne, userId, onVorgemerkt }: { colors: Farbe
   const los = async (token?: string) => {
     setLaedt(true);
     try {
-      const r = await Akq.placesSuchen(suche, kampagne.id, token);
+      const radiusKm = Math.max(Number(radius.replace(",", ".")) || 0, 0);
+      const r = await Akq.placesSuchen(suche, kampagne.id, { eingabe: gebietText, radiusKm, zentrum: token ? zentrum : null }, token);
       setTreffer(token ? [...treffer, ...r.treffer] : r.treffer);
+      setAusgeblendet((a) => (token ? a : 0) + (r.ausgeblendet ?? 0));
+      setZentrum(r.zentrum ?? null);
       setWeiter(r.nextPageToken);
       setGesucht(true);
     } catch (e: any) {
@@ -352,10 +360,24 @@ function PlacesSuche({ colors, kampagne, userId, onVorgemerkt }: { colors: Farbe
         nicht Name oder Telefonnummer (Vorgabe von Google). Die Firmendaten holen Sie danach von der eigenen Website der Firma.
         Jede Suche und jede Seite «Mehr laden» verursacht Kosten bei Google.
       </Text>
-      <Feld colors={colors} label="Suchbegriff" value={suche} onChange={setSuche} placeholder="z.B. Sanitär Luzern" />
+      <Feld colors={colors} label="Suchbegriff (Branche)" value={suche} onChange={setSuche} placeholder="z.B. Sanitär" />
+      <Feld colors={colors} label="Ort oder PLZ" value={gebietText} onChange={setGebietText} placeholder="z.B. Zell LU oder 6144, 6260" />
+      <Feld colors={colors} label="Umkreis in km (leer oder 0 = nur dieser Ort bzw. diese PLZ)" value={radius} onChange={setRadius} placeholder="z.B. 10" tastatur="numeric" />
+      {!gebietText.trim() && (
+        <Text style={{ fontSize: 12, color: "#F59E0B", marginBottom: 8 }}>
+          Ohne Ort oder PLZ wird nicht eingegrenzt — Google liefert dann Firmen aus der ganzen Schweiz.
+        </Text>
+      )}
       <Knopf colors={colors} text={laedt ? "Sucht…" : "Suchen"} onPress={() => los()} aus={laedt || suche.trim().length < 3} />
 
-      {gesucht && treffer.length === 0 && <Text style={{ color: colors.muted, marginTop: 12 }}>Keine Treffer.</Text>}
+      {gesucht && treffer.length === 0 && (
+        <Text style={{ color: colors.muted, marginTop: 12 }}>
+          Keine Treffer im Gebiet.{ausgeblendet > 0 ? ` ${ausgeblendet} Treffer ausserhalb wurden ausgeblendet.` : ""}{weiter ? " Mit «Mehr laden» weitersuchen." : ""}
+        </Text>
+      )}
+      {gesucht && treffer.length > 0 && ausgeblendet > 0 && (
+        <Text style={{ fontSize: 12, color: colors.muted, marginTop: 8 }}>{ausgeblendet} Treffer ausserhalb des Gebiets ausgeblendet.</Text>
+      )}
       {treffer.map((t) => (
         <View key={t.placeId} style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
           <Text style={{ fontSize: 15, fontWeight: "700", color: colors.text }}>{t.name}</Text>
