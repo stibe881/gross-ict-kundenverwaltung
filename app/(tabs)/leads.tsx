@@ -457,6 +457,14 @@ export default function LeadsScreen() {
                 <TouchableOpacity
                   className="flex-row items-center gap-1.5 bg-surface border border-border px-3.5 py-2 rounded-xl"
                   activeOpacity={0.8}
+                  onPress={() => router.push("/akquise-kampagnen" as any)}
+                >
+                  <IconSymbol name="megaphone.fill" size={14} color="#F59E0B" />
+                  <Text className="text-sm font-semibold text-foreground">Kampagnen</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-row items-center gap-1.5 bg-surface border border-border px-3.5 py-2 rounded-xl"
+                  activeOpacity={0.8}
                   onPress={() => setShowImport(true)}
                 >
                   <IconSymbol name="tray.fill" size={14} color={colors.muted} />
@@ -489,6 +497,13 @@ export default function LeadsScreen() {
               </View>
             ) : (
               <View className="flex-row items-center gap-2">
+                <TouchableOpacity
+                  className="bg-surface border border-border w-10 h-10 rounded-full items-center justify-center"
+                  activeOpacity={0.8}
+                  onPress={() => router.push("/akquise-kampagnen" as any)}
+                >
+                  <IconSymbol name="megaphone.fill" size={17} color="#F59E0B" />
+                </TouchableOpacity>
                 <TouchableOpacity
                   className="bg-surface border border-border w-10 h-10 rounded-full items-center justify-center"
                   activeOpacity={0.8}
