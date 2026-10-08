@@ -28,8 +28,15 @@ export async function pruefeMitarbeiter(req: Request): Promise<{ fehler: Respons
   const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
   const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-  const benutzerClient = createClient(url, anon, { global: { headers: { Authorization: authHeader } } });
-  const { data: u, error } = await benutzerClient.auth.getUser();
+  // In einer Edge Function gibt es keine gespeicherte Sitzung: getUser() ohne Token
+  // würde scheitern. Das JWT des Aufrufers wird deshalb ausdrücklich übergeben.
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!token) return { fehler: antwort(401, "Anmeldung erforderlich.") };
+  const benutzerClient = createClient(url, anon, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: u, error } = await benutzerClient.auth.getUser(token);
   if (error || !u?.user) return { fehler: antwort(401, "Anmeldung ungültig oder abgelaufen.") };
 
   const admin = createClient(url, service);
