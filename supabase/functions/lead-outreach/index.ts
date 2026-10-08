@@ -3,11 +3,7 @@
 // versenden. action: "generate" | "send"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Anthropic from "npm:@anthropic-ai/sdk";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders, pruefeMitarbeiter } from "../_shared/sicherheit.ts";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -22,6 +18,11 @@ function escapeHtml(s: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Nur angemeldete Mitarbeiter mit Akquise-Rolle: die Function verbraucht KI-Guthaben
+  // und kann über Resend E-Mails im Namen der Firma versenden.
+  const { fehler: nichtBerechtigt } = await pruefeMitarbeiter(req);
+  if (nichtBerechtigt) return nichtBerechtigt;
 
   try {
     const { action, leadId, subject, body, mode } = await req.json();

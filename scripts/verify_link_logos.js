@@ -1,9 +1,10 @@
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) { console.error('SUPABASE_SERVICE_ROLE_KEY fehlt (Wert aus dem Supabase-Dashboard in die lokale .env eintragen; siehe .env.example).'); process.exit(1); }
 // Apply storage policies using supabase-js admin client
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
   'https://bvluvvyvftygnxtmboxw.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHV2dnl2ZnR5Z254dG1ib3h3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDIzNTU1NCwiZXhwIjoyMDg1ODExNTU0fQ.YNNjhdRrdzU6mZWAGvIq0sYKsyPLNd4PXw_1S_mwSQM'
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 async function main() {

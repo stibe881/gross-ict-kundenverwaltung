@@ -1,3 +1,4 @@
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) { console.error('SUPABASE_SERVICE_ROLE_KEY fehlt (Wert aus dem Supabase-Dashboard in die lokale .env eintragen; siehe .env.example).'); process.exit(1); }
 // run_migration.mjs
 // Führt die Vertragsnummer-Migration direkt auf Supabase aus
 
@@ -9,7 +10,7 @@ import { dirname, join } from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const SUPABASE_URL = 'https://bvluvvyvftygnxtmboxw.supabase.co';
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHV2dnl2ZnR5Z254dG1ib3h3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDIzNTU1NCwiZXhwIjoyMDg1ODExNTU0fQ.YNNjhdRrdzU6mZWAGvIq0sYKsyPLNd4PXw_1S_mwSQM';
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 

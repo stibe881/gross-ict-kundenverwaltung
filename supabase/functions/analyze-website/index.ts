@@ -1,15 +1,15 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-
-export const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders, pruefeMitarbeiter, sichererAbruf } from "../_shared/sicherheit.ts";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  // Nur angemeldete Mitarbeiter mit Akquise-Rolle (Abruf fremder Webseiten + KI-Kosten)
+  const { fehler: nichtBerechtigt } = await pruefeMitarbeiter(req);
+  if (nichtBerechtigt) return nichtBerechtigt;
 
   try {
     const { url: originalUrl } = await req.json();
@@ -20,9 +20,9 @@ serve(async (req: Request) => {
       });
     }
 
-    let url = originalUrl.trim();
+    const roh = String(originalUrl).trim().slice(0, 300);
     // Strip protocol to force https test first
-    const domainPart = url.replace(/^https?:\/\//i, "");
+    const domainPart = roh.replace(/^https?:\/\//i, "");
     const httpsUrl = "https://" + domainPart;
     const httpUrl = "http://" + domainPart;
 
@@ -37,30 +37,28 @@ serve(async (req: Request) => {
       "Upgrade-Insecure-Requests": "1"
     };
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+    // Verbotene Ziele (interne Adressen, fremde Ports …) sofort ablehnen — kein http-Fallback
+    const VERBOTEN = ["Adresse nicht erlaubt.", "Nur Standardports erlaubt.", "Nur http/https erlaubt."];
+    const ungueltig = () => new Response(JSON.stringify({ error: "Diese Adresse kann nicht analysiert werden." }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+    });
+    try { new URL(httpsUrl); } catch { return ungueltig(); }
 
-      const response = await fetch(httpsUrl, {
-        headers: fetchHeaders,
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      html = await response.text();
+    try {
+      const r = await sichererAbruf(httpsUrl, fetchHeaders);
+      html = r.text;
+      finalUrl = r.finalUrl;
     } catch (err: any) {
+      if (VERBOTEN.includes(err?.message)) return ungueltig();
       sslValid = false;
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-        const response = await fetch(httpUrl, {
-          headers: fetchHeaders,
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        html = await response.text();
-        finalUrl = httpUrl;
-      } catch (e) {
-        // Both failed
+        const r = await sichererAbruf(httpUrl, fetchHeaders);
+        html = r.text;
+        finalUrl = r.finalUrl;
+      } catch (e: any) {
+        if (VERBOTEN.includes(e?.message)) return ungueltig();
+        // Beide Abrufe fehlgeschlagen: ohne HTML weiter, wie bisher
       }
     }
 

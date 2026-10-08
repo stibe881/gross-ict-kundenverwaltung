@@ -2,9 +2,8 @@
 import Base from "../layouts/Base.astro";
 import ContactForm from "../components/ContactForm.astro";
 
-import fs from 'fs';
-import path from 'path';
 import { optimiertesBild } from '../lib/bild';
+import { ladeReferenzen } from '../lib/crm';
 
 // Eingebaute Liste als Fallback, falls das CRM beim Build nicht erreichbar ist.
 const fallbackReferenzen = [
@@ -80,30 +79,19 @@ const fallbackReferenzen = [
 // Sortierung aufsteigend — die drei tiefsten Werte erscheinen auf der Seite.
 let referenzen = fallbackReferenzen;
 try {
-  const envPath = path.resolve('../.env');
-  const envStr = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
-  const url = envStr.match(/EXPO_PUBLIC_SUPABASE_URL=(.*)/)?.[1]?.trim();
-  const key = envStr.match(/SUPABASE_SERVICE_ROLE_KEY=(.*)/)?.[1]?.trim();
-  if (url && key) {
-    const res = await fetch(`${url}/rest/v1/website_references?select=*&active=eq.true&order=sort_order.asc`, {
-      headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
-    });
-    if (res.ok) {
-      const data = (await res.json()).filter((r) => !r.bereich || r.bereich === 'web');
-      const geladen = await Promise.all(data.map(async (r) => ({
-        kunde: r.name,
-        titel: r.titel,
-        text: r.beschreibung,
-        url: r.url,
-        urlLabel: r.url_label || (r.url ? r.url.replace(/^https?:\/\//, '').replace(/\/$/, '') : ''),
-        tags: (r.tags || []).filter((t) => !t.startsWith('Branche:')),
-        shot: await optimiertesBild(r.bild_url),
-        env: r.umgebung_bild_url || null,
-        alt: `Webseite von ${r.name}`,
-      })));
-      if (geladen.length) referenzen = geladen;
-    }
-  }
+  const data = (await ladeReferenzen()).filter((r) => !r.bereich || r.bereich === 'web');
+  const geladen = await Promise.all(data.map(async (r) => ({
+    kunde: r.name,
+    titel: r.titel,
+    text: r.beschreibung,
+    url: r.url,
+    urlLabel: r.url_label || (r.url ? r.url.replace(/^https?:\/\//, '').replace(/\/$/, '') : ''),
+    tags: (r.tags || []).filter((t) => !t.startsWith('Branche:')),
+    shot: await optimiertesBild(r.bild_url),
+    env: r.umgebung_bild_url || null,
+    alt: `Webseite von ${r.name}`,
+  })));
+  if (geladen.length) referenzen = geladen;
 } catch (e) {
   console.error('Fehler beim Laden der Referenzen:', e);
 }

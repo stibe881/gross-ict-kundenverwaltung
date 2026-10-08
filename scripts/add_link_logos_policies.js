@@ -1,7 +1,8 @@
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) { console.error('SUPABASE_SERVICE_ROLE_KEY fehlt (Wert aus dem Supabase-Dashboard in die lokale .env eintragen; siehe .env.example).'); process.exit(1); }
 // Add RLS policies for link-logos bucket using Supabase Management API
 const https = require('https');
 
-const serviceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bHV2dnl2ZnR5Z254dG1ib3h3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDIzNTU1NCwiZXhwIjoyMDg1ODExNTU0fQ.YNNjhdRrdzU6mZWAGvIq0sYKsyPLNd4PXw_1S_mwSQM';
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const projectRef = 'bvluvvyvftygnxtmboxw';
 
 // Use the pg endpoint via PostgREST for SQL - won't work without pg access

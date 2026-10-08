@@ -71,3 +71,8 @@ deploy_key.pub
 *.pem
 id_rsa*
 id_ed25519*
+
+# lokale Geheimnisse (Vorlage: .env.example)
+.env
+.env.local
+!.env.example

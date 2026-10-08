@@ -1,46 +1,38 @@
 ﻿---
 import Base from "../layouts/Base.astro";
 import ContactForm from "../components/ContactForm.astro";
-import fs from 'fs';
-import path from 'path';
 import { optimiertesBild } from "../lib/bild";
+import { ladeReferenzen } from "../lib/crm";
 
 let referenzen = [];
 try {
-  const envPath = path.resolve('../.env');
-  const envStr = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
-  const url = envStr.match(/EXPO_PUBLIC_SUPABASE_URL=(.*)/)?.[1]?.trim();
-  const key = envStr.match(/SUPABASE_SERVICE_ROLE_KEY=(.*)/)?.[1]?.trim();
-  
-  if (url && key) {
-    const res = await fetch(`${url}/rest/v1/website_references?select=*&active=eq.true&order=sort_order.asc`, {
-      headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
-    });
-    if (res.ok) {
-      const data = (await res.json()).filter((r) => !r.bereich || r.bereich === 'web');
-      referenzen = await Promise.all(data.map(async (r) => {
-        const brancheTag = (r.tags || []).find(t => t.startsWith('Branche:'));
-        const branche = brancheTag ? brancheTag.replace('Branche:', '').trim() : 'Sonstige';
-        const visibleTags = (r.tags || []).filter(t => !t.startsWith('Branche:'));
-        
-        return {
-          id: r.id,
-          kunde: r.name,
-          titel: r.titel,
-          text: r.beschreibung,
-          url: r.url,
-          urlLabel: r.url_label || (r.url ? r.url.replace(/^https?:\/\//, '').replace(/\/$/, '') : ''),
-          tags: visibleTags,
-          branche: branche,
-          shot: await optimiertesBild(r.bild_url),
-          env: r.umgebung_bild_url || '/img/umgebung/office.webp',
-          alt: `Webseite von ${r.name}`,
-        };
-      }));
-    }
-  }
+  const data = (await ladeReferenzen()).filter((r) => !r.bereich || r.bereich === 'web');
+  referenzen = await Promise.all(data.map(async (r) => {
+    const brancheTag = (r.tags || []).find(t => t.startsWith('Branche:'));
+    const branche = brancheTag ? brancheTag.replace('Branche:', '').trim() : 'Sonstige';
+    const visibleTags = (r.tags || []).filter(t => !t.startsWith('Branche:'));
+
+    return {
+      id: r.id,
+      kunde: r.name,
+      titel: r.titel,
+      text: r.beschreibung,
+      url: r.url,
+      urlLabel: r.url_label || (r.url ? r.url.replace(/^https?:\/\//, '').replace(/\/$/, '') : ''),
+      tags: visibleTags,
+      branche: branche,
+      shot: await optimiertesBild(r.bild_url),
+      env: r.umgebung_bild_url || '/img/umgebung/office.webp',
+      alt: `Webseite von ${r.name}`,
+    };
+  }));
 } catch(e) {
   console.error("Fehler beim Laden der Referenzen:", e);
+}
+// Schutz vor einer leeren Referenzseite im automatischen Deploy (z.B. wenn die
+// Lese-Regel aus Migration 20261025 fehlt): lieber abbrechen als leer veröffentlichen.
+if (referenzen.length === 0 && process.env.CI) {
+  throw new Error("Keine Referenzen aus dem CRM geladen — Migration 20261025 (website_references_public_read) ausgeführt?");
 }
 
 const branches = [...new Set(referenzen.map(r => r.branche))].sort();
