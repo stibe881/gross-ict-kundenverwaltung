@@ -250,6 +250,7 @@ function KampagnenDetail({ kampagne, colors, userId, onZurueck, onBearbeiten }: 
   const [filter, setFilter] = useState<Akq.ProspectStatus | "alle">("alle");
   const [zeigeNeu, setZeigeNeu] = useState(false);
   const [zeigeImport, setZeigeImport] = useState(false);
+  const [zeigeSuche, setZeigeSuche] = useState(false);
 
   const { data: prospects = [], isLoading } = useQuery({
     queryKey: ["akqProspects", kampagne.id],
@@ -276,8 +277,9 @@ function KampagnenDetail({ kampagne, colors, userId, onZurueck, onBearbeiten }: 
       {!!kampagne.ausschluesse && <Text style={{ fontSize: 13, color: colors.muted }}>Ausschlüsse: {kampagne.ausschluesse}</Text>}
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginVertical: 14 }}>
-        <Knopf colors={colors} text="+ Prospect" onPress={() => { setZeigeNeu(!zeigeNeu); setZeigeImport(false); }} />
-        <Knopf colors={colors} text="Liste importieren" variante="rand" onPress={() => { setZeigeImport(!zeigeImport); setZeigeNeu(false); }} />
+        <Knopf colors={colors} text="Firmen suchen (Google)" onPress={() => { setZeigeSuche(!zeigeSuche); setZeigeNeu(false); setZeigeImport(false); }} />
+        <Knopf colors={colors} text="+ Prospect" variante="rand" onPress={() => { setZeigeNeu(!zeigeNeu); setZeigeImport(false); setZeigeSuche(false); }} />
+        <Knopf colors={colors} text="Liste importieren" variante="rand" onPress={() => { setZeigeImport(!zeigeImport); setZeigeNeu(false); setZeigeSuche(false); }} />
         <Knopf colors={colors} text="Kampagne bearbeiten" variante="rand" onPress={onBearbeiten} />
         <Knopf colors={colors} text="Löschen" variante="gefahr" onPress={() => {
           showConfirm("Kampagne löschen", `«${kampagne.name}» samt allen Prospects wird gelöscht (übernommene Leads bleiben bestehen). Fortfahren?`, async () => {
@@ -287,6 +289,7 @@ function KampagnenDetail({ kampagne, colors, userId, onZurueck, onBearbeiten }: 
         }} />
       </View>
 
+      {zeigeSuche && <PlacesSuche colors={colors} kampagne={kampagne} userId={userId} onVorgemerkt={neuLaden} />}
       {zeigeNeu && <ProspectFormular colors={colors} kampagne={kampagne} userId={userId} onFertig={() => { setZeigeNeu(false); neuLaden(); }} />}
       {zeigeImport && <ImportPanel colors={colors} kampagne={kampagne} userId={userId} onFertig={() => { setZeigeImport(false); neuLaden(); }} />}
 
@@ -307,6 +310,67 @@ function KampagnenDetail({ kampagne, colors, userId, onZurueck, onBearbeiten }: 
         sichtbar.map((p) => <ProspectKarte key={p.id} p={p} kampagne={kampagne} colors={colors} userId={userId} onAenderung={neuLaden} />)
       )}
     </>
+  );
+}
+
+// ── Firmen suchen (Google Places) ─────────────────────────────────────────
+// Treffer werden nur angezeigt. Gespeichert wird beim Vormerken ausschliesslich
+// die Google-ID (place_id) — so verlangt es Google.
+
+function PlacesSuche({ colors, kampagne, userId, onVorgemerkt }: { colors: Farben; kampagne: Akq.Campaign; userId?: string; onVorgemerkt: () => void }) {
+  const [suche, setSuche] = useState([kampagne.branchen[0], kampagne.kantone[0]].filter(Boolean).join(" "));
+  const [treffer, setTreffer] = useState<Akq.PlaceEintrag[]>([]);
+  const [weiter, setWeiter] = useState<string | null>(null);
+  const [laedt, setLaedt] = useState(false);
+  const [gesucht, setGesucht] = useState(false);
+
+  const los = async (token?: string) => {
+    setLaedt(true);
+    try {
+      const r = await Akq.placesSuchen(suche, kampagne.id, token);
+      setTreffer(token ? [...treffer, ...r.treffer] : r.treffer);
+      setWeiter(r.nextPageToken);
+      setGesucht(true);
+    } catch (e: any) {
+      showAlert("Suche fehlgeschlagen", e.message);
+    } finally { setLaedt(false); }
+  };
+
+  const vormerken = async (t: Akq.PlaceEintrag) => {
+    try {
+      await Akq.placeVormerken(kampagne.id, t.placeId, userId);
+      setTreffer((alle) => alle.map((x) => (x.placeId === t.placeId ? { ...x, bereitsVorgemerkt: true } : x)));
+      showToast("Vorgemerkt");
+      onVorgemerkt();
+    } catch (e: any) { showAlert("Fehler", e.message); }
+  };
+
+  return (
+    <Karte colors={colors} titel="Firmen suchen (Google Maps)">
+      <Text style={{ fontSize: 12.5, color: colors.muted, marginBottom: 10 }}>
+        Die Treffer stammen live aus Google Maps und werden nur angezeigt. Beim Vormerken speichern wir ausschliesslich die Google-ID,
+        nicht Name oder Telefonnummer (Vorgabe von Google). Die Firmendaten holen Sie danach von der eigenen Website der Firma.
+        Jede Suche und jede Seite «Mehr laden» verursacht Kosten bei Google.
+      </Text>
+      <Feld colors={colors} label="Suchbegriff" value={suche} onChange={setSuche} placeholder="z.B. Sanitär Luzern" />
+      <Knopf colors={colors} text={laedt ? "Sucht…" : "Suchen"} onPress={() => los()} aus={laedt || suche.trim().length < 3} />
+
+      {gesucht && treffer.length === 0 && <Text style={{ color: colors.muted, marginTop: 12 }}>Keine Treffer.</Text>}
+      {treffer.map((t) => (
+        <View key={t.placeId} style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+          <Text style={{ fontSize: 15, fontWeight: "700", color: colors.text }}>{t.name}</Text>
+          {!!t.adresse && <Text style={{ fontSize: 12.5, color: colors.muted }}>{t.adresse}</Text>}
+          {!!t.telefon && <Text style={{ fontSize: 12.5, color: colors.muted }}>{t.telefon}</Text>}
+          {!!t.website && <Text style={{ fontSize: 12.5, color: colors.primary }} onPress={() => Linking.openURL(t.website)}>{t.website}</Text>}
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 8, alignItems: "center" }}>
+            <Knopf colors={colors} klein text={t.bereitsVorgemerkt ? "Vorgemerkt ✓" : "Vormerken"} aus={!!t.bereitsVorgemerkt} onPress={() => vormerken(t)} />
+            {!!t.mapsUrl && <Knopf colors={colors} klein variante="rand" text="In Google Maps öffnen" onPress={() => Linking.openURL(t.mapsUrl)} />}
+          </View>
+        </View>
+      ))}
+      {!!weiter && <View style={{ marginTop: 14 }}><Knopf colors={colors} variante="rand" klein text={laedt ? "Lädt…" : "Mehr laden"} aus={laedt} onPress={() => los(weiter)} /></View>}
+      {gesucht && <Text style={{ fontSize: 11.5, color: colors.muted, marginTop: 14 }}>Quelle der Treffer: Google Maps</Text>}
+    </Karte>
   );
 }
 
@@ -431,7 +495,8 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
   p: Akq.Prospect; kampagne: Akq.Campaign; colors: Farben; userId?: string; onAenderung: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [panel, setPanel] = useState<null | "compliance" | "sperre" | "belege">(null);
+  const [panel, setPanel] = useState<null | "compliance" | "sperre" | "belege" | "google">(null);
+  const [google, setGoogle] = useState<Akq.PlaceEintrag | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [cStatus, setCStatus] = useState<Akq.ComplianceStatus>(p.compliance_status === "pending_review" ? "allowed" : p.compliance_status);
   const [anlass, setAnlass] = useState("");
@@ -460,7 +525,7 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
     <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: gesperrt ? "#EF444466" : colors.border, borderRadius: 14, padding: 14, marginBottom: 10, opacity: p.status === "verworfen" ? 0.55 : 1 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 10 }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: "700", color: colors.text }}>{p.firma}</Text>
+          <Text style={{ fontSize: 16, fontWeight: "700", color: p.firma ? colors.text : colors.muted }}>{p.firma || "Google-Eintrag (Firmendaten noch nicht übernommen)"}</Text>
           <Text style={{ fontSize: 12.5, color: colors.muted, marginTop: 2 }}>
             {[p.plz, p.ort, p.kanton].filter(Boolean).join(" ")}{p.branche ? ` · ${p.branche}` : ""}
           </Text>
@@ -496,6 +561,22 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
           <Knopf colors={colors} klein variante="rand" text={busy === "web" ? "Prüft…" : "Website prüfen"} aus={!p.domain || !!busy}
             onPress={() => lauf("web", () => Akq.pruefeWebsite(p, kampagne, userId), "Website geprüft")} />
+          {!!p.google_place_id && !p.firma && (
+            <Knopf colors={colors} klein text={busy === "daten" ? "Liest…" : "Firmendaten von Website holen"} aus={!!busy}
+              onPress={() => lauf("daten", async () => {
+                const r = await Akq.datenVonWebsiteUebernehmen(p);
+                if (r.hinweis) showAlert("Hinweis", r.hinweis);
+              }, "Firmendaten übernommen")} />
+          )}
+          {!!p.google_place_id && (
+            <Knopf colors={colors} klein variante="rand" text="Google-Eintrag ansehen" aus={!!busy}
+              onPress={async () => {
+                if (panel === "google") { setPanel(null); return; }
+                setPanel("google");
+                try { setGoogle(await Akq.placeDetails(p.google_place_id!)); }
+                catch (e: any) { setPanel(null); showAlert("Fehler", e.message); }
+              }} />
+          )}
           <Knopf colors={colors} klein variante="rand" text="Compliance prüfen" onPress={() => setPanel(panel === "compliance" ? null : "compliance")} />
           <Knopf colors={colors} klein variante="rand" text="Belege" onPress={() => setPanel(panel === "belege" ? null : "belege")} />
           {p.status !== "freigegeben" ? (
@@ -541,6 +622,23 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
           <Feld colors={colors} label="Grund" value={grund} onChange={setGrund} placeholder="z.B. Wunsch am Telefon, Sterneintrag entdeckt" />
           <Knopf colors={colors} variante="gefahr" text={busy === "sperre" ? "Sperrt…" : "Dauerhaft sperren"} aus={!!busy}
             onPress={() => lauf("sperre", async () => { await Akq.aufSperrlisteSetzen(p, grund, userId); setPanel(null); }, "Auf die Sperrliste gesetzt")} />
+        </View>
+      )}
+
+      {panel === "google" && (
+        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+          {!google ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <>
+              <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>{google.name}</Text>
+              {!!google.adresse && <Text style={{ fontSize: 12.5, color: colors.muted }}>{google.adresse}</Text>}
+              {!!google.telefon && <Text style={{ fontSize: 12.5, color: colors.muted }}>{google.telefon}</Text>}
+              {!!google.website && <Text style={{ fontSize: 12.5, color: colors.primary }} onPress={() => Linking.openURL(google.website)}>{google.website}</Text>}
+              {!!google.mapsUrl && <Text style={{ fontSize: 12.5, color: colors.primary, marginTop: 4 }} onPress={() => Linking.openURL(google.mapsUrl)}>In Google Maps öffnen</Text>}
+              <Text style={{ fontSize: 11.5, color: colors.muted, marginTop: 8 }}>Live von Google Maps abgerufen und nicht gespeichert. Quelle: Google Maps</Text>
+            </>
+          )}
         </View>
       )}
 

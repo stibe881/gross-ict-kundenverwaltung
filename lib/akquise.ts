@@ -170,7 +170,7 @@ export async function aufSperrlisteSetzen(p: Prospect, grund: string, userId?: s
     norm_telefon: normTelefon(p.telefon),
     norm_email: normEmail(p.email),
     norm_domain: normDomain(p.domain),
-    firma: p.firma,
+    firma: p.firma || null,
     grund: grund.trim() || "Nicht mehr kontaktieren",
     quelle: "Akquise-Kampagne",
     created_by: userId || null,
@@ -181,8 +181,13 @@ export async function aufSperrlisteSetzen(p: Prospect, grund: string, userId?: s
 // ── Website prüfen (belegt) ──────────────────────────────────────────────
 
 export async function pruefeWebsite(p: Prospect, k: Campaign, userId?: string): Promise<Prospect> {
-  if (!p.domain) throw new Error("Für die Website-Prüfung braucht der Prospect eine Domain.");
-  const { data, error } = await supabase.functions.invoke("analyze-website", { body: { url: p.domain } });
+  let ziel = p.domain;
+  if (!ziel && p.google_place_id) {
+    // Website-Adresse nur für diesen Abruf live bei Google holen (wird nicht gespeichert)
+    ziel = (await placeDetails(p.google_place_id)).website || null;
+  }
+  if (!ziel) throw new Error("Für die Website-Prüfung ist keine Website bekannt.");
+  const { data, error } = await supabase.functions.invoke("analyze-website", { body: { url: ziel } });
   if (error) throw new Error(error.message || "Website-Prüfung fehlgeschlagen.");
   if ((data as any)?.error) throw new Error((data as any).error);
   const wc = data as any;
@@ -190,7 +195,7 @@ export async function pruefeWebsite(p: Prospect, k: Campaign, userId?: string): 
 
   // Belege festhalten: URL, Zeitpunkt, was gefunden wurde
   const belege: any[] = [];
-  const url = wc.url || `https://${p.domain}`;
+  const url = wc.url || `https://${ziel}`;
   const beleg = (feld: string, text: string, vertrauen: "niedrig" | "mittel" | "hoch" = "mittel") =>
     belege.push({ prospect_id: p.id, quelle_url: url, feld, textauszug: text.slice(0, 500), vertrauen, abgerufen_am: abgerufen, created_by: userId || null });
   if (wc.sslValid !== undefined) beleg("HTTPS", wc.sslValid ? "HTTPS erreichbar" : "Kein gültiges HTTPS-Zertifikat", "hoch");
@@ -216,6 +221,7 @@ export async function alsLeadUebernehmen(p: Prospect, k: Campaign): Promise<stri
   if (p.lead_id) throw new Error("Dieser Prospect wurde bereits als Lead übernommen.");
   if (p.compliance_status !== "allowed") throw new Error("Übernahme nur nach erfolgter Compliance-Prüfung («Anruf erlaubt»).");
   if (p.status !== "freigegeben") throw new Error("Bitte den Prospect zuerst freigeben.");
+  if (!p.firma) throw new Error("Es fehlen die Firmendaten. Bitte zuerst «Firmendaten von Website holen».");
 
   const notizen = [
     `Kampagne: ${k.name}`,
@@ -227,7 +233,7 @@ export async function alsLeadUebernehmen(p: Prospect, k: Campaign): Promise<stri
 
   const lead = await createLead({
     name: p.ansprechpartner || p.firma,
-    company: p.firma,
+    company: p.firma || undefined,
     email: p.email || undefined,
     phone: p.telefon || undefined,
     website: p.domain || undefined,
@@ -242,4 +248,104 @@ export async function alsLeadUebernehmen(p: Prospect, k: Campaign): Promise<stri
   });
   await updateProspect(p.id, { lead_id: lead.id, status: "uebernommen" });
   return lead.id;
+}
+
+// ── Google Places (Places API (New)) ─────────────────────────────────────
+// Richtlinie von Google: Inhalte der Places API dürfen nicht gespeichert werden,
+// ausser der place_id. Treffer, Details und die Website-Adresse werden darum nur
+// live abgefragt und angezeigt. In der Datenbank steht ausschliesslich die place_id.
+
+export interface PlaceEintrag {
+  placeId: string;
+  name: string;
+  adresse: string;
+  telefon: string;
+  website: string;
+  mapsUrl: string;
+  bereitsVorgemerkt?: boolean;
+}
+
+async function placesAufruf(body: Record<string, unknown>): Promise<any> {
+  const { data, error } = await supabase.functions.invoke("places-recherche", { body });
+  if (error) {
+    // Fehlertext der Function (z.B. fehlender API-Schlüssel) sichtbar machen
+    let text = error.message;
+    try { const j = await (error as any).context?.json?.(); if (j?.error) text = j.error; } catch {}
+    throw new Error(text || "Places-Recherche fehlgeschlagen.");
+  }
+  if ((data as any)?.error) throw new Error((data as any).error);
+  return data;
+}
+
+export async function placesSuchen(textQuery: string, campaignId: string, pageToken?: string): Promise<{ treffer: PlaceEintrag[]; nextPageToken: string | null }> {
+  return placesAufruf({ action: "suche", textQuery, campaignId, pageToken });
+}
+
+export async function placeDetails(placeId: string): Promise<PlaceEintrag> {
+  return (await placesAufruf({ action: "details", placeId })).eintrag;
+}
+
+/** Merkt einen Google-Eintrag vor — gespeichert wird NUR die place_id. */
+export async function placeVormerken(campaignId: string, placeId: string, userId?: string): Promise<void> {
+  const { error } = await db.from("prospects").insert({
+    campaign_id: campaignId,
+    google_place_id: placeId,
+    firma: null,
+    quelle: "google_places",
+    quelle_notiz: "Google Places — nur die place_id ist gespeichert",
+    created_by: userId || null,
+  });
+  if (error) {
+    if (error.code === "23505") throw new Error("Dieser Google-Eintrag ist in der Kampagne bereits vorgemerkt.");
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Holt Firmenname, Telefon, E-Mail und Adresse von der EIGENEN Website der Firma
+ * (Impressum/Kontakt), nicht aus Google. Die Website-Adresse wird dafür live bei
+ * Google abgefragt und nur für diesen Abruf verwendet.
+ */
+export async function datenVonWebsiteUebernehmen(p: Prospect): Promise<{ hinweis: string | null }> {
+  if (!p.google_place_id) throw new Error("Nur für Google-Prospects.");
+  const eintrag = await placeDetails(p.google_place_id);
+  if (!eintrag.website) throw new Error("Zu diesem Google-Eintrag ist keine Website bekannt — bitte Firmendaten von Hand erfassen.");
+  const { data, error } = await supabase.functions.invoke("analyze-website", { body: { url: eintrag.website } });
+  if (error) throw new Error(error.message || "Die Website konnte nicht gelesen werden.");
+  const wc = data as any;
+  if (wc?.error) throw new Error(wc.error);
+
+  const werte: Partial<Prospect> & Record<string, any> = {
+    firma: wc.title || p.firma || null,
+    telefon: wc.phone || p.telefon || null,
+    email: wc.email || p.email || null,
+    adresse: wc.address || p.adresse || null,
+    plz: wc.zip || p.plz || null,
+    ort: wc.city || p.ort || null,
+    domain: normDomain(wc.url) || normDomain(eintrag.website),
+    quelle_notiz: "Google Places (place_id); Firmendaten von der Firmenwebsite",
+  };
+  werte.norm_domain = normDomain(werte.domain);
+  werte.norm_telefon = normTelefon(werte.telefon);
+  werte.norm_email = normEmail(werte.email);
+  if (!werte.firma) throw new Error("Auf der Website wurde kein Firmenname gefunden — bitte von Hand ergänzen.");
+
+  // Mögliche Duplikate zu Leads und Kunden anzeigen (nicht blockieren)
+  const hinweise: string[] = [];
+  const [l, c] = await Promise.all([
+    db.from("leads").select("company, website, phone, email"),
+    db.from("customers").select("company_name, website, phone, email"),
+  ]);
+  for (const x of l.data || []) {
+    if ((werte.norm_domain && normDomain(x.website) === werte.norm_domain) || (werte.norm_telefon && normTelefon(x.phone) === werte.norm_telefon) || (werte.norm_email && normEmail(x.email) === werte.norm_email)) {
+      hinweise.push(`bereits Lead «${x.company || "?"}»`); break;
+    }
+  }
+  for (const x of c.data || []) {
+    if ((werte.norm_domain && normDomain(x.website) === werte.norm_domain) || (werte.norm_telefon && normTelefon(x.phone) === werte.norm_telefon) || (werte.norm_email && normEmail(x.email) === werte.norm_email)) {
+      hinweise.push(`bereits Kunde «${x.company_name || "?"}»`); break;
+    }
+  }
+  await updateProspect(p.id, werte as any);
+  return { hinweis: hinweise.length ? "Mögliches Duplikat: " + hinweise.join(", ") : null };
 }

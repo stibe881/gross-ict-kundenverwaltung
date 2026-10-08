@@ -29,7 +29,8 @@ export interface Campaign {
 export interface Prospect {
   id: string;
   campaign_id: string;
-  firma: string;
+  firma: string | null;
+  google_place_id: string | null;
   domain: string | null;
   adresse: string | null;
   plz: string | null;
