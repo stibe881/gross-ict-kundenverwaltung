@@ -28,19 +28,6 @@ export function plzOrtAusAdresse(adresse: string): { plz: string; ort: string } 
   return m ? { plz: m[1], ort: m[2].trim() } : null;
 }
 
-/** Eingabefeld «Ort oder PLZ» (z. B. «6144, 6260» oder «Zell LU») in PLZ-Liste und Ortsname zerlegen. */
-export function gebietAusEingabe(text: string): { plz: string[]; ort: string } {
-  const teile = text.split(/[,;\n]+/).map((t) => t.trim()).filter(Boolean);
-  const plz: string[] = [];
-  const orte: string[] = [];
-  for (const t of teile) {
-    const m = t.match(/^(\d{4})(?:\s+(.+))?$/);
-    if (m) { plz.push(m[1]); if (m[2]) orte.push(m[2]); }
-    else orte.push(t);
-  }
-  return { plz: [...new Set(plz)].slice(0, 20), ort: orte[0] ?? "" };
-}
-
 export function entfernungKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const r = 6371;
   const rad = (g: number) => (g * Math.PI) / 180;

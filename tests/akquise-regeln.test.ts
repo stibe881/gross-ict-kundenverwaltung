@@ -118,3 +118,15 @@ describe("Befund bei unvollständigen Altdaten", () => {
     expect(z["Sichere Verbindung"]).toMatchObject({ ok: false });
   });
 });
+
+import { gebietAusEingabe } from "../lib/akquise-regeln";
+
+describe("Eingabe «Ort oder PLZ»", () => {
+  it("trennt PLZ und Ortsnamen", () => {
+    expect(gebietAusEingabe("6144, 6260")).toEqual({ plz: ["6144", "6260"], ort: "" });
+    expect(gebietAusEingabe("Zell LU")).toEqual({ plz: [], ort: "Zell LU" });
+    expect(gebietAusEingabe("6144 Zell")).toEqual({ plz: ["6144"], ort: "Zell" });
+    expect(gebietAusEingabe("")).toEqual({ plz: [], ort: "" });
+  });
+});
+

@@ -5,10 +5,8 @@
 // zusätzlich in der Datenbank (Migration 20261026).
 import { supabase } from "./supabase";
 import { createLead, saveLeadWebCheck, addLeadActivity } from "./data";
-import { normDomain, normTelefon, normEmail, berechneScore, befundAlsText } from "./akquise-regeln";
+import { normDomain, normTelefon, normEmail, berechneScore, befundAlsText, gebietAusEingabe } from "./akquise-regeln";
 import type { Campaign, Prospect, ComplianceStatus } from "./akquise-regeln";
-// Reine Funktion der Edge Function (Gebiets-Eingabe zerlegen) — Client und Server nutzen dieselbe Logik
-import { gebietAusEingabe } from "../supabase/functions/_shared/gebiet";
 
 export * from "./akquise-regeln";
 

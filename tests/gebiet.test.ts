@@ -1,18 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  entfernungKm, gebietAusEingabe, imGebiet, normalisiereOrt, plzOrtAusAdresse, umschliessendesRechteck,
+  entfernungKm, imGebiet, normalisiereOrt, plzOrtAusAdresse, umschliessendesRechteck,
 } from "../supabase/functions/_shared/gebiet";
 
 const zell = { plz: ["6144"], ort: "", radiusKm: 0 };
-
-describe("Eingabe «Ort oder PLZ»", () => {
-  it("trennt PLZ und Ortsnamen", () => {
-    expect(gebietAusEingabe("6144, 6260")).toEqual({ plz: ["6144", "6260"], ort: "" });
-    expect(gebietAusEingabe("Zell LU")).toEqual({ plz: [], ort: "Zell LU" });
-    expect(gebietAusEingabe("6144 Zell")).toEqual({ plz: ["6144"], ort: "Zell" });
-    expect(gebietAusEingabe("")).toEqual({ plz: [], ort: "" });
-  });
-});
 
 describe("Adresse und Ortsname", () => {
   it("liest PLZ und Ort aus der Google-Adresse", () => {

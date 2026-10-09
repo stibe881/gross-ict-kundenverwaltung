@@ -165,3 +165,18 @@ export function befundAlsText(wc: any): string {
     .map((z) => `${z.ok === true ? "✓" : z.ok === false ? "✗" : "–"} ${z.label}: ${z.text}`)
     .join("\n") + (stand ? `\n${stand.trim()}` : "");
 }
+
+// ── Eingabe «Ort oder PLZ» der Firmensuche ──────────────────────────────────
+
+/** Eingabefeld «Ort oder PLZ» (z. B. «6144, 6260» oder «Zell LU») in PLZ-Liste und Ortsname zerlegen. */
+export function gebietAusEingabe(text: string): { plz: string[]; ort: string } {
+  const teile = text.split(/[,;\n]+/).map((t) => t.trim()).filter(Boolean);
+  const plz: string[] = [];
+  const orte: string[] = [];
+  for (const t of teile) {
+    const m = t.match(/^(\d{4})(?:\s+(.+))?$/);
+    if (m) { plz.push(m[1]); if (m[2]) orte.push(m[2]); }
+    else orte.push(t);
+  }
+  return { plz: [...new Set(plz)].slice(0, 20), ort: orte[0] ?? "" };
+}
