@@ -348,21 +348,12 @@ function PlacesSuche({ colors, kampagne, userId, onVorgemerkt }: { colors: Farbe
   };
 
   const vormerken = async (t: Akq.PlaceEintrag) => {
-    let neu: Akq.Prospect;
     try {
-      neu = await Akq.placeVormerken(kampagne.id, t.placeId, userId);
-    } catch (e: any) { showAlert("Fehler", e.message); return; }
-    setTreffer((alle) => alle.map((x) => (x.placeId === t.placeId ? { ...x, bereitsVorgemerkt: true } : x)));
-    onVorgemerkt();
-    showToast("Vorgemerkt — lädt Firmendaten …");
-    // Firmenname, Kontaktdaten und Website-Befund gleich von der Firmenwebsite holen
-    try {
-      const r = await Akq.pruefeProspect(neu, kampagne, userId);
-      showToast(r.hinweis ? `Vorgemerkt · ${r.hinweis}` : `Vorgemerkt: ${r.prospect.firma || t.name}`);
-    } catch (e: any) {
-      showAlert("Vorgemerkt", `Die Firmendaten konnten nicht geladen werden: ${e.message}\n\nSie können es auf der Karte mit «Website prüfen» erneut versuchen.`);
-    }
-    onVorgemerkt();
+      await Akq.placeVormerken(kampagne.id, t.placeId, userId);
+      setTreffer((alle) => alle.map((x) => (x.placeId === t.placeId ? { ...x, bereitsVorgemerkt: true } : x)));
+      showToast("Vorgemerkt");
+      onVorgemerkt();
+    } catch (e: any) { showAlert("Fehler", e.message); }
   };
 
   return (
@@ -532,11 +523,20 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
   const router = useRouter();
   const [panel, setPanel] = useState<null | "sperre" | "belege" | "google">(null);
   const [google, setGoogle] = useState<Akq.PlaceEintrag | null>(null);
+  const [nameLaedt, setNameLaedt] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [grund, setGrund] = useState("");
   // Gesperrt = steht auf der Sperrliste «Nicht kontaktieren» (oder wurde früher so markiert)
   const gesperrt = p.compliance_status.startsWith("blocked");
   const befund = Akq.webBefund(p.web_check);
+  // Ohne gespeicherte Firmendaten kann der Name auf Klick live von Google geholt werden (wird nicht gespeichert)
+  const anzeigeName = p.firma || google?.name || null;
+  const nameZeigen = async () => {
+    setNameLaedt(true);
+    try { setGoogle(await Akq.placeDetails(p.google_place_id!)); }
+    catch (e: any) { showAlert("Fehler", e.message); }
+    finally { setNameLaedt(false); }
+  };
 
   const { data: belege = [] } = useQuery({
     queryKey: ["akqBelege", p.id],
@@ -555,7 +555,18 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
     <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: gesperrt ? "#EF444466" : colors.border, borderRadius: 14, padding: 14, marginBottom: 10, opacity: p.status === "verworfen" ? 0.55 : 1 }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 10 }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: "700", color: p.firma ? colors.text : colors.muted }}>{p.firma || "Google-Eintrag (Firmendaten noch nicht übernommen)"}</Text>
+          <Text style={{ fontSize: 16, fontWeight: "700", color: anzeigeName ? colors.text : colors.muted }}>{anzeigeName || "Google-Eintrag (Firmendaten noch nicht übernommen)"}</Text>
+          {!p.firma && !!p.google_place_id && (
+            google ? (
+              <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
+                {[google.adresse].filter(Boolean).join(" · ")}{google.adresse ? " · " : ""}live von Google Maps, nicht gespeichert
+              </Text>
+            ) : (
+              <Text style={{ fontSize: 13, fontWeight: "700", color: colors.primary, marginTop: 3 }} onPress={nameLaedt ? undefined : nameZeigen}>
+                {nameLaedt ? "Lädt …" : "Name anzeigen"}
+              </Text>
+            )
+          )}
           <Text style={{ fontSize: 12.5, color: colors.muted, marginTop: 2 }}>
             {[p.plz, p.ort, p.kanton].filter(Boolean).join(" ")}{p.branche ? ` · ${p.branche}` : ""}
           </Text>
