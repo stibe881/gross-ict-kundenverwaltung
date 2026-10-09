@@ -2866,6 +2866,9 @@ export async function saveLeadWebCheck(leadId: string, result: any) {
                     ...(result.wcagOk !== undefined
                         ? { wcagOk: !!result.wcagOk, wcagHints: result.wcagHints || [] }
                         : {}),
+                    ...(result.outdated !== undefined
+                        ? { outdated: !!result.outdated, outdatedHints: result.outdatedHints || [] }
+                        : {}),
                 },
                 web_check_at: new Date().toISOString(),
             })

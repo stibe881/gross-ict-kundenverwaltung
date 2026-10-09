@@ -108,7 +108,7 @@ async function pruefeHost(host: string): Promise<void> {
   }
 }
 
-export interface AbrufErgebnis { text: string; finalUrl: string }
+export interface AbrufErgebnis { text: string; finalUrl: string; lastModified?: string }
 
 /** Lädt eine HTML-Seite sicher. Wirft bei verbotenen Zielen, falschem Typ oder Übergrösse. */
 export async function sichererAbruf(
@@ -149,7 +149,8 @@ export async function sichererAbruf(
 
     // Streaming mit hartem Limit
     const reader = res.body?.getReader();
-    if (!reader) return { text: "", finalUrl: aktuell };
+    const lastModified = res.headers.get("last-modified") ?? undefined;
+    if (!reader) return { text: "", finalUrl: aktuell, lastModified };
     const teile: Uint8Array[] = [];
     let summe = 0;
     while (true) {
@@ -162,7 +163,7 @@ export async function sichererAbruf(
     const alle = new Uint8Array(summe > maxBytes ? maxBytes : summe);
     let pos = 0;
     for (const t of teile) { if (pos + t.byteLength > alle.length) break; alle.set(t, pos); pos += t.byteLength; }
-    return { text: new TextDecoder().decode(alle), finalUrl: aktuell };
+    return { text: new TextDecoder().decode(alle), finalUrl: aktuell, lastModified };
   }
   throw new Error("Zu viele Weiterleitungen.");
 }

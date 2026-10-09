@@ -4,8 +4,8 @@
 // Die verbindlichen Regeln (Sperrliste, Freigabe nur bei «allowed») gelten
 // zusätzlich in der Datenbank (Migration 20261026).
 import { supabase } from "./supabase";
-import { createLead } from "./data";
-import { normDomain, normTelefon, normEmail, berechneScore } from "./akquise-regeln";
+import { createLead, saveLeadWebCheck, addLeadActivity } from "./data";
+import { normDomain, normTelefon, normEmail, berechneScore, befundAlsText } from "./akquise-regeln";
 import type { Campaign, Prospect, ComplianceStatus } from "./akquise-regeln";
 // Reine Funktion der Edge Function (Gebiets-Eingabe zerlegen) — Client und Server nutzen dieselbe Logik
 import { gebietAusEingabe } from "../supabase/functions/_shared/gebiet";
@@ -182,17 +182,20 @@ export async function aufSperrlisteSetzen(p: Prospect, grund: string, userId?: s
 
 // ── Website prüfen (belegt) ──────────────────────────────────────────────
 
-export async function pruefeWebsite(p: Prospect, k: Campaign, userId?: string): Promise<Prospect> {
-  let ziel = p.domain;
-  if (!ziel && p.google_place_id) {
-    // Website-Adresse nur für diesen Abruf live bei Google holen (wird nicht gespeichert)
-    ziel = (await placeDetails(p.google_place_id)).website || null;
-  }
-  if (!ziel) throw new Error("Für die Website-Prüfung ist keine Website bekannt.");
+/** Ruft die Website-Analyse auf (Impressum, Datenschutz, Barrierefreiheit, Alter, Kontaktdaten). */
+async function analysiere(ziel: string): Promise<any> {
   const { data, error } = await supabase.functions.invoke("analyze-website", { body: { url: ziel } });
-  if (error) throw new Error(error.message || "Website-Prüfung fehlgeschlagen.");
+  if (error) {
+    let text = error.message;
+    try { const j = await (error as any).context?.json?.(); if (j?.error) text = j.error; } catch {}
+    throw new Error(text || "Website-Prüfung fehlgeschlagen.");
+  }
   if ((data as any)?.error) throw new Error((data as any).error);
-  const wc = data as any;
+  return data as any;
+}
+
+/** Speichert Befund, Belege und Score; setzt «neu» auf «geprüft». `extra` = gleichzeitig zu speichernde Firmendaten. */
+async function webergebnisSpeichern(p: Prospect, k: Campaign, wc: any, ziel: string, userId?: string, extra: Partial<Prospect> = {}): Promise<Prospect> {
   const abgerufen = new Date().toISOString();
 
   // Belege festhalten: URL, Zeitpunkt, was gefunden wurde
@@ -204,12 +207,25 @@ export async function pruefeWebsite(p: Prospect, k: Campaign, userId?: string): 
   if (wc.isResponsive !== undefined) beleg("Mobil", wc.isResponsive ? "Viewport-Angabe vorhanden" : "Keine Viewport-Angabe (Hinweis auf fehlende Mobil-Optimierung)", "mittel");
   if (wc.hasImpressum !== undefined) beleg("Impressum", wc.hasImpressum ? "Impressum gefunden" : "Kein Impressum gefunden", "mittel");
   if (wc.hasPrivacy !== undefined) beleg("Datenschutz", wc.hasPrivacy ? "Datenschutzerklärung gefunden" : "Keine Datenschutzerklärung gefunden", "mittel");
+  if (wc.outdated !== undefined) beleg("Aktualität", wc.outdated ? `Wirkt veraltet: ${(wc.outdatedHints || []).join("; ")}` : "Keine Anzeichen für einen veralteten Stand", "niedrig");
+  if (wc.wcagOk !== undefined) beleg("Barrierefreiheit", wc.wcagOk ? "Keine Auffälligkeiten (automatische Prüfung)" : `Mängel: ${(wc.wcagHints || []).join("; ")}`, "niedrig");
   if (belege.length) await db.from("prospect_evidence").insert(belege);
 
-  const aktualisiert: Prospect = { ...p, web_check: { ...wc, abgerufen_am: abgerufen } };
+  const status = p.status === "neu" ? "geprueft" : p.status;
+  const aktualisiert: Prospect = { ...p, ...extra, status, web_check: { ...wc, abgerufen_am: abgerufen } } as Prospect;
   const { score, begruendung } = berechneScore(aktualisiert, k);
-  await updateProspect(p.id, { web_check: aktualisiert.web_check, score, score_begruendung: begruendung } as any);
+  await updateProspect(p.id, { ...extra, status, web_check: aktualisiert.web_check, score, score_begruendung: begruendung } as any);
   return { ...aktualisiert, score, score_begruendung: begruendung };
+}
+
+export async function pruefeWebsite(p: Prospect, k: Campaign, userId?: string): Promise<Prospect> {
+  let ziel = p.domain;
+  if (!ziel && p.google_place_id) {
+    // Website-Adresse nur für diesen Abruf live bei Google holen (wird nicht gespeichert)
+    ziel = (await placeDetails(p.google_place_id)).website || null;
+  }
+  if (!ziel) throw new Error("Für die Website-Prüfung ist keine Website bekannt.");
+  return webergebnisSpeichern(p, k, await analysiere(ziel), ziel, userId);
 }
 
 export async function getEvidence(prospectId: string): Promise<any[]> {
@@ -219,23 +235,54 @@ export async function getEvidence(prospectId: string): Promise<any[]> {
 
 // ── Übernahme als Lead ───────────────────────────────────────────────────
 
-export async function alsLeadUebernehmen(p: Prospect, k: Campaign): Promise<string> {
+/**
+ * Übernimmt einen Prospect mit einem Klick als Lead — mit allen vorhandenen Infos:
+ * holt bei Google-Prospects zuerst die Firmendaten von der Firmenwebsite, prüft die
+ * Website (falls noch nicht geschehen) und legt den Lead samt Befund, Score und
+ * Verkaufs-Tipp an. Einziges Hindernis: die Sperrliste.
+ */
+export async function alsLeadUebernehmen(p: Prospect, k: Campaign, userId?: string): Promise<string> {
   if (p.lead_id) throw new Error("Dieser Prospect wurde bereits als Lead übernommen.");
-  if (p.compliance_status !== "allowed") throw new Error("Übernahme nur nach erfolgter Compliance-Prüfung («Anruf erlaubt»).");
-  if (p.status !== "freigegeben") throw new Error("Bitte den Prospect zuerst freigeben.");
-  if (!p.firma) throw new Error("Es fehlen die Firmendaten. Bitte zuerst «Firmendaten von Website holen».");
+  if (p.compliance_status.startsWith("blocked")) throw new Error("Diese Firma steht auf der Sperrliste und kann nicht übernommen werden.");
 
+  // 1) Google-Prospect ohne Firmendaten: Daten von der eigenen Website der Firma holen
+  if (p.google_place_id && !p.firma) {
+    const r = await datenVonWebsiteUebernehmen(p, k, userId);
+    if (r.hinweis) throw new Error(`${r.hinweis}. Es wurde kein neuer Lead angelegt.`);
+    p = r.prospect;
+  }
+  const firma = p.firma;
+  if (!firma) throw new Error("Es fehlt der Firmenname. Bitte den Prospect ergänzen.");
+
+  // 2) Website prüfen, falls noch nicht geschehen (Fehler hier verhindern die Übernahme nicht)
+  let webHinweis = "";
+  if (!p.web_check && (p.domain || p.google_place_id)) {
+    try { p = await pruefeWebsite(p, k, userId); }
+    catch (e: any) { webHinweis = `Website konnte nicht geprüft werden: ${e.message}`; }
+  }
+
+  // 3) Lead anlegen — mit allen Infos
+  const wc = p.web_check as any;
+  const befund = befundAlsText(wc);
   const notizen = [
     `Kampagne: ${k.name}`,
     p.quelle ? `Quelle: ${p.quelle}${p.quelle_notiz ? ` (${p.quelle_notiz})` : ""}` : "",
+    p.branche ? `Branche: ${p.branche}` : "",
     p.score != null ? `Score: ${p.score}/100` : "",
     ...(p.score_begruendung || []),
-    k.call_ziel ? `Ziel des Anrufs: ${k.call_ziel}` : "",
+    befund ? `\nWebsite-Befund:\n${befund}` : "",
+    webHinweis,
+    wc?.notes && !String(wc.notes).includes("Bot-Schutz") ? `\n${wc.notes}` : "",
+    k.call_ziel ? `\nZiel des Anrufs: ${k.call_ziel}` : "",
   ].filter(Boolean).join("\n");
 
+  const prio = ["high", "medium", "low"].includes(wc?.priority)
+    ? wc.priority
+    : (p.score ?? 0) >= 60 ? "high" : (p.score ?? 0) >= 30 ? "medium" : "low";
+
   const lead = await createLead({
-    name: p.ansprechpartner || p.firma,
-    company: p.firma || undefined,
+    name: p.ansprechpartner || firma,
+    company: firma,
     email: p.email || undefined,
     phone: p.telefon || undefined,
     website: p.domain || undefined,
@@ -243,12 +290,21 @@ export async function alsLeadUebernehmen(p: Prospect, k: Campaign): Promise<stri
     zip: p.plz || undefined,
     city: p.ort || undefined,
     status: "new",
-    priority: (p.score ?? 0) >= 60 ? "high" : (p.score ?? 0) >= 30 ? "medium" : "low",
+    priority: prio,
     source: "kampagne",
     notes: notizen,
     value: 0,
   });
   await updateProspect(p.id, { lead_id: lead.id, status: "uebernommen" });
+
+  // 4) Nebenwirkungen, die den Lead ergänzen — Fehler hier sind nicht kritisch
+  if (wc && !wc.notes?.includes?.("Bot-Schutz")) await saveLeadWebCheck(lead.id, wc);
+  try {
+    await addLeadActivity({
+      lead_id: lead.id, type: "system", user_name: "System",
+      content: `Aus Kampagne «${k.name}» übernommen${p.score != null ? ` (Score ${p.score}/100)` : ""}.`,
+    });
+  } catch { /* Verlauf ist optional */ }
   return lead.id;
 }
 
@@ -329,14 +385,11 @@ export async function placeVormerken(campaignId: string, placeId: string, userId
  * (Impressum/Kontakt), nicht aus Google. Die Website-Adresse wird dafür live bei
  * Google abgefragt und nur für diesen Abruf verwendet.
  */
-export async function datenVonWebsiteUebernehmen(p: Prospect): Promise<{ hinweis: string | null }> {
+export async function datenVonWebsiteUebernehmen(p: Prospect, k: Campaign, userId?: string): Promise<{ hinweis: string | null; prospect: Prospect }> {
   if (!p.google_place_id) throw new Error("Nur für Google-Prospects.");
   const eintrag = await placeDetails(p.google_place_id);
   if (!eintrag.website) throw new Error("Zu diesem Google-Eintrag ist keine Website bekannt — bitte Firmendaten von Hand erfassen.");
-  const { data, error } = await supabase.functions.invoke("analyze-website", { body: { url: eintrag.website } });
-  if (error) throw new Error(error.message || "Die Website konnte nicht gelesen werden.");
-  const wc = data as any;
-  if (wc?.error) throw new Error(wc.error);
+  const wc = await analysiere(eintrag.website);
 
   const werte: Partial<Prospect> & Record<string, any> = {
     firma: wc.title || p.firma || null,
@@ -369,6 +422,7 @@ export async function datenVonWebsiteUebernehmen(p: Prospect): Promise<{ hinweis
       hinweise.push(`bereits Kunde «${x.company_name || "?"}»`); break;
     }
   }
-  await updateProspect(p.id, werte as any);
-  return { hinweis: hinweise.length ? "Mögliches Duplikat: " + hinweise.join(", ") : null };
+  // Firmendaten UND Prüfergebnis in einem Zug speichern — die Analyse lief ja bereits
+  const prospect = await webergebnisSpeichern(p, k, wc, eintrag.website, userId, werte as any);
+  return { hinweis: hinweise.length ? "Mögliches Duplikat: " + hinweise.join(", ") : null, prospect };
 }

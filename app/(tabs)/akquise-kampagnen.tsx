@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
 import { ScrollView, Text, View, TouchableOpacity, TextInput, ActivityIndicator, Platform, Linking } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -247,6 +248,7 @@ function KampagnenDetail({ kampagne, colors, userId, onZurueck, onBearbeiten }: 
   kampagne: Akq.Campaign; colors: Farben; userId?: string; onZurueck: () => void; onBearbeiten: () => void;
 }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [filter, setFilter] = useState<Akq.ProspectStatus | "alle">("alle");
   const [zeigeNeu, setZeigeNeu] = useState(false);
   const [zeigeImport, setZeigeImport] = useState(false);
@@ -280,6 +282,7 @@ function KampagnenDetail({ kampagne, colors, userId, onZurueck, onBearbeiten }: 
         <Knopf colors={colors} text="Firmen suchen (Google)" onPress={() => { setZeigeSuche(!zeigeSuche); setZeigeNeu(false); setZeigeImport(false); }} />
         <Knopf colors={colors} text="+ Prospect" variante="rand" onPress={() => { setZeigeNeu(!zeigeNeu); setZeigeImport(false); setZeigeSuche(false); }} />
         <Knopf colors={colors} text="Liste importieren" variante="rand" onPress={() => { setZeigeImport(!zeigeImport); setZeigeNeu(false); setZeigeSuche(false); }} />
+        <Knopf colors={colors} text={`Leads öffnen${zaehle("uebernommen") ? ` (${zaehle("uebernommen")} aus dieser Kampagne)` : ""}`} variante="rand" onPress={() => router.push("/leads" as any)} />
         <Knopf colors={colors} text="Kampagne bearbeiten" variante="rand" onPress={onBearbeiten} />
         <Knopf colors={colors} text="Löschen" variante="gefahr" onPress={() => {
           showConfirm("Kampagne löschen", `«${kampagne.name}» samt allen Prospects wird gelöscht (übernommene Leads bleiben bestehen). Fortfahren?`, async () => {
@@ -295,7 +298,7 @@ function KampagnenDetail({ kampagne, colors, userId, onZurueck, onBearbeiten }: 
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
         <Chip colors={colors} text={`Alle (${prospects.length})`} aktiv={filter === "alle"} onPress={() => setFilter("alle")} />
-        {(Object.keys(STATUS_LABEL) as Akq.ProspectStatus[]).map((s) => (
+        {(Object.keys(STATUS_LABEL) as Akq.ProspectStatus[]).filter((s) => s !== "freigegeben" || zaehle(s) > 0).map((s) => (
           <Chip key={s} colors={colors} text={`${STATUS_LABEL[s]} (${zaehle(s)})`} aktiv={filter === s} onPress={() => setFilter(s)} />
         ))}
       </View>
@@ -517,16 +520,14 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
   p: Akq.Prospect; kampagne: Akq.Campaign; colors: Farben; userId?: string; onAenderung: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [panel, setPanel] = useState<null | "compliance" | "sperre" | "belege" | "google">(null);
+  const router = useRouter();
+  const [panel, setPanel] = useState<null | "sperre" | "belege" | "google">(null);
   const [google, setGoogle] = useState<Akq.PlaceEintrag | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [cStatus, setCStatus] = useState<Akq.ComplianceStatus>(p.compliance_status === "pending_review" ? "allowed" : p.compliance_status);
-  const [anlass, setAnlass] = useState("");
-  const [quelle, setQuelle] = useState("");
-  const [notiz, setNotiz] = useState("");
   const [grund, setGrund] = useState("");
+  // Gesperrt = steht auf der Sperrliste «Nicht kontaktieren» (oder wurde früher so markiert)
   const gesperrt = p.compliance_status.startsWith("blocked");
-  const erlaubt = p.compliance_status === "allowed";
+  const befund = Akq.webBefund(p.web_check);
 
   const { data: belege = [] } = useQuery({
     queryKey: ["akqBelege", p.id],
@@ -540,8 +541,6 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
     catch (e: any) { showAlert("Fehler", e.message); }
     finally { setBusy(null); }
   };
-
-  const farbeCompliance = erlaubt ? "#22C55E" : gesperrt ? "#EF4444" : "#F59E0B";
 
   return (
     <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: gesperrt ? "#EF444466" : colors.border, borderRadius: 14, padding: 14, marginBottom: 10, opacity: p.status === "verworfen" ? 0.55 : 1 }}>
@@ -565,13 +564,38 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
         {!!p.telefon && (
           <Text style={{ fontSize: 13, color: colors.text }}>
             Tel. {p.telefon}
-            {erlaubt ? "" : "  — nicht anrufen, solange nicht geprüft/erlaubt"}
           </Text>
         )}
         {!!p.email && <Text style={{ fontSize: 13, color: colors.text }}>{p.email}</Text>}
         {!!p.domain && <Text style={{ fontSize: 13, color: colors.primary }} onPress={() => Linking.openURL(`https://${p.domain}`)}>{p.domain}</Text>}
-        <Text style={{ fontSize: 12.5, fontWeight: "700", color: farbeCompliance, marginTop: 4 }}>● {Akq.COMPLIANCE_LABEL[p.compliance_status]}</Text>
+        {gesperrt && <Text style={{ fontSize: 12.5, fontWeight: "700", color: "#EF4444", marginTop: 4 }}>● Auf der Sperrliste — nicht kontaktieren</Text>}
       </View>
+
+      {befund && (
+        <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border }}>
+          <Text style={{ fontSize: 13, fontWeight: "700", color: colors.text, marginBottom: 6 }}>
+            Website-Befund{p.web_check?.abgerufen_am ? <Text style={{ fontWeight: "400", color: colors.muted }}> · {new Date(p.web_check.abgerufen_am).toLocaleDateString("de-CH")}</Text> : null}
+          </Text>
+          {befund.botSchutz ? (
+            <Text style={{ fontSize: 12.5, color: "#F59E0B" }}>
+              Die Website blockt automatische Prüfungen (Bot-Schutz). Impressum, Datenschutz und Alter konnten nicht gelesen werden — bitte von Hand ansehen.
+            </Text>
+          ) : (
+            befund.zeilen.map((z) => {
+              const farbe = z.ok === true ? "#22C55E" : z.ok === false ? "#EF4444" : colors.muted;
+              return (
+                <View key={z.label} style={{ flexDirection: "row", gap: 8, marginBottom: 3 }}>
+                  <Text style={{ width: 16, fontSize: 13, fontWeight: "800", color: farbe }}>{z.ok === true ? "✓" : z.ok === false ? "✗" : "–"}</Text>
+                  <Text style={{ flex: 1, fontSize: 12.5, color: colors.text }}>
+                    <Text style={{ fontWeight: "700" }}>{z.label}: </Text>
+                    <Text style={{ color: z.ok === false ? "#EF4444" : colors.muted }}>{z.text}</Text>
+                  </Text>
+                </View>
+              );
+            })
+          )}
+        </View>
+      )}
 
       {!!p.score_begruendung?.length && (
         <View style={{ marginTop: 8 }}>
@@ -581,12 +605,12 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
 
       {p.status !== "uebernommen" && p.status !== "verworfen" && (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-          <Knopf colors={colors} klein variante="rand" text={busy === "web" ? "Prüft…" : "Website prüfen"} aus={!p.domain || !!busy}
+          <Knopf colors={colors} klein variante="rand" text={busy === "web" ? "Prüft…" : "Website prüfen"} aus={(!p.domain && !p.google_place_id) || !!busy}
             onPress={() => lauf("web", () => Akq.pruefeWebsite(p, kampagne, userId), "Website geprüft")} />
           {!!p.google_place_id && !p.firma && (
             <Knopf colors={colors} klein text={busy === "daten" ? "Liest…" : "Firmendaten von Website holen"} aus={!!busy}
               onPress={() => lauf("daten", async () => {
-                const r = await Akq.datenVonWebsiteUebernehmen(p);
+                const r = await Akq.datenVonWebsiteUebernehmen(p, kampagne, userId);
                 if (r.hinweis) showAlert("Hinweis", r.hinweis);
               }, "Firmendaten übernommen")} />
           )}
@@ -599,40 +623,21 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
                 catch (e: any) { setPanel(null); showAlert("Fehler", e.message); }
               }} />
           )}
-          <Knopf colors={colors} klein variante="rand" text="Compliance prüfen" onPress={() => setPanel(panel === "compliance" ? null : "compliance")} />
           <Knopf colors={colors} klein variante="rand" text="Belege" onPress={() => setPanel(panel === "belege" ? null : "belege")} />
-          {p.status !== "freigegeben" ? (
-            <Knopf colors={colors} klein text="Freigeben" aus={!erlaubt || !!busy}
-              onPress={() => lauf("frei", () => Akq.updateProspect(p.id, { status: "freigegeben" }), "Freigegeben")} />
-          ) : (
-            <Knopf colors={colors} klein text={busy === "lead" ? "Übernimmt…" : "Als Lead übernehmen"} aus={!!busy}
-              onPress={() => lauf("lead", async () => { await Akq.alsLeadUebernehmen(p, kampagne); queryClient.invalidateQueries({ queryKey: ["leads"] }); }, "Als Lead übernommen")} />
-          )}
+          <Knopf colors={colors} klein text={busy === "lead" ? "Übernimmt…" : "Als Lead übernehmen"} aus={gesperrt || !!busy}
+            onPress={() => lauf("lead", async () => {
+              await Akq.alsLeadUebernehmen(p, kampagne, userId);
+              queryClient.invalidateQueries({ queryKey: ["leads"] });
+            }, "Als Lead übernommen")} />
           <Knopf colors={colors} klein variante="gefahr" text="Nicht kontaktieren" onPress={() => setPanel(panel === "sperre" ? null : "sperre")} />
           <Knopf colors={colors} klein variante="rand" text="Verwerfen" aus={!!busy}
             onPress={() => lauf("verw", () => Akq.updateProspect(p.id, { status: "verworfen" }), "Verworfen")} />
         </View>
       )}
-      {!erlaubt && p.status !== "uebernommen" && p.status !== "verworfen" && (
-        <Text style={{ fontSize: 11.5, color: colors.muted, marginTop: 6 }}>Freigabe erst möglich, wenn die Compliance-Prüfung «Anruf erlaubt» ergibt.</Text>
-      )}
-
-      {panel === "compliance" && (
-        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-          <Text style={{ fontSize: 13, fontWeight: "700", color: colors.text, marginBottom: 8 }}>Ergebnis der Prüfung</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-            {(["allowed", "blocked_star_or_unlisted", "blocked_other", "pending_review"] as Akq.ComplianceStatus[]).map((s) => (
-              <Chip key={s} colors={colors} text={Akq.COMPLIANCE_LABEL[s]} aktiv={cStatus === s} onPress={() => setCStatus(s)} />
-            ))}
-          </View>
-          <Feld colors={colors} label={cStatus === "allowed" ? "Geschäftlicher Anlass *" : "Anlass"} value={anlass} onChange={setAnlass} placeholder="z.B. B2B-Angebot Website-Erneuerung" />
-          <Feld colors={colors} label={cStatus === "allowed" ? "Prüfquelle *" : "Prüfquelle"} value={quelle} onChange={setQuelle} placeholder="z.B. local.ch geprüft, kein Sterneintrag" />
-          <Feld colors={colors} label="Notiz" value={notiz} onChange={setNotiz} />
-          <Text style={{ fontSize: 11.5, color: colors.muted, marginBottom: 8 }}>
-            Das Ergebnis wird mit Zeitpunkt und Ihrem Namen dauerhaft gespeichert. Hinweis: Werbeanrufe an Nummern mit Sterneintrag oder ohne Verzeichniseintrag sind in der Schweiz grundsätzlich unzulässig.
-          </Text>
-          <Knopf colors={colors} text={busy === "comp" ? "Speichert…" : "Prüfung speichern"} aus={!!busy}
-            onPress={() => lauf("comp", async () => { await Akq.setzeCompliance(p, cStatus, { anlass, quelle, notiz }, userId); setPanel(null); }, "Prüfung gespeichert")} />
+      {p.status === "uebernommen" && (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+          {!!p.lead_id && <Knopf colors={colors} klein text="Lead öffnen" onPress={() => router.push(`/leads?leadId=${p.lead_id}` as any)} />}
+          <Text style={{ fontSize: 12, color: colors.muted, alignSelf: "center" }}>Als Lead im CRM — dort geht es mit Anruf, Mail und Angebot weiter.</Text>
         </View>
       )}
 

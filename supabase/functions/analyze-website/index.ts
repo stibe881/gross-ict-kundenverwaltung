@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { corsHeaders, pruefeMitarbeiter, sichererAbruf } from "../_shared/sicherheit.ts";
+import { bewerteAlter } from "../_shared/webalter.ts";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -29,6 +30,7 @@ serve(async (req: Request) => {
     let sslValid = true;
     let html = "";
     let finalUrl = httpsUrl;
+    let lastModified: string | undefined;
 
     const fetchHeaders = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -49,6 +51,7 @@ serve(async (req: Request) => {
       const r = await sichererAbruf(httpsUrl, fetchHeaders);
       html = r.text;
       finalUrl = r.finalUrl;
+      lastModified = r.lastModified;
     } catch (err: any) {
       if (VERBOTEN.includes(err?.message)) return ungueltig();
       sslValid = false;
@@ -56,6 +59,7 @@ serve(async (req: Request) => {
         const r = await sichererAbruf(httpUrl, fetchHeaders);
         html = r.text;
         finalUrl = r.finalUrl;
+        lastModified = r.lastModified;
       } catch (e: any) {
         if (VERBOTEN.includes(e?.message)) return ungueltig();
         // Beide Abrufe fehlgeschlagen: ohne HTML weiter, wie bisher
@@ -204,6 +208,11 @@ ${plainText}`;
       fehlendeDinge.push("keine Datenschutzerklärung gefunden (Pflicht nach revDSG seit 2023, Bussen bis CHF 250'000; bei EU-Kunden zusätzlich DSGVO)");
     }
 
+    const alter = bewerteAlter(html, lastModified);
+    if (alter.veraltet) {
+      fehlendeDinge.push(`Website wirkt veraltet (${alter.hinweise.slice(0, 3).join("; ")})`);
+    }
+
     if (!isResponsive) {
       fehlendeDinge.push("fehlendes Responsive Design (nicht mobil-optimiert — Ranking-Nachteil bei Google)");
     }
@@ -302,6 +311,9 @@ ${plainText}`;
         isResponsive,
         wcagOk,
         wcagHints,
+        outdated: alter.veraltet,
+        outdatedHints: alter.hinweise,
+        copyrightYear: alter.copyrightJahr ?? null,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

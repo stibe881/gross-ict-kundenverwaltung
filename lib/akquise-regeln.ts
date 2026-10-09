@@ -108,3 +108,60 @@ export function berechneScore(p: Prospect, k: Campaign): { score: number; begrue
   return { score: Math.min(100, s), begruendung: b };
 }
 
+
+// ── Befund der Website-Prüfung (für die Anzeige auf der Karte) ──────────────
+
+export interface BefundZeile {
+  label: string;
+  /** true = in Ordnung, false = Mangel, null = nicht beurteilbar */
+  ok: boolean | null;
+  text: string;
+}
+
+/** Übersetzt das gespeicherte Ergebnis der Website-Prüfung in lesbare Zeilen. */
+export function webBefund(wc: any): { zeilen: BefundZeile[]; botSchutz: boolean } | null {
+  if (!wc || typeof wc !== "object") return null;
+
+  // Bei Bot-Schutz (z.B. Cloudflare) konnte nichts gelesen werden — keine falschen Mängel melden
+  if (typeof wc.notes === "string" && wc.notes.includes("Bot-Schutz")) {
+    return { botSchutz: true, zeilen: [] };
+  }
+
+  const zeilen: BefundZeile[] = [];
+  const ja = (v: any) => (v === undefined || v === null ? null : !!v);
+
+  zeilen.push({
+    label: "Aktualität",
+    ok: wc.outdated === undefined ? null : !wc.outdated,
+    text: wc.outdated === undefined
+      ? "noch nicht beurteilt — bitte die Website erneut prüfen"
+      : wc.outdated
+        ? `wirkt veraltet: ${(wc.outdatedHints || []).join("; ")}`
+        : wc.copyrightYear ? `keine Anzeichen für einen veralteten Stand (Copyright ${wc.copyrightYear})` : "keine Anzeichen für einen veralteten Stand",
+  });
+  zeilen.push({ label: "Impressum", ok: ja(wc.hasImpressum), text: wc.hasImpressum === undefined || wc.hasImpressum === null ? "nicht geprüft" : wc.hasImpressum ? "vorhanden" : "fehlt" });
+  zeilen.push({ label: "Datenschutzerklärung", ok: ja(wc.hasPrivacy), text: wc.hasPrivacy === undefined || wc.hasPrivacy === null ? "nicht geprüft" : wc.hasPrivacy ? "vorhanden" : "fehlt" });
+  zeilen.push({
+    label: "Barrierefreiheit",
+    ok: ja(wc.wcagOk),
+    text: wc.wcagOk === undefined || wc.wcagOk === null
+      ? "nicht geprüft"
+      : wc.wcagOk
+        ? "keine Auffälligkeiten erkannt (automatische Prüfung, ersetzt keinen Test)"
+        : `nicht barrierefrei: ${(wc.wcagHints || []).join("; ") || "Mängel erkannt"}`,
+  });
+  zeilen.push({ label: "Mobil-Ansicht", ok: ja(wc.isResponsive), text: wc.isResponsive === undefined || wc.isResponsive === null ? "nicht geprüft" : wc.isResponsive ? "für Mobilgeräte angepasst" : "nicht für Mobilgeräte angepasst" });
+  zeilen.push({ label: "Sichere Verbindung", ok: ja(wc.sslValid), text: wc.sslValid === undefined || wc.sslValid === null ? "nicht geprüft" : wc.sslValid ? "HTTPS gültig" : "kein gültiges HTTPS-Zertifikat" });
+
+  return { zeilen, botSchutz: false };
+}
+
+/** Befund als Klartext für die Lead-Notizen («✗ Impressum: fehlt»). Leer, wenn nichts Lesbares vorliegt. */
+export function befundAlsText(wc: any): string {
+  const b = webBefund(wc);
+  if (!b || b.botSchutz) return "";
+  const stand = wc?.abgerufen_am ? ` (Stand ${new Date(wc.abgerufen_am).toLocaleDateString("de-CH")})` : "";
+  return b.zeilen
+    .map((z) => `${z.ok === true ? "✓" : z.ok === false ? "✗" : "–"} ${z.label}: ${z.text}`)
+    .join("\n") + (stand ? `\n${stand.trim()}` : "");
+}
