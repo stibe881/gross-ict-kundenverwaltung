@@ -363,19 +363,30 @@ export async function placeDetails(placeId: string): Promise<PlaceEintrag> {
 }
 
 /** Merkt einen Google-Eintrag vor — gespeichert wird NUR die place_id. */
-export async function placeVormerken(campaignId: string, placeId: string, userId?: string): Promise<void> {
-  const { error } = await db.from("prospects").insert({
+export async function placeVormerken(campaignId: string, placeId: string, userId?: string): Promise<Prospect> {
+  const { data, error } = await db.from("prospects").insert({
     campaign_id: campaignId,
     google_place_id: placeId,
     firma: null,
     quelle: "google_places",
     quelle_notiz: "Google Places — nur die place_id ist gespeichert",
     created_by: userId || null,
-  });
+  }).select().single();
   if (error) {
     if (error.code === "23505") throw new Error("Dieser Google-Eintrag ist in der Kampagne bereits vorgemerkt.");
     throw new Error(error.message);
   }
+  return data as Prospect;
+}
+
+/**
+ * Prüft die Website eines Prospects. Bei einem Google-Eintrag ohne Firmendaten holt dieselbe
+ * Analyse zugleich Firmenname, Telefon, E-Mail und Adresse von der Firmenwebsite — damit die
+ * Karte erkennbar macht, um welche Firma es geht. «hinweis» meldet ein mögliches Duplikat.
+ */
+export async function pruefeProspect(p: Prospect, k: Campaign, userId?: string): Promise<{ hinweis: string | null; prospect: Prospect }> {
+  if (p.google_place_id && !p.firma) return datenVonWebsiteUebernehmen(p, k, userId);
+  return { hinweis: null, prospect: await pruefeWebsite(p, k, userId) };
 }
 
 /**
@@ -402,6 +413,8 @@ export async function datenVonWebsiteUebernehmen(p: Prospect, k: Campaign, userI
   werte.norm_domain = normDomain(werte.domain);
   werte.norm_telefon = normTelefon(werte.telefon);
   werte.norm_email = normEmail(werte.email);
+  // Findet die Analyse keinen Firmennamen, dient die Domain als Anzeigename (lässt sich von Hand ändern)
+  if (!werte.firma) werte.firma = werte.domain || null;
   if (!werte.firma) throw new Error("Auf der Website wurde kein Firmenname gefunden — bitte von Hand ergänzen.");
 
   // Mögliche Duplikate zu Leads und Kunden anzeigen (nicht blockieren)

@@ -348,12 +348,21 @@ function PlacesSuche({ colors, kampagne, userId, onVorgemerkt }: { colors: Farbe
   };
 
   const vormerken = async (t: Akq.PlaceEintrag) => {
+    let neu: Akq.Prospect;
     try {
-      await Akq.placeVormerken(kampagne.id, t.placeId, userId);
-      setTreffer((alle) => alle.map((x) => (x.placeId === t.placeId ? { ...x, bereitsVorgemerkt: true } : x)));
-      showToast("Vorgemerkt");
-      onVorgemerkt();
-    } catch (e: any) { showAlert("Fehler", e.message); }
+      neu = await Akq.placeVormerken(kampagne.id, t.placeId, userId);
+    } catch (e: any) { showAlert("Fehler", e.message); return; }
+    setTreffer((alle) => alle.map((x) => (x.placeId === t.placeId ? { ...x, bereitsVorgemerkt: true } : x)));
+    onVorgemerkt();
+    showToast("Vorgemerkt — lädt Firmendaten …");
+    // Firmenname, Kontaktdaten und Website-Befund gleich von der Firmenwebsite holen
+    try {
+      const r = await Akq.pruefeProspect(neu, kampagne, userId);
+      showToast(r.hinweis ? `Vorgemerkt · ${r.hinweis}` : `Vorgemerkt: ${r.prospect.firma || t.name}`);
+    } catch (e: any) {
+      showAlert("Vorgemerkt", `Die Firmendaten konnten nicht geladen werden: ${e.message}\n\nSie können es auf der Karte mit «Website prüfen» erneut versuchen.`);
+    }
+    onVorgemerkt();
   };
 
   return (
@@ -606,7 +615,10 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
       {p.status !== "uebernommen" && p.status !== "verworfen" && (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
           <Knopf colors={colors} klein variante="rand" text={busy === "web" ? "Prüft…" : "Website prüfen"} aus={(!p.domain && !p.google_place_id) || !!busy}
-            onPress={() => lauf("web", () => Akq.pruefeWebsite(p, kampagne, userId), "Website geprüft")} />
+            onPress={() => lauf("web", async () => {
+              const r = await Akq.pruefeProspect(p, kampagne, userId);
+              if (r.hinweis) showAlert("Hinweis", r.hinweis);
+            }, "Website geprüft")} />
           {!!p.google_place_id && !p.firma && (
             <Knopf colors={colors} klein text={busy === "daten" ? "Liest…" : "Firmendaten von Website holen"} aus={!!busy}
               onPress={() => lauf("daten", async () => {
