@@ -78,7 +78,8 @@ serve(async (req: Request) => {
     let title = titleMatch ? titleMatch[1].trim() : "";
 
     // Cloudflare / Bot Protection Check
-    if (title.includes("Just a moment...") || lowerHtml.includes("cf-browser-verification") || lowerHtml.includes("ray id")) {
+    const botTitel = /browser wird gepr|überprüfung deines browsers|just a moment|checking your browser|attention required|verifying you are human|are you a robot|bist du ein mensch|access denied|zugriff verweigert|ddos protection/i.test(title);
+    if (botTitel || lowerHtml.includes("cf-browser-verification") || lowerHtml.includes("cdn-cgi/challenge-platform") || lowerHtml.includes("ray id")) {
       return new Response(
         JSON.stringify({
           url: finalUrl,

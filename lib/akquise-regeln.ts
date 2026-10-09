@@ -180,3 +180,36 @@ export function gebietAusEingabe(text: string): { plz: string[]; ort: string } {
   }
   return { plz: [...new Set(plz)].slice(0, 20), ort: orte[0] ?? "" };
 }
+
+// ── Anzeige der Quelle, Bot-Seiten und Verzeichnis-Websites ─────────────────
+
+/** Quelle für die Anzeige: bei Google nur «Google Places», sonst Quelle plus Notiz. */
+export function quelleText(p: { quelle?: string | null; quelle_notiz?: string | null }): string {
+  if (p.quelle === "google_places") return "Google Places";
+  return `${p.quelle || "–"}${p.quelle_notiz ? ` (${p.quelle_notiz})` : ""}`;
+}
+
+/** Titel der Wartesiten von Bot-Schutz-Diensten («Dein Browser wird geprüft!», «Just a moment…») sind keine Firmennamen. */
+export function istBotSeitenTitel(titel: string | null | undefined): boolean {
+  if (!titel) return false;
+  return /browser wird gepr|überprüfung deines browsers|ueberpruefung|just a moment|checking your browser|attention required|verifying you are human|are you a robot|bist du ein mensch|ein moment geduld|access denied|zugriff verweigert|ddos protection/i.test(titel);
+}
+
+/** Ein Name ist brauchbar, wenn er nicht leer ist und nicht von einer Bot-Wartesite stammt. */
+export function istBrauchbarerName(name: string | null | undefined): name is string {
+  return !!name && name.trim().length > 1 && !istBotSeitenTitel(name);
+}
+
+const VERZEICHNIS_DOMAINS = [
+  "local.ch", "search.ch", "tel.search.ch", "moneyhouse.ch", "zefix.ch", "firmenverzeichnis.ch",
+  "google.com", "google.ch", "goo.gl", "g.page", "maps.app.goo.gl",
+  "facebook.com", "instagram.com", "linkedin.com", "xing.com", "twitter.com", "x.com", "youtube.com", "tiktok.com",
+  "yelp.com", "tripadvisor.com", "tripadvisor.ch", "booking.com", "ricardo.ch", "homegate.ch",
+];
+
+/** True, wenn die Adresse zu einem Verzeichnis oder Social-Media-Profil gehört — keine eigene Firmenwebsite. */
+export function istVerzeichnisDomain(adresseOderDomain: string | null | undefined): boolean {
+  const d = normDomain(adresseOderDomain);
+  if (!d) return false;
+  return VERZEICHNIS_DOMAINS.some((v) => d === v || d.endsWith("." + v));
+}

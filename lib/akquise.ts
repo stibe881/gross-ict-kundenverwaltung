@@ -5,7 +5,7 @@
 // zusätzlich in der Datenbank (Migration 20261026).
 import { supabase } from "./supabase";
 import { createLead, saveLeadWebCheck, addLeadActivity } from "./data";
-import { normDomain, normTelefon, normEmail, berechneScore, befundAlsText, gebietAusEingabe } from "./akquise-regeln";
+import { normDomain, normTelefon, normEmail, berechneScore, befundAlsText, gebietAusEingabe, quelleText, istBrauchbarerName, istBotSeitenTitel, istVerzeichnisDomain } from "./akquise-regeln";
 import type { Campaign, Prospect, ComplianceStatus } from "./akquise-regeln";
 
 export * from "./akquise-regeln";
@@ -244,7 +244,7 @@ export async function alsLeadUebernehmen(p: Prospect, k: Campaign, userId?: stri
   if (p.compliance_status.startsWith("blocked")) throw new Error("Diese Firma steht auf der Sperrliste und kann nicht übernommen werden.");
 
   // 1) Google-Prospect ohne Firmendaten: Daten von der eigenen Website der Firma holen
-  if (p.google_place_id && !p.firma) {
+  if (p.google_place_id && !istBrauchbarerName(p.firma)) {
     const r = await datenVonWebsiteUebernehmen(p, k, userId);
     if (r.hinweis) throw new Error(`${r.hinweis}. Es wurde kein neuer Lead angelegt.`);
     p = r.prospect;
@@ -264,7 +264,7 @@ export async function alsLeadUebernehmen(p: Prospect, k: Campaign, userId?: stri
   const befund = befundAlsText(wc);
   const notizen = [
     `Kampagne: ${k.name}`,
-    p.quelle ? `Quelle: ${p.quelle}${p.quelle_notiz ? ` (${p.quelle_notiz})` : ""}` : "",
+    p.quelle ? `Quelle: ${quelleText(p)}` : "",
     p.branche ? `Branche: ${p.branche}` : "",
     p.score != null ? `Score: ${p.score}/100` : "",
     ...(p.score_begruendung || []),
@@ -385,7 +385,7 @@ export async function placeVormerken(campaignId: string, placeId: string, userId
  * Karte erkennbar macht, um welche Firma es geht. «hinweis» meldet ein mögliches Duplikat.
  */
 export async function pruefeProspect(p: Prospect, k: Campaign, userId?: string): Promise<{ hinweis: string | null; prospect: Prospect }> {
-  if (p.google_place_id && !p.firma) return datenVonWebsiteUebernehmen(p, k, userId);
+  if (p.google_place_id && !istBrauchbarerName(p.firma)) return datenVonWebsiteUebernehmen(p, k, userId);
   return { hinweis: null, prospect: await pruefeWebsite(p, k, userId) };
 }
 
@@ -398,7 +398,14 @@ export async function datenVonWebsiteUebernehmen(p: Prospect, k: Campaign, userI
   if (!p.google_place_id) throw new Error("Nur für Google-Prospects.");
   const eintrag = await placeDetails(p.google_place_id);
   if (!eintrag.website) throw new Error("Zu diesem Google-Eintrag ist keine Website bekannt — bitte Firmendaten von Hand erfassen.");
+  // Verweist der Google-Eintrag nur auf ein Verzeichnis oder Social-Media-Profil, gibt es keine eigene Firmenwebsite
+  if (istVerzeichnisDomain(eintrag.website)) {
+    throw new Error(`Der Google-Eintrag verweist nur auf ${normDomain(eintrag.website)} (Verzeichnis oder Social Media), nicht auf eine eigene Firmenwebsite. Bitte die Firmendaten von Hand erfassen.`);
+  }
   const wc = await analysiere(eintrag.website);
+  if ((typeof wc.notes === "string" && wc.notes.includes("Bot-Schutz")) || istBotSeitenTitel(wc.title)) {
+    throw new Error(`Die Website ${normDomain(eintrag.website)} blockt automatische Abfragen (Bot-Schutz). Die Firmendaten bitte von Hand erfassen.`);
+  }
 
   const werte: Partial<Prospect> & Record<string, any> = {
     firma: wc.title || p.firma || null,

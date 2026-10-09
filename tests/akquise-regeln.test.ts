@@ -130,3 +130,29 @@ describe("Eingabe «Ort oder PLZ»", () => {
   });
 });
 
+
+import { quelleText, istBotSeitenTitel, istBrauchbarerName, istVerzeichnisDomain } from "../lib/akquise-regeln";
+
+describe("Quelle, Bot-Seiten und Verzeichnisse", () => {
+  it("zeigt bei Google nur «Google Places»", () => {
+    expect(quelleText({ quelle: "google_places", quelle_notiz: "Google Places (place_id); Firmendaten von der Firmenwebsite" })).toBe("Google Places");
+    expect(quelleText({ quelle: "CSV-Import", quelle_notiz: "Handelsregister-Export" })).toBe("CSV-Import (Handelsregister-Export)");
+    expect(quelleText({ quelle: "manuell" })).toBe("manuell");
+  });
+  it("erkennt Wartesiten von Bot-Schutz als Nicht-Firmennamen", () => {
+    expect(istBotSeitenTitel("Dein Browser wird geprüft!")).toBe(true);
+    expect(istBotSeitenTitel("Just a moment...")).toBe(true);
+    expect(istBotSeitenTitel("Attention Required! | Cloudflare")).toBe(true);
+    expect(istBotSeitenTitel("Muster Sanitär AG")).toBe(false);
+    expect(istBrauchbarerName("Dein Browser wird geprüft!")).toBe(false);
+    expect(istBrauchbarerName(null)).toBe(false);
+    expect(istBrauchbarerName("Muster AG")).toBe(true);
+  });
+  it("erkennt Verzeichnisse und Social-Media als fremde Websites", () => {
+    expect(istVerzeichnisDomain("https://yellow.local.ch/de/d/zell/6144/sanitaer/xyz")).toBe(true);
+    expect(istVerzeichnisDomain("www.facebook.com/muster")).toBe(true);
+    expect(istVerzeichnisDomain("https://www.muster-sanitaer.ch")).toBe(false);
+    expect(istVerzeichnisDomain("localchemie.ch")).toBe(false);
+    expect(istVerzeichnisDomain(null)).toBe(false);
+  });
+});

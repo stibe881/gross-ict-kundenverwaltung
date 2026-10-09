@@ -530,7 +530,8 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
   const gesperrt = p.compliance_status.startsWith("blocked");
   const befund = Akq.webBefund(p.web_check);
   // Ohne gespeicherte Firmendaten kann der Name auf Klick live von Google geholt werden (wird nicht gespeichert)
-  const anzeigeName = p.firma || google?.name || null;
+  const gespeicherterName = Akq.istBrauchbarerName(p.firma) ? p.firma : null;
+  const anzeigeName = gespeicherterName || google?.name || null;
   const nameZeigen = async () => {
     setNameLaedt(true);
     try { setGoogle(await Akq.placeDetails(p.google_place_id!)); }
@@ -556,7 +557,7 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 10 }}>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 16, fontWeight: "700", color: anzeigeName ? colors.text : colors.muted }}>{anzeigeName || "Google-Eintrag (Firmendaten noch nicht übernommen)"}</Text>
-          {!p.firma && !!p.google_place_id && (
+          {!gespeicherterName && !!p.google_place_id && (
             google ? (
               <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
                 {[google.adresse].filter(Boolean).join(" · ")}{google.adresse ? " · " : ""}live von Google Maps, nicht gespeichert
@@ -571,7 +572,7 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
             {[p.plz, p.ort, p.kanton].filter(Boolean).join(" ")}{p.branche ? ` · ${p.branche}` : ""}
           </Text>
           <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
-            Quelle: {p.quelle}{p.quelle_notiz ? ` (${p.quelle_notiz})` : ""}
+            Quelle: {Akq.quelleText(p)}
           </Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
