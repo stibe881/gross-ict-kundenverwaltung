@@ -521,9 +521,13 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
 }) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const [panel, setPanel] = useState<null | "sperre" | "belege" | "google">(null);
+  const [panel, setPanel] = useState<null | "sperre" | "belege" | "google" | "daten">(null);
   const [google, setGoogle] = useState<Akq.PlaceEintrag | null>(null);
   const [nameLaedt, setNameLaedt] = useState(false);
+  const [daten, setDaten] = useState<Akq.ProspektDaten>({
+    firma: "", ansprechpartner: p.ansprechpartner || "", telefon: p.telefon || "", email: p.email || "",
+    adresse: p.adresse || "", plz: p.plz || "", ort: p.ort || "", branche: p.branche || "",
+  });
   const [busy, setBusy] = useState<string | null>(null);
   const [grund, setGrund] = useState("");
   // Gesperrt = steht auf der Sperrliste «Nicht kontaktieren» (oder wurde früher so markiert)
@@ -531,6 +535,7 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
   const befund = Akq.webBefund(p.web_check);
   // Ohne gespeicherte Firmendaten kann der Name auf Klick live von Google geholt werden (wird nicht gespeichert)
   const gespeicherterName = Akq.istBrauchbarerName(p.firma) ? p.firma : null;
+  const keineWebsite = !!p.web_check?.keineWebsite;
   const anzeigeName = gespeicherterName || google?.name || null;
   const nameZeigen = async () => {
     setNameLaedt(true);
@@ -578,6 +583,7 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
         <View style={{ alignItems: "flex-end" }}>
           <Text style={{ fontSize: 12, fontWeight: "800", color: colors.primary }}>{STATUS_LABEL[p.status]}</Text>
           {p.score != null && <Text style={{ fontSize: 12.5, color: colors.text, marginTop: 2 }}>Score {p.score}/100</Text>}
+          {keineWebsite && <Text style={{ fontSize: 11.5, fontWeight: "800", color: "#22C55E", marginTop: 3 }}>Keine Website · Chance</Text>}
         </View>
       </View>
 
@@ -597,6 +603,11 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
           <Text style={{ fontSize: 13, fontWeight: "700", color: colors.text, marginBottom: 6 }}>
             Website-Befund{p.web_check?.abgerufen_am ? <Text style={{ fontWeight: "400", color: colors.muted }}> · {new Date(p.web_check.abgerufen_am).toLocaleDateString("de-CH")}</Text> : null}
           </Text>
+          {befund.keineWebsite && (
+            <Text style={{ fontSize: 12.5, color: "#22C55E", marginBottom: 6 }}>
+              Chance: Diese Firma hat keine eigene Website — ideal für ein Angebot für einen kompletten Webauftritt (Webdesign, Hosting, E-Mail).
+            </Text>
+          )}
           {befund.botSchutz ? (
             <Text style={{ fontSize: 12.5, color: "#F59E0B" }}>
               Die Website blockt automatische Prüfungen (Bot-Schutz). Impressum, Datenschutz und Alter konnten nicht gelesen werden — bitte von Hand ansehen.
@@ -626,12 +637,12 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
 
       {p.status !== "uebernommen" && p.status !== "verworfen" && (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-          <Knopf colors={colors} klein variante="rand" text={busy === "web" ? "Prüft…" : "Website prüfen"} aus={(!p.domain && !p.google_place_id) || !!busy}
+          <Knopf colors={colors} klein variante="rand" text={busy === "web" ? "Prüft…" : "Website prüfen"} aus={!!busy}
             onPress={() => lauf("web", async () => {
               const r = await Akq.pruefeProspect(p, kampagne, userId);
               if (r.hinweis) showAlert("Hinweis", r.hinweis);
             }, "Website geprüft")} />
-          {!!p.google_place_id && !p.firma && (
+          {!!p.google_place_id && !gespeicherterName && !keineWebsite && (
             <Knopf colors={colors} klein text={busy === "daten" ? "Liest…" : "Firmendaten von Website holen"} aus={!!busy}
               onPress={() => lauf("daten", async () => {
                 const r = await Akq.datenVonWebsiteUebernehmen(p, kampagne, userId);
@@ -647,6 +658,7 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
                 catch (e: any) { setPanel(null); showAlert("Fehler", e.message); }
               }} />
           )}
+          <Knopf colors={colors} klein variante="rand" text="Daten ergänzen" onPress={() => setPanel(panel === "daten" ? null : "daten")} />
           <Knopf colors={colors} klein variante="rand" text="Belege" onPress={() => setPanel(panel === "belege" ? null : "belege")} />
           <Knopf colors={colors} klein text={busy === "lead" ? "Übernimmt…" : "Als Lead übernehmen"} aus={gesperrt || !!busy}
             onPress={() => lauf("lead", async () => {
@@ -662,6 +674,28 @@ function ProspectKarte({ p, kampagne, colors, userId, onAenderung }: {
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
           {!!p.lead_id && <Knopf colors={colors} klein text="Lead öffnen" onPress={() => router.push(`/leads?leadId=${p.lead_id}` as any)} />}
           <Text style={{ fontSize: 12, color: colors.muted, alignSelf: "center" }}>Als Lead im CRM — dort geht es mit Anruf, Mail und Angebot weiter.</Text>
+        </View>
+      )}
+
+      {panel === "daten" && (
+        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+          <Text style={{ fontSize: 12.5, color: colors.muted, marginBottom: 8 }}>
+            Firmendaten von Hand eintragen oder korrigieren — nötig bei Firmen ohne eigene Website, weil es dort nichts automatisch zu lesen gibt.
+            {!!p.google_place_id ? " Name und Telefon des Google-Eintrags sehen Sie mit «Name anzeigen» bzw. «Google-Eintrag ansehen»." : ""}
+          </Text>
+          <Feld colors={colors} label={p.google_place_id ? "Firma" : "Firma *"} value={daten.firma || (gespeicherterName ?? "")} onChange={(v) => setDaten((d) => ({ ...d, firma: v }))} />
+          <Feld colors={colors} label="Ansprechpartner" value={daten.ansprechpartner} onChange={(v) => setDaten((d) => ({ ...d, ansprechpartner: v }))} />
+          <Feld colors={colors} label="Telefon" value={daten.telefon} onChange={(v) => setDaten((d) => ({ ...d, telefon: v }))} tastatur="phone-pad" />
+          <Feld colors={colors} label="E-Mail" value={daten.email} onChange={(v) => setDaten((d) => ({ ...d, email: v }))} tastatur="email-address" />
+          <Feld colors={colors} label="Adresse" value={daten.adresse} onChange={(v) => setDaten((d) => ({ ...d, adresse: v }))} />
+          <Feld colors={colors} label="PLZ" value={daten.plz} onChange={(v) => setDaten((d) => ({ ...d, plz: v }))} tastatur="numeric" />
+          <Feld colors={colors} label="Ort" value={daten.ort} onChange={(v) => setDaten((d) => ({ ...d, ort: v }))} />
+          <Feld colors={colors} label="Branche" value={daten.branche} onChange={(v) => setDaten((d) => ({ ...d, branche: v }))} />
+          <Knopf colors={colors} text={busy === "daten2" ? "Speichert…" : "Speichern"} aus={!!busy}
+            onPress={() => lauf("daten2", async () => {
+              await Akq.ergaenzeDaten(p, kampagne, { ...daten, firma: daten.firma || gespeicherterName || "" });
+              setPanel(null);
+            }, "Daten gespeichert")} />
         </View>
       )}
 

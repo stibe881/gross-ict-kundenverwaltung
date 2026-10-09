@@ -156,3 +156,22 @@ describe("Quelle, Bot-Seiten und Verzeichnisse", () => {
     expect(istVerzeichnisDomain(null)).toBe(false);
   });
 });
+
+describe("Firma ohne eigene Website", () => {
+  const k = { kantone: ["LU"], branchen: ["Sanitär"] } as Campaign;
+  const p = { kanton: "LU", branche: "sanitär", domain: null, telefon: null, email: null,
+    web_check: { keineWebsite: true, grund: "Der Google-Eintrag nennt keine Website" } } as unknown as Prospect;
+
+  it("bekommt im Score den höchsten Einzelposten", () => {
+    const { score, begruendung } = berechneScore(p, k);
+    expect(score).toBe(15 + 10 + 40);
+    expect(begruendung.some((z) => z.includes("Keine eigene Website"))).toBe(true);
+  });
+  it("wird im Befund als Chance gezeigt, nicht als Prüfergebnis mit vielen Zeilen", () => {
+    const b = webBefund(p.web_check)!;
+    expect(b.keineWebsite).toBe(true);
+    expect(b.zeilen).toHaveLength(1);
+    expect(b.zeilen[0]).toMatchObject({ label: "Website", ok: false });
+    expect(befundAlsText(p.web_check)).toContain("Chance");
+  });
+});

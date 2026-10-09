@@ -98,7 +98,10 @@ export function berechneScore(p: Prospect, k: Campaign): { score: number; begrue
   if (p.branche && k.branchen.some((x) => x.toLowerCase() === p.branche!.toLowerCase())) add(10, `Zielbranche (${p.branche})`);
   if (p.domain) add(10, "Firmenwebsite vorhanden");
   const wc = p.web_check;
-  if (wc) {
+  if (wc?.keineWebsite) {
+    // Der beste Fall für eine Webagentur: gar keine eigene Website
+    add(40, "Keine eigene Website — Chance für einen kompletten Webauftritt");
+  } else if (wc) {
     if (wc.priority === "high") add(20, "Website zeigt deutlichen Verbesserungsbedarf");
     else if (wc.priority === "medium") add(10, "Website zeigt einigen Verbesserungsbedarf");
     if (wc.sslValid === false) add(5, "Website ohne gültiges HTTPS-Zertifikat");
@@ -119,8 +122,17 @@ export interface BefundZeile {
 }
 
 /** Übersetzt das gespeicherte Ergebnis der Website-Prüfung in lesbare Zeilen. */
-export function webBefund(wc: any): { zeilen: BefundZeile[]; botSchutz: boolean } | null {
+export function webBefund(wc: any): { zeilen: BefundZeile[]; botSchutz: boolean; keineWebsite?: boolean } | null {
   if (!wc || typeof wc !== "object") return null;
+
+  // Firma ohne eigene Website: kein Mangel-Check möglich, aber eine Verkaufschance
+  if (wc.keineWebsite) {
+    return {
+      botSchutz: false,
+      keineWebsite: true,
+      zeilen: [{ label: "Website", ok: false, text: wc.grund || "keine eigene Website gefunden" }],
+    };
+  }
 
   // Bei Bot-Schutz (z.B. Cloudflare) konnte nichts gelesen werden — keine falschen Mängel melden
   if (typeof wc.notes === "string" && wc.notes.includes("Bot-Schutz")) {
@@ -160,6 +172,7 @@ export function webBefund(wc: any): { zeilen: BefundZeile[]; botSchutz: boolean 
 export function befundAlsText(wc: any): string {
   const b = webBefund(wc);
   if (!b || b.botSchutz) return "";
+  if (b.keineWebsite) return `✗ Website: ${b.zeilen[0].text}\n→ Chance: kompletter Webauftritt (Webdesign, Hosting, E-Mail) aus einer Hand.`;
   const stand = wc?.abgerufen_am ? ` (Stand ${new Date(wc.abgerufen_am).toLocaleDateString("de-CH")})` : "";
   return b.zeilen
     .map((z) => `${z.ok === true ? "✓" : z.ok === false ? "✗" : "–"} ${z.label}: ${z.text}`)

@@ -243,20 +243,29 @@ export async function alsLeadUebernehmen(p: Prospect, k: Campaign, userId?: stri
   if (p.lead_id) throw new Error("Dieser Prospect wurde bereits als Lead übernommen.");
   if (p.compliance_status.startsWith("blocked")) throw new Error("Diese Firma steht auf der Sperrliste und kann nicht übernommen werden.");
 
-  // 1) Google-Prospect ohne Firmendaten: Daten von der eigenen Website der Firma holen
-  if (p.google_place_id && !istBrauchbarerName(p.firma)) {
-    const r = await datenVonWebsiteUebernehmen(p, k, userId);
-    if (r.hinweis) throw new Error(`${r.hinweis}. Es wurde kein neuer Lead angelegt.`);
-    p = r.prospect;
-  }
-  const firma = p.firma;
-  if (!firma) throw new Error("Es fehlt der Firmenname. Bitte den Prospect ergänzen.");
-
-  // 2) Website prüfen, falls noch nicht geschehen (Fehler hier verhindern die Übernahme nicht)
+  // 1) Fehlt der Befund oder der Firmenname (Google-Eintrag), zuerst wie bei «Website prüfen» vorgehen:
+  //    holt Firmendaten von der Firmenwebsite, prüft sie — oder stellt fest, dass es keine gibt.
   let webHinweis = "";
-  if (!p.web_check && (p.domain || p.google_place_id)) {
-    try { p = await pruefeWebsite(p, k, userId); }
-    catch (e: any) { webHinweis = `Website konnte nicht geprüft werden: ${e.message}`; }
+  const brauchtPruefung = !p.web_check || (!!p.google_place_id && !istBrauchbarerName(p.firma) && !p.web_check?.keineWebsite);
+  // (Ein manueller Prospect ohne Website-Angabe wird nicht automatisch als «ohne Website» gewertet)
+  if (brauchtPruefung && (p.domain || p.google_place_id)) {
+    let r: { hinweis: string | null; prospect: Prospect } | null = null;
+    try { r = await pruefeProspect(p, k, userId); }
+    catch (e: any) {
+      // Ohne Firmennamen lässt sich kein Lead anlegen; sonst ist die Prüfung nur ein Zusatz
+      if (p.google_place_id && !istBrauchbarerName(p.firma)) throw e;
+      webHinweis = `Website konnte nicht geprüft werden: ${e.message}`;
+    }
+    if (r?.hinweis) throw new Error(`${r.hinweis}. Es wurde kein neuer Lead angelegt.`);
+    if (r) p = r.prospect;
+  }
+
+  const keineWebsite = !!p.web_check?.keineWebsite;
+  const firma = p.firma;
+  if (!istBrauchbarerName(firma)) {
+    throw new Error(keineWebsite
+      ? "Diese Firma hat keine eigene Website, daher gibt es keine automatischen Firmendaten. Bitte zuerst «Daten ergänzen» (Name und Telefon sehen Sie mit «Name anzeigen»)."
+      : "Es fehlt der Firmenname. Bitte den Prospect ergänzen.");
   }
 
   // 3) Lead anlegen — mit allen Infos
@@ -268,6 +277,7 @@ export async function alsLeadUebernehmen(p: Prospect, k: Campaign, userId?: stri
     p.branche ? `Branche: ${p.branche}` : "",
     p.score != null ? `Score: ${p.score}/100` : "",
     ...(p.score_begruendung || []),
+    keineWebsite ? "\nAusgangslage: Die Firma hat keine eigene Website — Ansatz: kompletter Webauftritt aus einer Hand." : "",
     befund ? `\nWebsite-Befund:\n${befund}` : "",
     webHinweis,
     wc?.notes && !String(wc.notes).includes("Bot-Schutz") ? `\n${wc.notes}` : "",
@@ -296,7 +306,7 @@ export async function alsLeadUebernehmen(p: Prospect, k: Campaign, userId?: stri
   await updateProspect(p.id, { lead_id: lead.id, status: "uebernommen" });
 
   // 4) Nebenwirkungen, die den Lead ergänzen — Fehler hier sind nicht kritisch
-  if (wc && !wc.notes?.includes?.("Bot-Schutz")) await saveLeadWebCheck(lead.id, wc);
+  if (wc && !wc.keineWebsite && !wc.notes?.includes?.("Bot-Schutz")) await saveLeadWebCheck(lead.id, wc);
   try {
     await addLeadActivity({
       lead_id: lead.id, type: "system", user_name: "System",
@@ -379,14 +389,68 @@ export async function placeVormerken(campaignId: string, placeId: string, userId
   return data as Prospect;
 }
 
+/** Hält fest, dass eine Firma keine eigene Website hat — für eine Webagentur der beste Fall (Score +40). */
+async function keineWebsiteSpeichern(p: Prospect, k: Campaign, grund: string, userId?: string): Promise<Prospect> {
+  const abgerufen = new Date().toISOString();
+  await db.from("prospect_evidence").insert({
+    prospect_id: p.id, quelle_url: null, feld: "Website", textauszug: grund.slice(0, 500),
+    vertrauen: "mittel", abgerufen_am: abgerufen, created_by: userId || null,
+  });
+  // Eine gespeicherte Verzeichnis-Adresse (z.B. local.ch) ist keine eigene Website und wird entfernt
+  const extra: Partial<Prospect> & Record<string, any> = istVerzeichnisDomain(p.domain) ? { domain: null, norm_domain: null } : {};
+  const status = p.status === "neu" ? "geprueft" : p.status;
+  const web_check = { keineWebsite: true, grund, priority: "high", abgerufen_am: abgerufen };
+  const aktualisiert = { ...p, ...extra, status, web_check } as Prospect;
+  const { score, begruendung } = berechneScore(aktualisiert, k);
+  await updateProspect(p.id, { ...extra, status, web_check, score, score_begruendung: begruendung } as any);
+  return { ...aktualisiert, score, score_begruendung: begruendung };
+}
+
 /**
  * Prüft die Website eines Prospects. Bei einem Google-Eintrag ohne Firmendaten holt dieselbe
  * Analyse zugleich Firmenname, Telefon, E-Mail und Adresse von der Firmenwebsite — damit die
  * Karte erkennbar macht, um welche Firma es geht. «hinweis» meldet ein mögliches Duplikat.
+ * Hat die Firma keine eigene Website (oder nur ein Verzeichnis-/Social-Media-Profil), ist das
+ * kein Fehler, sondern eine Verkaufschance und wird als solche gespeichert.
  */
 export async function pruefeProspect(p: Prospect, k: Campaign, userId?: string): Promise<{ hinweis: string | null; prospect: Prospect }> {
-  if (p.google_place_id && !istBrauchbarerName(p.firma)) return datenVonWebsiteUebernehmen(p, k, userId);
+  const braucheName = !!p.google_place_id && !istBrauchbarerName(p.firma);
+
+  if (p.google_place_id) {
+    // Die Website-Adresse eines Google-Eintrags gibt es nur live (wird nicht gespeichert)
+    let eintrag: PlaceEintrag | undefined;
+    if (!p.domain || istVerzeichnisDomain(p.domain) || braucheName) eintrag = await placeDetails(p.google_place_id);
+    const adresse = eintrag ? eintrag.website : p.domain;
+    if (!adresse || istVerzeichnisDomain(adresse)) {
+      const grund = !adresse
+        ? "Der Google-Eintrag nennt keine Website"
+        : `Nur ein Verzeichnis- oder Social-Media-Eintrag (${normDomain(adresse)}), keine eigene Website`;
+      return { hinweis: null, prospect: await keineWebsiteSpeichern(p, k, grund, userId) };
+    }
+    if (braucheName) return datenVonWebsiteUebernehmen(p, k, userId, eintrag);
+  } else if (!p.domain) {
+    return { hinweis: null, prospect: await keineWebsiteSpeichern(p, k, "Keine Website bekannt (bei der Erfassung nicht angegeben)", userId) };
+  }
   return { hinweis: null, prospect: await pruefeWebsite(p, k, userId) };
+}
+
+export interface ProspektDaten {
+  firma: string; ansprechpartner: string; telefon: string; email: string;
+  adresse: string; plz: string; ort: string; branche: string;
+}
+
+/** Firmendaten von Hand ergänzen oder korrigieren (z.B. bei Firmen ohne eigene Website). */
+export async function ergaenzeDaten(p: Prospect, k: Campaign, w: ProspektDaten): Promise<void> {
+  const v = (x: string) => x.trim() || null;
+  const werte: Partial<Prospect> & Record<string, any> = {
+    firma: v(w.firma), ansprechpartner: v(w.ansprechpartner), telefon: v(w.telefon), email: v(w.email),
+    adresse: v(w.adresse), plz: v(w.plz), ort: v(w.ort), branche: v(w.branche),
+  };
+  if (!werte.firma && !p.google_place_id) throw new Error("Bitte einen Firmennamen angeben.");
+  werte.norm_telefon = normTelefon(werte.telefon);
+  werte.norm_email = normEmail(werte.email);
+  const { score, begruendung } = berechneScore({ ...p, ...werte } as Prospect, k);
+  await updateProspect(p.id, { ...werte, score, score_begruendung: begruendung } as any);
 }
 
 /**
@@ -394,9 +458,9 @@ export async function pruefeProspect(p: Prospect, k: Campaign, userId?: string):
  * (Impressum/Kontakt), nicht aus Google. Die Website-Adresse wird dafür live bei
  * Google abgefragt und nur für diesen Abruf verwendet.
  */
-export async function datenVonWebsiteUebernehmen(p: Prospect, k: Campaign, userId?: string): Promise<{ hinweis: string | null; prospect: Prospect }> {
+export async function datenVonWebsiteUebernehmen(p: Prospect, k: Campaign, userId?: string, vorab?: PlaceEintrag): Promise<{ hinweis: string | null; prospect: Prospect }> {
   if (!p.google_place_id) throw new Error("Nur für Google-Prospects.");
-  const eintrag = await placeDetails(p.google_place_id);
+  const eintrag = vorab ?? await placeDetails(p.google_place_id);
   if (!eintrag.website) throw new Error("Zu diesem Google-Eintrag ist keine Website bekannt — bitte Firmendaten von Hand erfassen.");
   // Verweist der Google-Eintrag nur auf ein Verzeichnis oder Social-Media-Profil, gibt es keine eigene Firmenwebsite
   if (istVerzeichnisDomain(eintrag.website)) {
