@@ -14,7 +14,7 @@ import Base from "../layouts/Base.astro";
       <div class="nebel" aria-hidden="true"></div>
 
       <div class="content">
-        <h2>WEB- UND<br />APPDESIGN</h2>
+        <h2>WEB- UND<br /><span class="akz">APPDESIGN</span></h2>
         <p class="hover-text">Webseiten, Web-Apps und Mobile Apps — zum Festpreis, rechtssicher nach revDSG, barrierefrei nach WCAG.</p>
       </div>
     </a>
@@ -25,7 +25,7 @@ import Base from "../layouts/Base.astro";
       <div class="nebel" aria-hidden="true"></div>
 
       <div class="content">
-        <h2>ICT SERVICES</h2>
+        <h2>ICT <span class="akz">SERVICES</span></h2>
         <p class="hover-text">Zuverlässiger IT-Support, Netzwerk, Security und Cloud-Lösungen für KMU.</p>
       </div>
     </a>
@@ -193,21 +193,19 @@ import Base from "../layouts/Base.astro";
     font-size: clamp(52px, 6vw, 92px);
     letter-spacing: 0.02em;
     line-height: 1.05;
-    /* Füllung als Verlauf, der auf den Text zugeschnitten ist; je Welt eigene Farbe (siehe unten) */
-    color: transparent;
-    -webkit-background-clip: text;
-    background-clip: text;
+    color: #F9F6F0;
   }
-  /* Web-Welt: Gold wie die Klammer im Logo — Verlauf wie Metall im Abendlicht */
+  /* Web-Welt: Off-White, das zweite Wort im Gold der Logo-Klammer — flach, ohne Verlauf */
   .half-web .content h2 {
-    background-image: linear-gradient(180deg, #FBE6A8 0%, #E6B24A 55%, #C98A12 100%);
     filter: drop-shadow(0 2px 14px rgba(11, 14, 26, 0.6));
   }
-  /* ICT-Welt: kühles Stahl-Schiefer wie das Wortlogo, dunkel auf dem hellen Himmel */
+  .half-web .content h2 .akz { color: #E6B24A; }
+  /* ICT-Welt: dunkel auf dem hellen Himmel, das zweite Wort in dunklem Bernstein */
   .half-ict .content h2 {
-    background-image: linear-gradient(180deg, #0B0E1A 0%, #2B3636 55%, #4B5656 100%);
+    color: #0B0E1A;
     filter: drop-shadow(0 2px 12px rgba(249, 246, 240, 0.6));
   }
+  .half-ict .content h2 .akz { color: #9C6A00; }
   /* Akzentstrich unter dem Titel */
   .content h2::after {
     content: "";
