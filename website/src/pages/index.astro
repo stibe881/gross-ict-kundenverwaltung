@@ -173,20 +173,45 @@ import Base from "../layouts/Base.astro";
     flex-direction: column;
     align-items: center;
     gap: 20px;
-    max-width: 460px;
+    max-width: 600px;
     text-align: center;
+    isolation: isolate;
+  }
+  /* Weicher dunkler Schleier hinter dem Text: Lesbarkeit über hellem Schnee und Orange, ohne harte Kanten */
+  .content::before {
+    content: "";
+    position: absolute;
+    inset: -44px -70px;
+    z-index: -1;
+    background: radial-gradient(ellipse closest-side, rgba(11, 14, 26, 0.62) 55%, rgba(11, 14, 26, 0));
+    pointer-events: none;
   }
   .content h2 {
-    font-size: clamp(30px, 3.6vw, 48px);
-    font-weight: 800;
-    letter-spacing: 3px;
-    line-height: 1.18;
-    color: #fff;
-    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.45);
+    font-family: "Anton", "Sora", sans-serif;
+    font-weight: 400;              /* Anton hat nur einen Schnitt — verhindert künstliches Fett */
+    text-transform: uppercase;
+    font-size: clamp(52px, 6vw, 92px);
+    letter-spacing: 0.02em;
+    line-height: 1.05;
+    color: #F9F6F0;
+    text-shadow: 0 2px 24px rgba(11, 14, 26, 0.55);
+  }
+  /* Einziger Farbakzent: dünner Goldstrich unter dem Titel */
+  .content h2::after {
+    content: "";
+    display: block;
+    width: 56px;
+    height: 3px;
+    margin: 20px auto 0;
+    background: var(--gold);
   }
   .content p.hover-text {
     font-size: 17px;
-    color: rgba(255,255,255,0.93);
+    font-weight: 500;
+    line-height: 1.55;
+    color: #F9F6F0;
+    /* doppelter Schatten: lesbar auch über dem hellen Orange und Schnee des Bergs */
+    text-shadow: 0 0 3px rgba(11, 14, 26, 0.75), 0 1px 16px rgba(11, 14, 26, 0.85);
     margin: 0;
     padding: 0;
     opacity: 0;
@@ -255,7 +280,8 @@ import Base from "../layouts/Base.astro";
       filter: blur(4px);
       opacity: 0.38;
     }
-    .content h2 { text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55); }
+    .content h2 { font-size: clamp(48px, 15vw, 64px); text-shadow: 0 2px 20px rgba(11, 14, 26, 0.6); }
+    .content h2::after { margin-top: 16px; }
     .content p.hover-text { text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5); }
     .split { flex-direction: column; }
     .half { padding: 130px 28px 80px; }
