@@ -193,17 +193,38 @@ import Base from "../layouts/Base.astro";
     font-size: clamp(52px, 6vw, 92px);
     letter-spacing: 0.02em;
     line-height: 1.05;
-    color: #F9F6F0;
-    text-shadow: 0 2px 24px rgba(11, 14, 26, 0.55);
+    /* Füllung als Verlauf, der auf den Text zugeschnitten ist; je Welt eigene Farbe (siehe unten) */
+    color: transparent;
+    -webkit-background-clip: text;
+    background-clip: text;
   }
-  /* Einziger Farbakzent: dünner Goldstrich unter dem Titel */
+  /* Web-Welt: Gold wie die Klammer im Logo — Verlauf wie Metall im Abendlicht */
+  .half-web .content h2 {
+    background-image: linear-gradient(180deg, #FBE6A8 0%, #E6B24A 55%, #C98A12 100%);
+    filter: drop-shadow(0 2px 14px rgba(11, 14, 26, 0.6));
+  }
+  /* ICT-Welt: kühles Stahl-Schiefer wie das Wortlogo, dunkel auf dem hellen Himmel */
+  .half-ict .content h2 {
+    background-image: linear-gradient(180deg, #0B0E1A 0%, #2B3636 55%, #4B5656 100%);
+    filter: drop-shadow(0 2px 12px rgba(249, 246, 240, 0.6));
+  }
+  /* Akzentstrich unter dem Titel */
   .content h2::after {
     content: "";
     display: block;
     width: 56px;
     height: 3px;
     margin: 20px auto 0;
-    background: var(--gold);
+  }
+  .half-web .content h2::after { background: #E6B24A; }
+  .half-ict .content h2::after { background: #3A4242; }
+  .half-ict .content p.hover-text {
+    color: #141B1B;
+    font-weight: 600;
+    text-shadow: 0 0 3px rgba(249, 246, 240, 0.7), 0 1px 16px rgba(249, 246, 240, 0.85);
+  }
+  .half-ict .content::before {
+    background: radial-gradient(ellipse closest-side, rgba(249, 246, 240, 0.5) 55%, rgba(249, 246, 240, 0));
   }
   .content p.hover-text {
     font-size: 17px;
@@ -280,7 +301,7 @@ import Base from "../layouts/Base.astro";
       filter: blur(4px);
       opacity: 0.38;
     }
-    .content h2 { font-size: clamp(48px, 15vw, 64px); text-shadow: 0 2px 20px rgba(11, 14, 26, 0.6); }
+    .content h2 { font-size: clamp(48px, 15vw, 64px); }
     .content h2::after { margin-top: 16px; }
     .content p.hover-text { text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5); }
     .split { flex-direction: column; }
