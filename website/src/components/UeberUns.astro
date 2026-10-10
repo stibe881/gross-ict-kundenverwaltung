@@ -4,7 +4,6 @@
 // Inhalt aus den Props der beiden Seiten.
 import ContactForm from "./ContactForm.astro";
 
-interface Fakt { label: string; wert: string; href?: string }
 interface Prinzip { titel: string; text: string }
 interface Props {
   kicker: string;
@@ -13,12 +12,11 @@ interface Props {
   werTitel: string;
   werText: string[];
   prinzipien: Prinzip[];
-  fakten: Fakt[];
   ctaText: string;
   ctaLabel: string;
   ctaHref: string;
 }
-const { kicker, titel, lead, werTitel, werText, prinzipien, fakten, ctaText, ctaLabel, ctaHref } = Astro.props;
+const { kicker, titel, lead, werTitel, werText, prinzipien, ctaText, ctaLabel, ctaHref } = Astro.props;
 ---
 <div class="page-header" style="padding: 120px 24px 56px; max-width: 1240px; margin: 0 auto;">
   <p class="mono">{kicker}</p>
@@ -50,20 +48,6 @@ const { kicker, titel, lead, werTitel, werText, prinzipien, fakten, ctaText, cta
             </li>
           ))}
         </ol>
-      </div>
-    </div>
-
-    <div class="zeile" data-reveal>
-      <p class="mono label">Auf einen Blick</p>
-      <div class="inhalt">
-        <dl class="fakten">
-          {fakten.map((f) => (
-            <div>
-              <dt class="mono">{f.label}</dt>
-              <dd>{f.href ? <a href={f.href}>{f.wert}</a> : f.wert}</dd>
-            </div>
-          ))}
-        </dl>
       </div>
     </div>
 
@@ -107,15 +91,9 @@ const { kicker, titel, lead, werTitel, werText, prinzipien, fakten, ctaText, cta
   .nr { color: var(--gold-text); font-size: 13px; letter-spacing: 3px; padding-top: 6px; }
   .prinzipien h3 { font-size: 20px; margin: 0 0 8px; color: var(--text); }
   .prinzipien .text { margin: 0; }
-  .fakten { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 40px; }
-  .fakten dt { color: var(--gold-text); font-size: 12px; letter-spacing: 3px; margin: 0 0 6px; }
-  .fakten dd { margin: 0; color: var(--text); font-size: 16px; line-height: 1.55; }
-  .fakten a { color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
-  .fakten a:hover { color: var(--gold-text-hover); }
   .cta-text { font-size: 18px; color: var(--text); margin-bottom: 22px; }
   @media (max-width: 820px) {
     .zeile { grid-template-columns: 1fr; gap: 18px; padding: 36px 0 42px; }
-    .fakten { grid-template-columns: 1fr; gap: 22px; }
     .prinzipien li { grid-template-columns: 40px 1fr; gap: 10px; }
   }
 </style>
