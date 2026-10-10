@@ -200,12 +200,13 @@ import Base from "../layouts/Base.astro";
     filter: drop-shadow(0 2px 14px rgba(11, 14, 26, 0.6));
   }
   .half-web .content h2 .akz { color: #E6B24A; }
-  /* ICT-Welt: dunkel auf dem hellen Himmel, das zweite Wort in dunklem Bernstein */
+  /* ICT-Welt: «ICT» dunkel, das zweite Wort im selben Gold wie bei Web. Auf dem hellen Himmel
+     hält ein dezenter dunkler Schatten das Gold lesbar. */
   .half-ict .content h2 {
     color: #0B0E1A;
-    filter: drop-shadow(0 2px 12px rgba(249, 246, 240, 0.6));
+    filter: drop-shadow(0 1px 1px rgba(11, 14, 26, 0.5)) drop-shadow(0 2px 10px rgba(11, 14, 26, 0.35));
   }
-  .half-ict .content h2 .akz { color: #9C6A00; }
+  .half-ict .content h2 .akz { color: #E6B24A; }
   /* Akzentstrich unter dem Titel */
   .content h2::after {
     content: "";
