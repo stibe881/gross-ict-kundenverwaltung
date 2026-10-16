@@ -27,6 +27,7 @@ import { downloadInvoicePDF, generateInvoicePDFBase64 } from "@/lib/pdf-utils";
 import { showAlert, showConfirm } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
 import { supabase } from "@/lib/supabase";
+import { funktionsFehlerText } from "@/lib/function-fehler";
 
 export default function InvoiceDetailScreen() {
     const { id } = useLocalSearchParams();
@@ -167,7 +168,7 @@ export default function InvoiceDetailScreen() {
                     const { data, error } = await supabase.functions.invoke('send-invoice-email', {
                         body: { id: invoice.id, pdfBase64 },
                     });
-                    if (error) throw new Error(error.message || "E-Mail konnte nicht gesendet werden");
+                    if (error) throw new Error(await funktionsFehlerText(error, "E-Mail konnte nicht gesendet werden"));
                     if (data?.error) throw new Error(data.error);
                     showAlert("Erfolg", `Rechnung wurde an ${invoice.customer?.email} gesendet.`);
                     refetch();
@@ -199,7 +200,7 @@ export default function InvoiceDetailScreen() {
                     const { data, error } = await supabase.functions.invoke('send-reminder-email', {
                         body: { id: invoice.id, pdfBase64, level },
                     });
-                    if (error) throw new Error(error.message || "Mahnung konnte nicht gesendet werden");
+                    if (error) throw new Error(await funktionsFehlerText(error, "Mahnung konnte nicht gesendet werden"));
                     if (data?.error) throw new Error(data.error);
                     showAlert("Erfolg", `${levelLabels[level]} wurde an ${invoice.customer?.email} gesendet.`);
                     refetch();
