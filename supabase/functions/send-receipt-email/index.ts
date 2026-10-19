@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { generateInvoicePDF, InvoiceData } from "../send-invoice-email/pdf-generator.ts";
+import { resendGrund } from "../_shared/resend-fehler.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -179,7 +180,7 @@ Deno.serve(async (req) => {
     if (!emailRes.ok) {
       const errBody = await emailRes.text();
       console.error("[send-receipt-email] Resend error:", errBody);
-      throw new Error("E-Mail konnte nicht gesendet werden");
+      throw new Error(`E-Mail konnte nicht gesendet werden: ${resendGrund(errBody)}`);
     }
 
     if (invoice_id) {

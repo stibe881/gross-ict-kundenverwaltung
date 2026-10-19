@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resendGrund } from "../_shared/resend-fehler.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -166,7 +167,7 @@ Deno.serve(async (req) => {
     if (!emailRes.ok) {
       const errBody = await emailRes.text();
       console.error("[send-contract-email] Resend error:", errBody);
-      return new Response(JSON.stringify({ error: "E-Mail konnte nicht gesendet werden" }), {
+      return new Response(JSON.stringify({ error: `E-Mail konnte nicht gesendet werden: ${resendGrund(errBody)}` }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
