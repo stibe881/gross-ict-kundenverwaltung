@@ -1,6 +1,7 @@
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
 import { LOGO_BASE64 } from "./logo.ts";
 import { drawSwissQRBill } from "../send-invoice-email/swiss-qr.ts";
+import { parseSchuldner } from "../_shared/qr-adresse.ts";
 
 export interface ContractData {
   title: string;
@@ -168,9 +169,13 @@ export function generateContractPDF(data: ContractData): string {
 
   const addressLines = data.customerAddress.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   let addrY = y + 5;
+  // Lange Namen umbrechen, damit sie nicht unter die Box rechts laufen
+  const addrBreite = PAGE_WIDTH - MARGIN_X * 2 - 75 - 6;
   for (const line of addressLines) {
-    doc.text(line, MARGIN_X, addrY);
-    addrY += 5;
+    for (const teil of doc.splitTextToSize(line, addrBreite)) {
+      doc.text(teil, MARGIN_X, addrY);
+      addrY += 5;
+    }
   }
 
   // Meta box — height depends on content
@@ -669,9 +674,13 @@ export function generateInvoicePDF(data: InvoiceData): string {
   doc.setTextColor(...cTextDark);
   const addressLines = data.customerAddress.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   let addrY = y + 5;
+  // Lange Namen umbrechen, damit sie nicht unter die Box rechts laufen
+  const addrBreite = PAGE_WIDTH - MARGIN_X * 2 - 75 - 6;
   for (const line of addressLines) {
-    doc.text(line, MARGIN_X, addrY);
-    addrY += 5;
+    for (const teil of doc.splitTextToSize(line, addrBreite)) {
+      doc.text(teil, MARGIN_X, addrY);
+      addrY += 5;
+    }
   }
 
   // Meta box
@@ -870,16 +879,16 @@ export function generateInvoicePDF(data: InvoiceData): string {
   // Schweizer QR-Zahlteil auf eigener Seite – nur für zahlbare Dokumente
   const qrOpenAmount = (data.total || 0) - (data.paidAmount || 0);
   if (data.docType !== "Quittung" && qrOpenAmount > 0.05) {
-    const qrAddrLines = (data.customerAddress || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const schuldner = parseSchuldner(data.customerName, data.customerAddress);
     drawSwissQRBill(doc, {
       iban: data.settings?.iban || "CH32 0077 8229 1386 9200 1",
       creditorName: data.settings?.accountHolder || "Gross ICT",
       creditorStreet: "Neuhushof 3",
       creditorCity: "6144 Zell",
       amount: qrOpenAmount,
-      debtorName: data.customerName || undefined,
-      debtorStreet: qrAddrLines.length >= 2 ? qrAddrLines[0] : undefined,
-      debtorCity: qrAddrLines.length >= 1 ? qrAddrLines[qrAddrLines.length - 1] : undefined,
+      debtorName: schuldner?.name,
+      debtorStreet: schuldner?.street,
+      debtorCity: schuldner?.city,
       message: `${data.docType} ${data.invoiceNumber}`,
     });
   }
@@ -1000,9 +1009,13 @@ export function generateQuotePDF(data: QuoteData): string {
   doc.setTextColor(...cTextDark);
   const addressLines = data.customerAddress.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   let addrY = y + 5;
+  // Lange Namen umbrechen, damit sie nicht unter die Box rechts laufen
+  const addrBreite = PAGE_WIDTH - MARGIN_X * 2 - 75 - 6;
   for (const line of addressLines) {
-    doc.text(line, MARGIN_X, addrY);
-    addrY += 5;
+    for (const teil of doc.splitTextToSize(line, addrBreite)) {
+      doc.text(teil, MARGIN_X, addrY);
+      addrY += 5;
+    }
   }
 
   // Meta box

@@ -95,6 +95,14 @@ function drawQRCode(doc: any, payload: string, x: number, y: number, sizeMm: num
   doc.rect(cx - barL / 2, cy - barW / 2 + 0.25, barL, barW, "F");
 }
 
+// Text in der Breite umbrechen (mm) und Zeile für Zeile schreiben; gibt die neue y-Position zurück.
+// Lange Firmennamen laufen sonst über den QR-Code und den Seitenrand hinaus.
+function textUmbrechen(doc: any, text: string, x: number, y: number, breite: number, zeilenhoehe: number, maxZeilen = 3): number {
+  const zeilen: string[] = doc.splitTextToSize(text, breite);
+  for (const z of zeilen.slice(0, maxZeilen)) { doc.text(z, x, y); y += zeilenhoehe; }
+  return y;
+}
+
 // Zahlteil + Empfangsschein auf einer NEUEN Seite (unterste 105mm) zeichnen
 export function drawSwissQRBill(doc: any, o: SwissQROptions) {
   doc.addPage();
@@ -133,9 +141,9 @@ export function drawSwissQRBill(doc: any, o: SwissQROptions) {
   doc.text(debtor ? "Zahlbar durch" : "Zahlbar durch (Name/Adresse)", rx, ry); ry += 3.2;
   doc.setFont("helvetica", "normal"); doc.setFontSize(8);
   if (debtor) {
-    doc.text(o.debtorName!, rx, ry); ry += 3.5;
-    if (o.debtorStreet) { doc.text(o.debtorStreet, rx, ry); ry += 3.5; }
-    doc.text(o.debtorCity!, rx, ry); ry += 3.5;
+    ry = textUmbrechen(doc, o.debtorName!, rx, ry, 52, 3.5);
+    if (o.debtorStreet) ry = textUmbrechen(doc, o.debtorStreet, rx, ry, 52, 3.5, 2);
+    ry = textUmbrechen(doc, o.debtorCity!, rx, ry, 52, 3.5, 2);
   } else {
     // Leeres Eingabefeld (Eckmarken)
     doc.rect(rx, ry, 52, 20);
@@ -190,9 +198,9 @@ export function drawSwissQRBill(doc: any, o: SwissQROptions) {
   doc.text(debtor ? "Zahlbar durch" : "Zahlbar durch (Name/Adresse)", ix, iy); iy += 4;
   doc.setFont("helvetica", "normal"); doc.setFontSize(10);
   if (debtor) {
-    doc.text(o.debtorName!, ix, iy); iy += 4.5;
-    if (o.debtorStreet) { doc.text(o.debtorStreet, ix, iy); iy += 4.5; }
-    doc.text(o.debtorCity!, ix, iy);
+    iy = textUmbrechen(doc, o.debtorName!, ix, iy, 85, 4.5);
+    if (o.debtorStreet) iy = textUmbrechen(doc, o.debtorStreet, ix, iy, 85, 4.5, 2);
+    textUmbrechen(doc, o.debtorCity!, ix, iy, 85, 4.5, 2);
   } else {
     doc.rect(ix, iy, 65, 25);
   }

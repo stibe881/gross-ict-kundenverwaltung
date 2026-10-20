@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { LOGO_BASE64 } from "./logo.ts";
 import { generateContractPDF, generateInvoicePDF, generateQuotePDF } from "./pdf-generator.ts";
+import { rechnungsDaten } from "../_shared/rechnungsdaten.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -800,8 +801,8 @@ Deno.serve(async (req) => {
 
         const pdfBase64 = generateInvoicePDF({
           invoiceNumber: invoice.invoice_number,
-          invoiceDate: invoice.status === "draft" ? "" : invoice.invoice_date,
-          dueDate: invoice.status === "draft" ? "" : invoice.due_date,
+          invoiceDate: rechnungsDaten(invoice, settings?.payment_terms_days || 30).invoiceDate,
+          dueDate: rechnungsDaten(invoice, settings?.payment_terms_days || 30).dueDate,
           customerName,
           customerAddress: addressParts.join("\n"),
           customerNumber: invoice.customer?.customer_number,

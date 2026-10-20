@@ -1,6 +1,7 @@
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
 import { LOGO_BASE64 } from "../contract-page/logo.ts";
 import { drawSwissQRBill } from "./swiss-qr.ts";
+import { parseSchuldner } from "../_shared/qr-adresse.ts";
 
 export interface InvoiceItem {
   description: string;
@@ -142,9 +143,13 @@ export function generateInvoicePDF(data: InvoiceData): string {
   const rawAddress = data.customerAddress || "";
   const addressLines = rawAddress.split(/\r?\n|<br\s*\/?>/i).map(l => l.trim()).filter(Boolean);
   let addrY = y + 5;
+  // Lange Namen umbrechen, damit sie nicht unter die Box rechts laufen
+  const addrBreite = pageWidth - marginX * 2 - 75 - 6;
   for (const line of addressLines) {
-    doc.text(line, marginX, addrY);
-    addrY += 5;
+    for (const teil of doc.splitTextToSize(line, addrBreite)) {
+      doc.text(teil, marginX, addrY);
+      addrY += 5;
+    }
   }
 
   // -- Right: Meta Box
@@ -372,16 +377,16 @@ export function generateInvoicePDF(data: InvoiceData): string {
   // Schweizer QR-Zahlteil auf eigener Seite – nur für zahlbare Dokumente
   const openAmount = (data.total || 0) - (data.paidAmount || 0);
   if (docType !== "Quittung" && openAmount > 0.05) {
-    const addrLines = (data.customerAddress || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const schuldner = parseSchuldner(data.customerName, data.customerAddress);
     drawSwissQRBill(doc, {
       iban: data.iban || "CH32 0077 8229 1386 9200 1",
       creditorName: data.accountHolder || "Gross ICT",
       creditorStreet: "Neuhushof 3",
       creditorCity: "6144 Zell",
       amount: openAmount,
-      debtorName: data.customerName || undefined,
-      debtorStreet: addrLines.length >= 2 ? addrLines[0] : undefined,
-      debtorCity: addrLines.length >= 1 ? addrLines[addrLines.length - 1] : undefined,
+      debtorName: schuldner?.name,
+      debtorStreet: schuldner?.street,
+      debtorCity: schuldner?.city,
       message: `${docType} ${data.invoiceNumber}`,
     });
   }
