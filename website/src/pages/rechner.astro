@@ -58,9 +58,9 @@ import Base from "../layouts/Base.astro";
                 <li>Komplexe Datenbank-Anbindungen</li>
               </ul>
             </label>
-            <label class="choice"><input type="radio" name="wtype" value="12000">
+            <label class="choice"><input type="radio" name="wtype" value="8500">
               <span class="t">E-Commerce / Webshop</span>
-              <span class="d">CHF 12'000</span>
+              <span class="d">CHF 8'500</span>
               <ul class="c-feat">
                 <li>Leistungsstarker Online-Shop</li>
                 <li>Zahlungsmittel (Twint, Kreditkarte)</li>
@@ -456,7 +456,7 @@ import Base from "../layouts/Base.astro";
     const s = state();
     const typeLabel = s.wedding
       ? `Hochzeitspaket CHF ${s.base}`
-      : { 1500: "Landing Page", 3500: "Unternehmenswebseite", 8000: "Web-Applikation", 12000: "E-Commerce/Webshop" }[s.base] || `CHF ${s.base}`;
+      : { 1500: "Landing Page", 3500: "Unternehmenswebseite", 8000: "Web-Applikation", 8500: "E-Commerce/Webshop" }[s.base] || `CHF ${s.base}`;
     data.message = [
       "Festpreis-Anfrage aus dem Webseitenrechner:",
       `Kundentyp: ${s.ctype}`,
