@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { generateInvoicePDF, InvoiceData } from "./pdf-generator.ts";
 import { resendGrund } from "../_shared/resend-fehler.ts";
+import { htmlZuText } from "../_shared/mail-text.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -161,11 +162,14 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "RESEND_API_KEY nicht konfiguriert" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    const html = buildInvoiceEmailHTML(invoice, trackingUrl, bank, `${supabaseUrl}/functions/v1/invoice-payment?id=${id}`);
     const emailPayload: any = {
       from: "Gross ICT <info@gross-ict.ch>",
       to: [invoice.customer.email],
+      reply_to: "info@gross-ict.ch",          // Antworten landen im normalen Postfach
       subject: `Rechnung ${invoice.invoice_number} - Gross ICT`,
-      html: buildInvoiceEmailHTML(invoice, trackingUrl, bank, `${supabaseUrl}/functions/v1/invoice-payment?id=${id}`),
+      html,
+      text: htmlZuText(html),                  // Text-Teil: HTML-only-Mails werten Spamfilter ab
     };
 
     if (finalPdfBase64) {
