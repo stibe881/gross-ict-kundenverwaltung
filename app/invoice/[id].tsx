@@ -593,6 +593,7 @@ export default function InvoiceDetailScreen() {
                                             sent: "paperplane",
                                             reminder_sent: "exclamationmark.triangle",
                                             viewed: "eye",
+                                            delivered: "tray.fill",
                                             payment_added: "banknote",
                                         };
                                         const iconName = iconNames[activity.type] || "circle.fill";

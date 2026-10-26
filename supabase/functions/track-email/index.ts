@@ -84,13 +84,31 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       const sixtySecondsAgo = new Date(Date.now() - 60 * 1000);
+      const absender = (req.headers.get("user-agent") || "unbekannt").slice(0, 160);
       if (lastSent && new Date(lastSent.created_at) > sixtySecondsAgo) {
-        console.log(`[track-email] Invoice ${id}: Pixel within 60s of send, ignoring (server prefetch)`);
+        console.log(`[track-email] Invoice ${id}: Pixel within 60s of send, ignoring (server prefetch) — Absender: ${absender}`);
+        // Kein «geöffnet» (es war ein Filter), aber festhalten, dass die Mail beim Empfänger angekommen ist.
+        // Einmal pro Versand: sonst würde jeder Mehrfachaufruf des Filters einen Eintrag erzeugen.
+        try {
+          const { data: schonDa } = await supabase
+            .from("invoice_activities").select("id")
+            .eq("invoice_id", id).eq("type", "delivered")
+            .gte("created_at", lastSent.created_at).limit(1).maybeSingle();
+          if (!schonDa) {
+            await supabase.from("invoice_activities").insert({
+              invoice_id: id,
+              type: "delivered",
+              description: "Mail beim Empfänger angekommen (Bild von dessen Mailserver geladen — eine Öffnung lässt sich daran nicht erkennen)",
+              user_name: "System",
+            });
+          }
+        } catch (e) { console.warn("[track-email] delivered-Eintrag fehlgeschlagen:", e); }
         return new Response(new Uint8Array(PIXEL), {
           headers: { "Content-Type": "image/gif", "Cache-Control": "no-cache, no-store", ...corsHeaders },
         });
       }
 
+      console.log(`[track-email] Invoice ${id}: echte Öffnung erkannt — Absender: ${absender}`);
       // Aktivität loggen
       const { error: activityError } = await supabase.from("invoice_activities").insert({
         invoice_id: id,

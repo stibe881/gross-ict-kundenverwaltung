@@ -19,7 +19,7 @@ function fmtDate(dateString: string): string {
 
 function buildInvoiceEmailHTML(invoice: any, trackingUrl?: string, bank?: { accountHolder?: string; bankName?: string; iban?: string }, payUrl?: string): string {
   const trackingPixel = trackingUrl
-    ? `<img src="${trackingUrl}" width="1" height="1" style="display:none" alt="" />`
+    ? `<img src="${trackingUrl}" width="1" height="1" style="border:0;outline:none;" alt="" />`
     : "";
   const payButton = payUrl
     ? `<div style="text-align: center; margin: 20px 0;">
