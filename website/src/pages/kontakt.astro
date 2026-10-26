@@ -14,8 +14,8 @@ import Base from "../layouts/Base.astro";
     .hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
     /* Label (13px * 1.65 Zeilenhoehe + 5px Abstand): Kacheln beginnen auf Hoehe der Oberkante des ersten Feldes */
     .cards-col { display: flex; flex-direction: column; gap: 24px; margin-top: 26px; }
-    .ccard { background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: flex; flex-direction: row; align-items: center; gap: 16px; text-align: left; text-decoration: none; box-shadow: 0 4px 24px rgba(0,0,0,0.1); transition: all 0.2s; }
-    .ccard:hover { border-color: var(--gold); transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.15); }
+    .ccard { background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: flex; flex-direction: row; align-items: center; gap: 16px; text-align: left; text-decoration: none; transition: border-color 0.2s ease, background-color 0.2s ease; }
+    .ccard:hover, .ccard:focus-visible { border-color: var(--gold); background: var(--panel); }
     .ccard .icon { width: 56px; height: 56px; flex: none; border-radius: 50%; background: var(--bg); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--gold); }
     .ccard p.label { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin: 0; }
     .ccard p.val { font-size: 18px; font-weight: 700; color: var(--text); margin: 0; }

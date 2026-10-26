@@ -59,8 +59,8 @@ const downloads = [
     
     .contact-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 60px 0 80px; }
     @media (max-width: 820px) { .contact-cards { grid-template-columns: 1fr; } }
-    .ccard { background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 32px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); transition: all 0.2s; }
-    .ccard:hover { border-color: var(--gold); transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.15); }
+    .ccard { background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 32px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; transition: border-color 0.2s ease, background-color 0.2s ease; }
+    .ccard:hover, .ccard:focus-visible { border-color: var(--gold); background: var(--panel); }
     .ccard .icon { width: 56px; height: 56px; border-radius: 50%; background: var(--bg); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--gold); }
     .ccard p.label { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin: 0; }
     .ccard p.val { font-size: 18px; font-weight: 700; color: var(--text); margin: 0; }
@@ -90,8 +90,8 @@ const downloads = [
     .dl-header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
     @media (max-width: 768px) { .dl-header { flex-direction: column; align-items: flex-start; } }
     .dl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
-    .dl-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 32px 24px; text-decoration: none; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; text-align: center; }
-    .dl-card:hover { transform: translateY(-4px); border-color: var(--gold); box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+    .dl-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 32px 24px; text-decoration: none; transition: border-color 0.2s ease, background-color 0.2s ease; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .dl-card:hover, .dl-card:focus-visible { border-color: var(--gold); background: var(--panel); }
     .dl-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; background: var(--gold); }
     .dl-icon svg { stroke: #221A0E; }
     .dl-card h3 { font-family: "Manrope", sans-serif; font-size: 20px; font-weight: 700; color: var(--text); margin: 0 0 8px; }
