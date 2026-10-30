@@ -83,13 +83,16 @@ Deno.serve(async (req) => {
 
     const { data: invoice } = await supabase
       .from("invoices")
-      .select("invoice_number, total, paid_amount")
+      .select("invoice_number, total, paid_amount, items:invoice_items(total)")
       .eq("id", invoiceId)
       .single();
     if (!invoice) throw new Error("Rechnung nicht gefunden: " + invoiceId);
 
     const newPaid = (invoice.paid_amount || 0) + amount;
-    const newStatus = newPaid >= (invoice.total || 0) - 0.01 ? "paid" : "open";
+    // Gesamtbetrag wie in der App aus den Positionen; das DB-Feld «total» kann veraltet sein
+    const posSumme = (invoice.items || []).reduce((sum: number, i: any) => sum + (Number(i.total) || 0), 0);
+    const gesamt = posSumme > 0 ? posSumme : (invoice.total || 0);
+    const newStatus = gesamt > 0 && newPaid >= gesamt - 0.01 ? "paid" : "open";
     await supabase.from("invoices").update({ paid_amount: newPaid, status: newStatus }).eq("id", invoiceId);
     await supabase.from("invoice_activities").insert({
       invoice_id: invoiceId,

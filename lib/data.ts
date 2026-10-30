@@ -8,6 +8,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { Buffer } from "buffer";
 import { Platform } from "react-native";
 import { showAlert } from "./alert";
+import { istVollBezahlt } from "./format";
 export { supabase };
 
 export async function triggerPushNotification(
@@ -623,13 +624,14 @@ export async function deleteInvoice(id: string) {
 export async function addPayment(invoiceId: string, amount: number, method?: string) {
     const { data: invoice, error: fetchError } = await supabase
         .from("invoices")
-        .select("total, paid_amount")
+        .select("total, paid_amount, items:invoice_items(total)")
         .eq("id", invoiceId)
         .single();
     if (fetchError) throw new Error(fetchError.message);
 
     const newPaidAmount = (invoice.paid_amount || 0) + amount;
-    const newStatus = newPaidAmount >= invoice.total ? "paid" : "open";
+    // Gegen den Betrag aus den Positionen prüfen (wie die Listen), nicht gegen das evtl. veraltete DB-Feld «total»
+    const newStatus = istVollBezahlt(invoice, newPaidAmount) ? "paid" : "open";
 
     const { data, error } = await supabase
         .from("invoices")

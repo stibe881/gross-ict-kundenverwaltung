@@ -23,6 +23,16 @@ export function getInvoiceTotal(invoice: any): number {
 }
 
 /**
+ * Ist die Rechnung durch den bezahlten Betrag vollständig gedeckt?
+ * Massgebend ist derselbe Gesamtbetrag, den die Listen anzeigen (aus den Positionen, siehe getInvoiceTotal) —
+ * nicht das DB-Feld «total», das veraltet sein kann. Sonst steht «Rest: CHF 0.00» bei Status «offen».
+ */
+export function istVollBezahlt(invoice: any, bezahlt: number): boolean {
+  const gesamt = getInvoiceTotal(invoice);
+  return gesamt > 0 && (bezahlt || 0) >= gesamt - 0.005;
+}
+
+/**
  * Formatiert ein Datum im Format DD.MM.YYYY
  * @param date Datum als Date-Objekt oder ISO-String
  */
