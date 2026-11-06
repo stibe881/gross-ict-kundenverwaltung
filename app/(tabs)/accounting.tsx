@@ -26,7 +26,7 @@ import { ExpenseFormModal } from "@/components/expense-form-modal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { ImageViewerModal } from "@/components/image-viewer-modal";
-import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
+import { formatCurrency, formatDate, getInvoiceTotal, istVollBezahlt } from "@/lib/format";
 import { router as expoRouter } from "expo-router";
 import { showConfirm, showAlert } from "@/lib/alert";
 import { showToast } from "@/components/toast-provider";
@@ -238,9 +238,14 @@ export default function AccountingScreen() {
 
   const yearInvoices = useMemo(
     () =>
-      invoices?.filter(
-        (i: any) => new Date(i.invoice_date).getFullYear() === selectedYear,
-      ) || [],
+      invoices
+        ?.filter((i: any) => new Date(i.invoice_date).getFullYear() === selectedYear)
+        // Ältere Rechnungen können vollständig bezahlt sein, ohne dass der Status nachgezogen wurde
+        .map((i: any) =>
+          (i.status === "open" || i.status === "sent") && istVollBezahlt(i, i.paid_amount || 0)
+            ? { ...i, status: "paid" }
+            : i,
+        ) || [],
     [invoices, selectedYear],
   );
 
