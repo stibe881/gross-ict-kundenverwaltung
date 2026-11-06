@@ -20,7 +20,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { CustomerPickerModal } from "@/components/customer-picker-modal";
-import { formatCurrency, formatDate, getInvoiceTotal } from "@/lib/format";
+import { formatCurrency, formatDate, getInvoiceTotal, MWST_PFLICHTIG } from "@/lib/format";
 import { InvoiceFormModal } from "@/components/invoice-form-modal-v2";
 import { LinkedRecords } from "@/components/linked-records";
 import { downloadInvoicePDF, generateInvoicePDFBase64 } from "@/lib/pdf-utils";
@@ -435,12 +435,14 @@ export default function InvoiceDetailScreen() {
                                         {formatCurrency(invoice.subtotal)}
                                     </Text>
                                 </View>
+                                {MWST_PFLICHTIG && (
                                 <View className="flex-row justify-between">
                                     <Text className="text-sm text-muted">MwSt.</Text>
                                     <Text className="text-sm text-foreground">
                                         {formatCurrency(invoice.vat_amount)}
                                     </Text>
                                 </View>
+                                )}
                                 <View className="flex-row justify-between">
                                     <Text className="text-sm text-muted">Bezahlt</Text>
                                     <Text className="text-sm font-semibold text-success">
@@ -512,7 +514,7 @@ export default function InvoiceDetailScreen() {
                                             <Text className="text-sm font-semibold text-foreground">{item.description}</Text>
                                             <View className="flex-row justify-between mt-1">
                                                 <Text className="text-xs text-muted">
-                                                    {item.quantity} × {formatCurrency(item.unit_price)} · MwSt: {item.vat_rate}%
+                                                    {item.quantity} × {formatCurrency(item.unit_price)}{MWST_PFLICHTIG ? ` · MwSt: ${item.vat_rate}%` : ""}
                                                 </Text>
                                                 <Text className="text-sm font-semibold text-foreground">
                                                     {formatCurrency(item.total)}

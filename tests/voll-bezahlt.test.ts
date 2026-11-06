@@ -21,3 +21,14 @@ describe("Rechnung vollständig bezahlt", () => {
     expect(istVollBezahlt({ total: 0, items: [] }, 0)).toBe(false);
   });
 });
+
+import { calculateVAT, calculateGross, MWST_PFLICHTIG, STANDARD_MWST_SATZ } from "../lib/format";
+
+describe("Keine MwSt, solange nicht MWST-pflichtig", () => {
+  it("schlägt keine MwSt auf", () => {
+    expect(MWST_PFLICHTIG).toBe(false);
+    expect(calculateVAT(52.5, 8.1)).toBe(0);
+    expect(calculateGross(525, 8.1)).toBe(525);
+    expect(STANDARD_MWST_SATZ).toBe(0);
+  });
+});

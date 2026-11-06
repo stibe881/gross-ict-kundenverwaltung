@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { generateInvoicePDF, InvoiceData } from "./pdf-generator.ts";
 import { resendGrund } from "../_shared/resend-fehler.ts";
 import { htmlZuText } from "../_shared/mail-text.ts";
+import { rechnungsbetrag } from "../_shared/rechnungsbetrag.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,7 +37,7 @@ function buildInvoiceEmailHTML(invoice: any, trackingUrl?: string, bank?: { acco
       </div>
       <div style="padding: 24px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 8px 8px;">
         <p>Sehr geehrte Damen und Herren,</p>
-        <p>anbei erhalten Sie die Rechnung <strong>${invoice.invoice_number}</strong> über <strong>CHF ${fmtCHF(invoice.total)}</strong>.</p>
+        <p>anbei erhalten Sie die Rechnung <strong>${invoice.invoice_number}</strong> über <strong>CHF ${fmtCHF(rechnungsbetrag(invoice))}</strong>.</p>
         <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
           <tr>
             <td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Rechnungsdatum:</strong></td>
@@ -48,7 +49,7 @@ function buildInvoiceEmailHTML(invoice: any, trackingUrl?: string, bank?: { acco
           </tr>
           <tr>
             <td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Betrag:</strong></td>
-            <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; color: #1a1a2e;">CHF ${fmtCHF(invoice.total)}</td>
+            <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; color: #1a1a2e;">CHF ${fmtCHF(rechnungsbetrag(invoice))}</td>
           </tr>
         </table>
         ${payButton}
@@ -138,7 +139,7 @@ Deno.serve(async (req) => {
         })),
         subtotal: invoice.subtotal,
         totalVat: invoice.vat_amount,
-        total: invoice.total,
+        total: rechnungsbetrag(invoice),
         paidAmount: invoice.paid_amount,
         dunningLevel: invoice.dunning_level,
         ...bank,

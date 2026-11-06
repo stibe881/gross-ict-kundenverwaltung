@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { formatCurrency, VAT_RATES, calculateVAT } from "@/lib/format";
+import { formatCurrency, VAT_RATES, calculateVAT, MWST_PFLICHTIG, STANDARD_MWST_SATZ } from "@/lib/format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Data from "@/lib/data";
 import { showAlert } from "@/lib/alert";
@@ -90,7 +90,7 @@ export function InvoiceFormModal({
             unit: item.unit || "Stk.",
             unitPrice: String(item.unit_price || ""),
             discountPercentage: String(item.discount_percentage || "0"),
-            vatRate: item.vat_rate || VAT_RATES.normal,
+            vatRate: MWST_PFLICHTIG ? (item.vat_rate || STANDARD_MWST_SATZ) : STANDARD_MWST_SATZ,
           }))
         );
       }
@@ -101,7 +101,7 @@ export function InvoiceFormModal({
   }, [visible, editInvoice, nextNumber, initialCustomerId]);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", discountPercentage: "0", vatRate: VAT_RATES.normal },
+    { id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", discountPercentage: "0", vatRate: STANDARD_MWST_SATZ },
   ]);
   const [showProductPicker, setShowProductPicker] = useState<string | null>(null);
   const [showNewProductForm, setShowNewProductForm] = useState(false);
@@ -111,7 +111,7 @@ export function InvoiceFormModal({
   const [newProductName, setNewProductName] = useState("");
   const [newProductDesc, setNewProductDesc] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
-  const [newProductVat, setNewProductVat] = useState<number>(VAT_RATES.normal);
+  const [newProductVat, setNewProductVat] = useState<number>(STANDARD_MWST_SATZ);
   const [newProductForItem, setNewProductForItem] = useState<string | null>(null);
   const [paymentTermsDays, setPaymentTermsDays] = useState(30);
 
@@ -147,7 +147,7 @@ export function InvoiceFormModal({
         unit: "Stk.",
         unitPrice: "",
         discountPercentage: "0",
-        vatRate: VAT_RATES.normal,
+        vatRate: STANDARD_MWST_SATZ,
       },
     ]);
   };
@@ -188,7 +188,7 @@ export function InvoiceFormModal({
               unit: product.unit || "Stk.",
               unitPrice: String(product.price),
               discountPercentage: "0",
-              vatRate: product.vat_rate != null ? parseFloat(String(product.vat_rate)) : VAT_RATES.normal,
+              vatRate: MWST_PFLICHTIG && product.vat_rate != null ? parseFloat(String(product.vat_rate)) : STANDARD_MWST_SATZ,
             }
             : item
         )
@@ -325,7 +325,7 @@ export function InvoiceFormModal({
   const resetForm = () => {
     setInvoiceNumber("");
     setSelectedCustomerId(initialCustomerId || null);
-    setItems([{ id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", discountPercentage: "0", vatRate: VAT_RATES.normal }]);
+    setItems([{ id: "1", name: "", description: "", quantity: "1", unit: "Stk.", unitPrice: "", discountPercentage: "0", vatRate: STANDARD_MWST_SATZ }]);
   };
 
   // Produkt erstellen
@@ -349,7 +349,7 @@ export function InvoiceFormModal({
                 name: newProduct.name,
                 description: newProduct.description || "",
                 unitPrice: String(newProduct.price || newProduct.unit_price || ""),
-                vatRate: parseFloat(newProduct.vat_rate || newProduct.vatRate || "8.1"),
+                vatRate: MWST_PFLICHTIG ? parseFloat(newProduct.vat_rate || newProduct.vatRate || "8.1") : STANDARD_MWST_SATZ,
               }
               : item
           )
@@ -368,7 +368,7 @@ export function InvoiceFormModal({
     setNewProductName("");
     setNewProductDesc("");
     setNewProductPrice("");
-    setNewProductVat(VAT_RATES.normal);
+    setNewProductVat(STANDARD_MWST_SATZ);
     setNewProductForItem(null);
   };
 
@@ -401,7 +401,7 @@ export function InvoiceFormModal({
         unit: item.unit || "Stk.",
         unitPrice: parseFloat(item.unitPrice) || 0,
         discountPercentage: item.discountPercentage,
-        vatRate: item.vatRate,
+        vatRate: MWST_PFLICHTIG ? item.vatRate : 0,
         total: calculateItemTotal(item).net, // Total should be net for items, or gross? Actually, total here matches calculateItemTotal.net usually. Wait, previously it was qty * unitPrice, which is net.
       })),
     };
@@ -659,6 +659,7 @@ export function InvoiceFormModal({
 
                     {/* MwSt-Satz und Positionstotal */}
                     <View className="flex-row items-end gap-3 mb-2">
+                      {MWST_PFLICHTIG && (
                       <View className="flex-1">
                         <Text className="text-xs text-muted mb-1">MwSt-Satz</Text>
                         <View className="flex-row gap-2">
@@ -690,6 +691,7 @@ export function InvoiceFormModal({
                           ))}
                         </View>
                       </View>
+                      )}
 
                       {/* Zwischensumme */}
                       {item.unitPrice ? (
@@ -876,15 +878,17 @@ export function InvoiceFormModal({
                       </View>
                   )}
 
-                  <View className="flex-row justify-between pt-1">
-                    <Text className="text-sm text-muted">MwSt</Text>
-                    <Text className="text-sm font-semibold text-foreground">
-                      {formatCurrency(totalVAT)}
-                    </Text>
-                  </View>
+                  {MWST_PFLICHTIG && (
+                    <View className="flex-row justify-between pt-1">
+                      <Text className="text-sm text-muted">MwSt</Text>
+                      <Text className="text-sm font-semibold text-foreground">
+                        {formatCurrency(totalVAT)}
+                      </Text>
+                    </View>
+                  )}
                   <View className="flex-row justify-between pt-2 border-t border-border">
                     <Text className="text-base font-bold text-foreground">
-                      Brutto
+                      {MWST_PFLICHTIG ? "Brutto" : "Total"}
                     </Text>
                     <Text className="text-base font-bold text-primary">
                       {formatCurrency(totalGross)}

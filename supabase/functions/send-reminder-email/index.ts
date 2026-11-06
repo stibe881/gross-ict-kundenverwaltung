@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rechnungsbetrag } from "../_shared/rechnungsbetrag.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,7 +54,7 @@ Deno.serve(async (req) => {
     const { data: settings } = await supabase.from("dunning_settings").select("*").limit(1).single();
     const { data: invoiceSettingsData } = await supabase.from("invoice_settings").select("*").limit(1).single();
 
-    const remainingAmount = invoice.total - (invoice.paid_amount || 0);
+    const remainingAmount = rechnungsbetrag(invoice) - (invoice.paid_amount || 0);
     const dunningLevel = Math.min(Math.max(level, 0), 3);
 
     // Texte aus Settings oder Defaults
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
         });
         // Rechnungstotal aktualisieren
         await supabase.from("invoices").update({
-          total: invoice.total + fee,
+          total: rechnungsbetrag(invoice) + fee,
           subtotal: invoice.subtotal + fee,
         }).eq("id", id);
 

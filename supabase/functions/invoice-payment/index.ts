@@ -2,6 +2,7 @@
 // Aufruf aus der Rechnungs-E-Mail: .../invoice-payment?id=<invoiceId>
 // Die Verbuchung übernimmt der stripe-webhook nach erfolgreicher Zahlung.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rechnungsbetrag } from "../_shared/rechnungsbetrag.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,14 +46,14 @@ Deno.serve(async (req) => {
     );
     const { data: invoice } = await supabase
       .from("invoices")
-      .select("id, invoice_number, total, paid_amount, status, customer:customers(email, company_name, first_name, last_name)")
+      .select("id, invoice_number, total, paid_amount, status, items:invoice_items(total), customer:customers(email, company_name, first_name, last_name)")
       .eq("id", id)
       .maybeSingle();
 
     if (!invoice) return page("Rechnung nicht gefunden", "Dieser Zahlungslink ist nicht (mehr) gültig.", false);
     if (invoice.status === "cancelled") return page("Rechnung storniert", "Diese Rechnung wurde storniert – es ist keine Zahlung nötig.", false);
 
-    const openAmount = Math.max(0, (invoice.total || 0) - (invoice.paid_amount || 0));
+    const openAmount = Math.max(0, rechnungsbetrag(invoice) - (invoice.paid_amount || 0));
     if (invoice.status === "paid" || openAmount < 0.05) {
       return page("Bereits bezahlt", `Die Rechnung ${invoice.invoice_number} ist bereits vollständig bezahlt. Vielen Dank!`, true);
     }

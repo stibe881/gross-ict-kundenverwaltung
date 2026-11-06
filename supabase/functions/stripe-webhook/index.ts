@@ -2,6 +2,7 @@
 // automatisch auf der Rechnung. Endpoint in Stripe anlegen und das Secret
 // als STRIPE_WEBHOOK_SECRET hinterlegen (supabase secrets set ...).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rechnungsbetrag } from "../_shared/rechnungsbetrag.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -90,8 +91,7 @@ Deno.serve(async (req) => {
 
     const newPaid = (invoice.paid_amount || 0) + amount;
     // Gesamtbetrag wie in der App aus den Positionen; das DB-Feld «total» kann veraltet sein
-    const posSumme = (invoice.items || []).reduce((sum: number, i: any) => sum + (Number(i.total) || 0), 0);
-    const gesamt = posSumme > 0 ? posSumme : (invoice.total || 0);
+    const gesamt = rechnungsbetrag(invoice);
     const newStatus = gesamt > 0 && newPaid >= gesamt - 0.01 ? "paid" : "open";
     await supabase.from("invoices").update({ paid_amount: newPaid, status: newStatus }).eq("id", invoiceId);
     await supabase.from("invoice_activities").insert({

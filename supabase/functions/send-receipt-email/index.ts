@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { generateInvoicePDF, InvoiceData } from "../send-invoice-email/pdf-generator.ts";
 import { resendGrund } from "../_shared/resend-fehler.ts";
+import { rechnungsbetrag } from "../_shared/rechnungsbetrag.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -127,8 +128,8 @@ Deno.serve(async (req) => {
         })),
         subtotal: invoice.subtotal,
         totalVat: invoice.vat_amount,
-        total: invoice.total,
-        paidAmount: invoice.total,
+        total: rechnungsbetrag(invoice),
+        paidAmount: rechnungsbetrag(invoice),
         notes: `Betrag dankend erhalten — bezahlt am ${fmtDate(now)} via Tap to Pay auf dem iPhone.`,
       };
     } else {

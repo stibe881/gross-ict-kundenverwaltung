@@ -61,6 +61,12 @@ export function formatDateTime(date: Date | string): string {
 /**
  * Schweizer MwSt-Sätze
  */
+/**
+ * Gross ICT ist nicht MWST-pflichtig (Einzelfirma unter CHF 100'000 Jahresumsatz): Rechnungen werden ohne
+ * MwSt gestellt und weisen keine aus. Erst auf true setzen, wenn die MwSt-Pflicht eintritt (ESTV-Anmeldung).
+ */
+export const MWST_PFLICHTIG = false;
+
 export const VAT_RATES = {
   normal: 8.1,
   reduced: 2.6,
@@ -68,12 +74,16 @@ export const VAT_RATES = {
   none: 0,
 } as const;
 
+/** Vorgabe-Satz für neue Positionen: 8.1 % nur bei MWST-Pflicht, sonst 0 %. */
+export const STANDARD_MWST_SATZ: number = MWST_PFLICHTIG ? VAT_RATES.normal : VAT_RATES.none;
+
 /**
  * Berechnet den MwSt-Betrag
  * @param amount Nettobetrag
  * @param rate MwSt-Satz in Prozent
  */
 export function calculateVAT(amount: number, rate: number): number {
+  if (!MWST_PFLICHTIG) return 0; // nicht MWST-pflichtig: keine MwSt aufschlagen
   return (amount * rate) / 100;
 }
 
